@@ -1,0 +1,195 @@
+Fiche Technique MedCareSO
+
+Version médecin
+
+Cette fiche présente les fonctionnalités métier du logiciel, du point de
+vue du médecin et du cabinet, sans détail informatique.
+
+Objectif du logiciel
+
+MedCareSO est une solution de gestion de cabinet médical qui centralise
+le parcours patient, depuis la prise de rendez-vous jusqu’au suivi
+clinique, la génération des documents médicaux et le suivi des
+paiements.
+
+Fonctionnalités principales
+
+1. Tableau de bord du cabinet
+
+- Vue rapide sur le nombre de patients
+- Affichage des rendez-vous du jour
+- Suivi du volume de consultations et d’ordonnances
+- Accès direct aux activités quotidiennes du cabinet
+
+2. Gestion des patients
+
+- Création et mise à jour de la fiche patient
+- Recherche rapide d’un patient
+- Consultation des informations administratives et médicales
+- Historique médical du patient dans un seul dossier
+- Accès centralisé à tous les documents liés au patient
+
+3. Dossier médical patient
+
+Chaque patient dispose d’un dossier complet avec:
+
+- Historique des consultations
+- Historique des ordonnances
+- Certificats médicaux
+- Factures
+- Rapports médicaux
+- Documents “Faire SVP”
+- Lettres d’orientation
+- Pièces jointes et documents importés
+- Historique des rendez-vous
+
+4. Consultations
+
+- Enregistrement d’une nouvelle consultation
+- Saisie du motif de consultation
+- Saisie des constantes et données cliniques
+- Examen clinique
+- Diagnostic
+- Notes médicales
+- Lien entre consultation, documents et paiements
+- Suivi chronologique des consultations par patient
+
+5. Ordonnances
+
+- Création d’ordonnances directement depuis le dossier patient
+- Ajout de plusieurs médicaments
+- Conservation de l’historique des ordonnances
+- Impression rapide des ordonnances
+
+6. Certificats médicaux
+
+- Création de certificats médicaux et arrêts de travail
+- Saisie des dates de début et de fin
+- Calcul de la durée
+- Archivage dans le dossier patient
+- Impression du document
+
+7. Rapports et documents médicaux
+
+- Création de rapports médicaux
+- Génération de comptes rendus
+- Création de documents personnalisés pour le patient
+- Gestion des documents “Faire SVP”
+- Création de lettres d’orientation vers une autre spécialité ou
+  structure
+
+8. Prescriptions d’analyses
+
+- Prescription d’analyses biologiques ou examens demandés
+- Ajout de plusieurs analyses dans une même demande
+- Mention du laboratoire
+- Ajout d’instructions ou notes cliniques
+
+9. Rendez-vous et agenda
+
+- Création de nouveaux rendez-vous
+- Gestion du planning du cabinet
+- Vue jour, semaine et mois
+- Classement des rendez-vous par type
+- Recherche rapide d’un patient ou d’un rendez-vous
+- Suivi du statut du rendez-vous: planifié, confirmé, terminé, annulé ou
+  absent
+- Historique des rendez-vous par patient
+- Impression du ticket de rendez-vous
+
+10. SMS patients
+
+Le logiciel intègre un volet SMS pour améliorer la communication avec
+les patients:
+
+- Envoi d’un SMS lors de l’enregistrement d’un rendez-vous
+- Envoi de SMS de rappel avant le rendez-vous
+- Personnalisation du texte du message
+- Intégration du nom du patient, de la date, de l’heure, du type de
+  rendez-vous et du contact du cabinet
+- Réduction des oublis et des absences
+
+11. Salle d’attente
+
+- Gestion de la file d’attente des patients
+- Visualisation des patients en attente
+- Suivi des patients en consultation
+- Visualisation des consultations terminées dans la journée
+- Meilleure organisation du flux patient au cabinet
+
+12. Résumé du jour
+
+- Vue synthétique de l’activité quotidienne
+- Liste des consultations du jour
+- Affichage des horaires, patients, motifs et diagnostics
+- Impression du résumé de la journée
+
+13. Paiements et facturation
+
+- Enregistrement des paiements patients
+- Génération de factures
+- Suivi des montants réglés et non réglés
+- Gestion des dossiers impayés
+- Liaison entre acte, facture et règlement
+
+14. Imagerie médicale
+
+- Intégration d’examens d’imagerie dans le dossier patient
+- Classement par famille d’examen: Radiographie, IRM, Scanner CT,
+  Échographie, Mammographie
+- Consultation des examens importés
+- Accès rapide à l’imagerie depuis le dossier du patient
+
+15. Rééducation / MPR
+
+Module adapté au suivi fonctionnel:
+
+- Bilans fonctionnels
+- Plans de rééducation
+- Suivi de progression
+- Organisation du parcours de prise en charge rééducative
+
+16. Module dentaire
+
+Pour les cabinets ou praticiens concernés:
+
+- Dossier dentaire patient
+- Schéma dentaire
+- Suivi des traitements
+- Suivi des coûts et impayés
+- Gestion des images dentaires
+
+17. Statistiques d’activité
+
+- Vue globale sur l’activité du cabinet
+- Suivi du nombre de rendez-vous
+- Suivi du nombre de consultations
+- Suivi du nombre d’ordonnances
+- Suivi du nombre de certificats médicaux
+- Aide au pilotage de l’activité
+
+Bénéfices pour le médecin
+
+- Dossier patient complet et structuré
+- Gain de temps dans la consultation et l’édition des documents
+- Meilleure organisation du planning et de la salle d’attente
+- Réduction des oublis grâce aux SMS de rappel
+- Centralisation des actes médicaux, documents et paiements
+- Meilleure traçabilité du parcours patient
+
+Utilisation type au cabinet
+
+1.  Rechercher ou ouvrir le dossier patient
+2.  Enregistrer la consultation
+3.  Produire si besoin l’ordonnance, le certificat, le rapport ou
+    l’orientation
+4.  Programmer le prochain rendez-vous
+5.  Envoyer automatiquement la confirmation ou le rappel par SMS
+6.  Finaliser la facturation et le suivi du paiement
+
+Conclusion
+
+MedCareSO est une solution de gestion de cabinet pensée pour faciliter
+le travail quotidien du médecin, améliorer l’organisation du cabinet et
+assurer un suivi patient plus fluide, plus documenté et plus
+professionnel.

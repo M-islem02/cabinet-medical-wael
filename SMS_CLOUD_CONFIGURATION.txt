@@ -1,0 +1,147 @@
+╔══════════════════════════════════════════════════════════════════╗
+║              MEDCARESO - CONFIGURATION SMS & CLOUD              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Ce guide explique comment configurer:
+1) SMS (rappels de rendez-vous)
+2) Cloud Sync (sauvegarde/synchronisation)
+
+────────────────────────────────────────────────────────────────────
+PRÉREQUIS
+────────────────────────────────────────────────────────────────────
+• Lancer MedCareSO
+• Se connecter avec un compte Admin
+• Vérifier que la base locale fonctionne (mode SQLite recommandé)
+
+
+====================================================================
+1) CONFIGURATION SMS
+====================================================================
+Chemin:
+Administration → Paramètres/Configuration → SMS
+
+A) Mode MODEM (clé 3G/4G USB)
+--------------------------------
+1. Brancher le modem GSM + carte SIM active.
+2. Cliquer "Lister les ports".
+3. Choisir le port série détecté (ex: COM3 ou /dev/ttyUSB0).
+4. Baud rate: 9600 (valeur recommandée).
+5. Code pays: ex +213.
+6. Activer "SMS" puis enregistrer.
+7. Envoyer un SMS test.
+
+B) Mode API (Twilio / Infobip / HTTP)
+-------------------------------------
+1. Sélectionner mode "API".
+2. Renseigner:
+   • Provider
+   • API URL
+   • API Key (et SID/Token si demandé)
+   • Expéditeur (From)
+3. Enregistrer.
+4. Envoyer un SMS test.
+
+Rappels automatiques SMS
+------------------------
+1. Activer "Envoi automatique des rappels".
+2. Définir le nombre d'heures avant le RDV (ex: 24h).
+3. Personnaliser le modèle message:
+   Variables disponibles: {cabinet}, {date}, {heure}, {patient}, {type}
+4. Enregistrer.
+
+
+====================================================================
+2) CONFIGURATION CLOUD SYNC
+====================================================================
+Chemin:
+Administration → Paramètres/Configuration → Cloud Sync
+
+A) Sauvegarde locale (recommandé en premier)
+--------------------------------------------
+1. Cliquer "Créer backup local".
+2. Vérifier la liste des backups.
+3. Tester une restauration sur environnement de test.
+
+B) Provider REST API
+--------------------
+1. Activer Cloud Sync.
+2. Provider: REST.
+3. Renseigner:
+   • API URL (https://...)
+   • API Key
+4. Activer "Auto Sync".
+5. Intervalle (minutes): 30/60 recommandé.
+6. Cliquer "Sync maintenant".
+
+C) Provider MariaDB distant
+---------------------------
+1. Provider: MariaDB.
+2. Renseigner:
+   • Host
+   • Port (3306)
+   • User
+   • Password
+   • Database
+3. Activer Auto Sync si nécessaire.
+4. Cliquer "Sync maintenant".
+
+D) Backup fin de journée (automatique)
+--------------------------------------
+1. Activer "Backup quotidien".
+2. Définir l'heure (ex: 23:55).
+3. Optionnel: activer "Push cloud fin de journée".
+4. Enregistrer.
+
+Important:
+• Même si "Sync cloud" est désactivé, le backup local quotidien peut rester actif.
+• Si internet est coupé, le backup local est toujours créé.
+
+E) Envoi vers Telegram (optionnel)
+----------------------------------
+1. Créer un Bot Telegram avec @BotFather.
+2. Récupérer BOT TOKEN.
+3. Récupérer CHAT ID (utilisateur/groupe).
+4. Activer "Telegram backup".
+5. Renseigner TOKEN + CHAT ID.
+6. Enregistrer.
+
+Le fichier backup JSON sera envoyé au chat Telegram à l'heure planifiée.
+
+
+====================================================================
+3) BONNES PRATIQUES
+====================================================================
+• Toujours garder la sauvegarde locale active.
+• Tester "SMS test" après chaque changement.
+• Tester "Sync maintenant" après chaque changement cloud.
+• Ne pas partager API Key, Token, mots de passe.
+• Si internet instable: garder SQLite + backups locaux.
+
+
+====================================================================
+4) DÉPANNAGE RAPIDE
+====================================================================
+• SMS non envoyé:
+  - Vérifier mode (modem/api)
+  - Vérifier port série / API Key
+  - Vérifier format du numéro
+
+• Cloud sync échoue:
+  - Vérifier internet
+  - Vérifier URL/API Key
+  - Vérifier accès base distante (si MariaDB)
+   - Si "Sync non activé": lancer "Sync maintenant" crée au minimum un backup local
+
+• MariaDB local indisponible:
+  - Utiliser SQLite (mode local) pour continuer à travailler
+
+
+====================================================================
+5) VÉRIFICATION FINALE
+====================================================================
+✓ SMS test envoyé avec succès
+✓ Un rappel auto apparaît dans les logs
+✓ Backup local créé
+✓ Sync cloud manuelle réussie
+
+Fin du guide.

@@ -1,0 +1,79 @@
+PHYSIOCARE / MEDCARESO - GUIDE D'INSTALLATION COMPLET (TXT)
+Version package: 2.1.1
+
+============================================================
+1) INSTALLATION PC SERVEUR (PC1 - celui qui héberge la base)
+============================================================
+
+A. Installer MariaDB
+- Aller dans: release\SETUP_PACKAGE_2.1.1\MARIADB_SETUP\
+- Exécuter: INSTALLER_MARIADB_AUTO.bat (clic droit > Exécuter en tant qu'administrateur)
+- Attendre la fin de l'installation.
+
+B. Préparer la base de données
+- Ouvrir HeidiSQL (ou client SQL MariaDB)
+- Se connecter au serveur local MariaDB
+- Exécuter le script:
+  SCRIPT_SQL_COMPLET.sql
+  (fichier disponible dans MARIADB_SETUP et SOFTWARE_SETUP)
+
+C. Installer le logiciel
+- Aller dans: release\SETUP_PACKAGE_2.1.1\SOFTWARE_SETUP\
+- Exécuter: MedCareSO Setup 2.1.1.exe
+- Terminer l'installation.
+
+D. Première configuration dans l'application
+- Hôte: localhost
+- Port: 3306
+- Base: physiocare
+- Utilisateur: physiocare_user
+- Mot de passe: PhysioCare2024!
+- Tester puis sauvegarder.
+
+E. Compte admin
+- Voir le fichier: ADMIN_CREDENTIALS.txt
+
+
+============================================================
+2) INSTALLATION PC CLIENT (PC2)
+============================================================
+
+A. Installer le logiciel
+- Copier le dossier package sur PC2
+- Exécuter: SOFTWARE_SETUP\MedCareSO Setup 2.1.1.exe
+
+B. Relier PC2 à la base de PC1
+- Connecter PC1 et PC2 au même réseau (même hotspot / même routeur)
+- Dans la configuration DB de l'app sur PC2:
+  - Hôte: IP de PC1 (ex: 172.20.10.6)
+  - Port: 3306
+  - Base: physiocare
+  - Utilisateur: physiocare_user
+  - Mot de passe: PhysioCare2024!
+- Tester puis sauvegarder.
+
+C. Vérification réseau (optionnel)
+- Depuis PC2, PowerShell:
+  Test-NetConnection <IP_PC1> -Port 3306
+- Le résultat doit indiquer TcpTestSucceeded = True.
+
+
+============================================================
+3) NOTES IMPORTANTES
+============================================================
+
+- Pare-feu PC1: le port 3306 doit être autorisé.
+- MariaDB PC1 doit écouter sur le réseau (bind-address = 0.0.0.0).
+- Si l'IP de PC1 change (hotspot redémarré), mettre à jour le champ Hôte sur PC2.
+- La licence et les données sont partagées si les 2 PCs pointent vers la même base MariaDB.
+
+
+============================================================
+4) FICHIERS PRINCIPAUX DU PACKAGE
+============================================================
+
+- SOFTWARE_SETUP\MedCareSO Setup 2.1.1.exe
+- SOFTWARE_SETUP\MedCareSO-2.1.1-Portable.exe
+- MARIADB_SETUP\INSTALLER_MARIADB_AUTO.bat
+- MARIADB_SETUP\SCRIPT_SQL_COMPLET.sql
+- ADMIN_CREDENTIALS.txt

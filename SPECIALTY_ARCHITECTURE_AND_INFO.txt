@@ -1,0 +1,573 @@
+MEDCARESO - SPECIALTY ARCHITECTURE, CREDENTIALS, LICENSES, INFO
+
+==================================================
+1. CURRENT CREDENTIALS / LICENSE INFO
+==================================================
+
+Default admin account:
+- Username: admin
+- Password: admin2024
+
+Known license keys from current app logic:
+- 7-day trial key: MEDPRO-TRIAL-7JOURS
+- Unlimited key: MEDPRO-ILLIMITEE-ACTIVE
+
+Current runtime idea:
+- Only admin can enter when there is no active license or when the trial/license is expired.
+- Admin activates the specialty/license from the app.
+- Only the active specialty should be loaded at runtime.
+
+==================================================
+2. PRACTICAL ARCHITECTURE RECOMMENDATION
+==================================================
+
+Goal:
+- One codebase
+- Multiple specialties available in source
+- Only licensed specialty loaded at runtime
+- Fast Electron startup
+- Low RAM / CPU
+- Easy long-term maintenance
+
+Main recommendation:
+- Keep one Electron shell app
+- Build a small core platform
+- Put each specialty in its own isolated module
+- Load only the active specialty using dynamic import
+- Keep non-activated specialties out of menus, routes, services, and background tasks
+
+Best approach:
+- Core app = login, license, user/session, shell layout, settings, updater, shared database access, shared patients/payments/documents
+- Specialty module = screens, workflows, reports, specialty-specific tables/services
+- Registry = map specialty key -> loader
+- License/feature gate = decides what can load
+
+==================================================
+3. WILL MANY SPECIALTIES MAKE ONE ELECTRON APP HEAVY?
+==================================================
+
+Yes, but only if you load everything at startup.
+
+If all specialties are imported on app launch:
+- bigger startup bundle
+- slower first screen
+- more RAM
+- more background listeners
+- more hidden DOM/components
+- more database/service initialization
+
+If specialties stay modular and only the active one is loaded:
+- one codebase is still fine
+- startup stays fast
+- RAM stays lower
+- scaling stays manageable
+
+So the problem is not "many specialties in one repo".
+The real problem is "many specialties initialized at runtime".
+
+==================================================
+4. LOAD ALL AT STARTUP VS LOAD ONLY ACTIVE SPECIALTY
+==================================================
+
+Load all at startup:
+- All specialty JS imported immediately
+- All menus/routes/components registered
+- All heavy editors/forms/watchers/listeners loaded
+- Worst for startup time and memory
+
+Load only active specialty:
+- License checked first
+- Detect active specialty
+- Import only that specialty module
+- Register only its routes, menus, services, reports
+- Best for performance
+
+Recommended:
+- Load core immediately
+- Load active specialty on demand
+- Keep other specialties unloaded
+
+==================================================
+5. MODULAR APP STRUCTURE
+==================================================
+
+Split into 3 layers:
+
+A. Core platform
+- Electron bootstrap
+- auth
+- license
+- shell layout
+- shared UI
+- patient base
+- payments
+- documents
+- settings
+- logging
+- updater
+
+B. Shared domain packages
+- common patient model
+- appointment model
+- billing model
+- document renderer
+- database access layer
+- event bus
+- permissions engine
+
+C. Specialty modules
+- general
+- dental
+- cardiology
+- dermatology
+- gynecology
+- etc.
+
+Each specialty module should expose the same contract:
+- metadata
+- route registration
+- menu registration
+- permissions
+- db migrations
+- background services
+- report templates
+
+==================================================
+6. LAZY LOADING / DYNAMIC IMPORT
+==================================================
+
+Use a registry.
+
+Example idea:
+- specialtyRegistry['cardiology'] = () => import('./specialties/cardiology/index.js')
+- specialtyRegistry['dental'] = () => import('./specialties/dental/index.js')
+
+At runtime:
+- app checks license
+- gets active specialty key
+- calls only that loader
+- module initializes itself
+
+Important:
+- Do not import all specialty modules at the top of the file
+- Use dynamic import only after the license/specialty is known
+- Keep specialty CSS/templates inside the same module and load them only when needed
+
+==================================================
+7. HOW TO MAKE NON-ACTIVATED SPECIALTIES COMPLETELY INACTIVE
+==================================================
+
+A specialty must be inactive at 6 levels:
+
+1. Not imported
+- no dynamic import call
+
+2. No route registration
+- routes not added to router
+
+3. No menu item
+- hidden from sidebar/top menu
+
+4. No service startup
+- no polling, watchers, schedulers, AI jobs, sync hooks
+
+5. No DB migration execution for inactive specialty-specific optional data
+- only shared migrations always run
+- specialty migrations run only when specialty activated, or be designed as cheap/no-op
+
+6. No component rendering
+- no hidden tabs with mounted heavy content
+
+That is how you keep it truly inactive.
+
+==================================================
+8. HOW TO MANAGE ROUTES
+==================================================
+
+Use route registration per specialty.
+
+Core routes:
+- /login
+- /dashboard
+- /patients
+- /payments
+- /settings
+
+Specialty routes:
+- /specialty/general/*
+- /specialty/cardiology/*
+- /specialty/dental/*
+
+Only register active specialty routes.
+
+Do not keep all specialty routes globally active.
+
+==================================================
+9. HOW TO MANAGE MENUS
+==================================================
+
+Use a menu builder:
+- core builds shared menu
+- active specialty contributes its own entries
+
+Example:
+- shared: patients, payments, settings
+- cardiology: cardiology workspace, ECG follow-up, cardio reports
+- dental: odontogram, treatment plan, dental imaging
+
+If specialty inactive:
+- no menu contribution
+
+==================================================
+10. HOW TO MANAGE PERMISSIONS
+==================================================
+
+Permissions should have 3 layers:
+
+1. User role
+- admin
+- doctor
+- assistant
+
+2. License features
+- specialty
+- AI reports
+- imaging
+- stock
+- cloud
+
+3. Context permissions
+- consultation open/closed
+- assistant read-only states
+- expired trial
+
+Use one central permission service:
+- canAccessRoute(user, feature, route)
+- canRenderMenu(user, feature, menu)
+- canRunAction(user, feature, action)
+
+Do not spread permission checks everywhere in random files.
+
+==================================================
+11. HOW TO MANAGE DATABASE MODELS
+==================================================
+
+Recommended rule:
+
+Shared tables:
+- users
+- licenses
+- settings
+- patients
+- appointments
+- payments
+- documents
+- attachments
+
+Specialty tables:
+- dental_records
+- cardiology_profiles
+- dermatology_lesions
+- gynecology_followups
+
+Best practice:
+- keep common data in shared tables
+- keep specialty-specific data in dedicated tables or specialty document payloads
+- avoid one giant table with hundreds of nullable columns for all specialties
+
+Recommended migration strategy:
+- core migrations always run
+- specialty migrations run when module becomes active for first time
+- migration version tracked per module
+
+==================================================
+12. HOW TO MANAGE BACKGROUND SERVICES
+==================================================
+
+Core services:
+- license validation
+- backup
+- updater
+- notifications
+- printer/scanner integration if global
+
+Specialty services:
+- only started by active module
+
+Example:
+- dental image watcher starts only in dental
+- cardiology report assistant starts only in cardiology
+- rehab session scheduler starts only in MPR
+
+Always expose:
+- start()
+- stop()
+
+When module unloads or user changes specialty:
+- stop specialty services cleanly
+
+==================================================
+13. HOW TO MANAGE UPDATES
+==================================================
+
+Keep one desktop app installer.
+
+Inside the app:
+- core version
+- specialty module version
+- migration version
+
+Recommended:
+- app update ships all code
+- runtime still loads only active specialty
+- post-update migrations run only for core + active specialty
+
+If using plugin-based modules later:
+- support plugin version compatibility with core API
+
+==================================================
+14. BEST PRACTICES TO REDUCE RAM / CPU IN ELECTRON
+==================================================
+
+1. Load one BrowserWindow for main app unless truly needed
+2. Avoid mounting hidden heavy screens
+3. Use dynamic import for specialty modules
+4. Do not preload large datasets at startup
+5. Paginate patient/history lists
+6. Debounce search inputs
+7. Avoid setInterval spam
+8. Stop timers/listeners when section closes
+9. Cache carefully, with limits
+10. Render charts only when visible
+11. Use virtualized tables for large records
+12. Avoid huge global state objects
+13. Move heavy calculations to worker threads or background process when needed
+14. Do not keep all documents/previews in memory
+15. Keep IPC contracts small
+
+==================================================
+15. IS PLUGIN-BASED ARCHITECTURE BETTER?
+==================================================
+
+For your case:
+
+Short term:
+- modular monolith is best
+
+Why:
+- simpler
+- faster to build
+- easier debugging
+- one installer
+- one release pipeline
+
+Long term:
+- plugin-based can become better if specialties become very large and independent
+
+Plugin-based advantages:
+- stronger isolation
+- optional shipping
+- separate release cycle
+- lower base app size
+
+Plugin-based disadvantages:
+- much more complexity
+- version compatibility problems
+- harder debugging
+- more installer/update complexity
+
+Recommendation:
+- Start with modular monolith
+- Design clear module contracts
+- Keep the code "plugin-ready"
+- Move to real plugins only if specialties become very large
+
+==================================================
+16. RECOMMENDED FOLDER STRUCTURE
+==================================================
+
+src/
+  main/
+    bootstrap/
+      app.js
+      windows.js
+      ipc.js
+    core/
+      license/
+      auth/
+      updater/
+      logging/
+      config/
+      db/
+        client.js
+        migrations/
+        repositories/
+      services/
+    specialties/
+      registry.js
+      general/
+        index.js
+        routes.js
+        permissions.js
+        migrations/
+        services/
+      cardiology/
+        index.js
+        routes.js
+        permissions.js
+        migrations/
+        services/
+        ui/
+      dental/
+        index.js
+        routes.js
+        permissions.js
+        migrations/
+        services/
+        ui/
+  renderer/
+    core/
+      app-shell/
+      router/
+      store/
+      shared-ui/
+      shared-pages/
+    specialties/
+      general/
+      cardiology/
+      dental/
+    assets/
+  shared/
+    contracts/
+    constants/
+    utils/
+
+==================================================
+17. STARTUP FLOW
+==================================================
+
+Recommended flow:
+
+1. Electron starts
+2. Load only minimal core
+3. Read local config/license cache
+4. Validate license
+5. Detect active specialty
+6. Build shared shell
+7. Register shared routes/menu
+8. Dynamically import active specialty
+9. Register active specialty routes/menu/services
+10. Show app
+
+Important:
+- license check before specialty import
+- specialty import before rendering specialty UI
+
+==================================================
+18. RISKS THAT CAN STILL MAKE THE APP HEAVY
+==================================================
+
+Even if only one specialty is active, app can still become heavy if:
+
+- all specialty code is bundled into the first renderer chunk
+- hidden tabs still mount heavy components
+- too many IPC listeners stay active
+- large patient tables rendered fully in DOM
+- repeated polling loops keep running
+- image/PDF previews are cached forever
+- logs grow too much in memory
+- charts load on dashboard even when not needed
+- giant shared stores keep all data from all screens
+- specialty CSS/assets/fonts are all loaded globally
+
+==================================================
+19. LONG-TERM MAINTENANCE RECOMMENDATIONS
+==================================================
+
+1. Define a strict module contract now
+2. Keep core and specialty boundaries clean
+3. Keep specialty DB migrations isolated
+4. Centralize permissions and feature flags
+5. Add performance budgets for startup and memory
+6. Measure startup time after each big feature
+7. Avoid cross-imports between specialties
+8. Keep shared utilities truly shared and small
+9. Add automated tests for license -> specialty loading flow
+10. Add health checks for timers/background services
+11. Version your module interfaces
+12. Document each specialty's routes/services/tables
+
+==================================================
+20. FINAL RECOMMENDED ARCHITECTURE
+==================================================
+
+Recommended architecture:
+- One Electron app
+- One shared core platform
+- One specialty registry
+- One active specialty loaded dynamically at runtime
+- Shared database for common entities
+- Specialty-specific tables/documents for specialty data
+- Central feature/permission engine
+- Core services always on
+- Specialty services only when active
+- Modular monolith now, plugin-ready design later
+
+This is the best balance for:
+- speed
+- simplicity
+- maintainability
+- future scaling
+
+==================================================
+21. PSEUDOCODE EXAMPLE
+==================================================
+
+specialtyRegistry = {
+  general: () => import('./specialties/general/index.js'),
+  cardiology: () => import('./specialties/cardiology/index.js'),
+  dental: () => import('./specialties/dental/index.js'),
+  dermatology: () => import('./specialties/dermatology/index.js'),
+  gynecology: () => import('./specialties/gynecology/index.js')
+}
+
+async function startApp() {
+  await initCore()
+
+  const license = await licenseService.getStatus()
+  if (!license.valid) {
+    return openAdminLicenseScreen()
+  }
+
+  const activeSpecialty = await licenseService.getActiveSpecialty()
+
+  await registerCoreRoutes()
+  await registerCoreMenus()
+
+  const loadSpecialty = specialtyRegistry[activeSpecialty] || specialtyRegistry.general
+  const specialtyModule = await loadSpecialty()
+
+  await specialtyModule.registerRoutes()
+  await specialtyModule.registerMenus()
+  await specialtyModule.runMigrations()
+  await specialtyModule.startServices()
+
+  return openMainWindow()
+}
+
+==================================================
+22. SHORT CONCLUSION
+==================================================
+
+Many specialties in one codebase is not the real problem.
+Loading too much at runtime is the real problem.
+
+Use:
+- one core
+- one registry
+- one active specialty
+- dynamic import
+- central permissions
+- specialty isolation
+
+That will keep the Electron app fast and scalable.

@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - MedCareSO</title>
+    <link rel="stylesheet" href="css/license.css">
+    <style>
+        :root {
+            --hero-gradient: linear-gradient(145deg, #0f3b66 0%, #145da0 48%, #1e88c8 100%);
+            --login-text-xs: 13px;
+            --login-text-sm: 14px;
+            --login-text-base: 15px;
+            --login-text-lg: 17px;
+            --login-title: clamp(2rem, 1.82rem + 0.65vw, 2.35rem);
+            --login-display: clamp(2.05rem, 1.88rem + 0.85vw, 2.65rem);
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background:
+                radial-gradient(circle at top left, rgba(20, 93, 160, 0.18), transparent 35%),
+                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 32%),
+                linear-gradient(180deg, #f3f8fd 0%, #eaf2fb 100%);
+            font-family: 'Segoe UI', 'Noto Sans', Tahoma, Arial, sans-serif;
+            color: #12314f;
+            line-height: 1.6;
+        }
+
+        .license-container {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(14px, 2.8vh, 28px) 20px;
+        }
+
+        .login-shell {
+            width: min(1120px, 100%);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 28px;
+            box-shadow: 0 28px 70px rgba(15, 37, 63, 0.18);
+            display: grid;
+            grid-template-columns: minmax(320px, 1.05fr) minmax(380px, 0.95fr);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(16px);
+        }
+
+        .login-hero {
+            background: var(--hero-gradient);
+            color: white;
+            padding: clamp(24px, 3vw, 38px);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 20px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .login-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at top right, rgba(255, 255, 255, 0.22), transparent 28%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%);
+            pointer-events: none;
+        }
+
+        .login-hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .hero-brand-mark {
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.15);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .hero-brand-mark img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+        }
+
+        .hero-brand-copy strong {
+            display: block;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+        }
+
+        .hero-brand-copy span {
+            display: block;
+            margin-top: 2px;
+            font-size: var(--login-text-sm);
+            opacity: 0.82;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: var(--login-text-xs);
+            padding: 5px 11px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            width: fit-content;
+        }
+
+        .login-hero h2 {
+            font-size: var(--login-display);
+            line-height: 1.12;
+            margin: 14px 0 10px;
+            max-width: 390px;
+        }
+
+        .hero-copy p {
+            max-width: 460px;
+            font-size: var(--login-text-base);
+            line-height: 1.58;
+            opacity: 0.92;
+        }
+
+        .hero-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: var(--login-text-sm);
+            line-height: 1.52;
+            margin: 0;
+            padding: 0;
+        }
+
+        .hero-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0.9;
+        }
+
+        .hero-list li span {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex: 0 0 20px;
+        }
+
+        .hero-support {
+            padding: 14px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            margin-top: auto;
+        }
+
+        .hero-support-title {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            opacity: 0.78;
+            margin-bottom: 8px;
+        }
+
+        .hero-support-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            font-size: var(--login-text-sm);
+            padding-top: 6px;
+        }
+
+        .hero-support-row strong {
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .login-panel {
+            padding: clamp(24px, 3vw, 38px);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.92);
+            overflow: visible;
+        }
+
+        .login-header {
+            text-align: left;
+        }
+
+        .login-header .logo img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .login-header h1 {
+            color: #12314f;
+            font-weight: 700;
+            margin: 10px 0 4px;
+            font-size: var(--login-title);
+        }
+
+        .login-header p {
+            color: #64748b;
+            font-size: var(--login-text-base);
+            line-height: 1.55;
+        }
+
+        .license-info {
+            background: #fff8f0;
+            border-left: 4px solid var(--warning-color);
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: var(--login-text-sm);
+            line-height: 1.5;
+        }
+
+        #login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .login-panel .form-group {
+            margin-bottom: 0;
+        }
+
+        .license-info.expired {
+            background: #ffebee;
+            border-left-color: var(--danger-color);
+        }
+
+        .license-info.valid {
+            background: #e8f5e9;
+            border-left-color: var(--success-color);
+        }
+
+        .input-with-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-with-icon .input-wrapper {
+            position: relative;
+        }
+
+        .input-with-icon .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            font-size: 16px;
+        }
+
+        .input-with-icon .form-control {
+            padding-left: 42px;
+            padding-right: 48px;
+            height: 54px;
+            border-radius: 14px;
+            border: 1px solid #d8e3ef;
+            background: #fbfdff;
+            font-size: var(--login-text-base);
+            font-family: 'Segoe UI', 'Noto Sans', Tahoma, Arial, sans-serif;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            color: #1e293b;
+        }
+
+        .input-with-icon .form-control::placeholder {
+            font-family: inherit;
+            font-weight: 400;
+            letter-spacing: normal;
+            color: #94a3b8;
+        }
+
+        .input-with-icon .form-control:focus {
+            border-color: #1e88c8;
+            box-shadow: 0 0 0 4px rgba(30, 136, 200, 0.12);
+            outline: none;
+            background: #ffffff;
+        }
+
+        .input-with-icon label {
+            font-size: var(--login-text-sm);
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: rgba(20, 93, 160, 0.08);
+            color: #145da0;
+            border-radius: 11px;
+            width: 34px;
+            height: 34px;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .password-toggle:hover {
+            background: rgba(20, 93, 160, 0.16);
+        }
+
+        .login-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .login-actions .btn {
+            min-height: 54px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .btn.btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-dark);
+        }
+
+        .trusted-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-light);
+        }
+
+        .forgot-password {
+            text-align: center;
+            font-size: var(--login-text-xs);
+        }
+
+        .forgot-password a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+
+        .login-footer {
+            margin-top: auto;
+            text-align: left;
+            font-size: 12px;
+            color: #64748b;
+            padding-top: 10px;
+            border-top: 1px solid #e5edf5;
+        }
+
+        #login-message {
+            font-size: var(--login-text-sm);
+            line-height: 1.55;
+        }
+
+        @media (max-width: 768px) {
+            .license-container {
+                padding: 16px;
+            }
+
+            .login-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .login-panel {
+                padding: 30px;
+            }
+
+            .login-hero {
+                padding: 30px;
+            }
+
+            .login-hero h2 {
+                font-size: 30px;
+            }
+        }
+
+        @media (max-height: 980px) {
+            body {
+                align-items: center;
+            }
+
+            .license-container {
+                padding-top: 12px;
+                padding-bottom: 12px;
+            }
+
+            .login-hero {
+                padding: 22px 24px;
+                gap: 16px;
+            }
+
+            .login-panel {
+                padding: 22px 24px;
+                gap: 12px;
+            }
+        }
+
+        @media (max-height: 860px) {
+            :root {
+                --login-text-xs: 12px;
+                --login-text-sm: 13px;
+                --login-text-base: 14px;
+                --login-title: clamp(1.8rem, 1.7rem + 0.45vw, 2.1rem);
+                --login-display: clamp(1.85rem, 1.72rem + 0.55vw, 2.3rem);
+            }
+
+            .license-container {
+                padding: 10px 14px;
+            }
+
+            .login-shell {
+                border-radius: 22px;
+            }
+
+            .login-hero,
+            .login-panel {
+                padding: 18px 20px;
+            }
+
+            .hero-brand {
+                gap: 10px;
+            }
+
+            .hero-brand-mark {
+                width: 48px;
+                height: 48px;
+                border-radius: 14px;
+            }
+
+            .hero-brand-mark img,
+            .login-header .logo img {
+                width: 28px;
+                height: 28px;
+            }
+
+            .hero-brand-copy strong {
+                font-size: 18px;
+            }
+
+            .hero-copy p {
+                line-height: 1.45;
+            }
+
+            .hero-list {
+                gap: 8px;
+            }
+
+            .hero-support {
+                padding: 12px 14px;
+            }
+
+            .hero-support-row strong {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="license-container">
+        <div class="login-shell">
+            <div class="login-hero">
+                <div class="hero-brand">
+                    <div class="hero-brand-mark">
+                        <img src="assets/logo.png" alt="Logo MedCareSO">
+                    </div>
+                    <div class="hero-brand-copy">
+                        <strong>MedCareSO</strong>
+                        <span>Cabinet médical et suivi clinique</span>
+                    </div>
+                </div>
+
+                <div class="hero-copy">
+                    <span class="hero-badge">Cabinet prêt à travailler</span>
+                    <h2>Connexion sécurisée pour le médecin et l'équipe du cabinet</h2>
+                    <p>Accédez à l'agenda, aux dossiers patients, aux tickets RDV et aux documents cliniques depuis une interface plus claire et plus professionnelle.</p>
+                </div>
+
+                <ul class="hero-list">
+                    <li><span>1</span>Agenda cabinet, prise en charge des patients et suivi du jour.</li>
+                    <li><span>2</span>Dossiers médicaux, imagerie, impression et tickets thermiques.</li>
+                    <li><span>3</span>Mode offline-first avec sauvegarde locale et cloud.</li>
+                </ul>
+
+                <div class="hero-support">
+                    <div class="hero-support-title">Support & récupération</div>
+                    <div class="hero-support-row">
+                        <span>Assistance</span>
+                        <strong>05 42 89 32 68</strong>
+                    </div>
+                    <div class="hero-support-row">
+                        <span>Email</span>
+                        <strong>mi.bounouala@esi-sba.dz</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="login-panel">
+                <div class="login-header">
+                    <div class="logo">
+                        <img src="assets/logo.png" alt="Logo MedCareSO">
+                    </div>
+                    <h1>Connexion</h1>
+                    <p>Entrez vos identifiants pour ouvrir l'environnement professionnel du cabinet.</p>
+                </div>
+
+                <div id="license-status" class="license-info hidden">
+                    <div id="license-text"></div>
+                </div>
+
+                <form id="login-form">
+                    <div class="form-group input-with-icon">
+                        <label for="username">Nom d'utilisateur</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">👤</span>
+                            <input type="text" id="username" class="form-control" required 
+                                   placeholder="Nom d'utilisateur" autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="form-group input-with-icon">
+                        <label for="password">Mot de passe</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon">🔒</span>
+                            <input type="password" id="password" class="form-control" required
+                                   placeholder="Entrez votre mot de passe" autocomplete="current-password">
+                            <button type="button" id="toggle-login-password" class="password-toggle" title="Afficher le mot de passe" aria-label="Afficher le mot de passe">👁</button>
+                        </div>
+                    </div>
+
+                    <div id="login-message" class="message hidden"></div>
+
+                    <div class="login-actions">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            🔓 Se Connecter
+                        </button>
+                    </div>
+                </form>
+
+                <div class="forgot-password">
+                    <a href="#" id="forgot-password-link">Mot de passe oublié ?</a>
+                </div>
+
+                <div class="login-footer">
+                    Version 2.1.1 • MedCareSO • Support: mi.bounouala@esi-sba.dz
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de contact administrateur -->
+    <div id="reset-password-modal" class="modal-overlay hidden">
+        <div class="modal-container" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3>🔐 Mot de passe oublié ?</h3>
+                <button class="modal-close" id="close-reset-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <div style="font-size: 64px; margin-bottom: 20px;">📞</div>
+                <h4 style="color: #1f2937; margin-bottom: 15px;">Contactez l'administrateur</h4>
+                <p style="color: #666; margin-bottom: 25px;">
+                    Pour réinitialiser votre mot de passe, veuillez contacter l'administrateur système :
+                </p>
+                
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                        <span style="background: #0284c7; color: white; padding: 10px; border-radius: 10px; font-size: 20px;">📧</span>
+                        <div style="text-align: left;">
+                            <div style="font-size: 12px; color: #64748b;">Email</div>
+                            <a href="mailto:mi.bounouala@esi-sba.dz" style="color: #0284c7; font-weight: 600; font-size: 15px; text-decoration: none;">mi.bounouala@esi-sba.dz</a>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="background: #059669; color: white; padding: 10px; border-radius: 10px; font-size: 20px;">📱</span>
+                        <div style="text-align: left;">
+                            <div style="font-size: 12px; color: #64748b;">Téléphone</div>
+                            <a href="tel:0542893268" style="color: #059669; font-weight: 600; font-size: 15px; text-decoration: none;">05 42 89 32 68</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-primary btn-block" onclick="document.getElementById('reset-password-modal').classList.add('hidden')">
+                    ✓ Compris
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.hidden {
+            display: none;
+        }
+        .modal-container {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #1f2937;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: #1f2937;
+        }
+        .modal-body {
+            padding: 24px;
+            font-size: var(--login-text-sm);
+            line-height: 1.6;
+        }
+        .message.error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 13px 14px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .message.success {
+            background: #dcfce7;
+            color: #16a34a;
+            padding: 13px 14px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        
+        /* Packages Modal */
+        .packages-modal {
+            max-width: 800px;
+        }
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .package-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .package-card:hover {
+            border-color: #0066cc;
+            transform: translateY(-2px);
+        }
+        .package-card.featured {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        }
+        .package-card .badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #f59e0b;
+            color: white;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .package-card h4 {
+            font-size: 16px;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        .package-card .desc {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+        .package-card .price {
+            font-size: 22px;
+            font-weight: 700;
+            color: #059669;
+        }
+        .package-card .price small {
+            font-size: 12px;
+            font-weight: 400;
+            color: #6b7280;
+        }
+        .options-list {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .option-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .option-item:last-child {
+            border-bottom: none;
+        }
+        .option-name {
+            font-size: 14px;
+            color: #374151;
+        }
+        .option-price {
+            font-weight: 600;
+            color: #059669;
+        }
+    </style>
+
+    <!-- Packages Preview Modal -->
+    <div id="packages-modal" class="modal-overlay hidden">
+        <div class="modal-container packages-modal">
+            <div class="modal-header">
+                <h3>📦 Packages & Tarifs MedCareSO</h3>
+                <button class="modal-close" onclick="closePackagesPreview()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="packages-grid">
+                    <div class="package-card">
+                        <h4>Pack Basique</h4>
+                        <div class="desc">Médecin solo</div>
+                        <div class="price">56 000 <small>DZD</small></div>
+                    </div>
+                    <div class="package-card featured">
+                        <span class="badge">Recommandé</span>
+                        <h4>Pack Standard</h4>
+                        <div class="desc">Médecin + Assistante</div>
+                        <div class="price">68 000 <small>DZD</small></div>
+                    </div>
+                    <div class="package-card">
+                        <span class="badge" style="background: #3b82f6;">Populaire</span>
+                        <h4>Pack Pro</h4>
+                        <div class="desc">Fonctionnalités avancées</div>
+                        <div class="price">92 000 <small>DZD</small></div>
+                    </div>
+                    <div class="package-card">
+                        <h4>Pack Clinique</h4>
+                        <div class="desc">Cabinet + Kiné</div>
+                        <div class="price">120 000 <small>DZD</small></div>
+                    </div>
+                </div>
+                
+                <h4 style="margin-bottom: 15px;">💰 Options Individuelles</h4>
+                <div class="options-list">
+                    <div class="option-item">
+                        <span class="option-name">👨‍⚕️ Poste Médecin</span>
+                        <span class="option-price">56 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">👩‍💼 Poste Assistante</span>
+                        <span class="option-price">12 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">📋 Conception d'Ordonnances</span>
+                        <span class="option-price">4 500 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">🏥 Salle d'Attente</span>
+                        <span class="option-price">5 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">📊 Résumé du Jour</span>
+                        <span class="option-price">3 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">📈 Statistiques Avancées</span>
+                        <span class="option-price">8 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">📦 Gestion de Stock</span>
+                        <span class="option-price">6 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">🏃 Gestion Kinés</span>
+                        <span class="option-price">10 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">♿ Module Rééducation</span>
+                        <span class="option-price">15 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">📱 Application Mobile</span>
+                        <span class="option-price">12 000 DZD</span>
+                    </div>
+                    <div class="option-item">
+                        <span class="option-name">🛠️ Service Après Vente</span>
+                        <span class="option-price" style="color: #16a34a;">Toujours inclus ✓</span>
+                    </div>
+                </div>
+                
+                <p style="margin-top: 20px; text-align: center; color: #6b7280; font-size: 13px;">
+                    📞 Pour commander, contactez-nous: <strong>+213 XX XX XX XX</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPackagesPreview() {
+            document.getElementById('packages-modal').classList.remove('hidden');
+        }
+        
+        function closePackagesPreview() {
+            document.getElementById('packages-modal').classList.add('hidden');
+        }
+        
+        // Close modal on overlay click
+        document.getElementById('packages-modal')?.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closePackagesPreview();
+            }
+        });
+    </script>
+
+    <script src="js/login.js"></script>
+</body>
+</html>

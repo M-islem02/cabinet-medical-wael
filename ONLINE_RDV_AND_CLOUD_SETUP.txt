@@ -1,0 +1,125 @@
+MEDCARESO - ONLINE RDV, CLOUD, AND QR SETUP
+===========================================
+
+1. CLOUD BACKUP LOCATION
+------------------------
+- Local backup bundles are saved in the Electron userData backups folder.
+- On Linux this is usually:
+  ~/.config/medcareso/backups
+- Each backup now contains:
+  - .json
+  - .csv
+  - .md
+
+2. SIMPLE CLOUD MODE (RECOMMENDED)
+----------------------------------
+Goal:
+- keep local data first
+- push to cloud every 24 hours
+- always keep a local recovery copy
+
+In the app:
+- Open Cloud Sync
+- Enable synchronization
+- Keep Auto Sync enabled
+- Set interval to 1440 minutes
+- Keep daily backup enabled
+- Choose backup time, for example 23:55
+- Save
+
+3. REST API MODE
+----------------
+Use this when you have your own server.
+
+Fields:
+- API URL: example https://your-domain.com/api
+- API Key: bearer token or secret key
+
+Expected endpoints:
+- POST /sync/push
+- GET  /sync/pull
+
+Recommendation:
+- keep the API behind HTTPS
+- generate one key per cabinet
+- store the exported JSON/CSV/MD bundle on the server side
+
+4. REMOTE MARIADB MODE
+----------------------
+Use this when the cabinet has many PCs.
+
+Fields:
+- Host
+- Port
+- User
+- Password
+- Database
+
+Recommendation:
+- use MariaDB only for multi-PC cabinets
+- keep SQLite for one-PC cabinets
+
+5. TELEGRAM BACKUP
+------------------
+Optional.
+
+Fields:
+- Bot Token
+- Chat ID
+
+How to prepare:
+- create a bot with @BotFather
+- get the bot token
+- open a chat or group with the bot
+- get the chat ID
+- paste both values in MedCareSO
+
+6. WEB RDV PORTAL
+-----------------
+The app now supports an optional built-in RDV portal.
+
+Important:
+- disabled = app stays fully local/offline
+- enabled = the doctor's PC serves a booking page
+- patients can open it from a link or QR code
+
+Settings to fill:
+- Enable web RDV portal
+- Local port: default 4580
+- Public URL: optional
+- QR enabled
+
+How it works:
+- if Public URL is empty, MedCareSO uses the local network URL
+- if Public URL is filled, that URL is used for sharing and QR
+- the QR code opens the RDV page directly
+
+7. WHEN TO USE PUBLIC URL
+-------------------------
+- Leave it empty if patients only need access on the same Wi-Fi/LAN
+- Fill it if you expose the portal from outside:
+  - reverse proxy
+  - router port forwarding
+  - tunnel service
+
+Example:
+- Local URL:
+  http://192.168.1.25:4580/rdv/<token>
+- Public URL:
+  https://cabinet.example.com/rdv/<token>
+
+8. QR CODE
+----------
+- The settings page shows the live QR code
+- The appointment ticket can also print the QR when the web portal is enabled
+- Patients can scan it to open the booking page directly
+
+9. FINAL CHECKLIST
+------------------
+- Save settings
+- Verify the backup folder path in Cloud Sync
+- Click "Sync maintenant" once
+- Open the local booking URL from a phone
+- Scan the QR code
+- Create one test RDV
+

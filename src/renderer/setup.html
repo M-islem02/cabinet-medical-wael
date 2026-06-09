@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Initiale - Medicare Pro</title>
+    <link rel="stylesheet" href="css/license.css">
+    <style>
+        .setup-container {
+            width: 100%;
+            max-width: 640px;
+            padding: clamp(24px, 4vw, 40px);
+        }
+        
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .setup-header h1 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .setup-header p {
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--light-bg);
+            border-radius: 8px;
+        }
+        
+        .form-section h3 {
+            color: var(--text-dark);
+            font-size: 16px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+        }
+        
+        .password-strength {
+            margin-top: 5px;
+            font-size: 12px;
+        }
+        
+        .password-strength.weak {
+            color: var(--danger-color);
+        }
+        
+        .password-strength.medium {
+            color: var(--warning-color);
+        }
+        
+        .password-strength.strong {
+            color: var(--success-color);
+        }
+
+        @media (max-width: 700px) {
+            .setup-container {
+                padding: 22px;
+            }
+
+            .form-section {
+                padding: 16px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-height: 820px) {
+            .setup-header {
+                margin-bottom: 22px;
+            }
+
+            .form-section {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="license-container">
+        <div class="license-box setup-container">
+            <div class="setup-header">
+                <h1>🏥 Configuration Initiale</h1>
+                <p>Configurez votre compte médecin et les informations du cabinet</p>
+            </div>
+
+            <form id="setup-form">
+                <!-- Informations du Cabinet -->
+                <div class="form-section">
+                    <h3>📍 Informations du Cabinet</h3>
+                    
+                    <div class="form-group">
+                        <label for="cabinet-name">Nom du Cabinet *</label>
+                        <input type="text" id="cabinet-name" class="form-control" required 
+                               placeholder="Cabinet Médical Dr. Dupont">
+                    </div>
+                </div>
+
+                <!-- Informations du Médecin -->
+                <div class="form-section">
+                    <h3>👨‍⚕️ Informations du Médecin</h3>
+                    
+                    <div class="form-group">
+                        <label for="doctor-name">Nom Complet *</label>
+                        <input type="text" id="doctor-name" class="form-control" required
+                               placeholder="Dr. Jean Dupont">
+                    </div>
+                </div>
+
+                <!-- Compte de Connexion -->
+                <div class="form-section">
+                    <h3>🔐 Compte de Connexion</h3>
+                    
+                    <div class="form-group">
+                        <label for="username">Nom d'utilisateur *</label>
+                        <input type="text" id="username" class="form-control" required
+                               placeholder="dr.dupont" autocomplete="off">
+                        <small>Ce nom sera utilisé pour vous connecter</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Mot de passe *</label>
+                        <input type="password" id="password" class="form-control" required
+                               placeholder="Minimum 6 caractères" minlength="6">
+                        <div id="password-strength" class="password-strength"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password-confirm">Confirmer le mot de passe *</label>
+                        <input type="password" id="password-confirm" class="form-control" required
+                               placeholder="Retapez le mot de passe">
+                    </div>
+                </div>
+
+                <div id="setup-message" class="message hidden"></div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    ✅ Terminer la Configuration
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/setup.js"></script>
+</body>
+</html>

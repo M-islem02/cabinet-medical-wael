@@ -1,0 +1,73 @@
+PHYSIOCARE - GUIDE MIGRATION SQLITE -> MARIADB (SANS PERTE DE DONNÉES)
+====================================================================
+
+OBJECTIF
+--------
+Passer un cabinet de SQLite (local, 1 PC) vers MariaDB (réseau, multi-postes)
+sans perdre les données patient.
+
+PRINCIPE DE SÉCURITÉ
+--------------------
+1) Backup SQLite automatique avant migration.
+2) Test de connexion MariaDB obligatoire.
+3) Copie transactionnelle des données SQLite vers MariaDB.
+4) En cas d'échec: annulation de la migration (rollback), données intactes.
+
+PRÉREQUIS CÔTÉ SERVEUR (PC PRINCIPAL)
+-------------------------------------
+1. Installer MariaDB.
+2. Exécuter le script:
+   SETUP_WINDOWS/SCRIPT_SQL_COMPLET.sql
+3. Vérifier:
+   - base: physiocare
+   - user: physiocare_user
+   - port: 3306
+4. Ouvrir le port 3306 sur le firewall Windows.
+5. Noter l'IP du serveur (exemple: 192.168.1.100).
+
+BASCULE DE SQLITE VERS MARIADB DANS L'APPLICATION
+--------------------------------------------------
+1. Ouvrir: Configuration Base de Données.
+2. Choisir: MariaDB (Réseau).
+3. Renseigner:
+   - Host: IP du serveur
+   - Port: 3306
+   - Database: physiocare
+   - User: physiocare_user
+   - Password: mot de passe MariaDB
+4. Cliquer: Tester la connexion.
+5. Laisser coché: "Migrer automatiquement les données SQLite..."
+6. Cliquer: Enregistrer et redémarrer.
+
+RÉSULTAT ATTENDU
+----------------
+- Backup SQLite créé dans le dossier userData/backups.
+- Données migrées vers MariaDB.
+- Application redémarrée en mode réseau.
+
+VÉRIFICATION POST-MIGRATION (OBLIGATOIRE)
+-----------------------------------------
+1. Vérifier le nombre de patients.
+2. Vérifier consultations, ordonnances, paiements.
+3. Tester ajout patient depuis PC serveur.
+4. Tester affichage du même patient depuis PC client.
+
+AJOUT D'UN PC CLIENT (ASSISTANTE)
+---------------------------------
+1. Installer l'application sur le PC client.
+2. Ouvrir Configuration Base de Données.
+3. Choisir MariaDB.
+4. Mettre la même IP/port/user/password/base.
+5. Tester connexion puis enregistrer.
+
+PLAN DE RETOUR ARRIÈRE (SI BESOIN)
+-----------------------------------
+- Garder le backup SQLite généré avant migration.
+- Si problème réseau MariaDB, reconfigurer temporairement en SQLite local.
+
+BONNES PRATIQUES
+----------------
+- Faire la bascule hors heures de consultation.
+- Faire un test complet avec un patient test après bascule.
+- Conserver les backups dans un emplacement externe (clé USB / NAS).
+

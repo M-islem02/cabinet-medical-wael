@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Client - MedCareSO</title>
+    <link rel="stylesheet" href="css/license.css">
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --border-color: #dee2e6;
+            --light-bg: #f8f9fa;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+            min-height: 100vh;
+            padding: clamp(16px, 3vw, 24px);
+            overflow-y: auto;
+        }
+
+        .config-container {
+            width: min(100%, 1100px);
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+        
+        .config-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #004a99 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .config-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .config-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .config-body {
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+        
+        /* Package Cards */
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        
+        .package-card {
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .package-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .package-card.selected {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(40, 167, 69, 0.02) 100%);
+        }
+        
+        .package-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--success-color);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .package-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .package-desc {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+        
+        .package-price {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .package-price small {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-light);
+        }
+        
+        .badge-recommended {
+            background: var(--warning-color);
+            color: #856404;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .badge-popular {
+            background: #17a2b8;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        /* Two Column Layout */
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .column {
+            min-width: 0;
+        }
+        
+        /* Options Section */
+        .options-section {
+            margin-bottom: 20px;
+        }
+        
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .option-row:hover {
+            background: var(--light-bg);
+        }
+        
+        .option-row.selected {
+            background: rgba(0, 102, 204, 0.05);
+            border-color: var(--primary-color);
+        }
+        
+        .option-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+        
+        .option-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--success-color);
+            cursor: pointer;
+        }
+        
+        .option-label {
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 13px;
+        }
+        
+        .option-desc {
+            font-size: 11px;
+            color: var(--text-light);
+        }
+        
+        .option-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .option-qty {
+            width: 50px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .option-price {
+            font-weight: 600;
+            color: var(--primary-color);
+            min-width: 90px;
+            text-align: right;
+            font-size: 13px;
+        }
+        
+        .option-included {
+            color: var(--success-color);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Summary */
+        .summary-section {
+            background: var(--light-bg);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-total {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+            padding-top: 12px;
+            margin-top: 8px;
+            border-top: 2px solid var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .summary-total .price {
+            color: var(--success-color);
+        }
+        
+        /* Buttons */
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-secondary {
+            background: var(--light-bg);
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e6ea;
+        }
+        
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        /* Message */
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            font-size: 13px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        /* Superadmin indicator */
+        .superadmin-badge {
+            background: #dc3545;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        
+        /* AI Section styling */
+        .ai-section {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .ai-section .section-title {
+            color: #7c3aed;
+            border-color: #8b5cf6;
+        }
+        
+        .ai-badge {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        @media (max-width: 1100px) {
+            .two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .config-header,
+            .config-body {
+                padding: 20px;
+            }
+
+            .option-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .option-control {
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .actions {
+                flex-wrap: wrap;
+                justify-content: stretch;
+            }
+
+            .actions .btn {
+                flex: 1 1 220px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .config-header,
+            .config-body {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="config-container">
+        <div class="config-header">
+            <span class="superadmin-badge">🔐 Mode Super Admin</span>
+            <h1>📦 Composez votre Pack MedCareSO</h1>
+            <p>Configurez les fonctionnalités pour ce client</p>
+        </div>
+        
+        <div class="config-body">
+            <!-- Client Info -->
+            <div class="form-group">
+                <label for="clientName">📋 Nom du Client / Cabinet</label>
+                <input type="text" id="clientName" placeholder="Ex: Cabinet Dr. Mohamed">
+            </div>
+            
+            <!-- Package Selection -->
+            <h3 class="section-title">📦 Choisir un Pack</h3>
+            <div class="packages-grid" id="packages-grid">
+                <div class="package-card" data-package="basic">
+                    <div class="package-name">Pack Basique</div>
+                    <div class="package-desc">Médecin solo</div>
+                    <div class="package-price">60 000 <small>DZD</small></div>
+                </div>
+                
+                <div class="package-card" data-package="standard">
+                    <span class="badge-recommended">Recommandé</span>
+                    <div class="package-name">Pack Standard</div>
+                    <div class="package-desc">Médecin + Assistante</div>
+                    <div class="package-price">75 000 <small>DZD</small></div>
+                </div>
+                
+                <div class="package-card" data-package="professional">
+                    <span class="badge-popular">Populaire</span>
+                    <div class="package-name">Pack Pro + IA</div>
+                    <div class="package-desc">Avec Intelligence Artificielle</div>
+                    <div class="package-price">105 000 <small>DZD</small></div>
+                </div>
+                
+                <div class="package-card" data-package="custom">
+                    <div class="package-name">Personnalisé</div>
+                    <div class="package-desc">Choisissez vos options</div>
+                    <div class="package-price">À calculer</div>
+                </div>
+            </div>
+            
+            <div class="two-columns">
+                <!-- Left Column: Users & Features -->
+                <div class="column">
+                    <!-- User Slots -->
+                    <h3 class="section-title">👥 Postes Utilisateurs</h3>
+                    
+                    <div class="option-row selected" id="option-doctor">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-doctor" checked disabled>
+                            <div>
+                                <div class="option-label">👨‍⚕️ Poste Médecin</div>
+                                <div class="option-desc">Compte principal avec tous les droits</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <input type="number" class="option-qty" id="qty-doctor" value="1" min="1" max="3">
+                            <span class="option-price" id="price-doctor">60 000 DZD</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-row" id="option-assistant">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-assistant">
+                            <div>
+                                <div class="option-label">👩‍💼 Poste Assistante</div>
+                                <div class="option-desc">Accès limité (patients, RDV, paiements)</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <input type="number" class="option-qty" id="qty-assistant" value="0" min="0" max="5">
+                            <span class="option-price" id="price-assistant">0 DZD</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Features -->
+                    <h3 class="section-title" style="margin-top: 20px;">⚙️ Fonctionnalités</h3>
+                    
+                    <div class="option-row selected" id="option-waitingRoom">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-waitingRoom" checked disabled>
+                            <div>
+                                <div class="option-label">🏥 Salle d'Attente</div>
+                                <div class="option-desc">Gestion file d'attente avec notifications</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-included">Inclus</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-row selected" id="option-inventory">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-inventory" checked disabled>
+                            <div>
+                                <div class="option-label">📦 Gestion de Stock</div>
+                                <div class="option-desc">Inventaire et alertes de rupture</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-included">Inclus</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-row" id="option-rehabilitation">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-rehabilitation">
+                            <div>
+                                <div class="option-label">♿ Module Rééducation MPR</div>
+                                <div class="option-desc">Kinésithérapeutes, plans et évaluations</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-price">12 000 DZD</span>
+                        </div>
+                    </div>
+
+                    <div class="option-row" id="option-dentistry">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-dentistry">
+                            <div>
+                                <div class="option-label">🦷 Module Dentiste</div>
+                                <div class="option-desc">Actes dentaires et suivi bucco-dentaire</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-price">12 000 DZD</span>
+                        </div>
+                    </div>
+                    
+                    <div class="option-row selected" id="option-afterSalesSupport">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-afterSalesSupport" checked disabled>
+                            <div>
+                                <div class="option-label">🛠️ Service Après Vente</div>
+                                <div class="option-desc">Support technique et mises à jour</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-included">Toujours inclus</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: AI & Summary -->
+                <div class="column">
+                    <!-- AI Features Section -->
+                    <div class="ai-section">
+                        <h3 class="section-title">🤖 Intelligence Artificielle <span class="ai-badge">Hors-ligne</span></h3>
+                        
+                        <div class="option-row" id="option-aiReports">
+                            <div class="option-info">
+                                <input type="checkbox" class="option-checkbox" id="check-aiReports">
+                                <div>
+                                    <div class="option-label">📝 Rapports IA Médicaux</div>
+                                    <div class="option-desc">Génération automatique de rapports</div>
+                                </div>
+                            </div>
+                            <div class="option-control">
+                                <span class="option-price">10 000 DZD</span>
+                            </div>
+                        </div>
+                        
+                        <div class="option-row" id="option-aiChatbot">
+                            <div class="option-info">
+                                <input type="checkbox" class="option-checkbox" id="check-aiChatbot">
+                                <div>
+                                    <div class="option-label">💬 Assistant IA Médecin</div>
+                                    <div class="option-desc">Chatbot aide à la rédaction</div>
+                                </div>
+                            </div>
+                            <div class="option-control">
+                                <span class="option-price">8 000 DZD</span>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 10px; font-size: 12px; color: var(--text-light);">
+                            💡 Les fonctionnalités IA fonctionnent hors-ligne avec Ollama
+                        </div>
+                    </div>
+                    
+                    <!-- Summary -->
+                    <div class="summary-section">
+                        <h3 class="section-title" style="border: none; margin-bottom: 10px;">💰 Récapitulatif</h3>
+                        <div id="summary-items">
+                            <!-- Dynamic summary items -->
+                        </div>
+                        <div class="summary-total">
+                            <span>Total</span>
+                            <span class="price" id="total-price">60 000 DZD</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Message -->
+            <div id="message" class="message"></div>
+            
+            <!-- Actions -->
+            <div class="actions">
+                <button class="btn btn-primary" id="btn-export-pdf">📄 Exporter en PDF</button>
+                <button class="btn btn-secondary" id="btn-skip">Passer (Configuration par défaut)</button>
+                <button class="btn btn-success" id="btn-save">💾 Enregistrer la Configuration</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Price definitions - Base pack: 60,000 DZD
+        const PRICES = {
+            doctor: 60000,      // Base price for doctor (Pack Basique)
+            assistant: 15000,   // Per assistant (60000 + 15000 = 75000 for Standard)
+            rehabilitation: 12000,  // Module Rééducation MPR (includes Kiné Staff)
+            dentistry: 12000,   // Module Dentiste
+            aiReports: 10000,    // AI Reports
+            aiChatbot: 8000,    // AI Chatbot
+            // Included features (no extra cost)
+            waitingRoom: 0,
+            inventory: 0,
+            afterSalesSupport: 0
+        };
+        
+        // Package presets
+        const PACKAGES = {
+            basic: {
+                doctors: 1,
+                assistants: 0,
+                features: []
+            },
+            standard: {
+                doctors: 1,
+                assistants: 1,
+                features: []
+            },
+            professional: {
+                doctors: 1,
+                assistants: 1,
+                features: ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot']
+            },
+            custom: {
+                doctors: 1,
+                assistants: 0,
+                features: []
+            }
+        };
+        
+        let selectedPackage = 'basic';
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load existing config
+            try {
+                const result = await window.api.package.getConfig();
+                if (result.success && result.data && result.data.clientName !== 'Client Non Configuré') {
+                    loadExistingConfig(result.data);
+                }
+            } catch (e) {
+                console.log('No existing config');
+            }
+            
+            // Set up event listeners
+            setupEventListeners();
+            updateSummary();
+        });
+        
+        function setupEventListeners() {
+            // Package cards
+            document.querySelectorAll('.package-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    selectPackage(card.dataset.package);
+                });
+            });
+            
+            // Quantity changes
+            document.getElementById('qty-doctor').addEventListener('change', (e) => {
+                updateDoctorPrice();
+                updateSummary();
+            });
+            
+            document.getElementById('qty-assistant').addEventListener('change', (e) => {
+                const qty = parseInt(e.target.value) || 0;
+                document.getElementById('check-assistant').checked = qty > 0;
+                updateAssistantPrice();
+                updateSummary();
+            });
+            
+            document.getElementById('check-assistant').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.getElementById('qty-assistant').value = 1;
+                } else {
+                    document.getElementById('qty-assistant').value = 0;
+                }
+                updateAssistantPrice();
+                updateSummary();
+            });
+            
+            // Feature checkboxes
+            const features = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
+            features.forEach(feature => {
+                const checkbox = document.getElementById(`check-${feature}`);
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        const row = document.getElementById(`option-${feature}`);
+                        if (row) {
+                            row.classList.toggle('selected', checkbox.checked);
+                        }
+                        updateSummary();
+                    });
+                }
+            });
+            
+            // Buttons
+            document.getElementById('btn-save').addEventListener('click', saveConfig);
+            document.getElementById('btn-skip').addEventListener('click', skipConfig);
+            document.getElementById('btn-export-pdf').addEventListener('click', () => {
+                window.print();
+            });
+        }
+        
+        function selectPackage(packageId) {
+            selectedPackage = packageId;
+            
+            // Update UI
+            document.querySelectorAll('.package-card').forEach(card => {
+                card.classList.remove('selected');
+                if (card.dataset.package === packageId) {
+                    card.classList.add('selected');
+                }
+            });
+            
+            // Apply package preset
+            const preset = PACKAGES[packageId];
+            if (preset) {
+                document.getElementById('qty-doctor').value = preset.doctors;
+                document.getElementById('qty-assistant').value = preset.assistants;
+                document.getElementById('check-assistant').checked = preset.assistants > 0;
+                
+                // Reset optional features
+                const optionalFeatures = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
+                optionalFeatures.forEach(feature => {
+                    const checkbox = document.getElementById(`check-${feature}`);
+                    const row = document.getElementById(`option-${feature}`);
+                    if (checkbox && row) {
+                        const isEnabled = preset.features.includes(feature);
+                        checkbox.checked = isEnabled;
+                        row.classList.toggle('selected', isEnabled);
+                    }
+                });
+                
+                updateDoctorPrice();
+                updateAssistantPrice();
+                updateSummary();
+            }
+        }
+        
+        function updateDoctorPrice() {
+            const qty = parseInt(document.getElementById('qty-doctor').value) || 1;
+            const price = qty * PRICES.doctor;
+            document.getElementById('price-doctor').textContent = formatPrice(price);
+        }
+        
+        function updateAssistantPrice() {
+            const qty = parseInt(document.getElementById('qty-assistant').value) || 0;
+            const price = qty * PRICES.assistant;
+            document.getElementById('price-assistant').textContent = formatPrice(price);
+        }
+        
+        function formatPrice(price) {
+            return price.toLocaleString('fr-FR') + ' DZD';
+        }
+        
+        function updateSummary() {
+            const summaryItems = document.getElementById('summary-items');
+            let total = 0;
+            let html = '';
+            
+            // Doctors
+            const qtyDoctors = parseInt(document.getElementById('qty-doctor').value) || 1;
+            const doctorPrice = qtyDoctors * PRICES.doctor;
+            total += doctorPrice;
+            html += `<div class="summary-row">
+                <span>👨‍⚕️ Médecin x${qtyDoctors}</span>
+                <span>${formatPrice(doctorPrice)}</span>
+            </div>`;
+            
+            // Assistants
+            const qtyAssistants = parseInt(document.getElementById('qty-assistant').value) || 0;
+            if (qtyAssistants > 0) {
+                const assistantPrice = qtyAssistants * PRICES.assistant;
+                total += assistantPrice;
+                html += `<div class="summary-row">
+                    <span>👩‍💼 Assistante x${qtyAssistants}</span>
+                    <span>${formatPrice(assistantPrice)}</span>
+                </div>`;
+            }
+            
+            // Optional Features
+            const optionalFeatures = [
+                { id: 'rehabilitation', label: '♿ Module Rééducation MPR' },
+                { id: 'dentistry', label: '🦷 Module Dentiste' },
+                { id: 'aiReports', label: '📝 Rapports IA' },
+                { id: 'aiChatbot', label: '💬 Assistant IA' }
+            ];
+            
+            optionalFeatures.forEach(feature => {
+                const checkbox = document.getElementById(`check-${feature.id}`);
+                if (checkbox && checkbox.checked && PRICES[feature.id] > 0) {
+                    total += PRICES[feature.id];
+                    html += `<div class="summary-row">
+                        <span>${feature.label}</span>
+                        <span>${formatPrice(PRICES[feature.id])}</span>
+                    </div>`;
+                }
+            });
+            
+            // Included features
+            html += `<div class="summary-row">
+                <span>🏥 Salle d'Attente</span>
+                <span style="color: var(--success-color);">Inclus</span>
+            </div>`;
+            html += `<div class="summary-row">
+                <span>📦 Gestion de Stock</span>
+                <span style="color: var(--success-color);">Inclus</span>
+            </div>`;
+            html += `<div class="summary-row">
+                <span>🛠️ Service Après Vente</span>
+                <span style="color: var(--success-color);">Inclus</span>
+            </div>`;
+            
+            summaryItems.innerHTML = html;
+            document.getElementById('total-price').textContent = formatPrice(total);
+        }
+        
+        function loadExistingConfig(config) {
+            document.getElementById('clientName').value = config.clientName || '';
+            
+            if (config.packageType) {
+                selectPackage(config.packageType);
+            }
+            
+            document.getElementById('qty-doctor').value = config.maxDoctors || 1;
+            document.getElementById('qty-assistant').value = config.maxAssistants || 0;
+            document.getElementById('check-assistant').checked = config.maxAssistants > 0;
+            
+            // Load features
+            const featureMap = {
+                'featureRehabilitation': 'rehabilitation',
+                'featureDentistry': 'dentistry',
+                'featureAiReports': 'aiReports',
+                'featureAiChatbot': 'aiChatbot'
+            };
+            
+            Object.keys(featureMap).forEach(dbKey => {
+                const featureId = featureMap[dbKey];
+                const checkbox = document.getElementById(`check-${featureId}`);
+                const row = document.getElementById(`option-${featureId}`);
+                if (checkbox && row) {
+                    checkbox.checked = config[dbKey] === 1;
+                    row.classList.toggle('selected', config[dbKey] === 1);
+                }
+            });
+            
+            updateDoctorPrice();
+            updateAssistantPrice();
+            updateSummary();
+        }
+        
+        async function saveConfig() {
+            const clientName = document.getElementById('clientName').value.trim();
+            if (!clientName) {
+                showMessage('Veuillez entrer le nom du client', 'error');
+                return;
+            }
+            
+            const config = {
+                clientName,
+                packageType: selectedPackage,
+                maxDoctors: parseInt(document.getElementById('qty-doctor').value) || 1,
+                maxAssistants: parseInt(document.getElementById('qty-assistant').value) || 0,
+                // Always included features
+                featurePrescriptions: true,
+                featureWaitingRoom: true,
+                featureDailySummary: true,
+                featureStatistics: true,
+                featureInventory: true,
+                featureDebts: true,
+                featureCalendar: true,
+                featureDocuments: true,
+                featureSickLeaves: true,
+                featureAfterSalesSupport: true,
+                // Optional features
+                featureKineStaff: document.getElementById('check-rehabilitation').checked, // Merged with rehabilitation
+                featureRehabilitation: document.getElementById('check-rehabilitation').checked,
+                featureDentistry: document.getElementById('check-dentistry').checked,
+                featureMultiPC: false, // Removed
+                featureAiReports: document.getElementById('check-aiReports').checked,
+                featureAiChatbot: document.getElementById('check-aiChatbot').checked,
+                totalPrice: calculateTotal()
+            };
+            
+            try {
+                const result = await window.api.package.saveConfig(config);
+                if (result.success) {
+                    showMessage('Configuration enregistrée avec succès! Redirection...', 'success');
+                    setTimeout(() => {
+                        window.api.user.loginSuccess({
+                            id: localStorage.getItem('currentUserId'),
+                            username: localStorage.getItem('currentUsername'),
+                            isAdmin: true,
+                            isSuperAdmin: true,
+                            role: 'admin'
+                        });
+                    }, 1500);
+                } else {
+                    showMessage('Erreur: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Erreur: ' + error.message, 'error');
+            }
+        }
+        
+        async function skipConfig() {
+            // Use default basic config with all base features
+            const config = {
+                clientName: 'Client par défaut',
+                packageType: 'basic',
+                maxDoctors: 1,
+                maxAssistants: 0,
+                featurePrescriptions: true,
+                featureWaitingRoom: true,
+                featureDailySummary: true,
+                featureStatistics: true,
+                featureInventory: true,
+                featureKineStaff: false,
+                featureRehabilitation: false,
+                featureDentistry: false,
+                featureMultiPC: false,
+                featureAiReports: false,
+                featureAiChatbot: false,
+                featureDebts: true,
+                featureCalendar: true,
+                featureDocuments: true,
+                featureSickLeaves: true,
+                featureAfterSalesSupport: true,
+                totalPrice: 60000
+            };
+            
+            try {
+                await window.api.package.saveConfig(config);
+                window.api.user.loginSuccess({
+                    id: localStorage.getItem('currentUserId'),
+                    username: localStorage.getItem('currentUsername'),
+                    isAdmin: true,
+                    isSuperAdmin: true,
+                    role: 'admin'
+                });
+            } catch (error) {
+                console.error('Error skipping config:', error);
+            }
+        }
+        
+        function calculateTotal() {
+            let total = 0;
+            const qtyDoctors = parseInt(document.getElementById('qty-doctor').value) || 1;
+            const qtyAssistants = parseInt(document.getElementById('qty-assistant').value) || 0;
+            
+            total += qtyDoctors * PRICES.doctor;
+            total += qtyAssistants * PRICES.assistant;
+            
+            const features = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
+            features.forEach(feature => {
+                const checkbox = document.getElementById(`check-${feature}`);
+                if (checkbox && checkbox.checked) {
+                    total += PRICES[feature];
+                }
+            });
+            
+            return total;
+        }
+        
+        function showMessage(text, type) {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = text;
+            msgEl.className = 'message ' + type;
+        }
+    </script>
+</body>
+</html>

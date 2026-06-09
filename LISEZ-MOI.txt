@@ -1,0 +1,186 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    PHYSIOCARE - GUIDE D'INSTALLATION RAPIDE                  ║
+║                         Version 1.0.0 - Janvier 2026                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 CONTENU DU PACKAGE:
+─────────────────────
+  📁 project medical/     → Application PhysioCare
+  📄 ADMIN_CREDENTIALS.txt → Identifiants (CONFIDENTIEL)
+  📄 GUIDE_INSTALLATION.txt → Ce fichier
+  📄 CLIENT_INSTALLATION.md → Guide détaillé
+
+═══════════════════════════════════════════════════════════════════════════════
+                         INSTALLATION SUR 2 PC
+═══════════════════════════════════════════════════════════════════════════════
+
+🖥️ ARCHITECTURE:
+────────────────
+   ┌─────────────────────┐        ┌─────────────────────┐
+   │   PC 1 - SERVEUR    │        │   PC 2 - CLIENT     │
+   │   (Médecin)         │◄──────►│   (Assistant)       │
+   │                     │ Réseau │                     │
+   │   • MariaDB         │ Local  │   • PhysioCare      │
+   │   • PhysioCare      │        │   • Connexion à PC1 │
+   └─────────────────────┘        └─────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                    PC 1 - SERVEUR (Médecin) - ÉTAPES
+═══════════════════════════════════════════════════════════════════════════════
+
+📥 ÉTAPE 1: Installer MariaDB
+─────────────────────────────
+  1. Télécharger: https://mariadb.org/download/?t=mariadb&p=mariadb&r=11.8.1
+  2. Installer avec les options par défaut
+  3. Noter le mot de passe root choisi
+
+📥 ÉTAPE 2: Configurer MariaDB
+──────────────────────────────
+  1. Ouvrir HeidiSQL (installé avec MariaDB)
+  2. Se connecter en root
+  3. Exécuter ces commandes SQL:
+
+     CREATE DATABASE IF NOT EXISTS physiocare;
+     CREATE USER IF NOT EXISTS 'physiocare_user'@'%' IDENTIFIED BY 'PhysioCare2024!';
+     GRANT ALL PRIVILEGES ON physiocare.* TO 'physiocare_user'@'%';
+     FLUSH PRIVILEGES;
+
+    4. Modifier le fichier: C:\Program Files\MariaDB 11.8\data\my.ini
+      Ajouter sous [mysqld]:
+     
+      bind-address = 0.0.0.0
+
+  5. Redémarrer le service MariaDB (services.msc)
+
+📥 ÉTAPE 3: Ouvrir le Pare-feu
+──────────────────────────────
+  1. Ouvrir PowerShell en Administrateur
+  2. Exécuter:
+  
+     New-NetFirewallRule -DisplayName "MariaDB" -Direction Inbound -LocalPort 3306 -Protocol TCP -Action Allow
+
+📥 ÉTAPE 4: Installer Node.js
+─────────────────────────────
+  1. Télécharger: https://nodejs.org/ (version LTS)
+  2. Installer avec les options par défaut
+
+📥 ÉTAPE 5: Lancer PhysioCare
+─────────────────────────────
+  1. Extraire le dossier "project medical"
+  2. Ouvrir un terminal dans ce dossier
+  3. Exécuter:
+  
+     npm install
+     npm start
+
+📥 ÉTAPE 6: Configuration Initiale
+──────────────────────────────────
+  1. L'écran de configuration s'affiche
+  2. Remplir:
+     - Hôte: localhost
+     - Port: 3306
+     - Base: physiocare
+     - Utilisateur: physiocare_user
+     - Mot de passe: PhysioCare2024!
+  3. Cliquer "Tester et Sauvegarder"
+
+📥 ÉTAPE 7: Première Connexion
+──────────────────────────────
+  Identifiants Super Admin:
+  
+     👤 Utilisateur: superadmin
+     🔑 Mot de passe: MedPro@2024!
+
+📥 ÉTAPE 8: Créer les Comptes
+─────────────────────────────
+  1. Aller dans Paramètres → Gestion des Utilisateurs
+  2. Créer un compte MÉDECIN (admin: oui)
+  3. Créer un compte ASSISTANT (admin: non) pour PC 2
+
+📥 ÉTAPE 9: Noter l'IP du Serveur
+─────────────────────────────────
+  1. Ouvrir cmd.exe
+  2. Taper: ipconfig
+  3. Noter l'adresse IPv4 (ex: 192.168.1.100)
+
+═══════════════════════════════════════════════════════════════════════════════
+                    PC 2 - CLIENT (Assistant) - ÉTAPES
+═══════════════════════════════════════════════════════════════════════════════
+
+📥 ÉTAPE 1: Installer Node.js
+─────────────────────────────
+  (Même procédure que PC 1)
+
+📥 ÉTAPE 2: Installer PhysioCare
+────────────────────────────────
+  1. Copier le dossier "project medical" sur PC 2
+  2. Ouvrir un terminal dans ce dossier
+  3. Exécuter:
+  
+     npm install
+     npm start
+
+📥 ÉTAPE 3: Configuration Client
+────────────────────────────────
+  1. L'écran de configuration s'affiche
+  2. Remplir:
+     - Hôte: [IP du PC 1, ex: 192.168.1.100]
+     - Port: 3306
+     - Base: physiocare
+     - Utilisateur: physiocare_user
+     - Mot de passe: PhysioCare2024!
+  3. Cliquer "Tester et Sauvegarder"
+
+📥 ÉTAPE 4: Se Connecter
+────────────────────────
+  Utiliser le compte ASSISTANT créé sur PC 1
+
+═══════════════════════════════════════════════════════════════════════════════
+                         🔐 IDENTIFIANTS IMPORTANTS
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────┬────────────────────┬─────────────────────┐
+  │     COMPTE       │    UTILISATEUR     │    MOT DE PASSE     │
+  ├──────────────────┼────────────────────┼─────────────────────┤
+  │ Super Admin      │ superadmin         │ MedPro@2024!        │
+  │ MariaDB          │ physiocare_user    │ PhysioCare2024!     │
+  └──────────────────┴────────────────────┴─────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                         ✅ CHECKLIST D'INSTALLATION
+═══════════════════════════════════════════════════════════════════════════════
+
+PC 1 (SERVEUR):
+  [ ] MariaDB installé
+  [ ] Base physiocare créée
+  [ ] Utilisateur physiocare_user créé
+  [ ] bind-address = 0.0.0.0 configuré
+  [ ] Service MariaDB redémarré
+  [ ] Pare-feu port 3306 ouvert
+  [ ] Node.js installé
+  [ ] npm install exécuté
+  [ ] PhysioCare configuré et fonctionnel
+  [ ] IP serveur notée: _______________
+  [ ] Compte médecin créé
+  [ ] Compte assistant créé
+
+PC 2 (CLIENT):
+  [ ] Node.js installé
+  [ ] npm install exécuté
+  [ ] IP serveur configurée
+  [ ] Connexion testée
+  [ ] Connexion avec compte assistant OK
+
+═══════════════════════════════════════════════════════════════════════════════
+                              📞 SUPPORT
+═══════════════════════════════════════════════════════════════════════════════
+
+  Email: mi.bounouala@esi-sba.dz
+  
+  En cas de problème:
+  • Vérifier que les 2 PC sont sur le même réseau
+  • Vérifier que MariaDB est démarré (services.msc)
+  • Vérifier le pare-feu Windows
+  • Consulter les logs: %APPDATA%/physiocare/logs/
+
+═══════════════════════════════════════════════════════════════════════════════

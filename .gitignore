@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dmg
+*.AppImage
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Application data
+databases/
+backups/
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+*.log
+
+# Database files (during dev - backup before committing)
+*.db
+*.db-wal
+*.db-shm
+
+# Licenses
+licenses/*.json
+licenses/*.csv
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Misc
+.gitignore.bak
+*.mp4
+Gemini_Generated_Image_*.png
+
+release/
+
+release/
+node_modules/
+
+release/
+node_modules/
