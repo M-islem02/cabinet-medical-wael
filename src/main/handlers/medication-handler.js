@@ -343,12 +343,122 @@ export function handleMedicationEvents() {
   // Catégories de médicaments
   ipcMain.handle('medication:getCategories', async () => {
     try {
-      const categories = await query(
-        'SELECT DISTINCT category FROM medications WHERE isActive = 1 AND category IS NOT NULL ORDER BY category'
-      );
-      return { success: true, data: categories.map(c => c.category) };
+      let categories = [];
+      try {
+        categories = await query('SELECT id, name FROM medication_categories ORDER BY name');
+      } catch (tableError) {
+        categories = [];
+      }
+
+      if (!categories || categories.length === 0) {
+        const fallback = await query(
+          `SELECT DISTINCT category FROM medications
+           WHERE isActive = 1 AND category IS NOT NULL AND category <> ''
+           ORDER BY category`
+        );
+        categories = fallback.map((c) => ({ id: null, name: c.category }));
+      }
+
+      return { success: true, data: categories };
     } catch (error) {
       console.error('❌ Erreur récupération catégories:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('medication:createCategory', async (event, name) => {
+    try {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) {
+        return { success: false, error: 'Le nom de la catégorie est requis' };
+      }
+
+      const existing = await queryOne(
+        'SELECT id FROM medication_categories WHERE LOWER(name) = ?',
+        [trimmed.toLowerCase()]
+      );
+      if (existing) {
+        return { success: false, error: 'Cette catégorie existe déjà' };
+      }
+
+      const id = uuidv4();
+      const now = moment().format('YYYY-MM-DD HH:mm:ss');
+      await run(
+        'INSERT INTO medication_categories (id, name, createdAt) VALUES (?, ?, ?)',
+        [id, trimmed, now]
+      );
+
+      return { success: true, id };
+    } catch (error) {
+      console.error('❌ Erreur création catégorie:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('medication:updateCategory', async (event, id, name) => {
+    try {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) {
+        return { success: false, error: 'Le nom de la catégorie est requis' };
+      }
+
+      const category = await queryOne('SELECT name FROM medication_categories WHERE id = ?', [id]);
+      if (!category) {
+        return { success: false, error: 'Catégorie introuvable' };
+      }
+
+      const duplicate = await queryOne(
+        'SELECT id FROM medication_categories WHERE LOWER(name) = ? AND id <> ?',
+        [trimmed.toLowerCase(), id]
+      );
+      if (duplicate) {
+        return { success: false, error: 'Ce nom est déjà utilisé' };
+      }
+
+      const now = moment().format('YYYY-MM-DD HH:mm:ss');
+      await run('BEGIN');
+      try {
+        await run('UPDATE medication_categories SET name = ? WHERE id = ?', [trimmed, id]);
+        await run(
+          'UPDATE medications SET category = ?, updatedAt = ? WHERE category = ? AND isActive = 1',
+          [trimmed, now, category.name]
+        );
+        await run('COMMIT');
+      } catch (transactionError) {
+        await run('ROLLBACK');
+        throw transactionError;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur mise à jour catégorie:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('medication:deleteCategory', async (event, id) => {
+    try {
+      const category = await queryOne('SELECT name FROM medication_categories WHERE id = ?', [id]);
+      if (!category) {
+        return { success: false, error: 'Catégorie introuvable' };
+      }
+
+      const usage = await queryOne(
+        'SELECT COUNT(*) as count FROM medications WHERE isActive = 1 AND category = ?',
+        [category.name]
+      );
+
+      if (usage && usage.count > 0) {
+        return {
+          success: false,
+          error: `Impossible de supprimer : ${usage.count} médicament(s) utilisent cette catégorie`
+        };
+      }
+
+      await run('DELETE FROM medication_categories WHERE id = ?', [id]);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur suppression catégorie:', error);
       return { success: false, error: error.message };
     }
   });

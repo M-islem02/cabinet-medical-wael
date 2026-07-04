@@ -20,27 +20,23 @@ const APPOINTMENT_CATEGORIES_KEY = 'medcareso_appointment_categories';
 
 // Initialize Calendar
 async function initCalendar() {
-  console.log('🗓️ Initializing professional calendar...');
-
   // Load appointment categories UI + appointment type select
   loadAppointmentCategories();
-  
+
   // Load team members
   await loadTeamMembers();
-  
+
   // Load appointments
   await loadCalendarAppointments();
-  
+
   // Setup calendar event listeners
   setupCalendarEventListeners();
-  
+
   // Setup search functionality
   setupCalendarSearch();
-  
+
   // Render calendar
   renderCalendar();
-  
-  console.log('✅ Calendar initialized');
 }
 
 function getAppointmentCategories() {
@@ -121,16 +117,20 @@ function removeAppointmentCategory(encodedName) {
   showNotification('✅ Catégorie supprimée', 'success');
 }
 
-// Setup calendar search functionality
+// Setup calendar search functionality (debounced)
 function setupCalendarSearch() {
   const searchInput = document.getElementById('calendar-patient-search');
-  if (!searchInput) return;
-  
+  if (!searchInput || searchInput.dataset.calendarSearchBound) return;
+  searchInput.dataset.calendarSearchBound = '1';
+
+  const debouncedFilter = debounce((searchTerm) => {
+    filterTodayAppointmentsList(searchTerm.toLowerCase().trim());
+  }, 250);
+
   searchInput.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase().trim();
-    filterTodayAppointmentsList(searchTerm);
+    debouncedFilter(e.target.value);
   });
-  
+
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       searchInput.value = '';
@@ -139,15 +139,11 @@ function setupCalendarSearch() {
   });
 }
 
-// Load team members from database
+// Load team members from database (cached to avoid repeated fetches when revisiting the calendar)
 async function loadTeamMembers() {
   try {
-    const usersResult = await window.api.user.getAll();
-    const users = Array.isArray(usersResult?.data)
-      ? usersResult.data
-      : Array.isArray(usersResult)
-        ? usersResult
-        : [];
+    const users = await getCachedUsers();
+    if (!Array.isArray(users)) return;
     const teamList = document.getElementById('team-list');
     
     if (!teamList) return;
@@ -214,15 +210,11 @@ async function loadCalendarAppointments() {
     const startDate = getViewStartDate();
     const endDate = getViewEndDate();
     
-    console.log('📅 Loading appointments from', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
-    
     const res = await window.api.appointment.getByDateRange(
       startDate.toISOString().split('T')[0],
       endDate.toISOString().split('T')[0]
     );
-    
-    console.log('📅 API response:', res);
-    
+
     let appointments = (res && res.success ? res.data : res) || [];
     
     // Normalize dates - MariaDB returns Date objects, convert to strings
@@ -247,8 +239,6 @@ async function loadCalendarAppointments() {
         time: timeStr
       };
     });
-    
-    console.log('📅 Normalized appointments:', appointments.length, appointments);
     
     calendarAppointments = appointments;
     
@@ -744,11 +734,6 @@ function setupCalendarEventListeners() {
     openNewAppointmentModal();
   });
   
-  // Search patients
-  document.getElementById('calendar-patient-search')?.addEventListener('input', (e) => {
-    searchPatientsForCalendar(e.target.value);
-  });
-
   document.getElementById('today-appointments-list')?.addEventListener('click', (e) => {
     const appointmentEl = e.target.closest('.appointment-mini-item');
     if (!appointmentEl) return;
@@ -768,9 +753,12 @@ function setupCalendarEventListeners() {
     }
   });
 
-  document.getElementById('daily-appointments-search')?.addEventListener('input', (e) => {
-    renderDailyAppointmentsModal(e.target.value);
-  });
+  const dailyAppointmentsSearch = document.getElementById('daily-appointments-search');
+  if (dailyAppointmentsSearch && !dailyAppointmentsSearch.dataset.dailySearchBound) {
+    const debouncedDailySearch = debounce((value) => renderDailyAppointmentsModal(value), 250);
+    dailyAppointmentsSearch.addEventListener('input', (e) => debouncedDailySearch(e.target.value));
+    dailyAppointmentsSearch.dataset.dailySearchBound = '1';
+  }
 
   document.getElementById('calendar-category-name')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -1417,11 +1405,10 @@ async function openAppointmentDetails(appointmentId) {
 // Search patients for calendar
 async function searchPatientsForCalendar(query) {
   if (!query || query.length < 2) return;
-  
+
   try {
-    const patients = await window.api.patient.search(query);
-    // Could show a dropdown with results
-    console.log('Found patients:', patients);
+    await window.api.patient.search(query);
+    // Results could be used to show a dropdown with patients.
   } catch (error) {
     console.error('Error searching patients:', error);
   }
@@ -1490,148 +1477,6 @@ function changeCalendarView(view) {
 
   refreshCalendar();
 }
-
-// ========== SEARCHABLE PATIENT SELECT ==========
-
-/**
- * Initialize a searchable patient select dropdown
- * @param {string} searchInputId - ID of the text input for searching
- * @param {string} hiddenInputId - ID of the hidden input that stores the selected patient ID
- * @param {string} dropdownId - ID of the dropdown container
- * @param {Array} patients - Array of patient objects with id, firstName, lastName
- */
-function initSearchablePatientSelect(searchInputId, hiddenInputId, dropdownId, patients) {
-  const searchInput = document.getElementById(searchInputId);
-  const hiddenInput = document.getElementById(hiddenInputId);
-  const dropdown = document.getElementById(dropdownId);
-  
-  if (!searchInput || !hiddenInput || !dropdown) return;
-  
-  // Store patients data on the dropdown element
-  dropdown.patientsData = patients || [];
-  
-  // Clear previous values
-  searchInput.value = '';
-  hiddenInput.value = '';
-  
-  // Remove any existing event listeners by cloning
-  const newSearchInput = searchInput.cloneNode(true);
-  searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-  
-  // Render all patients initially
-  renderPatientDropdown(dropdownId, dropdown.patientsData, '');
-  
-  // Add event listeners
-  newSearchInput.addEventListener('focus', () => {
-    dropdown.classList.add('active');
-    renderPatientDropdown(dropdownId, dropdown.patientsData, newSearchInput.value);
-  });
-  
-  newSearchInput.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    renderPatientDropdown(dropdownId, dropdown.patientsData, searchTerm);
-    dropdown.classList.add('active');
-    
-    // Clear hidden input when typing (user is changing selection)
-    if (hiddenInput.value) {
-      hiddenInput.value = '';
-    }
-  });
-  
-  newSearchInput.addEventListener('blur', (e) => {
-    // Delay to allow click on dropdown options
-    setTimeout(() => {
-      dropdown.classList.remove('active');
-    }, 200);
-  });
-  
-  // Handle keyboard navigation
-  newSearchInput.addEventListener('keydown', (e) => {
-    const options = dropdown.querySelectorAll('.searchable-select-option');
-    const highlighted = dropdown.querySelector('.searchable-select-option.highlighted');
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (!highlighted && options.length > 0) {
-        options[0].classList.add('highlighted');
-      } else if (highlighted && highlighted.nextElementSibling) {
-        highlighted.classList.remove('highlighted');
-        highlighted.nextElementSibling.classList.add('highlighted');
-        highlighted.nextElementSibling.scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (highlighted && highlighted.previousElementSibling) {
-        highlighted.classList.remove('highlighted');
-        highlighted.previousElementSibling.classList.add('highlighted');
-        highlighted.previousElementSibling.scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlighted) {
-        highlighted.click();
-      }
-    } else if (e.key === 'Escape') {
-      dropdown.classList.remove('active');
-      newSearchInput.blur();
-    }
-  });
-}
-
-/**
- * Render the patient dropdown options based on search filter
- */
-function renderPatientDropdown(dropdownId, patients, searchTerm) {
-  const dropdown = document.getElementById(dropdownId);
-  if (!dropdown) return;
-  
-  const hiddenInputId = dropdownId.replace('-dropdown', '-select');
-  const searchInputId = dropdownId.replace('-dropdown', '-search');
-  const hiddenInput = document.getElementById(hiddenInputId);
-  const searchInput = document.getElementById(searchInputId);
-  
-  // Filter patients based on search term
-  const filteredPatients = patients.filter(p => {
-    const fullName = `${p.lastName || ''} ${p.firstName || ''}`.toLowerCase();
-    const reverseName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
-    return fullName.includes(searchTerm) || reverseName.includes(searchTerm);
-  });
-  
-  if (filteredPatients.length === 0) {
-    dropdown.innerHTML = '<div class="searchable-select-no-results">Aucun patient trouvé</div>';
-    return;
-  }
-  
-  dropdown.innerHTML = filteredPatients.map(p => {
-    const displayName = `${p.lastName || ''} ${p.firstName || ''}`.trim();
-    return `
-      <div class="searchable-select-option" data-patient-id="${p.id}" data-patient-name="${displayName}">
-        ${displayName}
-      </div>
-    `;
-  }).join('');
-  
-  // Add click handlers to options
-  dropdown.querySelectorAll('.searchable-select-option').forEach(option => {
-    option.addEventListener('click', () => {
-      const patientId = option.dataset.patientId;
-      const patientName = option.dataset.patientName;
-      
-      if (searchInput) {
-        searchInput.value = patientName;
-      }
-      if (hiddenInput) {
-        hiddenInput.value = patientId;
-      }
-      
-      dropdown.classList.remove('active');
-    });
-  });
-}
-
-// Make searchable select functions global
-window.initSearchablePatientSelect = initSearchablePatientSelect;
-window.renderPatientDropdown = renderPatientDropdown;
 
 // ========== LAZY PATIENT SEARCH OVERRIDE ==========
 

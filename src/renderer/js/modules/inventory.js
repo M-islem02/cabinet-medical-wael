@@ -403,14 +403,14 @@ async function adjustStock(event) {
     }
 }
 
+// Debounced inventory search to avoid reloading on every keystroke.
+const debouncedLoadInventory = debounce((page = 1) => loadInventory(page), 300);
+
 // Setup event listeners
 function setupInventoryEventListeners() {
     const searchInput = document.getElementById('inventory-search');
     if (searchInput && !searchInput.dataset.boundInventorySearch) {
-        searchInput.addEventListener('input', async (e) => {
-            inventoryFilters.search = e.target.value.trim();
-            await loadInventory(1);
-        });
+        searchInput.addEventListener('input', () => filterInventory());
         searchInput.dataset.boundInventorySearch = '1';
     }
 
@@ -433,13 +433,13 @@ function setupInventoryEventListeners() {
     }
 }
 
-// Filter inventory (called from HTML oninput)
+// Filter inventory (called from HTML oninput and from the input listener)
 function filterInventory() {
     const searchInput = document.getElementById('inventory-search');
     if (searchInput) {
         inventoryFilters.search = searchInput.value.trim();
     }
-    loadInventory(1);
+    debouncedLoadInventory(1);
 }
 
 // Format currency

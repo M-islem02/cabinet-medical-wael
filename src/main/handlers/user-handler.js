@@ -274,6 +274,7 @@ export function handleUserEvents() {
   });
 
   // Get all users (hide super admin from list for non-super-admins)
+  // Supports optional pagination: { paginated: true, page, pageSize, searchTerm }
   ipcMain.handle('user:getAll', async (event, payload = {}) => {
     try {
       await normalizeAllUsersPrivileges();
@@ -293,28 +294,53 @@ export function handleUserEvents() {
       if (!requestingUser && payload.requestingUserIsSuperAdmin === true) {
         requestingUser = { isSuperAdmin: 1, role: 'admin' };
       }
-      
+
       const isSuperAdminRequester = !!requestingUser?.isSuperAdmin;
       const isAdminRequester = isSuperAdminRequester || requestingUser?.role === 'admin';
 
-      let users;
+      let whereClause = '';
+      const params = [];
       if (isSuperAdminRequester) {
-        users = await query(
-          'SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin FROM users ORDER BY createdAt DESC'
-        );
+        whereClause = '';
       } else if (isAdminRequester) {
-        users = await query(
-          'SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin FROM users WHERE isSuperAdmin = 0 ORDER BY createdAt DESC'
-        );
+        whereClause = 'WHERE isSuperAdmin = 0';
       } else {
-        users = await query(
-          `SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin
-           FROM users
-           WHERE isSuperAdmin = 0 AND role <> 'admin'
-           ORDER BY createdAt DESC`
-        );
+        whereClause = "WHERE isSuperAdmin = 0 AND role <> 'admin'";
       }
-      return { success: true, data: users };
+
+      const searchTerm = String(payload.searchTerm || '').trim();
+      if (searchTerm) {
+        const searchPattern = `%${searchTerm}%`;
+        const searchCondition = '(username LIKE ? OR fullName LIKE ? OR phone LIKE ? OR role LIKE ? OR specialty LIKE ?)';
+        if (whereClause) {
+          whereClause += ` AND ${searchCondition}`;
+        } else {
+          whereClause = `WHERE ${searchCondition}`;
+        }
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+      }
+
+      const baseSql = `SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin FROM users ${whereClause} ORDER BY createdAt DESC`;
+
+      if (!payload.paginated) {
+        const users = await query(baseSql, params);
+        return { success: true, data: users };
+      }
+
+      const pageSize = Math.max(1, Math.min(100, Number(payload.pageSize) || 20));
+      const totalRow = await queryOne(`SELECT COUNT(*) as total FROM users ${whereClause}`, params);
+      const total = Number(totalRow?.total || 0);
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const requestedPage = Math.max(1, Number(payload.page) || 1);
+      const page = Math.min(requestedPage, totalPages);
+      const offset = (page - 1) * pageSize;
+
+      const users = await query(`${baseSql} LIMIT ? OFFSET ?`, [...params, pageSize, offset]);
+      return {
+        success: true,
+        data: users,
+        pagination: { page, pageSize, total, totalPages }
+      };
     } catch (error) {
       console.error('❌ Error getting users:', error);
       return { success: false, error: error.message };

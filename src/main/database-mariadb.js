@@ -465,6 +465,15 @@ async function createTables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // Table des categories de medicaments
+  await run(`
+    CREATE TABLE IF NOT EXISTS medication_categories (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(120) UNIQUE NOT NULL,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   // Table des analyses mÃ©dicales
   await run(`
     CREATE TABLE IF NOT EXISTS medical_analyses (

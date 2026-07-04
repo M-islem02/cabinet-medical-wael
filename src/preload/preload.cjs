@@ -248,7 +248,10 @@ contextBridge.exposeInMainWorld('api', {
     incrementUsage: (name) => ipcRenderer.invoke('medication:incrementUsage', name),
     update: (id, data) => ipcRenderer.invoke('medication:update', id, data),
     delete: (id) => ipcRenderer.invoke('medication:delete', id),
-    getCategories: () => ipcRenderer.invoke('medication:getCategories')
+    getCategories: () => ipcRenderer.invoke('medication:getCategories'),
+    createCategory: (name) => ipcRenderer.invoke('medication:createCategory', name),
+    updateCategory: (id, name) => ipcRenderer.invoke('medication:updateCategory', id, name),
+    deleteCategory: (id) => ipcRenderer.invoke('medication:deleteCategory', id)
   },
 
   // API Notifications
@@ -520,6 +523,7 @@ contextBridge.exposeInMainWorld('api', {
     get: () => ipcRenderer.invoke('dbConfig:get'),
     save: (config) => ipcRenderer.invoke('dbConfig:save', config),
     testConnection: (config) => ipcRenderer.invoke('dbConfig:testConnection', config),
+    getDataSummary: () => ipcRenderer.invoke('dbConfig:getDataSummary'),
     restart: () => ipcRenderer.invoke('dbConfig:restart'),
     cancel: () => ipcRenderer.invoke('dbConfig:cancel'),
     showWindow: () => ipcRenderer.invoke('dbConfig:showWindow')

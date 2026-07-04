@@ -102,5 +102,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "allowScripts": {
+    "@serialport/bindings-cpp@13.0.0": true,
+    "better-sqlite3@11.10.0": true,
+    "electron@28.3.3": true,
+    "lzma-native@8.0.6": true
   }
 }

@@ -7,6 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { getResponsiveWindowBounds, applyWindowPresentation } from '../window-utils.js';
+import { migrateSqliteToMariaDb, migrateMariaDbToSqlite } from '../database-migration.js';
+import { clearDatabaseConfigCache } from '../database-unified.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -109,138 +111,6 @@ async function testMariaDbConnection(config) {
   };
 }
 
-async function migrateSqliteToMariaDb(targetConfig) {
-  const sqlitePath = getSqlitePath();
-  if (!fs.existsSync(sqlitePath)) {
-    return { migrated: false, skipped: true, reason: 'Aucune base SQLite locale trouvée.' };
-  }
-
-  ensureBackupsDir();
-  const timestamp = buildTimestamp();
-  const sqliteSnapshotPath = path.join(getBackupsDir(), `sqlite-pre-migration-${timestamp}.db`);
-  fs.copyFileSync(sqlitePath, sqliteSnapshotPath);
-
-  const { default: Database } = await import('better-sqlite3');
-  const mysql = await import('mysql2/promise');
-
-  const sqliteDb = new Database(sqliteSnapshotPath, { readonly: true, fileMustExist: true });
-  const mariadb = await mysql.createConnection({
-    host: targetConfig.host,
-    port: targetConfig.port,
-    user: targetConfig.user,
-    password: targetConfig.password,
-    database: targetConfig.database,
-    connectTimeout: 10000,
-    multipleStatements: false
-  });
-
-  const report = {
-    startedAt: new Date().toISOString(),
-    sqliteSnapshotPath,
-    database: targetConfig.database,
-    copiedTables: [],
-    warnings: []
-  };
-
-  try {
-    const sqliteTables = sqliteDb
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-      .all()
-      .map((row) => row.name)
-      .filter(Boolean);
-
-    await mariadb.query('SET FOREIGN_KEY_CHECKS = 0');
-    await mariadb.beginTransaction();
-
-    for (const tableName of sqliteTables) {
-      const sqliteRows = sqliteDb.prepare(`SELECT * FROM ${quoteIdentifier(tableName)}`).all();
-      if (!sqliteRows.length) {
-        continue;
-      }
-
-      const [targetExistsRows] = await mariadb.query('SHOW TABLES LIKE ?', [tableName]);
-      if (!Array.isArray(targetExistsRows) || targetExistsRows.length === 0) {
-        throw new Error(`Migration bloquée: table cible absente dans MariaDB (${tableName})`);
-      }
-
-      const [targetColumnsMeta] = await mariadb.query(
-        `SELECT COLUMN_NAME as columnName, COLUMN_KEY as columnKey
-         FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-         ORDER BY ORDINAL_POSITION`,
-        [targetConfig.database, tableName]
-      );
-
-      const targetColumns = Array.isArray(targetColumnsMeta)
-        ? targetColumnsMeta.map((c) => c.columnName)
-        : [];
-      const targetPkColumns = Array.isArray(targetColumnsMeta)
-        ? targetColumnsMeta.filter((c) => c.columnKey === 'PRI').map((c) => c.columnName)
-        : [];
-
-      const sqliteColumns = Object.keys(sqliteRows[0] || {});
-      const commonColumns = sqliteColumns.filter((col) => targetColumns.includes(col));
-
-      if (!commonColumns.length) {
-        throw new Error(`Migration bloquée: aucune colonne commune pour la table ${tableName}`);
-      }
-
-      const columnListSql = commonColumns.map(quoteIdentifier).join(', ');
-      const placeholders = `(${commonColumns.map(() => '?').join(', ')})`;
-      const updateColumns = commonColumns.filter((col) => !targetPkColumns.includes(col));
-      const updateClause = updateColumns.length
-        ? ` ON DUPLICATE KEY UPDATE ${updateColumns.map((col) => `${quoteIdentifier(col)} = VALUES(${quoteIdentifier(col)})`).join(', ')}`
-        : '';
-      const insertSql = `INSERT INTO ${quoteIdentifier(tableName)} (${columnListSql}) VALUES ${placeholders}${updateClause}`;
-
-      const statementValues = sqliteRows.map((row) => commonColumns.map((col) => row[col] === undefined ? null : row[col]));
-      for (const values of statementValues) {
-        await mariadb.query(insertSql, values);
-      }
-
-      report.copiedTables.push({
-        table: tableName,
-        rows: sqliteRows.length,
-        columns: commonColumns.length
-      });
-    }
-
-    await mariadb.commit();
-    await mariadb.query('SET FOREIGN_KEY_CHECKS = 1');
-    report.finishedAt = new Date().toISOString();
-
-    const reportPath = path.join(getBackupsDir(), `sqlite-to-mariadb-report-${timestamp}.json`);
-    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf-8');
-
-    return {
-      migrated: true,
-      skipped: false,
-      reportPath,
-      sqliteSnapshotPath,
-      copiedTables: report.copiedTables
-    };
-  } catch (error) {
-    try {
-      await mariadb.rollback();
-      await mariadb.query('SET FOREIGN_KEY_CHECKS = 1');
-    } catch (_) {
-      // ignore rollback restoration errors
-    }
-    throw error;
-  } finally {
-    try {
-      await mariadb.end();
-    } catch (_) {
-      // ignore close errors
-    }
-    try {
-      sqliteDb.close();
-    } catch (_) {
-      // ignore close errors
-    }
-  }
-}
-
 /**
  * Charge la configuration de la base de données
  */
@@ -265,11 +135,12 @@ export function loadDatabaseConfig() {
  */
 export function saveDatabaseConfig(config) {
   const configPath = getConfigPath();
-  
+
   try {
     const merged = { ...DEFAULT_CONFIG, ...config };
     fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
-    console.log('✅ Configuration DB sauvegardée:', configPath);
+    // Clear the in-memory config cache so the new settings are picked up immediately.
+    clearDatabaseConfigCache();
     return true;
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de la config DB:', error);
@@ -328,12 +199,77 @@ export function setupDbConfigHandlers() {
     return loadDatabaseConfig();
   });
 
+  // Résumé des données de la base actuelle
+  ipcMain.handle('dbConfig:getDataSummary', async () => {
+    try {
+      const config = loadDatabaseConfig();
+      const mode = config.type || 'sqlite';
+      const counts = {};
+      let tables = [];
+
+      if (mode === 'sqlite') {
+        const { getDatabase } = await import('../database.js');
+        const sqliteDb = getDatabase();
+        tables = sqliteDb
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+          .all()
+          .map((row) => row.name);
+
+        for (const table of tables) {
+          try {
+            counts[table] = sqliteDb
+              .prepare(`SELECT COUNT(*) AS c FROM ${quoteIdentifier(table)}`)
+              .get().c;
+          } catch (countError) {
+            counts[table] = null;
+            console.warn(`Impossible de compter ${table}:`, countError.message);
+          }
+        }
+      } else {
+        const { getDatabase } = await import('../database-mariadb.js');
+        const pool = getDatabase();
+        const [rows] = await pool.query(
+          `SELECT TABLE_NAME AS tableName
+           FROM information_schema.TABLES
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+           ORDER BY TABLE_NAME`
+        );
+        tables = rows.map((row) => row.tableName);
+
+        for (const table of tables) {
+          try {
+            const [countRows] = await pool.query(
+              `SELECT COUNT(*) AS c FROM ${quoteIdentifier(table)}`
+            );
+            counts[table] = countRows[0]?.c || 0;
+          } catch (countError) {
+            counts[table] = null;
+            console.warn(`Impossible de compter ${table}:`, countError.message);
+          }
+        }
+      }
+
+      return {
+        success: true,
+        mode,
+        counts,
+        totalTables: tables.length
+      };
+    } catch (error) {
+      console.error('Erreur résumé base de données:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Sauvegarder la configuration
   ipcMain.handle('dbConfig:save', async (event, config) => {
     try {
       const currentConfig = loadDatabaseConfig();
       const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+      let connectionWarning = null;
+      let migrationResult = null;
 
+      // Tester la connexion si la cible est MariaDB
       if (mergedConfig.type === 'mariadb') {
         const connectionTest = await testMariaDbConnection(mergedConfig.mariadb || {});
         if (!connectionTest.success) {
@@ -343,26 +279,66 @@ export function setupDbConfigHandlers() {
         if (connectionTest.resolvedHost && connectionTest.resolvedHost !== mergedConfig.mariadb.host) {
           mergedConfig.mariadb.host = connectionTest.resolvedHost;
         }
+        connectionWarning = connectionTest.warning || null;
+      }
 
-        const shouldMigrate = config?.migration?.fromSqlite === true
-          && currentConfig.type === 'sqlite';
+      // Déterminer si une migration automatique est nécessaire
+      const typeChanged = currentConfig.type !== mergedConfig.type;
+      const explicitFromSqlite = config?.migration?.fromSqlite === true
+        && currentConfig.type === 'sqlite'
+        && mergedConfig.type === 'mariadb';
 
-        let migrationResult = null;
-        if (shouldMigrate) {
-          migrationResult = await migrateSqliteToMariaDb(mergedConfig.mariadb);
+      if (typeChanged || explicitFromSqlite) {
+        if (currentConfig.type === 'sqlite' && mergedConfig.type === 'mariadb') {
+          if (!fs.existsSync(getSqlitePath())) {
+            migrationResult = { migrated: false, skipped: true, reason: 'Aucune base SQLite locale trouvée.' };
+          } else {
+            const rawReport = await migrateSqliteToMariaDb(getSqlitePath(), mergedConfig.mariadb);
+            migrationResult = {
+              migrated: rawReport.success === true,
+              skipped: false,
+              success: rawReport.success,
+              error: rawReport.error || null,
+              reason: rawReport.error || null,
+              reportPath: rawReport.reportPath,
+              backupPath: rawReport.backupPath,
+              copiedTables: rawReport.copiedTables || [],
+              warnings: rawReport.warnings || []
+            };
+          }
+        } else if (currentConfig.type === 'mariadb' && mergedConfig.type === 'sqlite') {
+          const rawReport = await migrateMariaDbToSqlite(currentConfig.mariadb, getSqlitePath());
+          migrationResult = {
+            migrated: rawReport.success === true,
+            skipped: false,
+            success: rawReport.success,
+            error: rawReport.error || null,
+            reason: rawReport.error || null,
+            reportPath: rawReport.reportPath,
+            backupPath: rawReport.backupPath,
+            copiedTables: rawReport.copiedTables || [],
+            warnings: rawReport.warnings || []
+          };
         }
+      }
 
-        const success = saveDatabaseConfig(mergedConfig);
+      if (migrationResult && migrationResult.success === false) {
         return {
-          success,
-          warning: connectionTest.warning || null,
+          success: false,
+          error: migrationResult.error || 'La migration a échoué',
+          warning: connectionWarning,
           migration: migrationResult
         };
       }
 
       const success = saveDatabaseConfig(mergedConfig);
-      return { success };
+      return {
+        success,
+        warning: connectionWarning,
+        migration: migrationResult
+      };
     } catch (error) {
+      console.error('Erreur sauvegarde config DB:', error);
       return { success: false, error: error.message };
     }
   });
