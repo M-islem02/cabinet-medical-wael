@@ -33,6 +33,13 @@
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
 #modal-add-user .modal-content {
   width: 90vw;
   max-width: 860px;
@@ -187,6 +194,43 @@
   color: var(--text-light);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.db-status-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.db-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.db-status-badge.sqlite {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.db-status-badge.mariadb {
+  background: linear-gradient(135deg, #0b4f8a 0%, #145da0 100%);
+}
+
+.db-status-mode-text {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.db-status-server {
+  color: var(--text-light);
+  font-weight: 500;
+  font-size: 15px;
 }
 
 #modal-add-user .modal-content.admin-account-modal {
@@ -526,21 +570,6 @@
   color: #8a5a09;
 }
 
-.inline-db-migration-box label {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.inline-db-migration-box input[type="checkbox"] {
-  margin-top: 2px;
-  width: 16px;
-  height: 16px;
-}
-
 .inline-db-info-box {
   margin-bottom: 18px;
   padding: 16px 18px;
@@ -590,6 +619,157 @@
 
 .inline-db-footer {
   padding-top: 16px;
+}
+
+.inline-db-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.inline-db-mode-row h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.inline-db-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.inline-db-mode-badge.sqlite {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+.inline-db-mode-badge.mariadb {
+  background: linear-gradient(135deg, #0b4f8a 0%, #145da0 100%);
+}
+
+.inline-db-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.inline-db-data-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: rgba(20, 93, 160, 0.06);
+  text-align: center;
+  min-width: 0;
+}
+
+.inline-db-data-count {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  line-height: 1;
+}
+
+.inline-db-data-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: capitalize;
+}
+
+.inline-db-choice-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.inline-db-choice.selected .inline-db-choice-icon {
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.inline-db-migration-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #8a5a09;
+}
+
+.inline-db-migration-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #8a5a09;
+}
+
+.inline-db-migration-list li {
+  margin-bottom: 5px;
+}
+
+.inline-db-migration-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.55);
+}
+
+.inline-db-migration-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.inline-db-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(228, 240, 251, 0.94) 0%, rgba(248, 251, 255, 0.96) 100%);
+  border: 1px solid rgba(20, 93, 160, 0.14);
+}
+
+.inline-db-progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(20, 93, 160, 0.12);
+  overflow: hidden;
+}
+
+.inline-db-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+  transition: width 0.4s ease;
+}
+
+.inline-db-progress-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-dark);
 }
 
 #modal-db-config .modal-body {
@@ -692,6 +872,19 @@
   .inline-db-action-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .inline-db-mode-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inline-db-mode-row h3 {
+    font-size: 20px;
+  }
+
+  .inline-db-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1060,11 +1253,7 @@
   }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+
 
 html, body {
   font-family: 'Segoe UI', 'Noto Sans', Tahoma, Arial, sans-serif;
@@ -1092,10 +1281,7 @@ body.modal-open .app-container {
   overflow: hidden !important;
 }
 
-* {
-  max-width: 100%;
-  box-sizing: border-box;
-}
+
 
 /* Hide admin-only elements for non-admin users */
 #user-management-card.hidden,
@@ -1614,11 +1800,7 @@ label {
   font-size: 17px;
 }
 
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+
 
 /* ========== DASHBOARD ========== */
 .dashboard-grid {
@@ -8580,9 +8762,7 @@ body.assistant-mode #payment-requests-section {
   display: none;
 }
 
-.categories-section {
-  grid-column: 1 / -1;
-}
+
 
 .calendar-top-card .section-header-small h4,
 .today-appointments h4 {
@@ -11346,11 +11526,7 @@ body.assistant-mode #payment-requests-section {
   color: var(--text-muted);
 }
 
-.document-card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+
 
 .document-empty {
   background: rgba(0, 102, 204, 0.05);
@@ -12312,9 +12488,7 @@ td button {
 #evaluation-modal .modal-header h2,
 #rehab-plan-modal .modal-header h2,
 #modal-view-file .modal-header h2,
-.rehab-modal-shell .modal-header h2 {
-  font-size: 20px !important;
-}
+
 
 #evaluation-modal .modal-body,
 #rehab-plan-modal .modal-body,
@@ -13028,9 +13202,7 @@ td button {
 
 /* ========== FINAL OVERRIDE LAYER ========== */
 #evaluation-modal,
-#rehab-plan-modal {
-  padding: 16px;
-}
+
 
 #evaluation-modal .modal-content,
 #rehab-plan-modal .modal-content,
@@ -13074,9 +13246,7 @@ td button {
 }
 
 #modal-add-prescription .medication-table-head > *:last-child,
-#modal-add-prescription .medication-row > *:last-child {
-  border-right: 0;
-}
+
 
 #modal-rapport .rapport-organ-block {
   border: 0 !important;
@@ -13332,12 +13502,7 @@ td button {
   gap: 8px 10px;
 }
 
-#modal-add-prescription .info-unit {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f8fbff;
-  border: 1px solid rgba(20, 93, 160, 0.10);
-}
+
 
 #modal-add-prescription .ordonnance-title-block {
   display: flex;
@@ -13828,4 +13993,223 @@ td button {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* ===== Account modal premium improvements ===== */
+.account-modal-hero-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+  color: #fff;
+  font-size: 22px;
+  margin-bottom: 10px;
+  box-shadow: 0 8px 16px rgba(20, 93, 160, 0.18);
+}
+
+.account-modal-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-modal-hero-note.is-compact {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  font-size: 13px;
+}
+
+.account-modal-hero-note.is-compact > span {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.account-modal-hero-note.is-compact p {
+  margin: 0;
+  line-height: 1.55;
+  color: var(--text-light);
+}
+
+.account-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-role-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.account-role-card:hover {
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.account-role-card:has(input:checked) {
+  border-color: var(--primary-color);
+  background: linear-gradient(180deg, rgba(20, 93, 160, 0.06) 0%, #ffffff 100%);
+  box-shadow: 0 12px 24px rgba(20, 93, 160, 0.12);
+}
+
+.account-role-card:focus-within {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.account-role-card input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.account-role-card-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.account-role-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.account-role-card-desc {
+  font-size: 13px;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.account-specialty-section {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.35s ease, opacity 0.25s ease, margin 0.25s ease;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.account-specialty-section.is-visible {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 0;
+}
+
+.account-specialty-panel {
+  min-height: 0;
+  overflow: hidden;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  background: #fff;
+}
+
+.account-password-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+#modal-add-user .account-modal-actions {
+  justify-content: flex-end;
+}
+
+#modal-add-user .account-modal-actions .btn-secondary {
+  order: 1;
+}
+
+#modal-add-user .account-modal-actions .btn-success {
+  order: 2;
+}
+
+/* ===== Medication categories management ===== */
+.medication-categories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  margin-top: 16px;
+  padding-right: 4px;
+}
+
+.medication-category-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--lighter-bg);
+}
+
+.medication-category-item input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.medication-category-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.medication-category-item.is-readonly {
+  background: #f8fafc;
+  color: var(--text-muted);
+}
+
+.medication-category-item.is-readonly input {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.medication-category-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .account-role-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-modal-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .account-modal-hero-note.is-compact {
+    padding: 14px;
+  }
+
+  .medication-category-actions .btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }

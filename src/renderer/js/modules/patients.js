@@ -401,17 +401,17 @@ function showPatientForm() {
       applyPackageRestrictionsFromCache(window._packageConfig || null);
     }
     
-    // Charger la liste des médecins pour l'assistant
-    window.api.user.getAll({ requestingUserId: currentUserId }).then(res => {
-      if (res.success) {
-        const doctors = (res.data || []).filter((user) => {
+    // Charger la liste des médecins pour l'assistant (cached to avoid repeated API calls)
+    getCachedUsers({ requestingUserId: currentUserId }).then(doctors => {
+      if (Array.isArray(doctors)) {
+        const filteredDoctors = doctors.filter((user) => {
           if (!user || !user.id || user.isSuperAdmin || user.isAdmin) return false;
           return user.role === 'doctor' || user.role === 'dentist';
         });
         const select = document.getElementById('patient-primaryDoctorId');
         if (select) {
-          select.innerHTML = '<option value="">-- Sélectionner un Médecin --</option>' + 
-            doctors.map((doctor) => {
+          select.innerHTML = '<option value="">-- Sélectionner un Médecin --</option>' +
+            filteredDoctors.map((doctor) => {
               const displayName = doctor.fullName || doctor.username || 'Médecin';
               const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
                 ? getPracticeSpecialtyMeta(doctor.specialty || doctor.role)

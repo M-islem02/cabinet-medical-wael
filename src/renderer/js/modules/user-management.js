@@ -1,5 +1,9 @@
 // ========== USER MANAGEMENT ==========
 
+const USERS_PAGE_SIZE = 20;
+let usersPagination = { page: 1, pageSize: USERS_PAGE_SIZE, total: 0, totalPages: 1 };
+let usersSearchTerm = '';
+
 function toggleUserManagementPanel(forceOpen = null) {
   const body = document.getElementById('user-management-body');
   const button = document.getElementById('user-management-toggle-btn');
@@ -36,15 +40,14 @@ function canManageAccounts() {
 }
 
 function populateManagedRoleOptions(selectedRole = 'doctor') {
-  const roleSelect = document.getElementById('new-user-role');
-  if (!roleSelect) return;
+  const roleHidden = document.getElementById('new-user-role');
+  const radios = document.querySelectorAll('input[name="new-user-role"]');
+  const value = selectedRole === 'assistant' ? 'assistant' : 'doctor';
 
-  roleSelect.innerHTML = `
-    <option value="doctor">👨‍⚕️ Médecin</option>
-    <option value="assistant">🧑‍💼 Assistant(e)</option>
-  `;
-
-  roleSelect.value = selectedRole === 'assistant' ? 'assistant' : 'doctor';
+  if (roleHidden) roleHidden.value = value;
+  radios.forEach((radio) => {
+    radio.checked = radio.value === value;
+  });
 }
 
 function populateSpecialtyOptions(selectedSpecialty = '') {
@@ -121,22 +124,73 @@ function renderUserRoleBadge(user) {
   return `<span style="background: #2563eb; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">👨‍⚕️ ${roleLabel}</span>`;
 }
 
-async function loadUsersList() {
+function renderUsersPagination() {
+  const container = document.getElementById('users-pagination');
+  if (!container) return;
+
+  const total = Number(usersPagination.total || 0);
+  const currentPage = Math.min(Math.max(1, Number(usersPagination.page || 1)), Math.max(1, Number(usersPagination.totalPages || 1)));
+  const totalPages = Math.max(1, Number(usersPagination.totalPages || 1));
+
+  if (total <= usersPagination.pageSize) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  const start = total > 0 ? ((currentPage - 1) * usersPagination.pageSize) + 1 : 0;
+  const end = total > 0 ? Math.min(currentPage * usersPagination.pageSize, total) : 0;
+
+  container.style.display = 'flex';
+  container.innerHTML = `
+    <div class="patients-pagination-info">Affichage ${start}-${end} sur ${total} comptes</div>
+    <div class="patients-pagination-actions">
+      <button class="btn btn-small btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeUsersPage(-1)">◀ Précédent</button>
+      <span class="patients-pagination-info">Page ${currentPage} / ${totalPages}</span>
+      <button class="btn btn-small btn-secondary" ${currentPage >= totalPages ? 'disabled' : ''} onclick="changeUsersPage(1)">Suivant ▶</button>
+    </div>
+  `;
+}
+
+async function changeUsersPage(direction) {
+  const totalPages = Math.max(1, Number(usersPagination.totalPages || 1));
+  const nextPage = Math.min(totalPages, Math.max(1, Number(usersPagination.page || 1) + direction));
+  if (nextPage === usersPagination.page) return;
+  await loadUsersList(nextPage);
+}
+
+async function loadUsersList(page = 1) {
   const tbody = document.getElementById('users-table-body');
   if (!tbody) return;
 
   try {
     const requesterContext = getRequesterContext();
-    const result = await window.api.user.getAll(requesterContext);
+    const result = await window.api.user.getAll({
+      ...requesterContext,
+      paginated: true,
+      page,
+      pageSize: USERS_PAGE_SIZE,
+      searchTerm: usersSearchTerm
+    });
+
     if (!result.success) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #f44336; font-size: 16px;">Erreur de chargement</td></tr>';
+      renderUsersPagination();
       return;
     }
 
     const users = result.data || [];
-    
+    const pagination = result.pagination || { page, pageSize: USERS_PAGE_SIZE, total: users.length, totalPages: 1 };
+    usersPagination = {
+      page: Number(pagination.page || page),
+      pageSize: Number(pagination.pageSize || USERS_PAGE_SIZE),
+      total: Number(pagination.total || users.length),
+      totalPages: Math.max(1, Number(pagination.totalPages || 1))
+    };
+
     if (users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999; font-size: 16px;">Aucun utilisateur</td></tr>';
+      renderUsersPagination();
       return;
     }
 
@@ -181,18 +235,23 @@ async function loadUsersList() {
       </tr>
     `;
     }).join('');
+
+    renderUsersPagination();
   } catch (error) {
     console.error('Error loading users:', error);
     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #f44336; font-size: 16px;">Erreur de chargement</td></tr>';
+    renderUsersPagination();
   }
 }
+
+window.changeUsersPage = changeUsersPage;
 
 function showAddUserModal() {
   if (!canCurrentUserCreateAccounts()) {
     showNotification('❌ Seuls les administrateurs peuvent ajouter des utilisateurs', 'error');
     return;
   }
-  
+
   document.getElementById('add-user-form').reset();
   setUserFormMode('create');
   populateManagedRoleOptions('doctor');
@@ -200,6 +259,7 @@ function showAddUserModal() {
   if (typeof window.toggleSpecialtyField === 'function') {
     window.toggleSpecialtyField();
   }
+  regenerateAddUserPassword();
   showModal('modal-add-user');
 }
 
@@ -259,22 +319,30 @@ function updateAddUserRolePresentation(role) {
   summary.textContent = 'Le compte médecin reçoit une spécialité individuelle qui pilote ses formulaires, ses champs et ses dossiers patients.';
 }
 
+function onAccountRoleChange(role) {
+  const roleHidden = document.getElementById('new-user-role');
+  if (roleHidden) roleHidden.value = role;
+
+  const radios = document.querySelectorAll('input[name="new-user-role"]');
+  radios.forEach((radio) => {
+    radio.checked = radio.value === role;
+  });
+
+  toggleSpecialtyField();
+}
+
 // Global function for form interactivity
 window.toggleSpecialtyField = function() {
   const role = document.getElementById('new-user-role')?.value || 'doctor';
-  const group = document.getElementById('doctor-specialty-group');
+  const section = document.getElementById('doctor-specialty-section');
   const specialtySelect = document.getElementById('new-user-specialty');
-  
-  if (group) {
-    if (role === 'doctor') {
-      group.style.display = '';
-      group.classList.add('is-visible');
-      if (specialtySelect) specialtySelect.required = true;
-    } else {
-      group.style.display = 'none';
-      group.classList.remove('is-visible');
-      if (specialtySelect) specialtySelect.required = false;
-    }
+
+  if (section) {
+    section.classList.toggle('is-visible', role === 'doctor');
+  }
+
+  if (specialtySelect) {
+    specialtySelect.required = role === 'doctor';
   }
 
   updateAddUserRolePresentation(role);
@@ -337,8 +405,9 @@ async function addUser(event) {
 
     if (result.success) {
       closeModal('modal-add-user');
+      invalidateUsersCache();
       await loadUsersList();
-      
+
       if (!isEditMode) {
         // Show credentials in alert with better formatting
       alert(`✅ COMPTE CRÉÉ AVEC SUCCÈS!\n\n` +
@@ -378,6 +447,7 @@ async function deleteUser(userId) {
     const result = await window.api.user.delete({ userId, ...getRequesterContext() });
     if (result.success) {
       showNotification('✅ Utilisateur supprimé', 'success');
+      invalidateUsersCache();
       await loadUsersList();
     } else {
       showNotification('❌ Erreur: ' + result.error, 'error');
@@ -398,6 +468,7 @@ async function toggleUserStatus(userId) {
     const result = await window.api.user.toggleActive({ userId, ...getRequesterContext() });
     if (result.success) {
       showNotification('✅ Statut modifié', 'success');
+      invalidateUsersCache();
       await loadUsersList();
     } else {
       showNotification('❌ Erreur: ' + result.error, 'error');
@@ -415,6 +486,54 @@ function generateTemporaryPassword(length = 8) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+}
+
+function setAddUserGeneratedPassword(value) {
+  const passwordInput = document.getElementById('new-user-password');
+  const confirmInput = document.getElementById('new-user-confirm-password');
+  if (passwordInput) passwordInput.value = value;
+  if (confirmInput) confirmInput.value = value;
+}
+
+function regenerateAddUserPassword() {
+  setAddUserGeneratedPassword(generateTemporaryPassword(10));
+}
+
+async function copyAddUserPasswordToClipboard() {
+  const passwordInput = document.getElementById('new-user-password');
+  const password = passwordInput?.value || '';
+  if (!password) return;
+
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(password);
+    } else {
+      const tempInput = document.createElement('input');
+      tempInput.value = password;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+    }
+    showNotification('🔑 Mot de passe copié dans le presse-papiers', 'success');
+  } catch (error) {
+    console.error('Error copying password:', error);
+    showNotification('Impossible de copier le mot de passe', 'error');
+  }
+}
+
+const ACCOUNT_EYE_OPEN_PATH = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+const ACCOUNT_EYE_CLOSED_PATH = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+
+function toggleAddUserPasswordVisibility(inputId, button) {
+  const input = document.getElementById(inputId);
+  if (!input || !button) return;
+
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  const icon = button.querySelector('svg');
+  if (icon) icon.innerHTML = isHidden ? ACCOUNT_EYE_CLOSED_PATH : ACCOUNT_EYE_OPEN_PATH;
+  button.setAttribute('aria-label', isHidden ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
 }
 
 async function resetAssistantPassword(userId, username) {
@@ -521,3 +640,7 @@ window.deleteUser = deleteUser;
 window.toggleUserStatus = toggleUserStatus;
 window.resetAssistantPassword = resetAssistantPassword;
 window.changePassword = changePassword;
+window.onAccountRoleChange = onAccountRoleChange;
+window.regenerateAddUserPassword = regenerateAddUserPassword;
+window.copyAddUserPasswordToClipboard = copyAddUserPasswordToClipboard;
+window.toggleAddUserPasswordVisibility = toggleAddUserPasswordVisibility;

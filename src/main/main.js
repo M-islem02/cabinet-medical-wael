@@ -469,6 +469,18 @@ function openMainAppForUser(userData) {
   if (loginWindow) {
     loginWindow.close();
   }
+
+  // Start non-critical services after the main app window is shown so login
+  // remains fast. Failures are logged but do not block the UI.
+  initializePublicBookingServer().then((result) => {
+    if (result?.success && result.data?.enabled) {
+      console.log(`RDV web portal ready on ${result.data.localUrl}`);
+    } else if (result?.error) {
+      console.warn('RDV web portal unavailable:', result.error);
+    }
+  }).catch((error) => {
+    console.warn('RDV web portal unavailable:', error?.message || error);
+  });
 }
 
 async function tryResumeLoginSession() {
@@ -538,25 +550,16 @@ async function initializeApp() {
     // 2. L'admin peut activer la licence aprÃ¨s connexion
     // 3. Les autres utilisateurs ne peuvent pas se connecter si licence non activÃ©e
 
-    const bookingServerResult = await initializePublicBookingServer();
-    if (bookingServerResult?.success && bookingServerResult.data?.enabled) {
-      console.log(`RDV web portal ready on ${bookingServerResult.data.localUrl}`);
-    } else if (bookingServerResult?.error) {
-      console.warn('RDV web portal unavailable:', bookingServerResult.error);
-    }
-    
     const resumedUser = await tryResumeLoginSession();
     if (resumedUser) {
-      console.log('Resuming login session for:', resumedUser.username);
       openMainAppForUser(resumedUser);
       return;
     }
 
-    console.log('Login screen displayed');
     createLoginWindow();
-    
-    // AI/Ollama now starts only on demand to keep startup lighter.
-    
+
+    // AI/Ollama, public booking, cloud sync and SMS are started on demand or after
+    // the user logs in so that startup stays fast and responsive.
   } catch (error) {
     console.error('Application initialization error:', error);
     dialog.showErrorBox('Erreur', 'Erreur lors de l\'initialisation de l\'application');
@@ -586,9 +589,7 @@ function setupIPCHandlers() {
 
   // AprÃ¨s activation rÃ©ussie de la licence
   ipcMain.handle('license:activated', async () => {
-    // Aller directement Ã  l'Ã©cran de connexion (admin existe par dÃ©faut)
-    console.log('License activated - showing login screen');
-    
+    // Aller directement Ã  l'Ã©cran de connexion (admin existe par dÃ©faut)
     // Show existing login window or create new one
     if (loginWindow) {
       loginWindow.show();
@@ -610,24 +611,22 @@ function setupIPCHandlers() {
 
   // Handle logout - close main window and show login window
   ipcMain.handle('user:showLoginWindow', () => {
-    console.log('Login screen displayed after logout');
     clearLoginSession();
-    
+
     // Close main window if it exists
     if (mainWindow) {
       mainWindow.close();
       mainWindow = null;
     }
-    
+
     // Create login window
     createLoginWindow();
-    
+
     return { success: true };
   });
 
   // Afficher la fenÃªtre de licence (appelÃ© par login si super admin et licence non activÃ©e)
   ipcMain.handle('license:showLicenseWindow', () => {
-    console.log('Opening license activation window');
     createLicenseWindow();
     // Don't close login window - just hide it so we can go back
     if (loginWindow) {
@@ -638,7 +637,6 @@ function setupIPCHandlers() {
 
   // Afficher la fenÃªtre de configuration client (appelÃ© par login si super admin et package non configurÃ©)
   ipcMain.handle('package:show-config-window', () => {
-    console.log('Opening client configuration window');
     createClientConfigWindow();
     // Don't close login window - just hide it so we can go back
     if (loginWindow) {
@@ -649,21 +647,14 @@ function setupIPCHandlers() {
 
   // AprÃ¨s configuration initiale terminÃ©e
   ipcMain.handle('setup:completed', () => {
-    console.log('setup:completed called - switching to login window');
     createLoginWindow();
     if (setupWindow) {
-      console.log('Closing setup window');
       setupWindow.close();
-    } else {
-      console.log('Setup window was already null');
     }
   });
 
   // AprÃ¨s connexion rÃ©ussie
   ipcMain.handle('user:loginSuccess', (event, userData) => {
-    console.log('Login successful - opening main application');
-    console.log('User data received:', userData);
-
     if (!userData || !userData.id) {
       console.error('user:loginSuccess called without valid user data');
       return { success: false, error: 'INVALID_USER_DATA' };

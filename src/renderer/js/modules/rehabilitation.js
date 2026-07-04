@@ -58,8 +58,8 @@ async function initRehabilitation() {
   console.log('✅ Rehabilitation module initialized');
 }
 
-// Refresh patient list in selector
-async function refreshRehabPatientList() {
+// Refresh patient list in selector (legacy version, kept for reference)
+async function refreshRehabPatientListLegacy() {
   try {
     const select = document.getElementById('rehab-patient-selector');
     if (!select) return;
@@ -99,7 +99,7 @@ function getRehabPatientsFromSelector() {
     }));
 }
 
-async function ensureRehabModalPatients() {
+async function ensureRehabModalPatientsLegacy() {
   const selectorPatients = getRehabPatientsFromSelector();
   if (selectorPatients.length) {
     rehabModalPatientsCache = selectorPatients;
@@ -121,7 +121,7 @@ async function ensureRehabModalPatients() {
   return rehabModalPatientsCache;
 }
 
-function fillRehabPatientSelect(selectId, selectedId = '') {
+function fillRehabPatientSelectLegacy(selectId, selectedId = '') {
   const select = document.getElementById(selectId);
   if (!select) {
     return;
@@ -139,10 +139,7 @@ async function ensureRehabEvaluators() {
     return rehabEvaluatorsCache;
   }
 
-  const usersResult = await window.api.user.getAll();
-  const users = Array.isArray(usersResult?.data)
-    ? usersResult.data
-    : (Array.isArray(usersResult) ? usersResult : []);
+  const users = await getCachedUsers();
   rehabEvaluatorsCache = Array.isArray(users)
     ? users.map(user => ({
         id: user.id,
@@ -960,7 +957,7 @@ openEvaluationModal = async function(patientId = null) {
   }
   
   try {
-    const users = await window.api.user.getAll();
+    const users = await getCachedUsers();
     const evaluatorSelect = document.getElementById('eval-evaluator');
     if (evaluatorSelect && users) {
       evaluatorSelect.innerHTML = '<option value="">Sélectionner...</option>';
@@ -983,7 +980,7 @@ openEvaluationModal = async function(patientId = null) {
   }
 };
 
-function createEvaluationModal() {
+function createEvaluationModalLegacy() {
   const modalHtml = `
     <div id="evaluation-modal" class="modal">
       <div class="modal-content modal-large rehab-modal-dialog" style="max-width: 800px; max-height: 90vh; overflow: hidden; background: white;">
@@ -1326,7 +1323,7 @@ openRehabPlanModal = async function(patientId = null) {
   }
 };
 
-function createRehabPlanModal() {
+function createRehabPlanModalLegacy() {
   const modalHtml = `
     <div id="rehab-plan-modal" class="modal">
       <div class="modal-content modal-large rehab-modal-dialog" style="max-width: 850px; max-height: 90vh; overflow: hidden; background: white;">

@@ -4,6 +4,19 @@
 
 console.log('✅ Main.js script loaded successfully');
 
+/**
+ * Generic debounce helper for search inputs and other high-frequency events.
+ * Returns a wrapped function that delays execution until after `wait` ms of inactivity.
+ */
+function debounce(fn, wait = 300) {
+  let timeoutId;
+  return function (...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+window.debounce = debounce;
+
 let currentPatientId = null;
 let currentPatientData = null;
 let currentPage = 'dashboard';
@@ -18,6 +31,37 @@ let pendingConsultationData = null;
 let sickLeaveRestDaysDirty = false;
 let cachedSettings = null;
 let factureTotalEditedManually = false;
+
+// In-memory cache for the users list to avoid fetching it repeatedly across modules.
+let cachedUsersList = null;
+let cachedUsersListTimestamp = 0;
+const USERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedUsers(requesterContext = {}) {
+  const now = Date.now();
+  if (cachedUsersList && (now - cachedUsersListTimestamp) < USERS_CACHE_TTL_MS) {
+    return cachedUsersList;
+  }
+  try {
+    const result = await window.api.user.getAll(requesterContext);
+    if (result?.success) {
+      cachedUsersList = result.data || [];
+      cachedUsersListTimestamp = now;
+      return cachedUsersList;
+    }
+  } catch (error) {
+    console.error('Error caching users list:', error);
+  }
+  return cachedUsersList || [];
+}
+
+function invalidateUsersCache() {
+  cachedUsersList = null;
+  cachedUsersListTimestamp = 0;
+}
+
+window.getCachedUsers = getCachedUsers;
+window.invalidateUsersCache = invalidateUsersCache;
 
 function hasMojibakeText(value) {
   return /\u00C3|\u00E2\u20AC|\u00F0\u0178|\u00C5\u201C|\u00EF\u00B8\u008F|�/.test(String(value || ''));

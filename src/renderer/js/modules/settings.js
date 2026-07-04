@@ -819,13 +819,21 @@ async function loadDbConfigStatus() {
     const config = await window.api.dbConfig.get();
     const modeDisplay = document.getElementById('db-mode-display');
     if (modeDisplay) {
-      if (config.type === 'mariadb') {
-        modeDisplay.innerHTML = `<span style="color: #28a745;">🌐 MariaDB (Réseau)</span> - ${config.mariadb.host}:${config.mariadb.port}`;
-      } else {
-        modeDisplay.innerHTML = `<span style="color: #007bff;">💻 SQLite (Local)</span> - Ce PC uniquement`;
-      }
+      const isMaria = config.type === 'mariadb';
+      const badgeClass = isMaria ? 'mariadb' : 'sqlite';
+      const badgeText = isMaria ? 'RÉSEAU' : 'LOCAL';
+      const modeText = isMaria ? 'MariaDB (Réseau)' : 'SQLite (Local)';
+      const serverText = isMaria
+        ? `${config.mariadb?.host || 'localhost'}:${config.mariadb?.port || 3306}`
+        : 'Ce PC uniquement';
+
+      modeDisplay.innerHTML = `
+        <span class="db-status-badge ${badgeClass}">${badgeText}</span>
+        <span class="db-status-mode-text">${modeText}</span>
+        <span class="db-status-server">— ${serverText}</span>
+      `;
     }
-    
+
     // Show the card for admins
     const dbConfigCard = document.getElementById('db-config-card');
     if (dbConfigCard && (currentUserIsAdmin || currentUserIsSuperAdmin)) {
@@ -838,6 +846,74 @@ async function loadDbConfigStatus() {
 
 let inlineDbInitialType = 'sqlite';
 let inlineDbLastConnectionCheckSucceeded = false;
+
+const INLINE_DB_LABEL_MAP = {
+  patients: 'Patients',
+  appointments: 'RDV',
+  consultations: 'Consultations',
+  prescriptions: 'Ordonnances',
+  kineSessions: 'Séances kiné',
+  invoices: 'Factures',
+  payments: 'Paiements',
+  waitingRoom: 'Salle d\'attente',
+  users: 'Utilisateurs'
+};
+
+function formatInlineDbLabel(key) {
+  return INLINE_DB_LABEL_MAP[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+}
+
+function renderInlineDbDataSummary(summary) {
+  const grid = document.getElementById('inline-db-data-grid');
+  if (!grid) return;
+
+  if (!summary || typeof summary !== 'object') {
+    grid.innerHTML = '<p class="inline-db-help" style="margin-top: 8px;">Résumé indisponible</p>';
+    return;
+  }
+
+  const entries = Object.entries(summary).filter(([key, value]) =>
+    key !== 'error' && typeof value === 'number'
+  );
+
+  if (!entries.length) {
+    grid.innerHTML = '<p class="inline-db-help" style="margin-top: 8px;">Aucune donnée à afficher</p>';
+    return;
+  }
+
+  grid.innerHTML = entries.map(([key, value]) => `
+    <div class="inline-db-data-item">
+      <span class="inline-db-data-count">${Number(value).toLocaleString('fr-FR')}</span>
+      <span class="inline-db-data-label">${formatInlineDbLabel(key)}</span>
+    </div>
+  `).join('');
+}
+
+async function loadInlineDbDataSummary() {
+  const grid = document.getElementById('inline-db-data-grid');
+  if (!grid) return;
+
+  if (!window.api?.dbConfig?.getDataSummary) {
+    grid.innerHTML = '<p class="inline-db-help" style="margin-top: 8px;">Résumé non disponible</p>';
+    return;
+  }
+
+  try {
+    const summary = await window.api.dbConfig.getDataSummary();
+    renderInlineDbDataSummary(summary);
+  } catch (e) {
+    console.error('Erreur résumé données inline:', e);
+    grid.innerHTML = '<p class="inline-db-help" style="margin-top: 8px;">Résumé indisponible</p>';
+  }
+}
+
+function updateInlineDbBadge(type) {
+  const badge = document.getElementById('inline-db-mode-badge');
+  if (!badge) return;
+  const isMaria = type === 'mariadb';
+  badge.className = `inline-db-mode-badge ${isMaria ? 'mariadb' : 'sqlite'}`;
+  badge.textContent = isMaria ? 'RÉSEAU' : 'LOCAL';
+}
 
 function setInlineDbTypeSelection(type) {
   const sqliteRadio = document.querySelector('input[name="inline-db-type"][value="sqlite"]');
@@ -855,9 +931,9 @@ function setInlineDbTypeSelection(type) {
   if (mariadbConfig) mariadbConfig.style.display = type === 'mariadb' ? 'block' : 'none';
 
   if (migrationBox) {
-    const showMigration = inlineDbInitialType === 'sqlite' && type === 'mariadb';
-    migrationBox.style.display = showMigration ? 'block' : 'none';
-    if (!showMigration && migrateCheckbox) migrateCheckbox.checked = true;
+    const switching = inlineDbInitialType !== type;
+    migrationBox.style.display = switching ? 'block' : 'none';
+    if (!switching && migrateCheckbox) migrateCheckbox.checked = true;
   }
 
   inlineDbLastConnectionCheckSucceeded = false;
@@ -880,29 +956,44 @@ function hideInlineDbStatus(elementId) {
   target.style.display = 'none';
 }
 
+function setInlineDbProgress(visible, percent, text) {
+  const progress = document.getElementById('inline-db-progress');
+  const fill = document.getElementById('inline-db-progress-fill');
+  const label = document.getElementById('inline-db-progress-text');
+  if (!progress || !fill || !label) return;
+
+  progress.style.display = visible ? 'flex' : 'none';
+  fill.style.width = `${Math.min(100, Math.max(0, percent || 0))}%`;
+  label.textContent = text || 'Traitement…';
+}
+
 async function loadInlineDbConfigModalData() {
   const config = await window.api.dbConfig.get();
   const currentModeEl = document.getElementById('inline-db-current-mode');
   const currentServerEl = document.getElementById('inline-db-current-server');
 
+  inlineDbInitialType = config.type || 'sqlite';
+  updateInlineDbBadge(inlineDbInitialType);
+
   if (currentModeEl) {
-    currentModeEl.textContent = config.type === 'mariadb' ? 'MariaDB (Reseau)' : 'SQLite (Local)';
+    currentModeEl.textContent = inlineDbInitialType === 'mariadb' ? 'MariaDB (Réseau)' : 'SQLite (Local)';
   }
   if (currentServerEl) {
-    currentServerEl.textContent = config.type === 'mariadb'
-      ? `${config.mariadb.host}:${config.mariadb.port}`
+    currentServerEl.textContent = inlineDbInitialType === 'mariadb'
+      ? `${config.mariadb?.host || 'localhost'}:${config.mariadb?.port || 3306}`
       : 'Ce poste uniquement';
   }
 
-  inlineDbInitialType = config.type || 'sqlite';
   document.getElementById('inline-db-host').value = config?.mariadb?.host || 'localhost';
   document.getElementById('inline-db-port').value = config?.mariadb?.port || 3306;
   document.getElementById('inline-db-name').value = config?.mariadb?.database || 'physiocare';
   document.getElementById('inline-db-user').value = config?.mariadb?.user || 'physiocare_user';
   document.getElementById('inline-db-password').value = config?.mariadb?.password || '';
 
-  setInlineDbTypeSelection(config.type === 'mariadb' ? 'mariadb' : 'sqlite');
+  setInlineDbTypeSelection(inlineDbInitialType === 'mariadb' ? 'mariadb' : 'sqlite');
   hideInlineDbStatus('inline-db-config-message');
+  setInlineDbProgress(false, 0, '');
+  loadInlineDbDataSummary();
 }
 
 async function openDbConfigWindow() {
@@ -931,31 +1022,31 @@ async function testInlineDbConnection() {
 
   if (!config.host || !config.user) {
     inlineDbLastConnectionCheckSucceeded = false;
-    showInlineDbStatus('inline-db-connection-status', 'error', 'Veuillez remplir au minimum l\'hote et l\'utilisateur MariaDB.');
+    showInlineDbStatus('inline-db-connection-status', 'error', 'Veuillez remplir au minimum l\'hôte et l\'utilisateur MariaDB.');
     return;
   }
 
   if (btnTest) {
     btnTest.disabled = true;
-    btnTest.textContent = 'Test en cours...';
+    btnTest.innerHTML = '<span>⏳</span> Test en cours…';
   }
 
   try {
     const result = await window.api.dbConfig.testConnection(config);
     if (result.success) {
       inlineDbLastConnectionCheckSucceeded = true;
-      showInlineDbStatus('inline-db-connection-status', 'success', 'Connexion reussie. La base MariaDB est accessible.');
+      showInlineDbStatus('inline-db-connection-status', 'success', '✅ Connexion réussie. La base MariaDB est accessible.');
     } else {
       inlineDbLastConnectionCheckSucceeded = false;
-      showInlineDbStatus('inline-db-connection-status', 'error', `Echec de connexion: ${result.error}`);
+      showInlineDbStatus('inline-db-connection-status', 'error', `❌ Échec de connexion : ${result.error}`);
     }
   } catch (error) {
     inlineDbLastConnectionCheckSucceeded = false;
-    showInlineDbStatus('inline-db-connection-status', 'error', `Erreur: ${error.message}`);
+    showInlineDbStatus('inline-db-connection-status', 'error', `❌ Erreur : ${error.message}`);
   } finally {
     if (btnTest) {
       btnTest.disabled = false;
-      btnTest.textContent = 'Tester la connexion';
+      btnTest.innerHTML = '<span>🔌</span> Tester la connexion';
     }
   }
 }
@@ -966,6 +1057,9 @@ async function saveInlineDbConfig(event) {
   const dbType = document.querySelector('input[name="inline-db-type"]:checked')?.value || 'sqlite';
   const config = { type: dbType };
   const messageId = 'inline-db-config-message';
+  const saveBtn = document.getElementById('inline-db-save-btn');
+
+  hideInlineDbStatus(messageId);
 
   if (dbType === 'mariadb') {
     config.mariadb = {
@@ -977,45 +1071,69 @@ async function saveInlineDbConfig(event) {
     };
 
     if (!config.mariadb.host || !config.mariadb.user) {
-      showInlineDbStatus(messageId, 'error', 'Veuillez remplir tous les champs obligatoires MariaDB.');
+      showInlineDbStatus(messageId, 'error', '❌ Veuillez remplir tous les champs obligatoires MariaDB.');
       return;
     }
 
-    config.migration = {
-      fromSqlite: inlineDbInitialType === 'sqlite' && Boolean(document.getElementById('inline-migrate-data-checkbox')?.checked)
-    };
-
     if (!inlineDbLastConnectionCheckSucceeded) {
-      showInlineDbStatus(messageId, 'loading', 'Verification de la connexion MariaDB avant sauvegarde...');
+      setInlineDbProgress(true, 15, 'Vérification de la connexion MariaDB…');
       const testBeforeSave = await window.api.dbConfig.testConnection(config.mariadb);
       if (!testBeforeSave.success) {
-        showInlineDbStatus(messageId, 'error', `Connexion MariaDB impossible: ${testBeforeSave.error || 'Erreur inconnue'}`);
+        setInlineDbProgress(false, 0, '');
+        showInlineDbStatus(messageId, 'error', `❌ Connexion MariaDB impossible : ${testBeforeSave.error || 'Erreur inconnue'}`);
         return;
       }
+      inlineDbLastConnectionCheckSucceeded = true;
     }
   }
 
-  showInlineDbStatus(messageId, 'loading', 'Sauvegarde de la configuration en cours...');
+  const typeChanged = inlineDbInitialType !== dbType;
+  if (typeChanged) {
+    config.migration = {
+      enabled: Boolean(document.getElementById('inline-migrate-data-checkbox')?.checked),
+      sourceType: inlineDbInitialType,
+      targetType: dbType
+    };
+  }
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span>⏳</span> Enregistrement…';
+  }
+  setInlineDbProgress(true, 30, 'Sauvegarde de la configuration…');
 
   try {
     const result = await window.api.dbConfig.save(config);
     if (!result.success) {
-      showInlineDbStatus(messageId, 'error', `Erreur: ${result.error}`);
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span>💾</span> Enregistrer et Redémarrer';
+      }
+      setInlineDbProgress(false, 0, '');
+      showInlineDbStatus(messageId, 'error', `❌ Erreur : ${result.error}`);
       return;
     }
 
-    const migrationInfo = result.migration?.migrated
-      ? `\nMigration OK: ${result.migration.copiedTables?.length || 0} table(s) copiee(s).`
-      : (result.migration?.skipped ? `\nMigration ignoree: ${result.migration.reason}` : '');
-    const warningInfo = result.warning ? `\nAttention: ${result.warning}` : '';
+    setInlineDbProgress(true, 70, 'Finalisation…');
 
-    showInlineDbStatus(messageId, 'success', `Configuration sauvegardee.${migrationInfo}${warningInfo}\nRedemarrage en cours...`);
+    const migrationInfo = result.migration?.migrated
+      ? `\n✅ Migration réussie : ${result.migration.copiedTables?.length || 0} table(s) copiée(s).`
+      : (result.migration?.skipped ? `\nℹ️ Migration ignorée : ${result.migration.reason}` : '');
+    const warningInfo = result.warning ? `\n⚠️ ${result.warning}` : '';
+
+    setInlineDbProgress(true, 100, 'Redémarrage…');
+    showInlineDbStatus(messageId, 'success', `✅ Configuration sauvegardée.${migrationInfo}${warningInfo}\nL'application va redémarrer…`);
     await loadDbConfigStatus();
     setTimeout(() => {
       window.api.dbConfig.restart();
     }, 1800);
   } catch (error) {
-    showInlineDbStatus(messageId, 'error', `Erreur: ${error.message}`);
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span>💾</span> Enregistrer et Redémarrer';
+    }
+    setInlineDbProgress(false, 0, '');
+    showInlineDbStatus(messageId, 'error', `❌ Erreur : ${error.message}`);
   }
 }
 
@@ -1028,6 +1146,23 @@ function initializeInlineDbConfigModal() {
   document.getElementById('inline-db-test-btn')?.addEventListener('click', testInlineDbConnection);
   document.getElementById('inline-db-option-sqlite')?.addEventListener('click', () => setInlineDbTypeSelection('sqlite'));
   document.getElementById('inline-db-option-mariadb')?.addEventListener('click', () => setInlineDbTypeSelection('mariadb'));
+
+  // Toggle password visibility
+  const toggleBtn = document.getElementById('inline-db-toggle-password');
+  const pwdInput = document.getElementById('inline-db-password');
+  const eyeIcon = document.getElementById('inline-eye-icon');
+  if (toggleBtn && pwdInput && eyeIcon) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />';
+      } else {
+        pwdInput.type = 'password';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+      }
+    });
+  }
 }
 
 window.openDbConfigWindow = openDbConfigWindow;
@@ -1065,3 +1200,196 @@ window.saveSettings = savePracticeSettings;
 window.savePracticeSettings = savePracticeSettings;
 window.savePeripheralSettings = savePeripheralSettings;
 window.savePublicBookingSettings = savePublicBookingSettings;
+
+// ===== Medication category management =====
+
+let medicationCategoriesCache = [];
+
+async function loadMedicationCategories() {
+  try {
+    const result = await window.api.medication.getCategories();
+    medicationCategoriesCache = result.success ? (result.data || []) : [];
+  } catch (error) {
+    console.error('Error loading medication categories:', error);
+    medicationCategoriesCache = [];
+  }
+}
+
+function renderMedicationCategoriesList() {
+  const container = document.getElementById('medication-categories-list');
+  if (!container) return;
+
+  if (!medicationCategoriesCache.length) {
+    container.innerHTML = '<p style="color: #9ca3af; text-align: center;">Aucune catégorie définie.</p>';
+    return;
+  }
+
+  container.innerHTML = medicationCategoriesCache.map((category) => {
+    const name = escapeHTML(category.name || '');
+    const id = escapeHTML(category.id || '');
+    const isManaged = Boolean(category.id);
+
+    if (!isManaged) {
+      return `
+        <div class="medication-category-item is-readonly">
+          <input type="text" class="form-control" value="${name}" readonly>
+          <span class="medication-category-badge">détectée automatiquement</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="medication-category-item" data-id="${id}">
+        <input type="text" class="form-control medication-category-name-input" value="${name}">
+        <div class="medication-category-actions">
+          <button type="button" class="btn btn-sm btn-primary" onclick="saveMedicationCategoryEdit('${id}', this)">Enregistrer</button>
+          <button type="button" class="btn btn-sm btn-danger" onclick="deleteMedicationCategory('${id}', this)">Supprimer</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function populateMedicationCategorySelect(selectedValue = '') {
+  const select = document.getElementById('medication-category');
+  if (!select) return;
+
+  await loadMedicationCategories();
+  const options = medicationCategoriesCache
+    .filter((c) => c.name)
+    .map((c) => ({ value: c.name, label: c.name }));
+
+  setSelectOptions('medication-category', options, selectedValue, 'Sélectionner une catégorie');
+}
+
+async function openMedicationCategoriesModal() {
+  await loadMedicationCategories();
+  renderMedicationCategoriesList();
+  showModal('modal-medication-categories');
+}
+
+async function addMedicationCategory() {
+  const input = document.getElementById('new-medication-category-name');
+  const name = input?.value?.trim();
+  if (!name) {
+    showNotification('Veuillez saisir un nom de catégorie', 'warning');
+    return;
+  }
+
+  try {
+    const result = await window.api.medication.createCategory(name);
+    if (result.success) {
+      showNotification('✅ Catégorie ajoutée', 'success');
+      if (input) input.value = '';
+      await loadMedicationCategories();
+      renderMedicationCategoriesList();
+      await populateMedicationCategorySelect();
+    } else {
+      showNotification('❌ ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error creating medication category:', error);
+    showNotification('❌ Erreur lors de la création', 'error');
+  }
+}
+
+async function saveMedicationCategoryEdit(id, button) {
+  const item = button?.closest('.medication-category-item');
+  const input = item?.querySelector('.medication-category-name-input');
+  const name = input?.value?.trim();
+  if (!name) {
+    showNotification('Le nom de la catégorie ne peut pas être vide', 'warning');
+    return;
+  }
+
+  try {
+    const result = await window.api.medication.updateCategory(id, name);
+    if (result.success) {
+      showNotification('✅ Catégorie mise à jour', 'success');
+      await loadMedicationCategories();
+      renderMedicationCategoriesList();
+      await populateMedicationCategorySelect();
+    } else {
+      showNotification('❌ ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error updating medication category:', error);
+    showNotification('❌ Erreur lors de la mise à jour', 'error');
+  }
+}
+
+async function deleteMedicationCategory(id) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return;
+
+  try {
+    const result = await window.api.medication.deleteCategory(id);
+    if (result.success) {
+      showNotification('✅ Catégorie supprimée', 'success');
+      await loadMedicationCategories();
+      renderMedicationCategoriesList();
+      await populateMedicationCategorySelect();
+    } else {
+      showNotification('❌ ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error deleting medication category:', error);
+    showNotification('❌ Erreur lors de la suppression', 'error');
+  }
+}
+
+function openMedicationModal() {
+  const form = document.getElementById('medication-form');
+  if (form) form.reset();
+  populateMedicationCategorySelect();
+  showModal('modal-medication');
+}
+
+async function saveMedication(event) {
+  event.preventDefault();
+
+  const data = {
+    name: document.getElementById('medication-name')?.value?.trim(),
+    genericName: document.getElementById('medication-generic')?.value?.trim(),
+    category: document.getElementById('medication-category')?.value || '',
+    dosageForm: document.getElementById('medication-form')?.value?.trim(),
+    defaultDosage: document.getElementById('medication-dosage')?.value?.trim(),
+    defaultIntake: document.getElementById('medication-intake')?.value?.trim(),
+    defaultDuration: document.getElementById('medication-duration')?.value?.trim(),
+    instructions: document.getElementById('medication-instructions')?.value?.trim(),
+    contraindications: document.getElementById('medication-contraindications')?.value?.trim(),
+    sideEffects: ''
+  };
+
+  if (!data.name) {
+    showNotification('Le nom commercial est requis', 'error');
+    return;
+  }
+
+  try {
+    const result = await window.api.medication.create(data);
+    if (result.success) {
+      showNotification('✅ Médicament enregistré', 'success');
+      closeModal('modal-medication');
+    } else {
+      showNotification('❌ ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('Error saving medication:', error);
+    showNotification('❌ Erreur lors de l\'enregistrement', 'error');
+  }
+}
+
+// Allow adding a category by pressing Enter in the categories modal
+document.getElementById('new-medication-category-name')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addMedicationCategory();
+  }
+});
+
+window.openMedicationModal = openMedicationModal;
+window.saveMedication = saveMedication;
+window.openMedicationCategoriesModal = openMedicationCategoriesModal;
+window.addMedicationCategory = addMedicationCategory;
+window.saveMedicationCategoryEdit = saveMedicationCategoryEdit;
+window.deleteMedicationCategory = deleteMedicationCategory;

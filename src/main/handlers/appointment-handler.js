@@ -299,7 +299,6 @@ export function handleAppointmentEvents() {
   // Recuperer les rendez-vous par plage de dates
   ipcMain.handle('appointment:getByDateRange', async (event, startDate, endDate) => {
     try {
-      console.log('appointment:getByDateRange called:', startDate, 'to', endDate);
       const scope = getAppointmentScope(getCurrentUserContext(), 'p');
       const whereParts = ['DATE(a.appointmentDateTime) BETWEEN DATE(?) AND DATE(?)'];
       const params = [startDate, endDate];
@@ -326,7 +325,6 @@ export function handleAppointmentEvents() {
         patientName: buildPatientName(appointment.firstName, appointment.lastName)
       }));
 
-      console.log('appointment:getByDateRange found:', data?.length || 0);
       return { success: true, data };
     } catch (error) {
       console.error('Erreur lors de la recuperation des rendez-vous par plage de dates:', error);

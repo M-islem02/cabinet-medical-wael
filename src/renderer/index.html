@@ -2600,6 +2600,16 @@
                             </form>
                         </div>
 
+                        <div class="settings-card" id="medication-categories-card">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <div>
+                                    <h3 style="margin-bottom: 6px;">💊 Types de médicaments</h3>
+                                    <p style="margin:0;color:#64748b;font-size:14px;">Gérez les catégories utilisées dans la base de médicaments du cabinet.</p>
+                                </div>
+                                <button type="button" class="btn btn-secondary" onclick="openMedicationCategoriesModal()">Gérer les catégories</button>
+                            </div>
+                        </div>
+
                         <div class="settings-card" id="admin-setup-card" style="display: none;">
                             <h3>🛡️ Espace Administrateur</h3>
                             <p style="color: #475569; line-height: 1.6; font-size: 15px;">
@@ -2773,6 +2783,7 @@
                                         <!-- Populated by JS -->
                                     </tbody>
                                 </table>
+                                <div id="users-pagination" class="patients-pagination" style="display: none;"></div>
                             </div>
                             </div>
                         </div>
@@ -4072,23 +4083,28 @@
                 <div>
                     <span class="modal-kicker">Administration</span>
                     <h2 id="modal-user-title">➕ Créer un Nouveau Compte</h2>
-                    <p class="admin-account-modal-subtitle">Ajoutez un médecin avec sa spécialité individuelle ou un assistant du cabinet, sans créer de second administrateur.</p>
+                    <p class="admin-account-modal-subtitle">Ajoutez un médecin avec sa spécialité individuelle ou un assistant du cabinet.</p>
                 </div>
-                <button class="close-btn" onclick="closeModal('modal-add-user')">&times;</button>
+                <button class="close-btn" onclick="closeModal('modal-add-user')" aria-label="Fermer">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="add-user-form" class="account-modal-form" onsubmit="addUser(event)">
                     <input type="hidden" id="user-form-mode" value="create">
                     <input type="hidden" id="editing-user-id" value="">
+                    <input type="hidden" id="new-user-role" value="doctor">
+
                     <div class="account-modal-hero">
                         <div class="account-modal-hero-copy">
-                            <span class="account-modal-badge" id="new-user-role-badge">Compte médecin</span>
-                            <h3 id="new-user-role-heading">Accès médecin</h3>
+                            <div class="account-modal-hero-icon">👤</div>
+                            <div>
+                                <span class="account-modal-badge" id="new-user-role-badge">Compte médecin</span>
+                                <h3 id="new-user-role-heading">Accès médecin</h3>
+                            </div>
                             <p id="new-user-role-summary">Le compte médecin reçoit une spécialité individuelle qui pilote ses formulaires, ses champs et ses dossiers patients.</p>
                         </div>
-                        <div class="account-modal-hero-note">
-                            <strong>Rappel</strong>
-                            <span>Cette fenêtre sert uniquement à créer des comptes médecin et assistant. Le compte administrateur reste unique dans l'application.</span>
+                        <div class="account-modal-hero-note is-compact">
+                            <span>ℹ️</span>
+                            <p>Cette fenêtre sert uniquement à créer des comptes médecin et assistant. Le compte administrateur reste unique.</p>
                         </div>
                     </div>
 
@@ -4096,23 +4112,38 @@
                         <div class="account-form-section-header">
                             <span class="account-form-step">1</span>
                             <div>
-                                <h3>Rôle et spécialité</h3>
-                                <p>La spécialité est demandée uniquement pour les médecins et doit refléter la liste dynamique disponible dans l'application.</p>
+                                <h3>Rôle du compte</h3>
+                                <p>Sélectionnez le rôle avant de renseigner les informations.</p>
                             </div>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Rôle de l'utilisateur *</label>
-                                <select id="new-user-role" class="form-control" required onchange="toggleSpecialtyField()">
-                                    <option value="doctor">👨‍⚕️ Médecin</option>
-                                    <option value="assistant">🧑‍💼 Assistant(e)</option>
-                                </select>
-                                <small class="field-hint">Choisissez le rôle avant de renseigner les accès. Aucun autre rôle n'est proposé ici.</small>
-                            </div>
+                        <div class="account-role-grid" role="radiogroup" aria-label="Rôle de l'utilisateur">
+                            <label class="account-role-card" id="role-card-doctor">
+                                <input type="radio" name="new-user-role" value="doctor" checked onchange="onAccountRoleChange('doctor')">
+                                <span class="account-role-card-icon">👨‍⚕️</span>
+                                <span class="account-role-card-title">Médecin</span>
+                                <span class="account-role-card-desc">Spécialité individuelle et accès patient complet.</span>
+                            </label>
+                            <label class="account-role-card" id="role-card-assistant">
+                                <input type="radio" name="new-user-role" value="assistant" onchange="onAccountRoleChange('assistant')">
+                                <span class="account-role-card-icon">🧑‍💼</span>
+                                <span class="account-role-card-title">Assistant(e)</span>
+                                <span class="account-role-card-desc">Crée des dossiers pour tous les médecins du cabinet.</span>
+                            </label>
+                        </div>
+                    </div>
 
-                            <div class="form-group" id="doctor-specialty-group" style="display: none;">
-                                <label>Spécialité du médecin *</label>
+                    <div class="account-form-section account-specialty-section" id="doctor-specialty-section">
+                        <div class="account-specialty-panel">
+                            <div class="account-form-section-header">
+                                <span class="account-form-step">2</span>
+                                <div>
+                                    <h3>Spécialité du médecin</h3>
+                                    <p>Chaque médecin possède sa propre spécialité.</p>
+                                </div>
+                            </div>
+                            <div class="form-group" id="doctor-specialty-group">
+                                <label>Spécialité *</label>
                                 <select id="new-user-specialty" class="form-control">
                                     <option value="generaliste">Généraliste</option>
                                     <option value="dentiste">Dentiste (Soins dentaires)</option>
@@ -4137,10 +4168,10 @@
 
                     <div class="account-form-section">
                         <div class="account-form-section-header">
-                            <span class="account-form-step">2</span>
+                            <span class="account-form-step">3</span>
                             <div>
                                 <h3>Profil du collaborateur</h3>
-                                <p>Renseignez les informations visibles dans l'interface et utiles à l'organisation interne du cabinet.</p>
+                                <p>Informations visibles dans l'interface.</p>
                             </div>
                         </div>
 
@@ -4158,10 +4189,10 @@
 
                     <div class="account-form-section">
                         <div class="account-form-section-header">
-                            <span class="account-form-step">3</span>
+                            <span class="account-form-step">4</span>
                             <div>
                                 <h3>Identifiants de connexion</h3>
-                                <p>Définissez les accès temporaires qui seront communiqués au médecin ou à l'assistant après création.</p>
+                                <p>Définissez les accès temporaires à communiquer au collaborateur.</p>
                             </div>
                         </div>
 
@@ -4176,19 +4207,40 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label id="new-user-password-label">Mot de passe temporaire *</label>
-                                <input type="password" id="new-user-password" class="form-control" required>
+                                <div class="password-field-wrapper">
+                                    <input type="password" id="new-user-password" class="form-control" required>
+                                    <button type="button" class="password-toggle-btn" onclick="toggleAddUserPasswordVisibility('new-user-password', this)" aria-label="Afficher le mot de passe">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label id="new-user-confirm-password-label">Confirmer le mot de passe *</label>
-                                <input type="password" id="new-user-confirm-password" class="form-control" required>
+                                <div class="password-field-wrapper">
+                                    <input type="password" id="new-user-confirm-password" class="form-control" required>
+                                    <button type="button" class="password-toggle-btn" onclick="toggleAddUserPasswordVisibility('new-user-confirm-password', this)" aria-label="Afficher le mot de passe">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
+                        </div>
+
+                        <div class="account-password-toolbar">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="regenerateAddUserPassword()">🔄 Générer un autre</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="copyAddUserPasswordToClipboard()">📋 Copier le mot de passe</button>
                         </div>
                         <small class="field-hint" id="user-password-hint">Le mot de passe temporaire est requis lors de la création du compte.</small>
                     </div>
 
                     <div class="account-modal-actions">
-                        <button type="submit" class="btn btn-success" id="user-form-submit-btn">➕ Créer le compte</button>
                         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-user')">Annuler</button>
+                        <button type="submit" class="btn btn-success" id="user-form-submit-btn">➕ Créer le compte</button>
                     </div>
                 </form>
             </div>
@@ -4210,12 +4262,17 @@
                     <div class="inline-db-summary-grid">
                         <div class="inline-db-panel">
                             <span class="inline-db-label">Configuration actuelle</span>
-                            <h3 id="inline-db-current-mode">Chargement...</h3>
+                            <div class="inline-db-mode-row">
+                                <span class="inline-db-mode-badge" id="inline-db-mode-badge">LOCAL</span>
+                                <h3 id="inline-db-current-mode">Chargement...</h3>
+                            </div>
                             <p id="inline-db-current-server" class="inline-db-help">Lecture de la configuration en cours...</p>
                         </div>
                         <div class="inline-db-panel inline-db-panel-muted">
-                            <span class="inline-db-label">Repère rapide</span>
-                            <p class="inline-db-help">SQLite convient à un seul PC. MariaDB est prévu pour le travail en réseau multi-postes.</p>
+                            <span class="inline-db-label">Résumé des données</span>
+                            <div class="inline-db-data-grid" id="inline-db-data-grid">
+                                <p class="inline-db-help" style="margin-top: 8px;">Chargement…</p>
+                            </div>
                         </div>
                     </div>
 
@@ -4231,20 +4288,27 @@
                         <div class="inline-db-choice-grid">
                             <label class="inline-db-choice selected" id="inline-db-option-sqlite">
                                 <input type="radio" name="inline-db-type" value="sqlite" checked>
-                                <strong>💻 SQLite (Local)</strong>
-                                <span>Un seul poste, mise en route simple et rapide.</span>
+                                <span class="inline-db-choice-icon">💻</span>
+                                <strong>SQLite (Local)</strong>
+                                <span>Stockage intégré idéal pour un seul poste. Aucun serveur à installer.</span>
                             </label>
                             <label class="inline-db-choice" id="inline-db-option-mariadb">
                                 <input type="radio" name="inline-db-type" value="mariadb">
-                                <strong>🌐 MariaDB (Réseau)</strong>
-                                <span>Plusieurs postes reliés au même serveur du cabinet.</span>
+                                <span class="inline-db-choice-icon">🌐</span>
+                                <strong>MariaDB (Réseau)</strong>
+                                <span>Serveur central pour plusieurs postes du cabinet. Nécessite MariaDB sur le PC principal.</span>
                             </label>
                         </div>
 
                         <div class="inline-db-migration-box" id="inline-db-migration-box" style="display: none;">
-                            <label for="inline-migrate-data-checkbox">
+                            <div class="inline-db-migration-title">🔄 Confirmation de migration</div>
+                            <ul class="inline-db-migration-list">
+                                <li>Vos données actuelles seront copiées vers le nouveau mode de stockage.</li>
+                                <li>Les données existantes dans la destination seront fusionnées (les enregistrements existants seront mis à jour).</li>
+                            </ul>
+                            <label class="inline-db-migration-checkbox" for="inline-migrate-data-checkbox">
                                 <input type="checkbox" id="inline-migrate-data-checkbox" checked>
-                                <span>Migrer automatiquement les données SQLite locales vers MariaDB avant le redémarrage.</span>
+                                <span>Je confirme la migration des données</span>
                             </label>
                         </div>
                     </div>
@@ -4259,14 +4323,14 @@
                         </div>
 
                         <div class="inline-db-info-box">
-                            Le mode réseau suppose qu'un serveur MariaDB est installé sur le PC principal du cabinet avec une adresse IP accessible.
+                            <strong>Mode réseau multi-postes :</strong> installez MariaDB sur le PC principal et connectez les autres PC à l'IP de ce serveur (ex: <code>192.168.1.100</code>).
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="inline-db-host">Adresse IP / hôte *</label>
                                 <input type="text" id="inline-db-host" class="form-control" placeholder="192.168.1.100" value="localhost">
-                                <small class="field-hint">Exemple: `localhost` sur le poste principal ou `192.168.1.100` sur le réseau local.</small>
+                                <small class="field-hint">Exemple : <code>localhost</code> sur le poste principal ou <code>192.168.1.100</code> sur le réseau local.</small>
                             </div>
                             <div class="form-group">
                                 <label for="inline-db-port">Port</label>
@@ -4288,7 +4352,15 @@
                             </div>
                             <div class="form-group">
                                 <label for="inline-db-password">Mot de passe *</label>
-                                <input type="password" id="inline-db-password" class="form-control" placeholder="Mot de passe MariaDB">
+                                <div class="password-field-wrapper" style="position: relative;">
+                                    <input type="password" id="inline-db-password" class="form-control" placeholder="Mot de passe MariaDB" style="padding-right: 44px;">
+                                    <button type="button" class="password-toggle-btn" id="inline-db-toggle-password" tabindex="-1" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b;">
+                                        <svg id="inline-eye-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -4298,6 +4370,13 @@
                         </div>
 
                         <div id="inline-db-connection-status" class="inline-db-status" style="display: none;"></div>
+                    </div>
+
+                    <div id="inline-db-progress" class="inline-db-progress" style="display: none;">
+                        <div class="inline-db-progress-bar">
+                            <div class="inline-db-progress-fill" id="inline-db-progress-fill"></div>
+                        </div>
+                        <div class="inline-db-progress-text" id="inline-db-progress-text">Préparation…</div>
                     </div>
 
                     <div id="inline-db-config-message" class="inline-db-status" style="display: none;"></div>
@@ -4636,16 +4715,21 @@
                     <input type="text" id="medication-name" class="form-control" required placeholder="Ex: Doliprane">
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nom générique (DCI)</label>
-                        <input type="text" id="medication-generic" class="form-control" placeholder="Ex: Paracétamol">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nom générique (DCI)</label>
+                            <input type="text" id="medication-generic" class="form-control" placeholder="Ex: Paracétamol">
+                        </div>
+                        <div class="form-group">
+                            <label>Catégorie</label>
+                            <select id="medication-category" class="form-control">
+                                <option value="">Sélectionner une catégorie</option>
+                            </select>
+                            <small class="field-hint">
+                                <a href="#" onclick="openMedicationCategoriesModal(); return false;" style="color: var(--primary-color); font-weight: 600;">Gérer les catégories de médicaments</a>
+                            </small>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Catégorie</label>
-                        <input type="text" id="medication-category" class="form-control" placeholder="Ex: Antalgique">
-                    </div>
-                </div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -4684,6 +4768,34 @@
                     <button type="submit" class="btn btn-primary">Enregistrer</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Medication Categories -->
+    <div id="modal-medication-categories" class="modal">
+        <div class="modal-content modal-medium">
+            <div class="modal-header">
+                <h2>💊 Types de médicaments</h2>
+                <button class="close-btn" onclick="closeModal('modal-medication-categories')" aria-label="Fermer">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="new-medication-category-name">Nouvelle catégorie</label>
+                        <input type="text" id="new-medication-category-name" class="form-control" placeholder="Ex: Antalgique">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button type="button" class="btn btn-success" onclick="addMedicationCategory()">➕ Ajouter</button>
+                    </div>
+                </div>
+
+                <div id="medication-categories-list" class="medication-categories-list">
+                    <p style="color: #9ca3af; text-align: center;">Chargement...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-medication-categories')">Fermer</button>
+            </div>
         </div>
     </div>
 

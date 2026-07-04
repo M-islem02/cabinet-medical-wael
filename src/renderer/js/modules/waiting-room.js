@@ -143,9 +143,8 @@ async function loadWaitingDoctorOptions() {
   doctorSelect.innerHTML = '<option value="">Chargement...</option>';
 
   try {
-    const usersResult = await window.api.user.getAll({ requestingUserId: currentUserId });
-    const users = Array.isArray(usersResult?.data) ? usersResult.data : [];
-    const doctors = users.filter((user) => {
+    const users = await getCachedUsers({ requestingUserId: currentUserId });
+    const doctors = (users || []).filter((user) => {
       if (!user || user.isAdmin || user.isSuperAdmin || !user.isActive) return false;
       return user.role === 'doctor' || user.role === 'dentist';
     });

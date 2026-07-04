@@ -6,119 +6,363 @@
     <title>Configuration Base de Données - MedCareSO</title>
     <link rel="stylesheet" href="css/license.css">
     <style>
+        :root {
+            --db-primary: #145da0;
+            --db-primary-light: #1f78c6;
+            --db-primary-soft: rgba(20, 93, 160, 0.10);
+            --db-text: #16324a;
+            --db-text-muted: #5c7187;
+            --db-border: rgba(20, 93, 160, 0.12);
+            --db-radius: 22px;
+            --db-radius-sm: 14px;
+            --db-shadow: 0 18px 40px rgba(15, 37, 63, 0.10);
+        }
+
         body {
             overflow-y: auto !important;
             min-height: 100vh;
             margin: 0;
+            background:
+                radial-gradient(circle at top left, rgba(20, 93, 160, 0.16), transparent 28%),
+                linear-gradient(135deg, #eef6fb 0%, #f8fbff 46%, #edf7f2 100%);
+            color: var(--db-text);
         }
-        
+
         .license-container {
-            overflow: hidden;
-            min-height: 100vh;
             align-items: flex-start;
-            padding: clamp(14px, 2.6vw, 24px);
+            min-height: 100vh;
+            padding: clamp(14px, 2.6vw, 28px);
         }
 
         .db-config-container {
             width: min(100%, 980px);
-            padding: clamp(18px, 3vw, 26px);
+            padding: clamp(20px, 3.2vw, 34px);
             margin: 0 auto;
-            max-height: calc(100vh - 32px);
+            max-height: calc(100vh - 28px);
             overflow-y: auto;
-            border-radius: 14px;
-        }
-        
-        .db-config-header {
-            text-align: center;
-            margin-bottom: 30px;
+            border-radius: 28px;
+            border: 1px solid var(--db-border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(246,250,254,0.97) 100%);
+            box-shadow: 0 30px 70px rgba(15, 37, 63, 0.14);
         }
 
-        .db-config-header .subtitle-highlight {
+        /* Header */
+        .db-config-header {
+            text-align: left;
+            margin-bottom: 26px;
+        }
+
+        .page-kicker {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: var(--db-primary-soft);
+            color: var(--db-primary);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .db-config-header h1 {
+            font-size: clamp(26px, 4vw, 36px);
+            margin: 14px 0 10px;
+            color: #103b5e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .db-config-header h1 .header-icon {
+            font-size: 0.85em;
+        }
+
+        .db-config-header p {
+            max-width: 720px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--db-text-muted);
+            margin: 0 0 14px;
+        }
+
+        .subtitle-highlight {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
             background: #eef6ff;
             color: #0b4f8a;
             border: 1px solid #cfe4ff;
             border-radius: 999px;
             padding: 8px 14px;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
-            margin-top: 10px;
-        }
-        
-        .db-config-header h1 {
-            color: var(--primary-color);
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        
-        .db-config-header p {
-            color: var(--text-light);
-            font-size: 14px;
+            box-shadow: 0 10px 20px rgba(15, 37, 63, 0.06);
         }
 
-        .form-section {
-            margin-bottom: 18px;
-            padding: 16px;
-            background: var(--light-bg);
-            border-radius: 8px;
+        .mode-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            color: #fff;
+            text-transform: uppercase;
         }
 
-        .form-section h3 {
-            color: var(--text-dark);
-            font-size: 16px;
-            margin-bottom: 15px;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 8px;
+        .mode-badge.sqlite {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
         }
 
-        .radio-group {
+        .mode-badge.mariadb {
+            background: linear-gradient(135deg, #0b4f8a 0%, #145da0 100%);
+        }
+
+        /* Overview grid */
+        .db-overview-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .overview-card {
+            padding: 22px;
+            border-radius: var(--db-radius);
+            border: 1px solid var(--db-border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,247,253,0.94) 100%);
+            box-shadow: var(--db-shadow);
+        }
+
+        .overview-card h4 {
+            margin: 0 0 14px;
+            font-size: 15px;
+            color: #103b5e;
             display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
+            align-items: center;
+            gap: 8px;
         }
 
-        .radio-option {
+        .current-mode-row {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 15px 20px;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #103b5e;
+        }
+
+        .overview-card p {
+            color: #536779;
+            font-size: 13px;
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        .data-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 10px;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 14px 10px;
+            border-radius: var(--db-radius-sm);
+            background: rgba(234, 244, 252, 0.72);
+            border: 1px solid rgba(20, 93, 160, 0.08);
+            text-align: center;
+            min-width: 0;
+        }
+
+        .summary-count {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--db-primary);
+            line-height: 1;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #5c7187;
+            text-transform: capitalize;
+        }
+
+        .summary-loading,
+        .summary-empty {
+            grid-column: 1 / -1;
+            color: #5c7187;
+            font-size: 13px;
+            text-align: center;
+            padding: 18px 10px;
+        }
+
+        /* Form */
+        .db-form-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .form-section {
+            padding: 24px;
+            border-radius: var(--db-radius);
+            border: 1px solid var(--db-border);
+            background: rgba(255,255,255,0.94);
+            box-shadow: var(--db-shadow);
+        }
+
+        .form-section h3 {
+            margin: 0 0 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(20, 93, 160, 0.10);
+            color: #103b5e;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .radio-option {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 20px;
+            border-radius: var(--db-radius-sm);
+            border: 2px solid #e2e8f0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,249,253,0.94) 100%);
+            box-shadow: 0 10px 24px rgba(15, 37, 63, 0.05);
             cursor: pointer;
-            flex: 1;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .radio-option:hover {
-            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            border-color: #93c5fd;
+            box-shadow: 0 16px 30px rgba(15, 37, 63, 0.08);
         }
 
         .radio-option.selected {
-            border-color: var(--primary-color);
-            background: rgba(0, 102, 204, 0.05);
+            border-color: var(--db-primary);
+            background: linear-gradient(135deg, rgba(20, 93, 160, 0.08) 0%, rgba(255,255,255,0.98) 100%);
+            box-shadow: 0 18px 32px rgba(20, 93, 160, 0.10);
         }
 
         .radio-option input[type="radio"] {
             width: 18px;
             height: 18px;
+            margin-top: 3px;
+            accent-color: var(--db-primary);
+            flex-shrink: 0;
+        }
+
+        .radio-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+            background: #f1f5f9;
+        }
+
+        .radio-option.selected .radio-icon {
+            background: var(--db-primary-soft);
         }
 
         .radio-label {
             display: flex;
             flex-direction: column;
+            gap: 5px;
+            min-width: 0;
         }
 
         .radio-label strong {
-            color: var(--text-dark);
+            color: var(--db-text);
+            font-size: 16px;
         }
 
-        .radio-label small {
-            color: var(--text-light);
-            font-size: 12px;
+        .radio-label span {
+            color: var(--db-text-muted);
+            font-size: 13px;
+            line-height: 1.55;
         }
 
+        /* Migration box */
+        .migration-box {
+            margin-top: 18px;
+            padding: 18px 20px;
+            border-radius: var(--db-radius-sm);
+            background: linear-gradient(180deg, #fff5df 0%, #fffaf1 100%);
+            border: 1px solid rgba(217, 146, 18, 0.22);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+            color: #7a4b00;
+        }
+
+        .migration-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .migration-icon {
+            font-size: 18px;
+        }
+
+        .migration-info {
+            margin: 0 0 14px;
+            padding-left: 18px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .migration-info li {
+            margin-bottom: 6px;
+        }
+
+        .migration-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.65);
+            border: 1px solid rgba(217, 146, 18, 0.18);
+        }
+
+        .migration-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            accent-color: var(--db-primary);
+            flex-shrink: 0;
+        }
+
+        /* MariaDB config */
         .mariadb-config {
             display: none;
         }
@@ -127,347 +371,46 @@
             display: block;
         }
 
-        .migration-box {
-            background: #fff7e8;
-            border: 1px solid #ffd38d;
-            border-radius: 10px;
-            padding: 14px;
-            margin: 10px 0 20px;
-        }
-
-        .migration-box strong {
-            color: #7a4b00;
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        .migration-box label {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            color: #7a4b00;
-            font-size: 13px;
-            cursor: pointer;
-        }
-
-        .migration-box input[type="checkbox"] {
-            margin-top: 2px;
-            width: 16px;
-            height: 16px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .test-connection-btn {
-            margin-top: 10px;
-            background: #17a2b8;
-        }
-
-        .db-config-actions {
-            position: sticky;
-            bottom: 0;
-            display: flex;
-            gap: 10px;
-            padding-top: 12px;
-            margin-top: 8px;
-            background: linear-gradient(to top, rgba(255,255,255,0.98) 70%, rgba(255,255,255,0));
-        }
-
-        #toggle-db-password:hover {
-            color: #0b4f8a !important;
-        }
-
-        .test-connection-btn:hover {
-            background: #138496;
-        }
-
-        .connection-status {
-            margin-top: 15px;
-            padding: 12px;
-            border-radius: 6px;
-            text-align: center;
-            display: none;
-        }
-
-        .connection-status.success {
-            display: block;
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .connection-status.error {
-            display: block;
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
         .info-box {
-            background: #e7f3ff;
-            border: 1px solid #b3d7ff;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
+            padding: 18px 20px;
+            border-radius: var(--db-radius);
+            border: 1px solid rgba(11, 79, 138, 0.14);
+            background: linear-gradient(180deg, rgba(231,243,255,0.92) 0%, rgba(248,251,255,0.96) 100%);
+            box-shadow: 0 10px 22px rgba(15, 37, 63, 0.05);
         }
 
         .info-box h4 {
+            margin: 0 0 10px;
+            font-size: 15px;
             color: #004085;
-            margin-bottom: 10px;
-            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .info-box p {
             color: #004085;
             font-size: 13px;
-            margin: 5px 0;
+            line-height: 1.7;
+            margin: 0 0 8px;
+        }
+
+        .info-box p:last-child {
+            margin-bottom: 0;
         }
 
         .info-box code {
             background: #cce5ff;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-
-        .current-config {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-
-        .current-config h4 {
-            color: #856404;
-            margin-bottom: 10px;
-        }
-
-        .current-config p {
-            color: #856404;
-            font-size: 13px;
-        }
-
-        .mode-badge {
-            display: inline-block;
-            margin-left: 8px;
-            padding: 4px 8px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #fff;
-            vertical-align: middle;
-        }
-
-        .mode-badge.sqlite {
-            background: #6b7280;
-        }
-
-        .mode-badge.mariadb {
-            background: #0b4f8a;
-        }
-
-        body {
-            background:
-                radial-gradient(circle at top left, rgba(20, 93, 160, 0.16), transparent 28%),
-                linear-gradient(135deg, #eef6fb 0%, #f8fbff 46%, #edf7f2 100%);
-            color: #16324a;
-        }
-
-        .license-container {
-            align-items: flex-start;
-            padding: clamp(18px, 3vw, 32px);
-        }
-
-        .db-config-container {
-            width: min(100%, 1100px);
-            padding: clamp(22px, 3.2vw, 34px);
-            border-radius: 28px;
-            border: 1px solid rgba(20, 93, 160, 0.12);
-            background: linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(246,250,254,0.97) 100%);
-            box-shadow: 0 30px 70px rgba(15, 37, 63, 0.14);
-            max-height: calc(100vh - 36px);
-        }
-
-        .db-config-header {
-            text-align: left;
-            margin-bottom: 24px;
-        }
-
-        .page-kicker {
-            display: inline-flex;
-            align-items: center;
-            padding: 7px 12px;
-            border-radius: 999px;
-            background: rgba(20, 93, 160, 0.10);
-            color: #0f4b81;
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .db-config-header h1 {
-            font-size: clamp(28px, 4vw, 38px);
-            margin: 14px 0 10px;
-            color: #103b5e;
-        }
-
-        .db-config-header p {
-            max-width: 760px;
-            font-size: 15px;
-            line-height: 1.7;
-            color: #5c7187;
-        }
-
-        .db-config-header .subtitle-highlight {
-            margin-top: 16px;
-            box-shadow: 0 10px 20px rgba(15, 37, 63, 0.06);
-        }
-
-        .db-overview-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-            gap: 18px;
-            margin-bottom: 24px;
-        }
-
-        .current-config,
-        .overview-card {
-            margin-bottom: 0;
-            padding: 20px 22px;
-            border-radius: 22px;
-            border: 1px solid rgba(20, 93, 160, 0.12);
-            background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,247,253,0.94) 100%);
-            box-shadow: 0 12px 28px rgba(15, 37, 63, 0.07);
-        }
-
-        .current-config h4,
-        .overview-card h4 {
-            margin: 0 0 12px;
-            font-size: 16px;
-            color: #103b5e;
-        }
-
-        .current-config p,
-        .overview-card p {
-            color: #536779;
-            font-size: 13px;
-            line-height: 1.7;
-            margin: 8px 0 0;
-        }
-
-        .overview-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: grid;
-            gap: 12px;
-        }
-
-        .overview-list li {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            padding: 12px 14px;
-            border-radius: 16px;
-            background: rgba(234, 244, 252, 0.72);
-            border: 1px solid rgba(20, 93, 160, 0.08);
-            color: #486071;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
-        .overview-list strong {
-            min-width: 88px;
-            color: #0f4b81;
-        }
-
-        .db-form-shell {
-            display: flex;
-            flex-direction: column;
-            gap: 18px;
-        }
-
-        .form-section {
-            margin-bottom: 0;
-            padding: 24px;
-            border-radius: 24px;
-            border: 1px solid rgba(20, 93, 160, 0.10);
-            background: rgba(255,255,255,0.94);
-            box-shadow: 0 12px 28px rgba(15, 37, 63, 0.06);
-        }
-
-        .form-section h3 {
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(20, 93, 160, 0.10);
-            color: #103b5e;
-            font-size: 18px;
-        }
-
-        .radio-group {
-            gap: 16px;
-        }
-
-        .radio-option {
-            position: relative;
-            padding: 18px 20px;
-            border-radius: 20px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,249,253,0.94) 100%);
-            box-shadow: 0 10px 24px rgba(15, 37, 63, 0.05);
-        }
-
-        .radio-option:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 30px rgba(15, 37, 63, 0.08);
-        }
-
-        .radio-option.selected {
-            border-color: #1d76c7;
-            background: linear-gradient(135deg, rgba(20, 93, 160, 0.10) 0%, rgba(255,255,255,0.96) 100%);
-            box-shadow: 0 18px 32px rgba(20, 93, 160, 0.10);
-        }
-
-        .radio-option input[type="radio"] {
-            accent-color: #145da0;
-        }
-
-        .radio-label strong {
-            font-size: 16px;
-        }
-
-        .radio-label small {
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .migration-box {
-            margin: 16px 0 0;
-            padding: 16px 18px;
-            border-radius: 18px;
-            background: linear-gradient(180deg, #fff5df 0%, #fffaf1 100%);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
-        }
-
-        .info-box {
-            border-radius: 20px;
-            padding: 18px 20px;
-            background: linear-gradient(180deg, rgba(231,243,255,0.92) 0%, rgba(248,251,255,0.96) 100%);
-            border: 1px solid rgba(11, 79, 138, 0.14);
-            box-shadow: 0 10px 22px rgba(15, 37, 63, 0.05);
-        }
-
-        .info-box h4 {
-            margin-bottom: 8px;
-            font-size: 15px;
         }
 
         .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 16px;
         }
 
@@ -480,34 +423,67 @@
         }
 
         .db-config-container .form-group label {
+            display: block;
             color: #16324a;
             font-size: 14px;
             font-weight: 700;
+            margin-bottom: 8px;
         }
 
         .db-config-container .form-control {
+            width: 100%;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             font-size: 15px;
             padding: 14px 15px;
-            border-radius: 14px;
+            border-radius: var(--db-radius-sm);
             border: 1px solid rgba(20, 93, 160, 0.16);
             background: #ffffff;
             box-shadow: inset 0 1px 2px rgba(15, 37, 63, 0.03);
+            transition: all 0.2s ease;
         }
 
         .db-config-container .form-control:focus {
-            border-color: #145da0;
+            outline: none;
+            border-color: var(--db-primary);
             box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.12);
         }
 
         .db-config-container .form-group small {
+            display: block;
             font-size: 12px;
             line-height: 1.6;
             color: #63788d;
+            margin-top: 6px;
         }
 
         .password-field {
             position: relative;
+        }
+
+        .password-field .form-control {
+            padding-right: 46px;
+        }
+
+        #toggle-db-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #toggle-db-password:hover {
+            color: var(--db-primary);
+            background: rgba(20, 93, 160, 0.06);
         }
 
         .db-inline-actions {
@@ -515,7 +491,7 @@
             align-items: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
         .db-inline-note {
@@ -527,92 +503,197 @@
             font-weight: 600;
         }
 
-        .test-connection-btn {
-            margin-top: 0;
-            min-width: 220px;
-            border-radius: 14px;
-            box-shadow: 0 10px 18px rgba(15, 140, 164, 0.18);
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 22px;
+            border-radius: var(--db-radius-sm);
+            font-size: 14px;
+            font-weight: 700;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        #toggle-db-password {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+        .btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-primary-light) 100%);
+            color: #fff;
+            box-shadow: 0 12px 24px rgba(20, 93, 160, 0.18);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 30px rgba(20, 93, 160, 0.24);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #e2e8f0;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e2e8f0;
+        }
+
+        .btn-info {
+            background: #0ea5e9;
+            color: #fff;
+            box-shadow: 0 10px 18px rgba(14, 165, 233, 0.18);
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #0284c7;
+            transform: translateY(-1px);
+        }
+
+        .test-connection-btn {
+            margin-top: 0;
+            min-width: 200px;
         }
 
         .connection-status {
             margin-top: 16px;
             padding: 14px 16px;
-            border-radius: 16px;
+            border-radius: var(--db-radius-sm);
             text-align: left;
             font-size: 13px;
             line-height: 1.6;
+            display: none;
         }
 
         .connection-status.success {
+            display: block;
             background: linear-gradient(180deg, #e6f7ec 0%, #f4fcf7 100%);
-            border-color: #b7e2c4;
+            border: 1px solid #b7e2c4;
             color: #17603b;
         }
 
         .connection-status.error {
+            display: block;
             background: linear-gradient(180deg, #fdebec 0%, #fff6f6 100%);
-            border-color: #f1c5cb;
+            border: 1px solid #f1c5cb;
             color: #9b1c2d;
         }
 
-        #config-message {
-            margin-top: 2px;
-            border-radius: 16px;
+        /* Status / progress */
+        .message {
+            padding: 16px 18px;
+            border-radius: var(--db-radius-sm);
             font-size: 13px;
             line-height: 1.7;
             white-space: pre-line;
         }
 
+        .message.hidden {
+            display: none;
+        }
+
+        .message.loading,
+        .message.info {
+            background: linear-gradient(180deg, rgba(228, 240, 251, 0.94) 0%, rgba(248, 251, 255, 0.96) 100%);
+            border: 1px solid rgba(20, 93, 160, 0.14);
+            color: var(--db-primary);
+        }
+
+        .message.success {
+            background: linear-gradient(180deg, #e6f7ec 0%, #f4fcf7 100%);
+            border: 1px solid #b7e2c4;
+            color: #17603b;
+        }
+
+        .message.error {
+            background: linear-gradient(180deg, #fdebec 0%, #fff6f6 100%);
+            border: 1px solid #f1c5cb;
+            color: #9b1c2d;
+        }
+
+        .progress-area {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            padding: 16px 18px;
+            border-radius: var(--db-radius-sm);
+            background: linear-gradient(180deg, rgba(228, 240, 251, 0.94) 0%, rgba(248, 251, 255, 0.96) 100%);
+            border: 1px solid rgba(20, 93, 160, 0.14);
+        }
+
+        .progress-area.visible {
+            display: flex;
+        }
+
+        .progress-bar {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(20, 93, 160, 0.12);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--db-primary) 0%, var(--db-primary-light) 100%);
+            transition: width 0.4s ease;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--db-primary);
+        }
+
+        /* Actions */
         .db-config-actions {
+            position: sticky;
+            bottom: 0;
+            display: flex;
             gap: 12px;
             padding-top: 18px;
             margin-top: 4px;
+            background: linear-gradient(to top, rgba(255,255,255,0.98) 70%, rgba(255,255,255,0));
         }
 
         .db-config-actions .btn {
-            min-height: 52px;
-            border-radius: 16px;
-            font-weight: 700;
-            box-shadow: 0 12px 24px rgba(15, 37, 63, 0.08);
+            min-height: 50px;
+            flex: 1;
         }
 
         .db-config-actions .btn-primary {
-            background: linear-gradient(135deg, #145da0 0%, #1f78c6 100%);
+            flex: 2;
         }
 
+        /* Responsive */
         @media (max-width: 900px) {
             .db-overview-grid {
                 grid-template-columns: 1fr;
             }
 
             .radio-group {
-                display: grid;
                 grid-template-columns: 1fr;
-                gap: 12px;
             }
         }
 
         @media (max-width: 720px) {
             .form-row {
-                display: grid;
                 grid-template-columns: 1fr;
                 gap: 12px;
             }
 
             .db-config-container {
                 padding: 18px;
-                max-height: calc(100vh - 20px);
+                max-height: calc(100vh - 18px);
                 border-radius: 22px;
             }
 
             .form-section,
-            .current-config,
             .overview-card,
             .info-box {
                 padding: 18px;
@@ -623,6 +704,20 @@
                 background: transparent;
                 flex-direction: column;
             }
+
+            .db-config-actions .btn {
+                width: 100%;
+            }
+
+            .db-inline-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .db-inline-note {
+                border-radius: 12px;
+                text-align: center;
+            }
         }
     </style>
 </head>
@@ -631,105 +726,118 @@
         <div class="license-box db-config-container">
             <div class="db-config-header">
                 <span class="page-kicker">Administration technique</span>
-                <h1>🗄️ Configuration Base de Données</h1>
-                <p>Configurez le mode de stockage (local ou réseau multi-postes)</p>
-                <div class="subtitle-highlight">Fiabilité maximale • Migration sécurisée SQLite → MariaDB</div>
+                <h1><span class="header-icon">🗄️</span> Configuration Base de Données</h1>
+                <p>Choisissez et configurez le mode de stockage du cabinet. La migration de vos données est sécurisée et guidée.</p>
+                <div class="subtitle-highlight">
+                    <span class="mode-badge sqlite" id="header-mode-badge">LOCAL</span>
+                    <span id="header-mode-text">Mode SQLite actif</span>
+                </div>
             </div>
 
-            <!-- Configuration actuelle -->
+            <!-- Configuration actuelle et résumé des données -->
             <div class="db-overview-grid">
-                <div class="current-config" id="current-config">
+                <div class="overview-card">
                     <h4>📊 Configuration Actuelle</h4>
-                    <p><strong>Mode:</strong> <span id="current-mode">-</span></p>
-                    <p><strong>Serveur:</strong> <span id="current-server">-</span></p>
+                    <div class="current-mode-row">
+                        <span class="mode-badge sqlite" id="current-mode-badge">LOCAL</span>
+                        <span id="current-mode-text">SQLite (Local)</span>
+                    </div>
+                    <p><strong>Serveur :</strong> <span id="current-server">Local (ce PC)</span></p>
                 </div>
                 <div class="overview-card">
-                    <h4>Repères rapides</h4>
-                    <ul class="overview-list">
-                        <li><strong>SQLite</strong><span>Idéal pour un seul poste local, avec une mise en route très simple.</span></li>
-                        <li><strong>MariaDB</strong><span>Adapté au fonctionnement multi-postes lorsque plusieurs PC partagent les mêmes données.</span></li>
-                        <li><strong>Migration</strong><span>Le passage de SQLite vers MariaDB peut reprendre automatiquement les données existantes.</span></li>
-                    </ul>
+                    <h4>📈 Résumé des Données</h4>
+                    <div class="data-summary-grid" id="data-summary-grid">
+                        <div class="summary-loading">Chargement du résumé…</div>
+                    </div>
                 </div>
             </div>
 
             <form id="db-config-form" class="db-form-shell">
                 <!-- Choix du type de DB -->
-                <div class="form-section">
-                    <h3>📦 Type de Base de Données</h3>
-                    
+                <section class="form-section">
+                    <h3><span>📦</span> Mode de Stockage</h3>
+
                     <div class="radio-group">
                         <label class="radio-option selected" id="option-sqlite">
                             <input type="radio" name="dbType" value="sqlite" checked>
+                            <div class="radio-icon">💻</div>
                             <div class="radio-label">
-                                <strong>💻 SQLite (Local)</strong>
-                                <small>Un seul PC - Simple et rapide</small>
+                                <strong>SQLite (Local)</strong>
+                                <span>Stockage intégré idéal pour un seul poste. Aucun serveur à installer.</span>
                             </div>
                         </label>
-                        
+
                         <label class="radio-option" id="option-mariadb">
                             <input type="radio" name="dbType" value="mariadb">
+                            <div class="radio-icon">🌐</div>
                             <div class="radio-label">
-                                <strong>🌐 MariaDB (Réseau)</strong>
-                                <small>Plusieurs PC - Multi-postes</small>
+                                <strong>MariaDB (Réseau)</strong>
+                                <span>Serveur central pour plusieurs postes du cabinet. Nécessite MariaDB sur le PC principal.</span>
                             </div>
                         </label>
                     </div>
 
                     <div class="migration-box" id="migration-box" style="display:none;">
-                        <strong>🔄 Migration des données</strong>
-                        <label for="migrate-data-checkbox">
+                        <div class="migration-header">
+                            <span class="migration-icon">🔄</span>
+                            <strong>Confirmation de migration</strong>
+                        </div>
+                        <ul class="migration-info">
+                            <li>Vos données actuelles seront copiées vers le nouveau mode de stockage.</li>
+                            <li>Les données existantes dans la destination seront fusionnées (les enregistrements existants seront mis à jour).</li>
+                        </ul>
+                        <label class="migration-checkbox" for="migrate-data-checkbox">
                             <input type="checkbox" id="migrate-data-checkbox" checked>
-                            <span>Migrer automatiquement toutes les données SQLite locales vers MariaDB (backup automatique créé avant migration).</span>
+                            <span>Je confirme la migration des données</span>
                         </label>
                     </div>
-                </div>
+                </section>
 
                 <!-- Configuration MariaDB -->
                 <div class="mariadb-config" id="mariadb-config">
                     <div class="info-box">
-                        <h4>ℹ️ Information Importante</h4>
-                        <p>Pour le mode multi-postes, vous devez avoir un serveur MariaDB installé sur le PC principal.</p>
-                        <p>Le PC principal doit avoir une adresse IP fixe sur le réseau local (ex: <code>192.168.1.100</code>)</p>
+                        <h4>ℹ️ Mode réseau multi-postes</h4>
+                        <p>Pour le mode réseau, installez MariaDB sur le PC principal et connectez les autres PC à l'IP de ce serveur.</p>
+                        <p>Le PC principal doit avoir une adresse IP fixe sur le réseau local (ex: <code>192.168.1.100</code>).</p>
                     </div>
 
-                    <div class="form-section">
-                        <h3>🔧 Paramètres de Connexion</h3>
-                        
+                    <section class="form-section">
+                        <h3><span>🔧</span> Paramètres de Connexion MariaDB</h3>
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="db-host">Adresse IP du Serveur *</label>
-                                <input type="text" id="db-host" class="form-control" 
+                                <input type="text" id="db-host" class="form-control"
                                        placeholder="192.168.1.100" value="localhost">
                                 <small>L'IP du PC où MariaDB est installé</small>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="db-port">Port</label>
-                                <input type="number" id="db-port" class="form-control" 
+                                <input type="number" id="db-port" class="form-control"
                                        placeholder="3306" value="3306">
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="db-name">Nom de la Base de Données</label>
-                            <input type="text" id="db-name" class="form-control" 
+                            <input type="text" id="db-name" class="form-control"
                                    placeholder="physiocare" value="physiocare">
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="db-user">Utilisateur *</label>
-                                <input type="text" id="db-user" class="form-control" 
+                                <input type="text" id="db-user" class="form-control"
                                        placeholder="physiocare_user" value="physiocare_user">
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="db-password">Mot de passe *</label>
                                 <div class="password-field">
-                                    <input type="password" id="db-password" class="form-control" 
-                                           style="padding-right: 40px; margin-bottom: 0;" placeholder="Mot de passe MariaDB">
-                                    <button type="button" id="toggle-db-password" title="Afficher/Masquer le mot de passe" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6c757d;" tabindex="-1">
+                                    <input type="password" id="db-password" class="form-control"
+                                           placeholder="Mot de passe MariaDB">
+                                    <button type="button" id="toggle-db-password" title="Afficher/Masquer le mot de passe" tabindex="-1">
                                         <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -741,23 +849,29 @@
 
                         <div class="db-inline-actions">
                             <button type="button" class="btn btn-info test-connection-btn" id="btn-test">
-                                🔌 Tester la Connexion
+                                <span>🔌</span> Tester la Connexion
                             </button>
                             <span class="db-inline-note">Un test valide est requis avant l'enregistrement en mode MariaDB.</span>
                         </div>
 
                         <div class="connection-status" id="connection-status"></div>
+                    </section>
+                </div>
+
+                <!-- Progression / statut -->
+                <div id="progress-area" class="progress-area">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
                     </div>
+                    <div class="progress-text" id="progress-text">Préparation…</div>
                 </div>
 
                 <div id="config-message" class="message hidden"></div>
 
                 <div class="db-config-actions">
-                    <button type="button" class="btn btn-secondary" id="btn-cancel" style="flex: 1;">
-                        ← Retour
-                    </button>
-                    <button type="submit" class="btn btn-primary" style="flex: 2;">
-                        💾 Enregistrer et Redémarrer
+                    <button type="button" class="btn btn-secondary" id="btn-cancel">Annuler</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save">
+                        <span>💾</span> Enregistrer et Redémarrer
                     </button>
                 </div>
             </form>
@@ -767,51 +881,138 @@
     <script>
         // Elements
         const form = document.getElementById('db-config-form');
-        const radioSqlite = document.querySelector('input[value="sqlite"]');
-        const radioMariadb = document.querySelector('input[value="mariadb"]');
+        const radioSqlite = document.querySelector('input[name="dbType"][value="sqlite"]');
+        const radioMariadb = document.querySelector('input[name="dbType"][value="mariadb"]');
         const mariadbConfig = document.getElementById('mariadb-config');
         const optionSqlite = document.getElementById('option-sqlite');
         const optionMariadb = document.getElementById('option-mariadb');
         const btnTest = document.getElementById('btn-test');
+        const btnSave = document.getElementById('btn-save');
+        const btnCancel = document.getElementById('btn-cancel');
         const connectionStatus = document.getElementById('connection-status');
         const messageEl = document.getElementById('config-message');
         const migrationBox = document.getElementById('migration-box');
         const migrateCheckbox = document.getElementById('migrate-data-checkbox');
+        const progressArea = document.getElementById('progress-area');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const dataSummaryGrid = document.getElementById('data-summary-grid');
+
         let initialDbType = 'sqlite';
         let lastConnectionCheckSucceeded = false;
+
+        const LABEL_MAP = {
+            patients: 'Patients',
+            appointments: 'RDV',
+            consultations: 'Consultations',
+            prescriptions: 'Ordonnances',
+            kineSessions: 'Séances kiné',
+            invoices: 'Factures',
+            payments: 'Paiements',
+            waitingRoom: 'Salle d\'attente',
+            users: 'Utilisateurs'
+        };
+
+        function formatLabel(key) {
+            return LABEL_MAP[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+        }
+
+        function setModeBadges(type) {
+            const isMaria = type === 'mariadb';
+            const badgeText = isMaria ? 'RÉSEAU' : 'LOCAL';
+            const badgeClass = isMaria ? 'mariadb' : 'sqlite';
+            const modeText = isMaria ? 'MariaDB (Réseau)' : 'SQLite (Local)';
+
+            document.querySelectorAll('.mode-badge').forEach(badge => {
+                badge.className = `mode-badge ${badgeClass}`;
+                badge.textContent = badgeText;
+            });
+
+            const headerText = document.getElementById('header-mode-text');
+            if (headerText) headerText.textContent = `Mode ${modeText} actif`;
+
+            const currentText = document.getElementById('current-mode-text');
+            if (currentText) currentText.textContent = modeText;
+
+            const serverText = document.getElementById('current-server');
+            if (serverText) {
+                serverText.textContent = isMaria
+                    ? `${document.getElementById('db-host').value || 'localhost'}:${document.getElementById('db-port').value || 3306}`
+                    : 'Local (ce PC)';
+            }
+        }
+
+        function renderDataSummary(summary) {
+            if (!summary || typeof summary !== 'object') {
+                dataSummaryGrid.innerHTML = '<div class="summary-empty">Aucune donnée à afficher</div>';
+                return;
+            }
+
+            const entries = Object.entries(summary).filter(([key, value]) =>
+                key !== 'error' && typeof value === 'number'
+            );
+
+            if (!entries.length) {
+                dataSummaryGrid.innerHTML = '<div class="summary-empty">Aucune donnée à afficher</div>';
+                return;
+            }
+
+            dataSummaryGrid.innerHTML = entries.map(([key, value]) => `
+                <div class="summary-item">
+                    <span class="summary-count">${Number(value).toLocaleString('fr-FR')}</span>
+                    <span class="summary-label">${formatLabel(key)}</span>
+                </div>
+            `).join('');
+        }
+
+        async function loadDataSummary() {
+            if (!window.api?.dbConfig?.getDataSummary) {
+                dataSummaryGrid.innerHTML = '<div class="summary-empty">Résumé non disponible</div>';
+                return;
+            }
+
+            try {
+                const summary = await window.api.dbConfig.getDataSummary();
+                renderDataSummary(summary);
+            } catch (e) {
+                console.error('Erreur résumé données:', e);
+                dataSummaryGrid.innerHTML = '<div class="summary-empty">Résumé indisponible</div>';
+            }
+        }
 
         // Load current config
         async function loadCurrentConfig() {
             try {
                 const config = await window.api.dbConfig.get();
-                
-                // Update current config display
-                document.getElementById('current-mode').textContent = 
-                    config.type === 'mariadb' ? 'MariaDB (Réseau)' : 'SQLite (Local)';
-                document.getElementById('current-mode').insertAdjacentHTML('beforeend', config.type === 'mariadb'
-                    ? ' <span class="mode-badge mariadb">RÉSEAU</span>'
-                    : ' <span class="mode-badge sqlite">LOCAL</span>');
-                document.getElementById('current-server').textContent = 
-                    config.type === 'mariadb' ? `${config.mariadb.host}:${config.mariadb.port}` : 'Local (ce PC)';
 
                 initialDbType = config.type || 'sqlite';
-                toggleMigrationBox();
+                setModeBadges(initialDbType);
+                loadDataSummary();
 
                 // Set form values
-                if (config.type === 'mariadb') {
+                if (initialDbType === 'mariadb') {
                     radioMariadb.checked = true;
                     optionMariadb.classList.add('selected');
                     optionSqlite.classList.remove('selected');
                     mariadbConfig.classList.add('visible');
-                    
-                    document.getElementById('db-host').value = config.mariadb.host || 'localhost';
-                    document.getElementById('db-port').value = config.mariadb.port || 3306;
-                    document.getElementById('db-name').value = config.mariadb.database || 'physiocare';
-                    document.getElementById('db-user').value = config.mariadb.user || 'physiocare_user';
-                    document.getElementById('db-password').value = config.mariadb.password || '';
+
+                    document.getElementById('db-host').value = config.mariadb?.host || 'localhost';
+                    document.getElementById('db-port').value = config.mariadb?.port || 3306;
+                    document.getElementById('db-name').value = config.mariadb?.database || 'physiocare';
+                    document.getElementById('db-user').value = config.mariadb?.user || 'physiocare_user';
+                    document.getElementById('db-password').value = config.mariadb?.password || '';
+                } else {
+                    radioSqlite.checked = true;
+                    optionSqlite.classList.add('selected');
+                    optionMariadb.classList.remove('selected');
+                    mariadbConfig.classList.remove('visible');
                 }
+
+                toggleMigrationBox();
             } catch (e) {
                 console.log('No existing config');
+                setModeBadges('sqlite');
+                loadDataSummary();
             }
         }
 
@@ -819,32 +1020,28 @@
         loadCurrentConfig();
 
         // Radio change handlers
-        radioSqlite.addEventListener('change', () => {
-            optionSqlite.classList.add('selected');
-            optionMariadb.classList.remove('selected');
-            mariadbConfig.classList.remove('visible');
+        function selectDbType(type) {
+            const isMaria = type === 'mariadb';
+            radioSqlite.checked = !isMaria;
+            radioMariadb.checked = isMaria;
+            optionSqlite.classList.toggle('selected', !isMaria);
+            optionMariadb.classList.toggle('selected', isMaria);
+            mariadbConfig.classList.toggle('visible', isMaria);
             lastConnectionCheckSucceeded = false;
+            hideConnectionStatus();
             toggleMigrationBox();
-        });
+        }
 
-        radioMariadb.addEventListener('change', () => {
-            optionMariadb.classList.add('selected');
-            optionSqlite.classList.remove('selected');
-            mariadbConfig.classList.add('visible');
-            lastConnectionCheckSucceeded = false;
-            toggleMigrationBox();
-        });
+        radioSqlite.addEventListener('change', () => selectDbType('sqlite'));
+        radioMariadb.addEventListener('change', () => selectDbType('mariadb'));
 
-        // Click handlers for radio options
-        optionSqlite.addEventListener('click', () => {
-            radioSqlite.checked = true;
-            radioSqlite.dispatchEvent(new Event('change'));
-        });
+        optionSqlite.addEventListener('click', () => selectDbType('sqlite'));
+        optionMariadb.addEventListener('click', () => selectDbType('mariadb'));
 
-        optionMariadb.addEventListener('click', () => {
-            radioMariadb.checked = true;
-            radioMariadb.dispatchEvent(new Event('change'));
-        });
+        function hideConnectionStatus() {
+            connectionStatus.className = 'connection-status';
+            connectionStatus.textContent = '';
+        }
 
         // Test connection
         btnTest.addEventListener('click', async () => {
@@ -862,37 +1059,59 @@
                 return;
             }
 
-            btnTest.disabled = true;
-            btnTest.textContent = '⏳ Test en cours...';
+            setTestLoading(true);
 
             try {
                 const result = await window.api.dbConfig.testConnection(config);
-                
+
                 if (result.success) {
-                    showStatus('success', '✅ Connexion réussie! La base de données est accessible.');
+                    showStatus('success', '✅ Connexion réussie ! La base de données est accessible.');
                     lastConnectionCheckSucceeded = true;
                 } else {
-                    showStatus('error', '❌ Échec de connexion: ' + result.error);
+                    showStatus('error', '❌ Échec de connexion : ' + result.error);
                     lastConnectionCheckSucceeded = false;
                 }
             } catch (error) {
-                showStatus('error', '❌ Erreur: ' + error.message);
+                showStatus('error', '❌ Erreur : ' + error.message);
                 lastConnectionCheckSucceeded = false;
             }
 
-            btnTest.disabled = false;
-            btnTest.textContent = '🔌 Tester la Connexion';
+            setTestLoading(false);
         });
+
+        function setTestLoading(loading) {
+            btnTest.disabled = loading;
+            btnTest.innerHTML = loading
+                ? '<span>⏳</span> Test en cours…'
+                : '<span>🔌</span> Tester la Connexion';
+        }
+
+        function setSaveLoading(loading) {
+            btnSave.disabled = loading;
+            btnCancel.disabled = loading;
+            btnSave.innerHTML = loading
+                ? '<span>⏳</span> Enregistrement…'
+                : '<span>💾</span> Enregistrer et Redémarrer';
+        }
+
+        function setProgress(percent, text) {
+            progressArea.classList.toggle('visible', true);
+            progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            progressText.textContent = text || 'Traitement…';
+        }
+
+        function hideProgress() {
+            progressArea.classList.remove('visible');
+            progressFill.style.width = '0%';
+        }
 
         // Form submit
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const dbType = document.querySelector('input[name="dbType"]:checked').value;
-            
-            let config = {
-                type: dbType
-            };
+
+            const config = { type: dbType };
 
             if (dbType === 'mariadb') {
                 config.mariadb = {
@@ -908,48 +1127,65 @@
                     return;
                 }
 
-                config.migration = {
-                    fromSqlite: initialDbType === 'sqlite' && migrateCheckbox.checked
-                };
-
                 if (!lastConnectionCheckSucceeded) {
-                    showMessage('loading', '⏳ Vérification de la connexion MariaDB avant sauvegarde...');
+                    setProgress(15, 'Vérification de la connexion MariaDB…');
                     const testBeforeSave = await window.api.dbConfig.testConnection(config.mariadb);
                     if (!testBeforeSave.success) {
-                        showMessage('error', '❌ Connexion MariaDB impossible: ' + (testBeforeSave.error || 'Erreur inconnue'));
+                        hideProgress();
+                        showMessage('error', '❌ Connexion MariaDB impossible : ' + (testBeforeSave.error || 'Erreur inconnue'));
                         return;
                     }
+                    lastConnectionCheckSucceeded = true;
                 }
             }
 
-            showMessage('loading', '⏳ Sauvegarde de la configuration...');
+            const typeChanged = initialDbType !== dbType;
+            const migrateEnabled = migrateCheckbox.checked;
+
+            if (typeChanged) {
+                config.migration = {
+                    enabled: migrateEnabled,
+                    sourceType: initialDbType,
+                    targetType: dbType
+                };
+            }
+
+            setSaveLoading(true);
+            setProgress(30, 'Sauvegarde de la configuration…');
+            hideMessage();
 
             try {
                 const result = await window.api.dbConfig.save(config);
-                
+
                 if (result.success) {
+                    setProgress(70, 'Finalisation…');
+
                     const migrationInfo = result.migration?.migrated
-                        ? `\nMigration OK: ${result.migration.copiedTables?.length || 0} table(s) copiée(s).`
-                        : (result.migration?.skipped ? `\nMigration ignorée: ${result.migration.reason}` : '');
+                        ? `\n✅ Migration réussie : ${result.migration.copiedTables?.length || 0} table(s) copiée(s).`
+                        : (result.migration?.skipped ? `\nℹ️ Migration ignorée : ${result.migration.reason}` : '');
 
                     const warningInfo = result.warning ? `\n⚠️ ${result.warning}` : '';
 
-                    showMessage('success', `✅ Configuration sauvegardée.${migrationInfo}${warningInfo}\nRedémarrage en cours...`);
-                    
-                    // Restart app after 2 seconds
+                    setProgress(100, 'Redémarrage…');
+                    showMessage('success', `✅ Configuration sauvegardée.${migrationInfo}${warningInfo}\nL'application va redémarrer…`);
+
                     setTimeout(() => {
                         window.api.dbConfig.restart();
-                    }, 2000);
+                    }, 1800);
                 } else {
-                    showMessage('error', '❌ Erreur: ' + result.error);
+                    hideProgress();
+                    setSaveLoading(false);
+                    showMessage('error', '❌ Erreur : ' + result.error);
                 }
             } catch (error) {
-                showMessage('error', '❌ Erreur: ' + error.message);
+                hideProgress();
+                setSaveLoading(false);
+                showMessage('error', '❌ Erreur : ' + error.message);
             }
         });
 
         // Cancel button
-        document.getElementById('btn-cancel').addEventListener('click', () => {
+        btnCancel.addEventListener('click', () => {
             window.api.dbConfig.cancel();
         });
 
@@ -961,13 +1197,18 @@
         function showMessage(type, message) {
             messageEl.textContent = message;
             messageEl.className = 'message ' + type;
-            messageEl.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            messageEl.className = 'message hidden';
+            messageEl.textContent = '';
         }
 
         function toggleMigrationBox() {
-            const switchingFromSqliteToMaria = initialDbType === 'sqlite' && radioMariadb.checked;
-            migrationBox.style.display = switchingFromSqliteToMaria ? 'block' : 'none';
-            if (!switchingFromSqliteToMaria) {
+            const selectedType = document.querySelector('input[name="dbType"]:checked').value;
+            const switching = initialDbType !== selectedType;
+            migrationBox.style.display = switching ? 'block' : 'none';
+            if (!switching) {
                 migrateCheckbox.checked = true;
             }
         }
@@ -977,7 +1218,7 @@
             const togglePwdBtn = document.getElementById('toggle-db-password');
             const pwdInput = document.getElementById('db-password');
             const eyeIcon = document.getElementById('eye-icon');
-            
+
             if (togglePwdBtn && pwdInput && eyeIcon) {
                 togglePwdBtn.addEventListener('click', (e) => {
                     e.preventDefault();

@@ -17,6 +17,31 @@ const TRIAL_LICENSE_KEY = 'MEDPRO-TRIAL-7JOURS';
 const ANNUAL_LICENSE_KEY = 'MEDPRO-ANNUELLE-1AN';
 const UNLIMITED_LICENSE_KEY = 'MEDPRO-ILLIMITEE-ACTIVE';
 
+// Simple prepared-statement cache for better-sqlite3. Reusing prepared statements
+// avoids re-parsing SQL on every query, which noticeably speeds up repeated calls.
+const STATEMENT_CACHE_MAX_SIZE = 200;
+const statementCache = new Map();
+
+function getCachedStatement(sql) {
+  if (!db) {
+    throw new Error('Base de données SQLite non initialisée');
+  }
+  if (statementCache.has(sql)) {
+    return statementCache.get(sql);
+  }
+  const statement = db.prepare(sql);
+  if (statementCache.size >= STATEMENT_CACHE_MAX_SIZE) {
+    const firstKey = statementCache.keys().next().value;
+    statementCache.delete(firstKey);
+  }
+  statementCache.set(sql, statement);
+  return statement;
+}
+
+function clearStatementCache() {
+  statementCache.clear();
+}
+
 /**
  * Initialise la base de données
  */
@@ -599,6 +624,15 @@ function createTables() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_medications_genericName_nocase
     ON medications(genericName COLLATE NOCASE)
+  `);
+
+  // Table des catégories de médicaments
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS medication_categories (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 
   // Table des analyses médicales
@@ -1797,321 +1831,836 @@ export function getDatabase() {
 }
 
 /**
- * Seeds test data for development/testing
+ * Seeds a complete, realistic demo database for development/testing.
+ * Safe to run multiple times: reference data is skipped when it already exists,
+ * and transactional tables are filled up to their target counts.
  */
 export function seedTestData() {
-  console.log('🌱 Seeding test data...');
-  
-  // Test patients data - using unique phones to prevent duplicates
-  const patients = [
-    { firstName: 'Mohammed', lastName: 'BENALI', phone: '0555123456', dateOfBirth: '1985-03-15', gender: 'M', address: '12 Rue des Oliviers, Alger', email: 'mohammed.benali@email.dz' },
-    { firstName: 'Fatima', lastName: 'KHEDDAR', phone: '0661234567', dateOfBirth: '1992-07-22', gender: 'F', address: '45 Boulevard Mohamed V, Oran', email: 'fatima.kheddar@email.dz' },
-    { firstName: 'Ahmed', lastName: 'BOUALEM', phone: '0770345678', dateOfBirth: '1978-11-08', gender: 'M', address: '8 Cité des Roses, Constantine', email: 'ahmed.boualem@email.dz' },
-    { firstName: 'Amina', lastName: 'CHERIFI', phone: '0550456789', dateOfBirth: '1995-02-28', gender: 'F', address: '23 Rue de la Liberté, Annaba', email: 'amina.cherifi@email.dz' },
-    { firstName: 'Youcef', lastName: 'MEZIANE', phone: '0667567890', dateOfBirth: '1988-09-12', gender: 'M', address: '67 Avenue de l\'Indépendance, Blida', email: 'youcef.meziane@email.dz' },
-    { firstName: 'Nadia', lastName: 'HAMIDI', phone: '0778678901', dateOfBirth: '1980-05-30', gender: 'F', address: '15 Rue Ben Badis, Sétif', email: 'nadia.hamidi@email.dz' },
-    { firstName: 'Karim', lastName: 'SLIMANI', phone: '0551789012', dateOfBirth: '1970-12-05', gender: 'M', address: '31 Cité El Firdous, Tizi Ouzou', email: 'karim.slimani@email.dz' },
-    { firstName: 'Samira', lastName: 'BOUAZZA', phone: '0662890123', dateOfBirth: '2000-08-17', gender: 'F', address: '9 Boulevard Zighoud Youcef, Béjaïa', email: 'samira.bouazza@email.dz' },
+  console.log('🌱 Seeding complete demo database...');
+
+  const report = {
+    success: true,
+    created: {},
+    totals: {},
+    errors: []
+  };
+
+  const TARGETS = {
+    patients: 100,
+    users: { doctors: 3, assistants: 2, kines: 2 },
+    referenceMedications: 20,
+    referenceAnalysisTypes: 15,
+    referenceExpenseCategories: 10,
+    kineStaff: 3,
+    consultations: 50,
+    prescriptions: 50,
+    appointments: 50,
+    payments: 50,
+    sickLeaves: 50,
+    medicalAnalyses: 50,
+    inventory: 50,
+    expenses: 50,
+    debts: 50,
+    documents: 25,
+    patientDocuments: 25,
+    waitingRoom: 50,
+    kineSessions: 50,
+    rehabilitationPlans: 25,
+    rehabilitationSessions: 25,
+    notifications: 50
+  };
+
+  // ---------- Helpers ----------
+  const hashPassword = (pwd) => crypto.createHash('sha256').update(pwd).digest('hex');
+
+  const getCount = (table) => {
+    try {
+      return db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get().count || 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const safeRun = (stmt, params, label) => {
+    try {
+      return stmt.run(...params);
+    } catch (err) {
+      console.log(`⚠️ ${label} error: ${err.message}`);
+      report.errors.push(`${label}: ${err.message}`);
+      return null;
+    }
+  };
+
+  const randomDate = (minDays, maxDays) => {
+    const now = new Date();
+    const days = minDays + Math.floor(Math.random() * (maxDays - minDays + 1));
+    now.setDate(now.getDate() + days);
+    now.setHours(8 + Math.floor(Math.random() * 10), Math.random() > 0.5 ? 0 : 30, 0, 0);
+    return now.toISOString();
+  };
+
+  const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const pickPatient = (patients) => patients[Math.floor(Math.random() * patients.length)];
+
+  // ---------- Reference data: Users ----------
+  const userPassword = hashPassword('demo2024');
+  const demoUsers = [
+    { username: 'dr.amedjoudj', fullName: 'Dr. Amine AMEDJOUDJ', role: 'doctor', specialty: 'Médecine physique et réadaptation', color: '#1a8c7e' },
+    { username: 'dr.benali', fullName: 'Dr. Fatima BENALI', role: 'doctor', specialty: 'Rhumatologie', color: '#3b82f6' },
+    { username: 'dr.cherifi', fullName: 'Dr. Karim CHERIFI', role: 'doctor', specialty: 'Orthopédie', color: '#8b5cf6' },
+    { username: 'assistant.samira', fullName: 'Samira BOUAZZA', role: 'assistant', specialty: 'Secrétariat médical', color: '#f59e0b' },
+    { username: 'assistant.nadia', fullName: 'Nadia HAMIDI', role: 'assistant', specialty: 'Accueil et prise de rendez-vous', color: '#10b981' },
+    { username: 'kine.rachid', fullName: 'Rachid BELKACEM', role: 'kinesitherapeute', specialty: 'Rééducation orthopédique', color: '#ef4444' },
+    { username: 'kine.karima', fullName: 'Karima OULD ALI', role: 'kinesitherapeute', specialty: 'Rééducation neurologique', color: '#ec4899' }
   ];
 
-  // Generate many synthetic patients for pagination/load testing
-  const firstNames = ['Yacine', 'Lina', 'Sabrina', 'Amine', 'Nour', 'Sara', 'Imane', 'Riad', 'Sofiane', 'Meriem', 'Karim', 'Nadia'];
-  const lastNames = ['Belaid', 'Mansouri', 'Ait Ali', 'Khelifi', 'Touati', 'Bouzid', 'Hamzaoui', 'Abidi', 'Kherradji', 'Mebarki', 'Haddad', 'Bensalem'];
-  const cities = ['Alger', 'Oran', 'Constantine', 'Annaba', 'Sétif', 'Blida', 'Béjaïa', 'Tizi Ouzou'];
-  const EXTRA_PATIENTS_COUNT = 140;
+  const userIds = [];
+  let createdUsers = 0;
+  const insertUser = db.prepare(`
+    INSERT INTO users (id, username, password, fullName, email, phone, role, specialty, color, isAdmin, isSuperAdmin, isActive, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 1, datetime('now'))
+  `);
 
-  for (let i = 0; i < EXTRA_PATIENTS_COUNT; i++) {
-    const firstName = firstNames[i % firstNames.length];
-    const lastName = `${lastNames[i % lastNames.length]} ${i + 1}`;
-    const year = 1965 + (i % 36);
-    const month = String((i % 12) + 1).padStart(2, '0');
-    const day = String((i % 28) + 1).padStart(2, '0');
-    const phone = `06${String(10000000 + i).slice(-8)}`;
-    patients.push({
-      firstName,
-      lastName,
-      phone,
-      dateOfBirth: `${year}-${month}-${day}`,
-      gender: i % 2 === 0 ? 'M' : 'F',
-      address: `${10 + i} Rue Exemple, ${cities[i % cities.length]}`,
-      email: `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '')}@demo-medcare.dz`,
-      socialSecurityNumber: `${String(1000000000000 + i).slice(0, 13)}`
-    });
-  }
-
-  const patientIds = [];
-  
-  // Insert patients - check by firstName + lastName + dateOfBirth to avoid duplicates
-  for (const patient of patients) {
-    try {
-      // Check if patient already exists (by name + date of birth OR by phone)
-      const existingByName = db.prepare('SELECT id FROM patients WHERE firstName = ? AND lastName = ? AND dateOfBirth = ?')
-        .get(patient.firstName, patient.lastName, patient.dateOfBirth);
-      const existingByPhone = db.prepare('SELECT id FROM patients WHERE phone = ?').get(patient.phone);
-      
-      if (existingByName) {
-        patientIds.push(existingByName.id);
-        console.log(`⏩ Patient exists (by name): ${patient.firstName} ${patient.lastName}`);
-      } else if (existingByPhone) {
-        patientIds.push(existingByPhone.id);
-        console.log(`⏩ Patient exists (by phone): ${patient.firstName} ${patient.lastName}`);
-      } else {
-        const id = uuidv4();
-        db.prepare(`
-          INSERT INTO patients (id, firstName, lastName, phone, dateOfBirth, gender, address, email, socialSecurityNumber, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-        `).run(
-          id,
-          patient.firstName,
-          patient.lastName,
-          patient.phone,
-          patient.dateOfBirth,
-          patient.gender,
-          patient.address,
-          patient.email,
-          patient.socialSecurityNumber || null
-        );
-        patientIds.push(id);
-        console.log(`✅ Added patient: ${patient.firstName} ${patient.lastName}`);
-      }
-    } catch (err) {
-      console.log(`⚠️ Patient error: ${err.message}`);
+  for (const u of demoUsers) {
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(u.username);
+    if (existing) {
+      userIds.push(existing.id);
+      continue;
     }
+    const id = uuidv4();
+    const email = `${u.username}@cabinet-demo.dz`;
+    const phone = `0${5 + Math.floor(Math.random() * 3)}${String(10000000 + Math.floor(Math.random() * 90000000)).slice(-8)}`;
+    const result = safeRun(insertUser, [id, u.username, userPassword, u.fullName, email, phone, u.role, u.specialty, u.color], 'user');
+    if (result) createdUsers++;
+    userIds.push(id);
   }
+  report.created.users = createdUsers;
 
-  // Kinésithérapeutes - check for duplicates
-  const kines = [
+  const doctorIds = userIds.filter((_, i) => demoUsers[i].role === 'doctor');
+  const kineUserIds = userIds.filter((_, i) => demoUsers[i].role === 'kinesitherapeute');
+  const assistantIds = userIds.filter((_, i) => demoUsers[i].role === 'assistant');
+
+  // ---------- Reference data: Medications ----------
+  const medicationsCatalog = [
+    { name: 'Paracétamol 500mg', genericName: 'Paracétamol', category: 'Antalgique', dosageForm: 'Comprimé', defaultDosage: '1 à 2 comprimés', defaultIntake: '3 fois par jour', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'À prendre en cas de douleur, espacer les prises d\'au moins 4 heures.', sideEffects: 'Hépatotoxicité en cas de surdosage' },
+    { name: 'Paracétamol 1g', genericName: 'Paracétamol', category: 'Antalgique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '3 fois par jour', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'En cas de douleur modérée.', sideEffects: 'Risque hépatique si surdosage' },
+    { name: 'Ibuprofène 400mg', genericName: 'Ibuprofène', category: 'Anti-inflammatoire', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '2 fois par jour après les repas', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'Ne pas prendre à jeun.', contraindications: 'Ulcère gastrique, insuffisance rénale', sideEffects: 'Troubles digestifs' },
+    { name: 'Amoxicilline 1g', genericName: 'Amoxicilline', category: 'Antibiotique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '3 fois par jour', defaultDuration: '7 jours', defaultBoxes: '2', instructions: 'Respecter la durée complète du traitement.', contraindications: 'Allerie pénicilline', sideEffects: 'Éruption cutanée, diarrhée' },
+    { name: 'Oméprazole 20mg', genericName: 'Oméprazole', category: 'Gastro-entérologie', dosageForm: 'Gélule', defaultDosage: '1 gélule', defaultIntake: '1 fois par jour le matin à jeun', defaultDuration: '14 jours', defaultBoxes: '1', instructions: 'À prendre avant le petit-déjeuner.', sideEffects: 'Maux de tête, diarrhée' },
+    { name: 'Metformine 500mg', genericName: 'Metformine', category: 'Antidiabétique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '2 fois par jour au cours des repas', defaultDuration: '30 jours', defaultBoxes: '2', instructions: 'Augmenter progressivement la dose.', contraindications: 'Insuffisance rénale sévère', sideEffects: 'Troubles digestifs' },
+    { name: 'Amlodipine 5mg', genericName: 'Amlodipine', category: 'Cardiologie', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '1 fois par jour le matin', defaultDuration: '30 jours', defaultBoxes: '1', instructions: 'Surveillance de la tension artérielle.', sideEffects: 'Œdèmes des chevilles' },
+    { name: 'Atorvastatine 20mg', genericName: 'Atorvastatine', category: 'Cardiologie', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '1 fois par jour le soir', defaultDuration: '30 jours', defaultBoxes: '1', instructions: 'Bilan hépatique recommandé.', sideEffects: 'Douleurs musculaires' },
+    { name: 'Levothyrox 50µg', genericName: 'Lévothyroxine', category: 'Endocrinologie', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '1 fois par jour le matin à jeun', defaultDuration: '30 jours', defaultBoxes: '1', instructions: 'Attendre 30 min avant le petit-déjeuner.', sideEffects: 'Tachycardie si surdosage' },
+    { name: 'Doliprane 1000mg', genericName: 'Paracétamol', category: 'Antalgique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '3 fois par jour', defaultDuration: '3 jours', defaultBoxes: '1', instructions: 'En cas de fièvre ou douleur.', sideEffects: 'Hépatotoxicité en surdosage' },
+    { name: 'Spasfon', genericName: 'Phloroglucinol/Triméthylphloroglucinol', category: 'Antispasmodique', dosageForm: 'Comprimé', defaultDosage: '2 comprimés', defaultIntake: '3 fois par jour', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'En cas de douleurs spasmodiques.', sideEffects: 'Météorisme' },
+    { name: 'Mopral 20mg', genericName: 'Oméprazole', category: 'Gastro-entérologie', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '1 fois par jour', defaultDuration: '14 jours', defaultBoxes: '1', instructions: 'Le matin à jeun.', sideEffects: 'Céphalées' },
+    { name: 'Efferalgan 500mg', genericName: 'Paracétamol', category: 'Antalgique', dosageForm: 'Comprimé effervescent', defaultDosage: '1 comprimé', defaultIntake: '3 fois par jour', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'À dissoudre dans un verre d\'eau.', sideEffects: 'Risque hépatique' },
+    { name: 'Vitamine D3 200000 UI', genericName: 'Cholécalciférol', category: 'Vitamine', dosageForm: 'Ampoule buvable', defaultDosage: '1 ampoule', defaultIntake: '1 fois par mois', defaultDuration: '3 mois', defaultBoxes: '3', instructions: 'À prendre avec un repas.', sideEffects: 'Hypercalcémie si surdosage' },
+    { name: 'Magnésium B6', genericName: 'Magnésium + Vitamine B6', category: 'Vitamine', dosageForm: 'Comprimé', defaultDosage: '2 comprimés', defaultIntake: '2 fois par jour', defaultDuration: '30 jours', defaultBoxes: '2', instructions: 'Au cours des repas.', sideEffects: 'Diarrhée' },
+    { name: 'Cetirizine 10mg', genericName: 'Cétirizine', category: 'Antiallergique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '1 fois par jour le soir', defaultDuration: '10 jours', defaultBoxes: '1', instructions: 'Éviter l\'alcool.', sideEffects: 'Somnolence' },
+    { name: 'Lexomil 6mg', genericName: 'Bromazépam', category: 'Anxiolytique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '2 fois par jour', defaultDuration: '7 jours', defaultBoxes: '1', instructions: 'Arrêt progressif.', contraindications: 'Insuffisance respiratoire', sideEffects: 'Somnolence' },
+    { name: 'Augmentin 1g', genericName: 'Amoxicilline/Acide clavulanique', category: 'Antibiotique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '3 fois par jour', defaultDuration: '7 jours', defaultBoxes: '2', instructions: 'Au cours des repas.', contraindications: 'Allergie pénicilline', sideEffects: 'Troubles digestifs' },
+    { name: 'Gaviscon', genericName: 'Alginate de sodium/bicarbonate de sodium', category: 'Gastro-entérologie', dosageForm: 'Suspension buvable', defaultDosage: '10 mL', defaultIntake: '4 fois par jour après les repas', defaultDuration: '7 jours', defaultBoxes: '1', instructions: 'Secouer avant emploi.', sideEffects: 'Constipation' },
+    { name: 'Sérésta 10mg', genericName: 'Oxazépam', category: 'Anxiolytique', dosageForm: 'Comprimé', defaultDosage: '1 comprimé', defaultIntake: '2 fois par jour', defaultDuration: '5 jours', defaultBoxes: '1', instructions: 'Utilisation courte.', contraindications: 'Insuffisance hépatique sévère', sideEffects: 'Sédation' }
+  ];
+
+  const insertMedication = db.prepare(`
+    INSERT INTO medications (id, name, genericName, category, dosageForm, defaultDosage, defaultIntake, defaultDuration, defaultBoxes, instructions, contraindications, sideEffects, isActive, usageCount, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, datetime('now'), datetime('now'))
+  `);
+
+  let createdMeds = 0;
+  for (const med of medicationsCatalog) {
+    const existing = db.prepare('SELECT id FROM medications WHERE name = ?').get(med.name);
+    if (existing) continue;
+    safeRun(insertMedication, [uuidv4(), med.name, med.genericName, med.category, med.dosageForm, med.defaultDosage, med.defaultIntake, med.defaultDuration, med.defaultBoxes, med.instructions, med.contraindications || null, med.sideEffects], 'medication');
+    createdMeds++;
+  }
+  report.created.medications = createdMeds;
+
+  // ---------- Reference data: Analysis types ----------
+  const analysisTypesCatalog = [
+    { name: 'NFS (Numération Formule Sanguine)', category: 'Hématologie', description: 'Bilan sanguin complet', normalValues: 'Hb: 12-16 g/dL, GB: 4000-10000/mm³', unit: 'variables', price: 1500 },
+    { name: 'Glycémie à jeun', category: 'Biochimie', description: 'Mesure de la glycémie', normalValues: '0.70 - 1.10 g/L', unit: 'g/L', price: 800 },
+    { name: 'HbA1c', category: 'Biochimie', description: 'Contrôle glycémique sur 3 mois', normalValues: '< 6.5%', unit: '%', price: 1200 },
+    { name: 'Créatinine', category: 'Biochimie', description: 'Fonction rénale', normalValues: '7-13 mg/L', unit: 'mg/L', price: 700 },
+    { name: 'Bilan lipidique', category: 'Lipides', description: 'Cholestérol, HDL, LDL, TG', normalValues: 'CT < 2 g/L', unit: 'g/L', price: 1800 },
+    { name: 'TSH', category: 'Thyroïde', description: 'Fonction thyroïdienne', normalValues: '0.4-4.0 mUI/L', unit: 'mUI/L', price: 900 },
+    { name: 'Vitamine D', category: 'Vitamines', description: 'Bilan vitamino-calcique', normalValues: '30-100 ng/mL', unit: 'ng/mL', price: 1500 },
+    { name: 'CRP', category: 'Inflammation', description: 'Marqueur inflammatoire', normalValues: '< 6 mg/L', unit: 'mg/L', price: 700 },
+    { name: 'VS', category: 'Inflammation', description: 'Vitesse de sédimentation', normalValues: '< 20 mm/h', unit: 'mm/h', price: 500 },
+    { name: 'ECBU', category: 'Urinaire', description: 'Examen cytobactériologique des urines', normalValues: 'Stérile', unit: '', price: 1200 },
+    { name: 'Radiographie thoracique', category: 'Imagerie', description: 'Rx pulmonaire', normalValues: 'Normal', unit: '', price: 2500 },
+    { name: 'Radiographie du rachis', category: 'Imagerie', description: 'Rx lombaire/cervicale', normalValues: 'Normal', unit: '', price: 2500 },
+    { name: 'Échographie abdominale', category: 'Imagerie', description: 'Échographie générale', normalValues: 'Normal', unit: '', price: 3000 },
+    { name: 'IRM cérébrale', category: 'Imagerie', description: 'Imagerie par résonance magnétique', normalValues: 'Normal', unit: '', price: 12000 },
+    { name: 'Scanner thoraco-abdominal', category: 'Imagerie', description: 'TDM', normalValues: 'Normal', unit: '', price: 9000 }
+  ];
+
+  const insertAnalysisType = db.prepare(`
+    INSERT INTO analysis_types (id, name, category, description, normalValues, unit, price, isActive, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+  `);
+
+  let createdAnalysisTypes = 0;
+  for (const at of analysisTypesCatalog) {
+    const existing = db.prepare('SELECT id FROM analysis_types WHERE name = ?').get(at.name);
+    if (existing) continue;
+    safeRun(insertAnalysisType, [uuidv4(), at.name, at.category, at.description, at.normalValues, at.unit, at.price || 0], 'analysis_type');
+    createdAnalysisTypes++;
+  }
+  report.created.analysisTypes = createdAnalysisTypes;
+
+  // ---------- Reference data: Expense categories ----------
+  const expenseCategoriesCatalog = [
+    { name: 'Fournitures médicales', description: 'Gants, seringues, pansements' },
+    { name: 'Équipement médical', description: 'Appareils et instruments' },
+    { name: 'Médicaments', description: 'Stock de médicaments' },
+    { name: 'Loyer', description: 'Loyer du cabinet' },
+    { name: 'Électricité', description: 'Factures d\'électricité' },
+    { name: 'Eau', description: 'Factures d\'eau' },
+    { name: 'Internet/Téléphone', description: 'Communications' },
+    { name: 'Entretien', description: 'Nettoyage et maintenance' },
+    { name: 'Assurance', description: 'Assurances professionnelles' },
+    { name: 'Salaires', description: 'Salaires du personnel' }
+  ];
+
+  const insertExpenseCategory = db.prepare(`
+    INSERT INTO expense_categories (id, name, description, isActive, createdAt)
+    VALUES (?, ?, ?, 1, datetime('now'))
+  `);
+
+  let createdExpenseCategories = 0;
+  for (const ec of expenseCategoriesCatalog) {
+    const existing = db.prepare('SELECT id FROM expense_categories WHERE name = ?').get(ec.name);
+    if (existing) continue;
+    safeRun(insertExpenseCategory, [uuidv4(), ec.name, ec.description], 'expense_category');
+    createdExpenseCategories++;
+  }
+  report.created.expenseCategories = createdExpenseCategories;
+
+  // ---------- Kiné staff ----------
+  const kineStaffCatalog = [
     { firstName: 'Rachid', lastName: 'BELKACEM', phone: '0555111222', email: 'r.belkacem@kine.dz', specialty: 'Rééducation orthopédique', sessionPrice: 2000 },
     { firstName: 'Karima', lastName: 'OULD ALI', phone: '0666222333', email: 'k.ouldali@kine.dz', specialty: 'Kinésithérapie respiratoire', sessionPrice: 2500 },
-    { firstName: 'Sofiane', lastName: 'HADDAD', phone: '0777333444', email: 's.haddad@kine.dz', specialty: 'Rééducation neurologique', sessionPrice: 3000 },
+    { firstName: 'Sofiane', lastName: 'HADDAD', phone: '0777333444', email: 's.haddad@kine.dz', specialty: 'Rééducation neurologique', sessionPrice: 3000 }
   ];
 
-  const kineIds = [];
-  for (const kine of kines) {
-    try {
-      const existingByName = db.prepare('SELECT id FROM kine_staff WHERE firstName = ? AND lastName = ?')
-        .get(kine.firstName, kine.lastName);
-      const existingByPhone = db.prepare('SELECT id FROM kine_staff WHERE phone = ?').get(kine.phone);
-      
-      if (existingByName) {
-        kineIds.push(existingByName.id);
-        console.log(`⏩ Kiné exists: ${kine.firstName} ${kine.lastName}`);
-      } else if (existingByPhone) {
-        kineIds.push(existingByPhone.id);
-        console.log(`⏩ Kiné exists (by phone): ${kine.firstName} ${kine.lastName}`);
-      } else {
-        const id = uuidv4();
-        db.prepare(`
-          INSERT INTO kine_staff (id, firstName, lastName, phone, email, specialty, sessionPrice, isActive, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
-        `).run(id, kine.firstName, kine.lastName, kine.phone, kine.email, kine.specialty, kine.sessionPrice);
-        kineIds.push(id);
-        console.log(`✅ Added kinésithérapeute: ${kine.firstName} ${kine.lastName}`);
-      }
-    } catch (err) {
-      console.log(`⚠️ Kiné error: ${err.message}`);
+  const insertKineStaff = db.prepare(`
+    INSERT INTO kine_staff (id, firstName, lastName, phone, email, specialty, sessionPrice, isActive, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'), datetime('now'))
+  `);
+
+  const kineStaffIds = [];
+  let createdKineStaff = 0;
+  for (const k of kineStaffCatalog) {
+    const existing = db.prepare('SELECT id FROM kine_staff WHERE phone = ?').get(k.phone);
+    if (existing) {
+      kineStaffIds.push(existing.id);
+      continue;
     }
+    const id = uuidv4();
+    const result = safeRun(insertKineStaff, [id, k.firstName, k.lastName, k.phone, k.email, k.specialty, k.sessionPrice, 'Kinésithérapeute de démonstration'], 'kine_staff');
+    if (result) createdKineStaff++;
+    kineStaffIds.push(id);
   }
+  report.created.kineStaff = createdKineStaff;
 
-  // Consultations
-  const consultationTypes = ['Première consultation', 'Suivi', 'Contrôle', 'Urgence'];
+  // ---------- Patients: ensure exactly 100 ----------
+  const maleFirstNames = ['Mohammed', 'Ahmed', 'Karim', 'Youcef', 'Amine', 'Riad', 'Sofiane', 'Yacine', 'Nabil', 'Hakim', 'Mehdi', 'Anis', 'Fares', 'Lotfi', 'Samir', 'Tarek', 'Walid', 'Djamel', 'Mourad', 'Lyes', 'Aymen', 'Islem', 'Adel', 'Khaled', 'Billel'];
+  const femaleFirstNames = ['Fatima', 'Amina', 'Nadia', 'Samira', 'Karima', 'Lina', 'Sabrina', 'Sara', 'Imane', 'Meriem', 'Nour', 'Yousra', 'Houda', 'Amel', 'Djamila', 'Fatiha', 'Khadija', 'Asma', 'Rania', 'Sonia', 'Mounia', 'Lamia', 'Dounia', 'Ines', 'Wassila'];
+  const lastNames = ['BENALI', 'KHEDDAR', 'BOUALEM', 'CHERIFI', 'MEZIANE', 'HAMIDI', 'SLIMANI', 'BOUAZZA', 'BELAID', 'MANSOURI', 'AIT ALI', 'KHELIFI', 'TOUATI', 'BOUZID', 'HAMZAOUI', 'ABIDI', 'KHERRADJI', 'MEBARKI', 'HADDAD', 'BENSALEM', 'BELKACEM', 'OULD ALI', 'HADDAD', 'AMARA', 'BENMOUSSA', 'SAADAOUI', 'GUEDDOUDJ', 'DAOUD', 'SEGHIR', 'KACI'];
+  const wilayas = ['Alger', 'Oran', 'Constantine', 'Annaba', 'Sétif', 'Blida', 'Béjaïa', 'Tizi Ouzou', 'Batna', 'Tlemcen', 'Biskra', 'Djelfa', 'Jijel', 'Mostaganem', 'Tiaret'];
+  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  const insertPatient = db.prepare(`
+    INSERT INTO patients (id, firstName, lastName, primaryDoctorId, createdByUserId, dateOfBirth, gender, socialSecurityNumber, email, phone, address, city, zipCode, bloodType, allergies, medicalHistory, emergencyContact, emergencyPhone, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  const patientIds = [];
+  let createdPatients = 0;
+
+  const existingPatients = db.prepare('SELECT id FROM patients').all();
+  for (const p of existingPatients) patientIds.push(p.id);
+
+  const targetPatients = TARGETS.patients;
+  for (let i = 0; patientIds.length < targetPatients && i < targetPatients * 2; i++) {
+    const isMale = i % 2 === 0;
+    const firstName = isMale ? maleFirstNames[i % maleFirstNames.length] : femaleFirstNames[i % femaleFirstNames.length];
+    const lastName = lastNames[i % lastNames.length];
+    const year = 1960 + (i % 45);
+    const month = String((i % 12) + 1).padStart(2, '0');
+    const day = String((i % 28) + 1).padStart(2, '0');
+    const phone = `0${5 + (i % 3)}${String(10000000 + i).slice(-8)}`;
+    const socialSecurityNumber = `${year}${String(i).padStart(4, '0')}${String(1000000 + i).slice(-6)}`;
+
+    const existingByPhone = db.prepare('SELECT id FROM patients WHERE phone = ?').get(phone);
+    const existingBySSN = db.prepare('SELECT id FROM patients WHERE socialSecurityNumber = ?').get(socialSecurityNumber);
+    if (existingByPhone || existingBySSN) continue;
+
+    const id = uuidv4();
+    const city = wilayas[i % wilayas.length];
+    const address = `${10 + (i % 90)} Rue ${['des Oliviers', 'Mohamed V', 'de la Liberté', 'Ben Badis', 'El Firdous', 'Zighoud Youcef', 'des Frères', 'de l\'Indépendance'][i % 8]}, ${city}`;
+    const email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '')}${i}@demo.dz`;
+    const doctorId = randomItem(doctorIds);
+
+    safeRun(insertPatient, [
+      id, firstName, lastName, doctorId, randomItem([...assistantIds, ...doctorIds]),
+      `${year}-${month}-${day}`, isMale ? 'M' : 'F', socialSecurityNumber, email, phone,
+      address, city, String(10000 + (i % 9000)), randomItem(bloodTypes),
+      i % 7 === 0 ? 'Pollen, Poussière' : null,
+      i % 5 === 0 ? 'Hypertension artérielle contrôlée' : (i % 6 === 0 ? 'Diabète type 2' : null),
+      `${randomItem(['Mohammed', 'Ahmed', 'Fatima', 'Amina'])} ${lastName}`,
+      `0${5 + (i % 3)}${String(20000000 + i).slice(-8)}`
+    ], 'patient');
+
+    patientIds.push(id);
+    createdPatients++;
+  }
+  report.created.patients = createdPatients;
+  report.totals.patients = patientIds.length;
+
+  // Helper tables for generated data
   const diagnoses = [
-    'Lombalgie chronique - L4-L5',
-    'Gonarthrose bilatérale',
+    'Lombalgie chronique L4-L5',
     'Cervicalgie post-traumatique',
+    'Gonarthrose bilatérale',
     'Tendinite de la coiffe des rotateurs',
-    'Capsulite rétractile épaule droite',
+    'Capsulite rétractile de l\'épaule droite',
     'Syndrome du canal carpien',
-    'Entorse cheville grade II',
+    'Entorse de cheville grade II',
     'Sciatique S1 gauche',
+    'Épicondylite latérale',
+    'Tendinite d\'Achille',
+    'Arthrose de hanche',
+    'Syndrome fémoro-patellaire',
+    'Fracture du col du fémur opérée',
+    'Spondylarthrose cervicale',
+    'Lombosciatique par hernie discale L5-S1',
+    'Paraplégie flasque post-traumatique',
+    'Hémiplégie gauche post-AVC',
+    'Polyarthrite rhumatoïde',
+    'Fibromyalgie',
+    'Ostéoporose vertébrale'
   ];
-  const reasons = [
+
+  const consultationReasons = [
     'Douleur dorsale irradiant vers le membre inférieur',
     'Raideur articulaire matinale',
     'Difficulté à la marche',
     'Douleur à l\'épaule lors des mouvements',
     'Engourdissements des doigts',
     'Limitation des amplitudes articulaires',
+    'Lombalgie aiguë',
+    'Rééducation post-opératoire',
+    'Bilan de kinésithérapie',
+    'Contrôle après traitement'
   ];
 
+  const consultationTypes = ['Première consultation', 'Suivi', 'Contrôle', 'Urgence'];
+  const paymentMethods = ['Espèces', 'Carte', 'Virement', 'Chèque'];
+  const appointmentTypes = ['Consultation', 'Contrôle', 'Rééducation', 'Kinésithérapie'];
+  const appointmentStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled', 'pending'];
+  const documentCategories = ['Compte-rendu', 'Ordonnance', 'Certificat', 'Radio', 'Analyse', 'Autre'];
+  const documentTypes = ['certificat', 'ordonnance', 'compte_rendu', 'lettre', 'autre'];
+  const inventoryCategories = ['Médicament', 'Fourniture médicale', 'Matériel de rééducation', 'Petit matériel', 'Produit d\'entretien'];
+  const inventoryUnits = ['boîte', 'unité', 'paquet', 'rouleau', 'flacon', 'ampoule'];
+  const expenseVendors = ['Pharmacie centrale', 'MediAlger', 'FourniMed', 'Sarl BioEquip', 'Pharmacie du centre', 'Global Med DZ'];
+
+  // ---------- Consultations ----------
   const insertConsultation = db.prepare(`
-    INSERT INTO consultations (id, patientId, consultationDate, consultationType, reason, diagnosis, treatment, notes, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO consultations (id, patientId, doctorId, consultationDate, consultationType, reason, anamnesis, clinicalExamination, bloodPressure, temperature, weight, height, imc, diagnosis, cim10Code, treatment, advice, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
-  for (let i = 0; i < patientIds.length; i++) {
-    const patientId = patientIds[i];
-    const numConsults = 2 + Math.floor(Math.random() * 3);
-    
-    for (let j = 0; j < numConsults; j++) {
-      const consultId = uuidv4();
-      const daysAgo = Math.floor(Math.random() * 30);
-      const consultDate = new Date();
-      consultDate.setDate(consultDate.getDate() - daysAgo);
-      
-      const type = consultationTypes[Math.floor(Math.random() * consultationTypes.length)];
-      const reason = reasons[Math.floor(Math.random() * reasons.length)];
-      const diagnosis = diagnoses[Math.floor(Math.random() * diagnoses.length)];
-      
-      try {
-        insertConsultation.run(consultId, patientId, consultDate.toISOString(), type, reason, diagnosis, 'Rééducation fonctionnelle - 10 séances', 'Patient coopérant');
-      } catch (err) {
-        console.error('Error inserting consultation:', err.message);
-      }
-    }
-  }
+  let createdConsultations = 0;
+  const currentConsultations = getCount('consultations');
+  while (createdConsultations + currentConsultations < TARGETS.consultations) {
+    const patient = pickPatient(patientIds);
+    const diagnosis = randomItem(diagnoses);
+    const cim10 = ['M54.5', 'M17.1', 'M75.1', 'G56.0', 'S93.4', 'M51.1', 'M19.9', 'I69.3', 'M06.9', 'M79.7'][createdConsultations % 10];
+    const weight = 55 + (createdConsultations % 50);
+    const height = 1.55 + ((createdConsultations % 25) / 100);
+    const imc = Math.round((weight / (height * height)) * 10) / 10;
 
-  // Prescriptions
-  const medications = [
-    { name: 'Paracétamol 1g', dosage: '1 comprimé 3 fois par jour', duration: '7 jours' },
-    { name: 'Ibuprofène 400mg', dosage: '1 comprimé 2 fois par jour après repas', duration: '5 jours' },
-    { name: 'Myorelaxant (Thiocolchicoside)', dosage: '1 comprimé matin et soir', duration: '10 jours' },
-    { name: 'Vitamine D3 200000 UI', dosage: '1 ampoule par mois', duration: '3 mois' },
-    { name: 'Kinésithérapie', dosage: '10 séances de rééducation', duration: '5 semaines' },
+    const result = safeRun(insertConsultation, [
+      uuidv4(), patient, randomItem(doctorIds), randomDate(-90, 0),
+      randomItem(consultationTypes), randomItem(consultationReasons),
+      'Antécédents rapportés par le patient.', 'Examen clinique sans particularité notable.',
+      `${12 + (createdConsultations % 20)}/${8 + (createdConsultations % 10)}`,
+      36.5 + (createdConsultations % 5) * 0.1, weight, height, imc,
+      diagnosis, cim10, 'Rééducation fonctionnelle et suivi médical.',
+      'Surveillance clinique, hydratation, activité physique adaptée.', 'Patient coopérant'
+    ], 'consultation');
+    if (result) createdConsultations++;
+  }
+  report.created.consultations = createdConsultations;
+  report.totals.consultations = getCount('consultations');
+
+  // Fetch some consultation IDs for relationships
+  const consultationIds = db.prepare('SELECT id, patientId FROM consultations ORDER BY RANDOM() LIMIT 60').all();
+
+  // ---------- Prescriptions ----------
+  const insertPrescription = db.prepare(`
+    INSERT INTO prescriptions (id, patientId, consultationId, prescriptionDate, medications, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  const medsForPrescriptions = medicationsCatalog.map(m => ({ name: m.name, dosage: m.defaultDosage, duration: m.defaultDuration }));
+  let createdPrescriptions = 0;
+  const currentPrescriptions = getCount('prescriptions');
+  while (createdPrescriptions + currentPrescriptions < TARGETS.prescriptions) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdPrescriptions % consultationIds.length];
+    const numMeds = 2 + Math.floor(Math.random() * 3);
+    const selectedMeds = [];
+    for (let m = 0; m < numMeds; m++) selectedMeds.push(randomItem(medsForPrescriptions));
+
+    const result = safeRun(insertPrescription, [
+      uuidv4(), patient, consult?.id || null, randomDate(-60, 0),
+      JSON.stringify(selectedMeds), 'À prendre selon les indications médicales.'
+    ], 'prescription');
+    if (result) createdPrescriptions++;
+  }
+  report.created.prescriptions = createdPrescriptions;
+  report.totals.prescriptions = getCount('prescriptions');
+
+  // ---------- Appointments ----------
+  const insertAppointment = db.prepare(`
+    INSERT INTO appointments (id, patientId, appointmentDateTime, appointmentType, reason, status, notes, bookingSource, bookingCode, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdAppointments = 0;
+  const currentAppointments = getCount('appointments');
+  while (createdAppointments + currentAppointments < TARGETS.appointments) {
+    const patient = pickPatient(patientIds);
+    const isFuture = Math.random() > 0.4;
+    const date = isFuture ? randomDate(1, 30) : randomDate(-30, 0);
+    const status = isFuture ? randomItem(['scheduled', 'confirmed', 'pending']) : randomItem(['completed', 'cancelled']);
+
+    const result = safeRun(insertAppointment, [
+      uuidv4(), patient, date, randomItem(appointmentTypes),
+      'Suivi médical programmé', status, 'Rendez-vous de démonstration',
+      'manual', `RDV-${Date.now()}-${createdAppointments}`
+    ], 'appointment');
+    if (result) createdAppointments++;
+  }
+  report.created.appointments = createdAppointments;
+  report.totals.appointments = getCount('appointments');
+
+  // ---------- Payments ----------
+  const insertPayment = db.prepare(`
+    INSERT INTO payments (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdPayments = 0;
+  const currentPayments = getCount('payments');
+  while (createdPayments + currentPayments < TARGETS.payments) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdPayments % consultationIds.length];
+    const amount = [1500, 2000, 2500, 3000, 3500, 4000][createdPayments % 6];
+
+    const result = safeRun(insertPayment, [
+      uuidv4(), patient, consult?.id || null, amount, randomDate(-90, 0),
+      randomItem(paymentMethods), 'Règlement consultation', 'Paiement enregistré en démonstration'
+    ], 'payment');
+    if (result) createdPayments++;
+  }
+  report.created.payments = createdPayments;
+  report.totals.payments = getCount('payments');
+
+  // ---------- Sick leaves ----------
+  const insertSickLeave = db.prepare(`
+    INSERT INTO sick_leaves (id, patientId, consultationId, startDate, endDate, numberOfDays, diagnosis, cim10Code, allowedOutings, generatedPDF, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdSickLeaves = 0;
+  const currentSickLeaves = getCount('sick_leaves');
+  while (createdSickLeaves + currentSickLeaves < TARGETS.sickLeaves) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdSickLeaves % consultationIds.length];
+    const days = 3 + (createdSickLeaves % 20);
+    const start = new Date();
+    start.setDate(start.getDate() - (createdSickLeaves % 45));
+    const end = new Date(start);
+    end.setDate(end.getDate() + days);
+
+    const result = safeRun(insertSickLeave, [
+      uuidv4(), patient, consult?.id || null, start.toISOString(), end.toISOString(),
+      days, randomItem(diagnoses), 'M54.5', createdSickLeaves % 3 === 0 ? 1 : 0, null
+    ], 'sick_leave');
+    if (result) createdSickLeaves++;
+  }
+  report.created.sickLeaves = createdSickLeaves;
+  report.totals.sickLeaves = getCount('sick_leaves');
+
+  // ---------- Medical analyses ----------
+  const insertMedicalAnalysis = db.prepare(`
+    INSERT INTO medical_analyses (id, patientId, consultationId, analysisDate, analysisType, laboratory, results, normalValues, interpretation, status, attachmentPath, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdMedicalAnalyses = 0;
+  const currentMedicalAnalyses = getCount('medical_analyses');
+  const analysisTypeNames = analysisTypesCatalog.map(a => a.name);
+  while (createdMedicalAnalyses + currentMedicalAnalyses < TARGETS.medicalAnalyses) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdMedicalAnalyses % consultationIds.length];
+    const analysisType = randomItem(analysisTypeNames);
+    const status = randomItem(['pending', 'completed', 'reviewed']);
+
+    const result = safeRun(insertMedicalAnalysis, [
+      uuidv4(), patient, consult?.id || null, randomDate(-90, 0), analysisType,
+      randomItem(['Labo Central', 'Biolys', 'MedLab', 'Cytolab']),
+      'Résultats dans les valeurs usuelles.', 'Voir référence laboratoire',
+      'Analyse réalisée à titre de suivi.', status, null, 'Analyse de démonstration'
+    ], 'medical_analysis');
+    if (result) createdMedicalAnalyses++;
+  }
+  report.created.medicalAnalyses = createdMedicalAnalyses;
+  report.totals.medicalAnalyses = getCount('medical_analyses');
+
+  // ---------- Inventory ----------
+  const inventoryCatalog = [
+    { name: 'Gants latex taille M', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 800, sellingPrice: 1200 },
+    { name: 'Gants latex taille L', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 850, sellingPrice: 1250 },
+    { name: 'Seringues 5mL', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 600, sellingPrice: 900 },
+    { name: 'Seringues 10mL', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 700, sellingPrice: 1000 },
+    { name: 'Pansement adhésif', category: 'Fourniture médicale', unit: 'paquet', purchasePrice: 300, sellingPrice: 500 },
+    { name: 'Bande extensible', category: 'Fourniture médicale', unit: 'rouleau', purchasePrice: 400, sellingPrice: 650 },
+    { name: 'Compresses stériles', category: 'Fourniture médicale', unit: 'paquet', purchasePrice: 250, sellingPrice: 400 },
+    { name: 'Paracétamol 500mg', category: 'Médicament', unit: 'boîte', purchasePrice: 150, sellingPrice: 250 },
+    { name: 'Ibuprofène 400mg', category: 'Médicament', unit: 'boîte', purchasePrice: 200, sellingPrice: 350 },
+    { name: 'Antiseptique cutané', category: 'Fourniture médicale', unit: 'flacon', purchasePrice: 500, sellingPrice: 800 },
+    { name: 'Crème anti-inflammatoire', category: 'Médicament', unit: 'tube', purchasePrice: 450, sellingPrice: 700 },
+    { name: 'Électrodes ECG', category: 'Matériel de rééducation', unit: 'paquet', purchasePrice: 1200, sellingPrice: 1800 },
+    { name: 'Ballon de rééducation', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 2500, sellingPrice: 3800 },
+    { name: 'Bande élastique', category: 'Matériel de rééducation', unit: 'rouleau', purchasePrice: 900, sellingPrice: 1400 },
+    { name: 'Poids de poignet 1kg', category: 'Matériel de rééducation', unit: 'paire', purchasePrice: 1800, sellingPrice: 2600 },
+    { name: 'Désinfectant mains', category: 'Produit d\'entretien', unit: 'flacon', purchasePrice: 700, sellingPrice: 1100 },
+    { name: 'Gel échographique', category: 'Fourniture médicale', unit: 'flacon', purchasePrice: 900, sellingPrice: 1400 },
+    { name: 'Test de grossesse', category: 'Fourniture médicale', unit: 'unité', purchasePrice: 300, sellingPrice: 500 },
+    { name: 'Thermomètre digital', category: 'Petit matériel', unit: 'unité', purchasePrice: 1500, sellingPrice: 2200 },
+    { name: 'Tensiomètre automatique', category: 'Petit matériel', unit: 'unité', purchasePrice: 8500, sellingPrice: 12000 },
+    { name: 'Oxymètre de pouls', category: 'Petit matériel', unit: 'unité', purchasePrice: 3500, sellingPrice: 5000 },
+    { name: 'Stéthoscope', category: 'Petit matériel', unit: 'unité', purchasePrice: 4500, sellingPrice: 6500 },
+    { name: 'Marteleur réflexe', category: 'Petit matériel', unit: 'unité', purchasePrice: 600, sellingPrice: 950 },
+    { name: 'Abaisse-langue bois', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 400, sellingPrice: 650 },
+    { name: 'Masques chirurgicaux', category: 'Fourniture médicale', unit: 'boîte', purchasePrice: 900, sellingPrice: 1400 },
+    { name: 'Gel conducteur', category: 'Matériel de rééducation', unit: 'pot', purchasePrice: 1100, sellingPrice: 1700 },
+    { name: 'Sangle abdominale', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 2200, sellingPrice: 3200 },
+    { name: 'Canne anglaise', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 2800, sellingPrice: 4000 },
+    { name: 'Déambulateur', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 12000, sellingPrice: 16500 },
+    { name: 'Attelle de poignet', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 1800, sellingPrice: 2600 },
+    { name: 'Attelle de cheville', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 2000, sellingPrice: 2900 },
+    { name: 'Rouleau kinesio tape', category: 'Matériel de rééducation', unit: 'rouleau', purchasePrice: 1300, sellingPrice: 1900 },
+    { name: 'Bouillotte', category: 'Petit matériel', unit: 'unité', purchasePrice: 500, sellingPrice: 800 },
+    { name: 'Sachet de glace instantanée', category: 'Fourniture médicale', unit: 'paquet', purchasePrice: 350, sellingPrice: 550 },
+    { name: 'Coton hydrophile', category: 'Fourniture médicale', unit: 'paquet', purchasePrice: 200, sellingPrice: 350 },
+    { name: 'Solution saline', category: 'Fourniture médicale', unit: 'flacon', purchasePrice: 250, sellingPrice: 400 },
+    { name: 'Adhésif médical', category: 'Fourniture médicale', unit: 'rouleau', purchasePrice: 300, sellingPrice: 500 },
+    { name: 'Pince à épiler chirurgicale', category: 'Petit matériel', unit: 'unité', purchasePrice: 450, sellingPrice: 700 },
+    { name: 'Lampe à pupille', category: 'Petit matériel', unit: 'unité', purchasePrice: 900, sellingPrice: 1400 },
+    { name: 'Otoscope', category: 'Petit matériel', unit: 'unité', purchasePrice: 18000, sellingPrice: 24000 },
+    { name: 'Tapis de rééducation', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 3200, sellingPrice: 4500 },
+    { name: 'Bandage cohésif', category: 'Fourniture médicale', unit: 'rouleau', purchasePrice: 350, sellingPrice: 550 },
+    { name: 'Pâte à modeler thérapeutique', category: 'Matériel de rééducation', unit: 'pot', purchasePrice: 700, sellingPrice: 1100 },
+    { name: 'Cones de rééducation', category: 'Matériel de rééducation', unit: 'lot', purchasePrice: 1500, sellingPrice: 2200 },
+    { name: 'Poutre d\'équilibre', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 6500, sellingPrice: 9000 },
+    { name: 'Vélo d\'appartement', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 28000, sellingPrice: 35000 },
+    { name: 'Tapis roulant', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 95000, sellingPrice: 120000 },
+    { name: 'Appareil TENS', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 15000, sellingPrice: 21000 },
+    { name: 'Ultrason thérapeutique', category: 'Matériel de rééducation', unit: 'unité', purchasePrice: 45000, sellingPrice: 60000 },
+    { name: 'Pompe de perfusion', category: 'Petit matériel', unit: 'unité', purchasePrice: 35000, sellingPrice: 48000 }
   ];
 
-  const insertPrescription = db.prepare(`
-    INSERT INTO prescriptions (id, patientId, prescriptionDate, medications, notes, createdAt)
-    VALUES (?, ?, ?, ?, ?, datetime('now'))
+  const insertInventory = db.prepare(`
+    INSERT INTO inventory (id, name, category, description, quantity, minQuantity, unit, purchasePrice, sellingPrice, supplier, expirationDate, location, notes, isActive, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
   `);
 
-  for (let i = 0; i < Math.min(patientIds.length, 60); i++) {
-    const prescId = uuidv4();
-    const prescDate = new Date();
-    prescDate.setDate(prescDate.getDate() - Math.floor(Math.random() * 15));
-    
-    const numMeds = 2 + Math.floor(Math.random() * 2);
-    const selectedMeds = medications.slice(0, numMeds);
-    
-    try {
-      insertPrescription.run(prescId, patientIds[i], prescDate.toISOString(), JSON.stringify(selectedMeds), 'À prendre selon les indications');
-      console.log(`✅ Added prescription for patient ${i + 1}`);
-    } catch (err) {}
-  }
+  let createdInventory = 0;
+  const currentInventory = getCount('inventory');
+  while (createdInventory + currentInventory < TARGETS.inventory && createdInventory < inventoryCatalog.length) {
+    const item = inventoryCatalog[(currentInventory + createdInventory) % inventoryCatalog.length];
+    const existing = db.prepare('SELECT id FROM inventory WHERE name = ?').get(item.name);
+    if (existing) {
+      createdInventory++;
+      continue;
+    }
 
-  // Payments
-  const insertPayment = db.prepare(`
-    INSERT INTO payments (id, patientId, amount, paymentMethod, paymentDate, notes, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    const qty = 5 + (createdInventory % 45);
+    const exp = new Date();
+    exp.setFullYear(exp.getFullYear() + 1 + (createdInventory % 2));
+
+    const result = safeRun(insertInventory, [
+      uuidv4(), item.name, item.category, `Article de démonstration: ${item.name}`,
+      qty, 5, item.unit, item.purchasePrice, item.sellingPrice,
+      randomItem(['MediAlger', 'PharmaDZ', 'Global Med', 'Santé Plus']),
+      exp.toISOString().slice(0, 10), 'Stock principal', 'Produit actif en démonstration'
+    ], 'inventory');
+    if (result) createdInventory++;
+  }
+  report.created.inventory = createdInventory;
+  report.totals.inventory = getCount('inventory');
+
+  // ---------- Expenses ----------
+  const insertExpense = db.prepare(`
+    INSERT INTO expenses (id, expenseDate, category, description, amount, paymentMethod, vendor, receiptNumber, notes, createdBy, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
-  const paymentMethods = ['Espèces', 'Carte', 'Virement'];
-  
-  for (let i = 0; i < Math.min(patientIds.length, 90); i++) {
-    const paymentId = uuidv4();
-    const paymentDate = new Date();
-    paymentDate.setDate(paymentDate.getDate() - Math.floor(Math.random() * 20));
-    
-    const amount = [1500, 2000, 2500, 3000, 3500][Math.floor(Math.random() * 5)];
-    const method = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];
-    
-    try {
-      insertPayment.run(paymentId, patientIds[i], amount, method, paymentDate.toISOString(), 'Consultation');
-      console.log(`✅ Added payment: ${amount} DZD`);
-    } catch (err) {
-      console.log(`⚠️ Payment error: ${err.message}`);
-    }
-  }
+  let createdExpenses = 0;
+  const currentExpenses = getCount('expenses');
+  while (createdExpenses + currentExpenses < TARGETS.expenses) {
+    const category = expenseCategoriesCatalog[createdExpenses % expenseCategoriesCatalog.length].name;
+    const amount = 2000 + (createdExpenses % 50) * 1000;
 
-  // Today's consultations
-  const today = new Date().toISOString();
-  for (let i = 0; i < 10 && i < patientIds.length; i++) {
-    const consultId = uuidv4();
-    try {
-      insertConsultation.run(consultId, patientIds[i], today, 'Suivi', 'Consultation du jour', diagnoses[i], 'Traitement prescrit', 'Consultation test');
-      console.log(`✅ Added today's consultation ${i + 1}`);
-    } catch (err) {
-      console.error('Error inserting today consultation:', err.message);
-    }
+    const result = safeRun(insertExpense, [
+      uuidv4(), randomDate(-90, 0), category, `Dépense de démonstration: ${category}`,
+      amount, randomItem(paymentMethods), randomItem(expenseVendors),
+      `FAC-${20240000 + createdExpenses}`, 'Dépense générée pour la démonstration',
+      randomItem([...doctorIds, ...assistantIds])
+    ], 'expense');
+    if (result) createdExpenses++;
   }
+  report.created.expenses = createdExpenses;
+  report.totals.expenses = getCount('expenses');
 
-  // Appointments (RDV) - large sample for agenda and daily view
-  const insertAppointment = db.prepare(`
-    INSERT INTO appointments (id, patientId, appointmentDateTime, appointmentType, reason, status, notes, createdAt, updatedAt)
+  // ---------- Debts ----------
+  const insertDebt = db.prepare(`
+    INSERT INTO debts (id, patientId, consultationId, invoiceId, amount, paidAmount, remainingAmount, dueDate, status, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdDebts = 0;
+  const currentDebts = getCount('debts');
+  while (createdDebts + currentDebts < TARGETS.debts) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdDebts % consultationIds.length];
+    const amount = 3000 + (createdDebts % 10) * 500;
+    const paid = createdDebts % 3 === 0 ? amount : (createdDebts % 4 === 0 ? amount / 2 : 0);
+    const remaining = amount - paid;
+    const due = new Date();
+    due.setDate(due.getDate() + (createdDebts % 30));
+
+    const result = safeRun(insertDebt, [
+      uuidv4(), patient, consult?.id || null, null, amount, paid, remaining,
+      due.toISOString(), remaining <= 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'),
+      'Créance de démonstration'
+    ], 'debt');
+    if (result) createdDebts++;
+  }
+  report.created.debts = createdDebts;
+  report.totals.debts = getCount('debts');
+
+  // ---------- Documents ----------
+  const insertDocument = db.prepare(`
+    INSERT INTO documents (id, patientId, consultationId, documentType, title, payload, lastPrintedAt, createdAt, updatedAt)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
   `);
 
-  const appointmentTypes = ['Consultation', 'Contrôle', 'Rééducation', 'Kinésithérapie'];
-  const appointmentStatuses = ['scheduled', 'confirmed', 'completed', 'pending'];
-  let appointmentsCount = 0;
+  let createdDocuments = 0;
+  const currentDocuments = getCount('documents');
+  while (createdDocuments + currentDocuments < TARGETS.documents) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdDocuments % consultationIds.length];
+    const type = randomItem(documentTypes);
 
-  for (let i = 0; i < Math.min(patientIds.length, 120); i++) {
-    const patientId = patientIds[i];
-    const rdvPerPatient = 2 + Math.floor(Math.random() * 3);
+    const result = safeRun(insertDocument, [
+      uuidv4(), patient, consult?.id || null, type,
+      `${type.replace('_', ' ').toUpperCase()} - ${createdDocuments + 1}`,
+      JSON.stringify({ generated: true, demo: true, index: createdDocuments }),
+      createdDocuments % 2 === 0 ? randomDate(-90, 0) : null
+    ], 'document');
+    if (result) createdDocuments++;
+  }
+  report.created.documents = createdDocuments;
+  report.totals.documents = getCount('documents');
 
-    for (let j = 0; j < rdvPerPatient; j++) {
-      const daysOffset = Math.floor(Math.random() * 30) - 10;
-      const slotHour = 7 + (j % 11);
-      const slotMinute = j % 2 === 0 ? 0 : 30;
-      const dt = new Date();
-      dt.setDate(dt.getDate() + daysOffset);
-      dt.setHours(slotHour, slotMinute, 0, 0);
+  // ---------- Patient documents ----------
+  const insertPatientDocument = db.prepare(`
+    INSERT INTO patient_documents (id, patientId, consultationId, fileName, fileType, filePath, fileSize, description, category, uploadDate, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
 
-      try {
-        insertAppointment.run(
-          uuidv4(),
-          patientId,
-          dt.toISOString().slice(0, 19).replace('T', ' '),
-          appointmentTypes[(i + j) % appointmentTypes.length],
-          'Suivi médical programmé',
-          appointmentStatuses[(i + j) % appointmentStatuses.length],
-          'Donnée test volumineuse'
-        );
-        appointmentsCount += 1;
-      } catch (err) {
-        console.log(`⚠️ Appointment error: ${err.message}`);
-      }
+  let createdPatientDocuments = 0;
+  const currentPatientDocuments = getCount('patient_documents');
+  while (createdPatientDocuments + currentPatientDocuments < TARGETS.patientDocuments) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdPatientDocuments % consultationIds.length];
+    const category = randomItem(documentCategories);
+    const fileName = `${category.toLowerCase().replace(/\s+/g, '_')}_${createdPatientDocuments + 1}.pdf`;
+
+    const result = safeRun(insertPatientDocument, [
+      uuidv4(), patient, consult?.id || null, fileName, 'application/pdf',
+      `/demo/documents/${fileName}`, 1024 + (createdPatientDocuments % 5000),
+      `Document patient de démonstration: ${category}`, category, randomDate(-90, 0)
+    ], 'patient_document');
+    if (result) createdPatientDocuments++;
+  }
+  report.created.patientDocuments = createdPatientDocuments;
+  report.totals.patientDocuments = getCount('patient_documents');
+
+  // ---------- Waiting room ----------
+  const insertWaitingRoom = db.prepare(`
+    INSERT INTO waiting_room (id, patientId, arrivalTime, reason, priority, assignedTo, status, calledAt, completedAt, notes, createdBy, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  let createdWaitingRoom = 0;
+  const currentWaitingRoom = getCount('waiting_room');
+  while (createdWaitingRoom + currentWaitingRoom < TARGETS.waitingRoom) {
+    const patient = pickPatient(patientIds);
+    const status = randomItem(['waiting', 'called', 'completed', 'cancelled']);
+    const arrival = new Date();
+    arrival.setDate(arrival.getDate() - (createdWaitingRoom % 30));
+    arrival.setHours(8 + (createdWaitingRoom % 10), (createdWaitingRoom % 2) * 30, 0, 0);
+    const called = status !== 'waiting' ? new Date(arrival.getTime() + 15 * 60000).toISOString() : null;
+    const completed = status === 'completed' ? new Date(arrival.getTime() + 45 * 60000).toISOString() : null;
+
+    const result = safeRun(insertWaitingRoom, [
+      uuidv4(), patient, arrival.toISOString(), randomItem(consultationReasons),
+      createdWaitingRoom % 5 === 0 ? 1 : 0, randomItem(doctorIds), status,
+      called, completed, 'Entrée salle d\'attente de démonstration',
+      randomItem([...assistantIds, ...doctorIds])
+    ], 'waiting_room');
+    if (result) createdWaitingRoom++;
+  }
+  report.created.waitingRoom = createdWaitingRoom;
+  report.totals.waitingRoom = getCount('waiting_room');
+
+  // ---------- Kiné sessions ----------
+  const insertKineSession = db.prepare(`
+    INSERT INTO kine_sessions (id, patientId, kineId, consultationId, sessionDate, sessionNumber, duration, price, paymentStatus, notes, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  let createdKineSessions = 0;
+  const currentKineSessions = getCount('kine_sessions');
+  while (createdKineSessions + currentKineSessions < TARGETS.kineSessions && kineStaffIds.length > 0) {
+    const patient = pickPatient(patientIds);
+    const kine = randomItem(kineStaffIds);
+    const price = kineStaffCatalog[kineStaffIds.indexOf(kine)]?.sessionPrice || 2000;
+
+    const result = safeRun(insertKineSession, [
+      uuidv4(), patient, kine, null, randomDate(-60, 0),
+      (createdKineSessions % 12) + 1, 30 + (createdKineSessions % 15),
+      price, randomItem(['paid', 'unpaid', 'partial']),
+      'Séance de kinésithérapie de démonstration'
+    ], 'kine_session');
+    if (result) createdKineSessions++;
+  }
+  report.created.kineSessions = createdKineSessions;
+  report.totals.kineSessions = getCount('kine_sessions');
+
+  // ---------- Rehabilitation plans ----------
+  const insertRehabPlan = db.prepare(`
+    INSERT INTO rehabilitation_plans (id, patientId, consultationId, createdBy, startDate, endDate, status, shortTermObjectives, mediumTermObjectives, longTermObjectives, kinesiotherapy, kinesiotherapyFrequency, kinesiotherapyNotes, ergotherapy, ergotherapyFrequency, ergotherapyNotes, speechTherapy, speechTherapyFrequency, speechTherapyNotes, orthosis, orthosisType, orthosisNotes, wheelchair, wheelchairType, wheelchairNotes, prosthesis, prosthesisType, prosthesisNotes, otherEquipment, equipmentDetails, hydrotherapy, electrotherapy, massotherapy, totalSessions, completedSessions, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+  `);
+
+  let createdRehabPlans = 0;
+  const currentRehabPlans = getCount('rehabilitation_plans');
+  const rehabPlanIds = [];
+  while (createdRehabPlans + currentRehabPlans < TARGETS.rehabilitationPlans) {
+    const patient = pickPatient(patientIds);
+    const consult = consultationIds[createdRehabPlans % consultationIds.length];
+    const totalSessions = 10 + (createdRehabPlans % 20);
+    const completedSessions = createdRehabPlans % (totalSessions + 1);
+    const start = new Date();
+    start.setDate(start.getDate() - 30 - (createdRehabPlans % 30));
+    const end = new Date(start);
+    end.setDate(end.getDate() + totalSessions * 3);
+
+    const id = uuidv4();
+    const result = safeRun(insertRehabPlan, [
+      id, patient, consult?.id || null, randomItem(doctorIds),
+      start.toISOString(), end.toISOString(), completedSessions >= totalSessions ? 'completed' : 'active',
+      'Réduire la douleur et retrouver l\'amplitude articulaire',
+      'Améliorer la force musculaire et la marche',
+      'Reprise des activités quotidiennes et sportives',
+      1, '3 séances par semaine', 'Renforcement et mobilisation',
+      createdRehabPlans % 5 === 0 ? 1 : 0, '2 séances par semaine', 'Rééducation fonctionnelle',
+      0, null, null,
+      createdRehabPlans % 7 === 0 ? 1 : 0, 'Attelle de poignet', 'Port nocturne recommandé',
+      0, null, null,
+      0, null, null,
+      null, null,
+      createdRehabPlans % 4 === 0 ? 1 : 0, 1, createdRehabPlans % 3 === 0 ? 1 : 0,
+      totalSessions, completedSessions, 'Plan de rééducation de démonstration'
+    ], 'rehabilitation_plan');
+    if (result) {
+      createdRehabPlans++;
+      rehabPlanIds.push(id);
     }
   }
+  report.created.rehabilitationPlans = createdRehabPlans;
+  report.totals.rehabilitationPlans = getCount('rehabilitation_plans');
 
-  // Add kiné sessions for some patients
-  if (kineIds.length > 0) {
-    const insertKineSession = db.prepare(`
-      INSERT INTO kine_sessions (id, patientId, kineId, sessionDate, sessionNumber, duration, price, paymentStatus, notes, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `);
+  // ---------- Rehabilitation sessions ----------
+  const insertRehabSession = db.prepare(`
+    INSERT INTO rehabilitation_sessions (id, rehabilitationPlanId, patientId, therapistId, sessionDate, sessionType, sessionNumber, duration, techniques, exercises, observations, progressNotes, painLevel, patientFeedback, status, billedAmount, notes, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
 
-    // Create sessions for the past week
-    for (let day = 0; day < 7; day++) {
-      const sessionsPerDay = 2 + Math.floor(Math.random() * 3); // 2-4 sessions per day
-      
-      for (let s = 0; s < sessionsPerDay && s < Math.min(patientIds.length, kineIds.length); s++) {
-        const sessionId = uuidv4();
-        const sessionDate = new Date();
-        sessionDate.setDate(sessionDate.getDate() - day);
-        
-        const kineIdx = s % kineIds.length;
-        const patientIdx = (s + day) % patientIds.length;
-        const kine = kines[kineIdx];
-        
-        try {
-          insertKineSession.run(
-            sessionId,
-            patientIds[patientIdx],
-            kineIds[kineIdx],
-            sessionDate.toISOString(),
-            day + 1, // Session number
-            30, // Duration
-            kine.sessionPrice,
-            day < 3 ? 'paid' : 'unpaid', // Recent sessions unpaid
-            'Séance de rééducation'
-          );
-          console.log(`✅ Added kiné session for day -${day}`);
-        } catch (err) {
-          console.error('Error inserting kine session:', err.message);
-        }
-      }
-    }
+  let createdRehabSessions = 0;
+  const currentRehabSessions = getCount('rehabilitation_sessions');
+  while (createdRehabSessions + currentRehabSessions < TARGETS.rehabilitationSessions) {
+    const planId = rehabPlanIds[createdRehabSessions % rehabPlanIds.length] || null;
+    const patient = pickPatient(patientIds);
+    const status = randomItem(['scheduled', 'completed', 'cancelled']);
+
+    const result = safeRun(insertRehabSession, [
+      uuidv4(), planId, patient, randomItem(kineUserIds), randomDate(-60, 0),
+      randomItem(['Kinésithérapie', 'Electrothérapie', 'Massothérapie', 'Rééducation fonctionnelle']),
+      (createdRehabSessions % 12) + 1, 30 + (createdRehabSessions % 15),
+      'Mobilisation passive, stretching, renforcement musculaire',
+      'Exercices d\'amplitude, renforcement proprioceptif',
+      'Bonne tolérance, légère fatigue musculaire',
+      'Amélioration progressive de la mobilité',
+      createdRehabSessions % 10, 'Séance bien supportée',
+      status, status === 'completed' ? 1500 : 0, 'Séance de rééducation de démonstration'
+    ], 'rehabilitation_session');
+    if (result) createdRehabSessions++;
   }
+  report.created.rehabilitationSessions = createdRehabSessions;
+  report.totals.rehabilitationSessions = getCount('rehabilitation_sessions');
 
-  // Add imaging examples for patient: Bounouala Mohamed Islem
+  // ---------- Notifications ----------
+  const insertNotification = db.prepare(`
+    INSERT INTO notifications (id, userId, type, title, message, relatedType, relatedId, isRead, scheduledFor, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  const notificationTypes = ['appointment', 'payment', 'system', 'reminder', 'alert'];
+  let createdNotifications = 0;
+  const currentNotifications = getCount('notifications');
+  while (createdNotifications + currentNotifications < TARGETS.notifications) {
+    const user = randomItem(userIds);
+    const type = randomItem(notificationTypes);
+
+    const result = safeRun(insertNotification, [
+      uuidv4(), user, type,
+      `Notification ${type} #${createdNotifications + 1}`,
+      `Ceci est un message de démonstration pour ${type}.`,
+      type, uuidv4(), createdNotifications % 3 === 0 ? 1 : 0,
+      randomDate(0, 7)
+    ], 'notification');
+    if (result) createdNotifications++;
+  }
+  report.created.notifications = createdNotifications;
+  report.totals.notifications = getCount('notifications');
+
+  // ---------- Imaging examples for Bounouala Mohamed Islem ----------
   try {
     const targetPatient = db.prepare(
-      `SELECT id, firstName, lastName
-       FROM patients
-       WHERE lower(lastName) LIKE ? AND lower(firstName) LIKE ?
-       ORDER BY createdAt ASC
-       LIMIT 1`
+      `SELECT id, firstName, lastName FROM patients WHERE lower(lastName) LIKE ? AND lower(firstName) LIKE ? ORDER BY createdAt ASC LIMIT 1`
     ).get('%bounouala%', '%mohamed%');
 
     if (targetPatient?.id) {
@@ -2121,41 +2670,31 @@ export function seedTestData() {
         'SELECT id FROM patient_attachments WHERE patientId = ? AND examFamily = ? AND sourceType = ? LIMIT 1'
       );
       const insertAttachment = db.prepare(`
-        INSERT INTO patient_attachments
-          (id, patientId, consultationId, fileName, filePath, mimeType, fileSize, examFamily, sourceType, sourceLabel, notes, createdAt, updatedAt)
+        INSERT INTO patient_attachments (id, patientId, consultationId, fileName, filePath, mimeType, fileSize, examFamily, sourceType, sourceLabel, notes, createdAt, updatedAt)
         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `);
 
       for (const family of imageFamilies) {
         const exists = checkAttachment.get(targetPatient.id, family, 'seed-demo');
         if (exists) continue;
-
         const fileName = `${family.replace(/\s+/g, '_').toLowerCase()}_demo_${targetPatient.id.slice(0, 8)}.png`;
-        insertAttachment.run(
-          uuidv4(),
-          targetPatient.id,
-          fileName,
-          demoImagePath,
-          'image/png',
-          0,
-          family,
-          'seed-demo',
-          'Exemple généré automatiquement',
-          `${family} exemple (démo)`
-        );
+        safeRun(insertAttachment, [uuidv4(), targetPatient.id, fileName, demoImagePath, 'image/png', 0, family, 'seed-demo', 'Exemple généré automatiquement', `${family} exemple (démo)`], 'patient_attachment');
       }
     }
   } catch (err) {
     console.log(`⚠️ Imaging demo seed error: ${err.message}`);
   }
 
-  console.log('🎉 Test data seeding complete!');
-  return {
-    success: true,
-    patients: patientIds.length,
-    kines: kineIds.length,
-    appointments: appointmentsCount
-  };
+  // ---------- Totals ----------
+  report.totals.users = getCount('users');
+  report.totals.kineStaff = getCount('kine_staff');
+  report.totals.medications = getCount('medications');
+  report.totals.analysisTypes = getCount('analysis_types');
+  report.totals.expenseCategories = getCount('expense_categories');
+
+  console.log('🎉 Demo database seeding complete!');
+  console.log(report);
+  return report;
 }
 
 /**
@@ -2207,9 +2746,9 @@ export function clearAllData() {
  */
 export function closeDatabase() {
   if (db) {
+    clearStatementCache();
     db.close();
     db = null;
-    console.log('✅ Base de données fermée');
   }
 }
 
@@ -2401,10 +2940,7 @@ function ensureMPRDefaultData() {
  * Exécute une requête SELECT
  */
 export function query(sql, params = []) {
-  if (!db) {
-    throw new Error('Base de données SQLite non initialisée');
-  }
-  const statement = db.prepare(sql);
+  const statement = getCachedStatement(sql);
   return statement.all(...params);
 }
 
@@ -2412,10 +2948,7 @@ export function query(sql, params = []) {
  * Exécute une requête INSERT, UPDATE, DELETE
  */
 export function run(sql, params = []) {
-  if (!db) {
-    throw new Error('Base de données SQLite non initialisée');
-  }
-  const statement = db.prepare(sql);
+  const statement = getCachedStatement(sql);
   return statement.run(...params);
 }
 
@@ -2423,10 +2956,7 @@ export function run(sql, params = []) {
  * Exécute une requête et retourne le premier résultat
  */
 export function queryOne(sql, params = []) {
-  if (!db) {
-    throw new Error('Base de données SQLite non initialisée');
-  }
-  const statement = db.prepare(sql);
+  const statement = getCachedStatement(sql);
   return statement.get(...params);
 }
 

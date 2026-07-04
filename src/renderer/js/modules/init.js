@@ -1,12 +1,15 @@
 // ========== INITIALISATION ==========
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 DOMContentLoaded event fired');
-  
   try {
     const normalizeUiRole = (role) => role === 'director' ? 'doctor' : (role || 'doctor');
     if (typeof repairUiMojibake === 'function') {
       repairUiMojibake(document.body);
-      const observer = new MutationObserver(() => repairUiMojibake(document.body));
+      // Debounce the observer so a burst of DOM mutations results in a single walk.
+      let mutationTimeout;
+      const observer = new MutationObserver(() => {
+        clearTimeout(mutationTimeout);
+        mutationTimeout = setTimeout(() => repairUiMojibake(document.body), 300);
+      });
       observer.observe(document.body, {
         childList: true,
         subtree: true,
@@ -19,9 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Listen for user data from main process (passed from login window)
     if (window.api && window.api.user && window.api.user.onUserData) {
       window.api.user.onUserData((userData) => {
-        console.log('=== RECEIVED USER DATA FROM MAIN PROCESS ===');
-        console.log('User data:', userData);
-        
         // Store in localStorage of main window
         localStorage.setItem('currentUserId', userData.id);
         localStorage.setItem('currentUsername', userData.username);
@@ -29,14 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         localStorage.setItem('currentUserRole', normalizeUiRole(userData.role));
         localStorage.setItem('currentUserIsSuperAdmin', userData.isSuperAdmin ? 'true' : 'false');
         localStorage.setItem('currentUserSpecialty', userData.specialty || '');
-        
-        console.log('Stored in localStorage:');
-        console.log('  - currentUserId:', localStorage.getItem('currentUserId'));
-        console.log('  - currentUsername:', localStorage.getItem('currentUsername'));
-        console.log('  - currentUserIsAdmin:', localStorage.getItem('currentUserIsAdmin'));
-        console.log('  - currentUserRole:', localStorage.getItem('currentUserRole'));
-        console.log('  - currentUserIsSuperAdmin:', localStorage.getItem('currentUserIsSuperAdmin'));
-        
+
         // Update global variables
         currentUserId = userData.id;
         currentUserIsAdmin = userData.isAdmin;
@@ -44,13 +37,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentUsername = userData.username;
         currentUserIsSuperAdmin = userData.isSuperAdmin || false;
         currentUserSpecialty = userData.specialty || '';
-        
+
         // Update UI
         updateUserDisplay();
         updateAdminUI();
       });
     }
-    
+
     // Load current user ID and admin status from localStorage
     currentUserId = localStorage.getItem('currentUserId');
     currentUserIsAdmin = localStorage.getItem('currentUserIsAdmin') === 'true';
@@ -59,21 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentUsername = localStorage.getItem('currentUsername') || 'Utilisateur';
     currentUserIsSuperAdmin = localStorage.getItem('currentUserIsSuperAdmin') === 'true';
     currentUserSpecialty = localStorage.getItem('currentUserSpecialty') || '';
-    
-    console.log('=== USER INFO DEBUG ===');
-    console.log('localStorage raw values:');
-    console.log('  - currentUserId:', localStorage.getItem('currentUserId'));
-    console.log('  - currentUserIsAdmin:', localStorage.getItem('currentUserIsAdmin'));
-    console.log('  - currentUserRole:', localStorage.getItem('currentUserRole'));
-    console.log('  - currentUsername:', localStorage.getItem('currentUsername'));
-    console.log('  - currentUserIsSuperAdmin:', localStorage.getItem('currentUserIsSuperAdmin'));
-    console.log('Parsed values:');
-    console.log(`  - currentUserId: ${currentUserId}`);
-    console.log(`  - currentUserIsAdmin: ${currentUserIsAdmin}`);
-    console.log(`  - currentUserRole: ${currentUserRole}`);
-    console.log(`  - currentUsername: ${currentUsername}`);
-    console.log(`  - currentUserIsSuperAdmin: ${currentUserIsSuperAdmin}`);
-    
+
     updateUserDisplay();
     updateAdminUI();
 
@@ -83,58 +62,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       sickLeaveTableBody.dataset.actionsBound = 'true';
     }
 
-  // Apply package restrictions early to avoid nav flicker
-  await applyPackageRestrictions();
-  console.log('✅ Package restrictions applied');
+    // Apply package restrictions early to avoid nav flicker
+    await applyPackageRestrictions();
 
-  console.log('✅ Historique des médicaments initialisé');
-  
-  // Initialiser le module AI Assistant (pour les médecins seulement)
-  if (false && typeof initAIModule === 'function' && (currentUserRole === 'doctor' || currentUserRole === 'dentist')) {
-    await initAIModule();
-    console.log('✅ Module AI Assistant initialisé (praticien)');
-  }
-  
-  // Modules lourds (agenda/imagerie/rééducation/kiné/résumé) sont chargés à la demande via navigation.
-  
-  // Initialiser le module de demandes de paiement (pour assistantes)
-  if (typeof initPaymentRequestsPolling === 'function' && currentUserRole === 'assistant') {
-    initPaymentRequestsPolling();
-    console.log('✅ Module demandes de paiement initialisé (assistante)');
-  }
-  
-  // Initialiser le module configuration packages (pour admin/superadmin uniquement)
-  if (typeof initializePackageConfig === 'function' && (currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    initializePackageConfig();
-    console.log('✅ Module configuration packages initialisé (admin)');
-  }
-  
+    // Initialiser le module AI Assistant (pour les médecins seulement)
+    if (false && typeof initAIModule === 'function' && (currentUserRole === 'doctor' || currentUserRole === 'dentist')) {
+      await initAIModule();
+    }
+
+    // Modules lourds (agenda/imagerie/rééducation/kiné/résumé) sont chargés à la demande via navigation.
+
+    // Initialiser le module de demandes de paiement (pour assistantes)
+    if (typeof initPaymentRequestsPolling === 'function' && currentUserRole === 'assistant') {
+      initPaymentRequestsPolling();
+    }
+
+    // Initialiser le module configuration packages (pour admin/superadmin uniquement)
+    if (typeof initializePackageConfig === 'function' && (currentUserIsAdmin || currentUserIsSuperAdmin)) {
+      initializePackageConfig();
+    }
+
     if (typeof initializeSidebarState === 'function') {
       initializeSidebarState();
     }
-  
+
     // Initialize date inputs with French locale format hints
     initializeDateInputs();
-    console.log('✅ Date inputs initialized with French format');
-    
+
     // Initialize 24-hour time inputs
     initializeTimeInputs();
-    console.log('✅ Time inputs initialized with 24h format');
 
     if (typeof initializePasswordToggles === 'function') {
       initializePasswordToggles();
-      console.log('✅ Password visibility toggles initialized');
     }
-    
+
     setupEventListeners();
-    console.log('✅ Event listeners setup complete');
     resetPatientRecordsView();
     loadSettings();
-    console.log('✅ Settings loaded');
 
     void Promise.resolve()
       .then(() => loadDashboardStats())
-      .then(() => console.log('✅ Dashboard stats loaded'))
       .catch((error) => console.warn('Dashboard stats load failed:', error));
 
     if (typeof loadPatients === 'function' && currentPage === 'patients') {
@@ -158,12 +125,10 @@ async function applyPackageRestrictions() {
 
     const result = await window.api.package.getConfig();
     if (!result.success || !result.data) {
-      console.log('📦 No package config found, all features enabled');
       return;
     }
-    
+
     const config = result.data;
-    console.log('📦 Package config:', config);
     
     applyPackageRestrictionsFromCache(config);
     const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
@@ -208,7 +173,6 @@ async function applyPackageRestrictions() {
       document.querySelectorAll('[onclick*="goToPatientDentalFromConsultation"], [onclick*="goToFullDentalChart"]').forEach(btn => {
         btn.style.display = 'none';
       });
-      console.log('📦 Dentistry feature inactive: dental tab & buttons hidden');
     } else {
       const dentalTabBtn = document.querySelector('.tab-btn[onclick*="tab-dental"]');
       if (dentalTabBtn) {
@@ -229,18 +193,16 @@ async function applyPackageRestrictions() {
           btn.style.display = 'none';
         }
       });
-      console.log('📦 Rehabilitation feature inactive: related buttons hidden');
     }
-    
+
     // Hide kiné staff elements when feature is disabled
     if (config.featureKineStaff === 0 || activeSpecialty !== 'mpr') {
       // Hide kiné-related buttons and elements
       document.querySelectorAll('[onclick*="kine"], [data-section="kine-staff"]').forEach(el => {
         el.style.display = 'none';
       });
-      console.log('📦 Kiné staff feature inactive: related elements hidden');
     }
-    
+
     // Store package config globally for runtime checks
     window._packageConfig = config;
     updateUserDisplay();
@@ -450,7 +412,6 @@ function updateUserDisplay() {
     const roleBadge = `<span style="background: ${roleInfo.bg}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">${roleInfo.label}</span>`;
     
     doctorNameEl.innerHTML = `${currentUsername} ${roleBadge}`;
-    console.log('✅ Updated user display to:', currentUsername, 'role:', currentUserRole);
   }
 }
 
@@ -482,12 +443,10 @@ function updateAdminUI() {
       userManagementCard.style.display = 'block';
       userManagementCard.classList.remove('hidden');
       userManagementCard.removeAttribute('aria-hidden');
-      console.log('✅ User management panel shown');
     } else {
       userManagementCard.style.display = 'none';
       userManagementCard.classList.add('hidden');
       userManagementCard.setAttribute('aria-hidden', 'true');
-      console.log('✅ User management panel hidden');
     }
   }
 
@@ -501,7 +460,6 @@ function updateAdminUI() {
       licenseInfoCard.style.display = 'none';
       licenseInfoCard.classList.add('hidden');
       licenseInfoCard.setAttribute('aria-hidden', 'true');
-      console.log('✅ License info card hidden for doctor');
     }
   }
 
@@ -686,8 +644,6 @@ function enforceAdminMode() {
  * Assistants cannot: view consultations, prescriptions, medical records, statistics
  */
 function enforceAssistantMode() {
-  console.log('🔒 Enforcing assistant mode restrictions');
-  
   // Add assistant-mode class to body for CSS-based hiding
   document.body.classList.add('assistant-mode');
   
@@ -777,8 +733,6 @@ function enforceAssistantMode() {
     button.classList.add('hidden-for-assistant');
   });
   
-  console.log('✅ Assistant mode restrictions applied');
-  
   // Show assistant-only sections (like payment requests)
   document.querySelectorAll('.assistant-only').forEach(el => {
     el.style.display = 'block';
@@ -789,7 +743,6 @@ function enforceAssistantMode() {
   const paymentRequestsSection = document.getElementById('payment-requests-section');
   if (paymentRequestsSection) {
     paymentRequestsSection.style.display = 'block';
-    console.log('✅ Payment requests section shown for assistant');
   }
 }
 
@@ -815,29 +768,27 @@ function canManagePatients() {
 }
 
 function setupEventListeners() {
-  console.log('📌 Setting up event listeners...');
   // Navigation
   const navItems = document.querySelectorAll('.nav-item');
-  console.log(`Found ${navItems.length} navigation items`);
   navItems.forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const section = item.dataset.section;
-      console.log(`Navigation clicked: ${section}`);
       showSection(section);
     });
   });
 
-  // Patients search
+  // Patients search (debounced to avoid flooding the main process on every keystroke)
   const searchInput = document.getElementById('patients-search');
   if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      if (e.target.value.length > 0) {
-        searchPatients(e.target.value);
+    const debouncedSearch = debounce((value) => {
+      if (value.length > 0) {
+        searchPatients(value);
       } else {
         loadPatients();
       }
-    });
+    }, 300);
+    searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
   }
 
   // Forms

@@ -9,6 +9,7 @@ import { app } from 'electron';
 
 let currentMode = 'sqlite'; // 'sqlite' ou 'mariadb'
 let dbModule = null;
+let cachedDatabaseConfig = null;
 
 /**
  * Convertit undefined en null pour la compatibilitÃ© MariaDB
@@ -19,22 +20,39 @@ function sanitizeParams(params) {
 }
 
 /**
- * Charge la configuration de la base de donnÃ©es
+ * Charge la configuration de la base de donnÃ©es.
+ * The configuration is cached in memory after the first read to avoid repeated
+ * synchronous disk access on every query.
  */
 export function loadDatabaseConfig() {
+  if (cachedDatabaseConfig) {
+    return cachedDatabaseConfig;
+  }
+
   try {
     const configPath = path.join(app.getPath('userData'), 'database-config.json');
-    
+
     if (fs.existsSync(configPath)) {
       const configData = fs.readFileSync(configPath, 'utf-8');
-      return JSON.parse(configData);
+      cachedDatabaseConfig = JSON.parse(configData);
+      return cachedDatabaseConfig;
     }
-    
-    return { type: 'sqlite' };
+
+    cachedDatabaseConfig = { type: 'sqlite' };
+    return cachedDatabaseConfig;
   } catch (error) {
     console.error('Erreur lecture config DB:', error);
-    return { type: 'sqlite' };
+    cachedDatabaseConfig = { type: 'sqlite' };
+    return cachedDatabaseConfig;
   }
+}
+
+/**
+ * Clears the cached database configuration so the next call reloads it from disk.
+ * Useful after the configuration has been updated.
+ */
+export function clearDatabaseConfigCache() {
+  cachedDatabaseConfig = null;
 }
 
 /**
@@ -44,9 +62,9 @@ export function loadDatabaseConfig() {
 export async function initializeDatabase() {
   const config = loadDatabaseConfig();
   currentMode = config.type || 'sqlite';
-  
+
   console.log(`Database mode configured: ${currentMode.toUpperCase()}`);
-  
+
   if (currentMode === 'mariadb') {
     try {
       // Charger le module MariaDB dynamiquement
@@ -56,7 +74,7 @@ export async function initializeDatabase() {
       // Si MariaDB Ã©choue, fallback vers SQLite
       console.error('MariaDB unavailable:', error.code || 'UNKNOWN', error.message);
       console.log('Automatic fallback to SQLite (local mode)...');
-      
+
       currentMode = 'sqlite';
       dbModule = await import('./database-sqlite3.js');
       const result = await dbModule.initializeDatabase();
@@ -102,7 +120,7 @@ export function run(sql, params = []) {
 }
 
 /**
- * Ferme la connexion Ã  la base de donnÃ©es
+ * Ferme la connexion Ã  la base de donnÃ©es
  */
 export function closeDatabase() {
   if (!dbModule) return;
