@@ -75,8 +75,8 @@ export function handleInventoryEvents() {
       await run(
         `INSERT INTO inventory
          (id, name, category, description, quantity, minQuantity, unit, purchasePrice, sellingPrice,
-          supplier, expirationDate, location, notes, isActive, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+          supplier, supplierId, expirationDate, location, photoPath, notes, isActive, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [
           id,
           data.name,
@@ -88,8 +88,10 @@ export function handleInventoryEvents() {
           toNumberOrNull(data.purchasePrice) || 0,
           toNumberOrNull(data.sellingPrice) || 0,
           toNullIfEmpty(data.supplier),
+          toNullIfEmpty(data.supplierId),
           toNullIfEmpty(data.expirationDate),
           toNullIfEmpty(data.location),
+          toNullIfEmpty(data.photoPath),
           toNullIfEmpty(data.notes),
           now,
           now
@@ -97,11 +99,21 @@ export function handleInventoryEvents() {
       );
 
       if (quantity > 0) {
+        // Create a lot for traceability
+        const lotId = uuidv4();
+        await run(
+          `INSERT INTO inventory_lots
+           (id, inventoryId, supplierId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [lotId, id, toNullIfEmpty(data.supplierId), toNullIfEmpty(data.lotNumber) || 'INIT',
+            now.slice(0, 10), toNullIfEmpty(data.expirationDate), quantity, quantity,
+            toNumberOrNull(data.purchasePrice) || 0, 'Stock initial', now]
+        );
         await run(
           `INSERT INTO inventory_movements
-           (id, inventoryId, movementType, quantity, previousQuantity, newQuantity, reason, createdBy, createdAt)
-           VALUES (?, ?, 'in', ?, 0, ?, 'Stock initial', ?, ?)`,
-          [uuidv4(), id, quantity, quantity, toNullIfEmpty(data.createdBy), now]
+           (id, inventoryId, lotId, movementType, quantity, previousQuantity, newQuantity, reason, createdBy, createdAt)
+           VALUES (?, ?, ?, 'in', ?, 0, ?, 'Stock initial', ?, ?)`,
+          [uuidv4(), id, lotId, quantity, quantity, toNullIfEmpty(data.createdBy), now]
         );
       }
 
@@ -116,39 +128,42 @@ export function handleInventoryEvents() {
   ipcMain.handle('inventory:getAll', async (event, filters = {}) => {
     try {
       const request = normalizeInventoryRequest(filters);
-      let sql = 'SELECT * FROM inventory WHERE 1=1';
+      let sql = `SELECT i.*, s.name as supplierName
+                 FROM inventory i
+                 LEFT JOIN suppliers s ON s.id = i.supplierId
+                 WHERE 1=1`;
       const params = [];
 
       if (request.category) {
-        sql += ' AND category = ?';
+        sql += ' AND i.category = ?';
         params.push(request.category);
       }
       if (request.lowStock) {
-        sql += ' AND quantity <= minQuantity';
+        sql += ' AND i.quantity <= i.minQuantity';
       }
       if (request.expiring) {
-        sql += " AND expirationDate IS NOT NULL AND expirationDate <= DATE('now', '+30 day')";
+        sql += " AND i.expirationDate IS NOT NULL AND i.expirationDate <= DATE('now', '+30 day')";
       }
       if (request.search) {
         const searchPattern = `%${request.search}%`;
-        sql += ' AND (name LIKE ? OR category LIKE ? OR supplier LIKE ? OR location LIKE ?)';
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        sql += ' AND (i.name LIKE ? OR i.category LIKE ? OR i.supplier LIKE ? OR i.location LIKE ? OR s.name LIKE ?)';
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
       }
       if (filters && filters.isActive !== undefined) {
-        sql += ' AND isActive = ?';
+        sql += ' AND i.isActive = ?';
         params.push(request.isActive ? 1 : 0);
       } else {
-        sql += ' AND isActive = 1';
+        sql += ' AND i.isActive = 1';
       }
 
-      const orderByClause = ' ORDER BY name';
+      const orderByClause = ' ORDER BY i.name';
 
       if (!request.paginated) {
         const items = await query(`${sql}${orderByClause}`, params);
         return { success: true, data: items };
       }
 
-      const totalRow = await queryOne(sql.replace('SELECT *', 'SELECT COUNT(*) as total'), params);
+      const totalRow = await queryOne(sql.replace('SELECT i.*, s.name as supplierName', 'SELECT COUNT(*) as total'), params);
       const pagination = buildPaginationMeta(totalRow?.total || 0, request.page, request.pageSize);
       const currentPage = Math.min(pagination.page, pagination.totalPages);
       const offset = (currentPage - 1) * pagination.pageSize;
@@ -190,8 +205,8 @@ export function handleInventoryEvents() {
       await run(
         `UPDATE inventory
          SET name = ?, category = ?, description = ?, minQuantity = ?, unit = ?,
-             purchasePrice = ?, sellingPrice = ?, supplier = ?, expirationDate = ?,
-             location = ?, notes = ?, updatedAt = ?
+             purchasePrice = ?, sellingPrice = ?, supplier = ?, supplierId = ?,
+             expirationDate = ?, location = ?, photoPath = ?, notes = ?, updatedAt = ?
          WHERE id = ?`,
         [
           data.name,
@@ -202,8 +217,10 @@ export function handleInventoryEvents() {
           data.purchasePrice,
           data.sellingPrice,
           data.supplier,
+          toNullIfEmpty(data.supplierId),
           data.expirationDate,
           data.location,
+          toNullIfEmpty(data.photoPath),
           data.notes,
           now,
           id
@@ -217,26 +234,55 @@ export function handleInventoryEvents() {
     }
   });
 
-  // Ajuster le stock (entrée/sortie)
+  // Ajuster le stock (entrée/sortie) — utilise les lots FEFO
   ipcMain.handle('inventory:adjustStock', async (event, inventoryId, quantity, movementType, reason = '', reference = '', createdBy = null) => {
     try {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
-      const item = await queryOne('SELECT quantity FROM inventory WHERE id = ?', [inventoryId]);
+      const item = await queryOne('SELECT quantity, purchasePrice FROM inventory WHERE id = ?', [inventoryId]);
       if (!item) {
         return { success: false, error: 'Article non trouvé' };
       }
 
       const previousQuantity = item.quantity;
       let newQuantity;
+      let lotId = null;
 
       if (movementType === 'in') {
         newQuantity = previousQuantity + quantity;
+        // Créer un lot pour cette entrée manuelle
+        lotId = uuidv4();
+        await run(
+          `INSERT INTO inventory_lots
+           (id, inventoryId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [lotId, inventoryId, 'AJUST', now.slice(0, 10), null, quantity, quantity,
+            item.purchasePrice || 0, reason || 'Ajustement stock', now]
+        );
       } else if (movementType === 'out') {
-        newQuantity = previousQuantity - quantity;
-        if (newQuantity < 0) {
+        // Déduire selon FEFO
+        const lots = await query(
+          `SELECT * FROM inventory_lots
+           WHERE inventoryId = ? AND remainingQuantity > 0 AND isActive = 1
+           ORDER BY CASE WHEN expirationDate IS NULL THEN 1 ELSE 0 END, expirationDate ASC, createdAt ASC`,
+          [inventoryId]
+        );
+        let remaining = quantity;
+        let totalAvailable = (lots || []).reduce((sum, l) => sum + (l.remainingQuantity || 0), 0);
+        if (totalAvailable < remaining) {
           return { success: false, error: 'Stock insuffisant' };
         }
+        for (const lot of lots) {
+          if (remaining <= 0) break;
+          const fromLot = Math.min(remaining, lot.remainingQuantity);
+          await run(
+            `UPDATE inventory_lots SET remainingQuantity = remainingQuantity - ? WHERE id = ?`,
+            [fromLot, lot.id]
+          );
+          remaining -= fromLot;
+          if (!lotId) lotId = lot.id;
+        }
+        newQuantity = previousQuantity - quantity;
       } else {
         newQuantity = quantity;
       }
@@ -248,9 +294,9 @@ export function handleInventoryEvents() {
 
       await run(
         `INSERT INTO inventory_movements
-         (id, inventoryId, movementType, quantity, previousQuantity, newQuantity, reason, reference, createdBy, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [uuidv4(), inventoryId, movementType, quantity, previousQuantity, newQuantity, reason, reference, createdBy, now]
+         (id, inventoryId, lotId, movementType, quantity, previousQuantity, newQuantity, reason, reference, createdBy, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), inventoryId, lotId, movementType, quantity, previousQuantity, newQuantity, reason, reference, createdBy, now]
       );
 
       return { success: true, newQuantity };

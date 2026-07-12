@@ -542,8 +542,8 @@ function buildPendingPaymentRow(request) {
       <td>
         <button class="btn btn-tiny btn-success" title="Encaisser / valider" onclick="collectPayment('${request.id}', '${data.patientId}', ${data.amount || 0})">Encaisser</button>
         ${currentUserRole !== 'assistant'
-          ? `<button class="btn btn-tiny btn-outline" title="Clôturer" onclick="dismissPaymentRequest('${request.id}')">Clôturer</button>`
-          : ''}
+      ? `<button class="btn btn-tiny btn-outline" title="Clôturer" onclick="dismissPaymentRequest('${request.id}')">Clôturer</button>`
+      : ''}
       </td>
     </tr>
   `;
@@ -578,7 +578,7 @@ async function addPaymentForConsultation(consultationId, patientId) {
       showNotification('Erreur lors du chargement des détails du patient', 'error');
       return;
     }
-    
+
     const patient = patientResult.data;
     let consultationActs = ['consultation'];
 
@@ -591,7 +591,7 @@ async function addPaymentForConsultation(consultationId, patientId) {
         );
       }
     }
-    
+
     // Fill the form
     document.getElementById('payment-patient-id').value = patientId;
     document.getElementById('payment-consultation-id').value = consultationId;
@@ -600,18 +600,18 @@ async function addPaymentForConsultation(consultationId, patientId) {
     wirePaymentServiceAutoAmount('payment-service', 'payment-amount');
     wirePaymentServiceActDefaults('payment-service', 'payment-acts-grid', 'payment-acts');
     renderPaymentModalActCheckboxes(consultationActs);
-    
+
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('payment-date').value = today;
     setPaymentConsultationLabel(consultationId, today);
-    
+
     // Reset other fields
     document.getElementById('payment-amount').value = '';
     document.getElementById('payment-method').value = 'Espèces';
     document.getElementById('payment-notes').value = '';
     syncPaymentAmountFromService('payment-service', 'payment-amount', true);
-    
+
     showModal('modal-add-payment');
   } catch (error) {
     console.error('Error opening payment modal:', error);
@@ -622,6 +622,13 @@ async function addPaymentForConsultation(consultationId, patientId) {
 async function savePayment() {
   try {
     const modal = document.getElementById('modal-add-payment');
+    if (modal?.dataset?.saving === '1') {
+      return;
+    }
+    if (modal) modal.dataset.saving = '1';
+    const saveButton = document.getElementById('payment-save-btn');
+    if (saveButton) saveButton.disabled = true;
+
     const editId = modal?.dataset?.editId || '';
     const requestId = modal?.dataset?.requestId || '';
 
@@ -641,17 +648,17 @@ async function savePayment() {
     const selectedActs = getSelectedPaymentActs('payment-acts');
     const normalizedSelectedActs = selectedActs.length ? selectedActs : [resolvePaymentActValue(serviceValue)];
     const notes = buildPaymentNotesWithActs(freeNotes, normalizedSelectedActs);
-    
+
     if (!amount || amount <= 0) {
       showNotification('Veuillez entrer un montant valide', 'error');
       return;
     }
-    
+
     if (!paymentDate) {
       showNotification('Veuillez sélectionner une date', 'error');
       return;
     }
-    
+
     const paymentData = {
       patientId,
       consultationId: consultationId || null,
@@ -661,14 +668,19 @@ async function savePayment() {
       description,
       notes
     };
-    
+
     const result = editId
       ? await window.api.payment.update(editId, paymentData)
       : await window.api.payment.create(paymentData);
-    
+
     if (result.success) {
-      showNotification(editId ? '✅ Paiement modifié avec succès' : '✅ Paiement enregistré avec succès', 'success');
-      
+      showNotification(
+        result.duplicate
+          ? '✅ Paiement déjà enregistré pour cette consultation'
+          : (editId ? '✅ Paiement modifié avec succès' : '✅ Paiement enregistré avec succès'),
+        result.duplicate ? 'info' : 'success'
+      );
+
       // Update dental treatment paid amount if this payment was for a dental treatment
       const dentalTreatmentId = modal?.dataset?.dentalTreatmentId;
       if (!editId && dentalTreatmentId) {
@@ -690,7 +702,7 @@ async function savePayment() {
         }
         delete modal.dataset.dentalTreatmentId;
       }
-      
+
       // Mark payment request as complete if exists
       if (!editId && requestId) {
         await window.api.paymentRequest.complete(requestId);
@@ -700,10 +712,10 @@ async function savePayment() {
           loadPendingPaymentRequests();
         }
       }
-      
+
       closeModal('modal-add-payment');
       resetPaymentModalState();
-      
+
       // Refresh payment section if currently viewing it
       const paymentsSection = document.getElementById('payments');
       if (paymentsSection && paymentsSection.classList.contains('active')) {
@@ -722,6 +734,11 @@ async function savePayment() {
   } catch (error) {
     console.error('Error saving payment:', error);
     showNotification('Erreur lors de l\'enregistrement', 'error');
+  } finally {
+    const modal = document.getElementById('modal-add-payment');
+    if (modal) delete modal.dataset.saving;
+    const saveButton = document.getElementById('payment-save-btn');
+    if (saveButton) saveButton.disabled = false;
   }
 }
 
@@ -743,14 +760,14 @@ async function loadPayments(filters = {}) {
     const result = await window.api.payment.getAll(filters);
     const tbody = document.getElementById('payments-tbody');
     tbody.innerHTML = '';
-    
+
     let payments = result.success ? result.data : [];
     const canSeePendingRequests = currentUserRole === 'assistant' || currentUserRole === 'doctor' || currentUserRole === 'dentist';
     const pendingRequests = canSeePendingRequests ? await window.api.paymentRequest.getPending() : [];
 
     if (isAssistant) {
-        const today = new Date().toISOString().split('T')[0];
-        payments = payments.filter(p => p.paymentDate && p.paymentDate.startsWith(today));
+      const today = new Date().toISOString().split('T')[0];
+      payments = payments.filter(p => p.paymentDate && p.paymentDate.startsWith(today));
     }
 
     if ((!payments || payments.length === 0) && (!pendingRequests || pendingRequests.length === 0)) {
@@ -820,19 +837,19 @@ async function loadPaymentStats() {
 
     // Load total income
     if (!isAssistant) {
-        const totalResult = await window.api.payment.getTotalIncome();
-        const totalEl = document.getElementById('stat-total-income');
-        if (totalResult && totalResult.success && totalEl) {
-          const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(parseFloat(totalResult.total) || 0);
-          totalEl.textContent = formatted;
-        } else if (totalEl) {
-          totalEl.textContent = '0 DZD';
-        }
+      const totalResult = await window.api.payment.getTotalIncome();
+      const totalEl = document.getElementById('stat-total-income');
+      if (totalResult && totalResult.success && totalEl) {
+        const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(parseFloat(totalResult.total) || 0);
+        totalEl.textContent = formatted;
+      } else if (totalEl) {
+        totalEl.textContent = '0 DZD';
+      }
     } else {
-        const el = document.getElementById('stat-total-income');
-        if(el) el.textContent = '---';
+      const el = document.getElementById('stat-total-income');
+      if (el) el.textContent = '---';
     }
-    
+
     // Load today's income
     const today = new Date().toISOString().split('T')[0];
     const todayResult = await window.api.payment.getIncomeByPeriod('day', today, today);
@@ -843,7 +860,7 @@ async function loadPaymentStats() {
     } else if (todayEl) {
       todayEl.textContent = '0 DZD';
     }
-    
+
     // Load this week's income (Monday to Sunday)
     const now = new Date();
     const dayOfWeek = now.getDay();
@@ -851,49 +868,49 @@ async function loadPaymentStats() {
     const monday = new Date(now);
     monday.setDate(now.getDate() + mondayOffset);
     monday.setHours(0, 0, 0, 0);
-    
+
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
-    
+
     if (!isAssistant) {
-        const weekResult = await window.api.payment.getIncomeByPeriod(
-          'day',
-          monday.toISOString().split('T')[0],
-          sunday.toISOString().split('T')[0]
-        );
-        const weekEl = document.getElementById('stat-week-income');
-        if (weekResult && weekResult.success && weekResult.data && weekResult.data.length > 0) {
-          const total = weekResult.data.reduce((sum, item) => sum + (parseFloat(item.income) || 0), 0);
-          const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(total);
-          if (weekEl) weekEl.textContent = formatted;
-        } else {
-          if (weekEl) weekEl.textContent = '0 DZD';
-        }
+      const weekResult = await window.api.payment.getIncomeByPeriod(
+        'day',
+        monday.toISOString().split('T')[0],
+        sunday.toISOString().split('T')[0]
+      );
+      const weekEl = document.getElementById('stat-week-income');
+      if (weekResult && weekResult.success && weekResult.data && weekResult.data.length > 0) {
+        const total = weekResult.data.reduce((sum, item) => sum + (parseFloat(item.income) || 0), 0);
+        const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(total);
+        if (weekEl) weekEl.textContent = formatted;
+      } else {
+        if (weekEl) weekEl.textContent = '0 DZD';
+      }
     } else {
-        const el = document.getElementById('stat-week-income');
-        if(el) el.textContent = '---';
+      const el = document.getElementById('stat-week-income');
+      if (el) el.textContent = '---';
     }
-    
+
     // Load this month's income
     if (!isAssistant) {
-        const monthStart = new Date();
-        monthStart.setDate(1);
-        const monthResult = await window.api.payment.getIncomeByPeriod(
-          'month',
-          monthStart.toISOString().split('T')[0],
-          today
-        );
-        const monthEl = document.getElementById('stat-month-income');
-        if (monthResult && monthResult.success && monthResult.data && monthResult.data.length > 0 && monthEl) {
-          const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(parseFloat(monthResult.data[0].income) || 0);
-          monthEl.textContent = formatted;
-        } else if (monthEl) {
-          monthEl.textContent = '0 DZD';
-        }
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      const monthResult = await window.api.payment.getIncomeByPeriod(
+        'month',
+        monthStart.toISOString().split('T')[0],
+        today
+      );
+      const monthEl = document.getElementById('stat-month-income');
+      if (monthResult && monthResult.success && monthResult.data && monthResult.data.length > 0 && monthEl) {
+        const formatted = new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(parseFloat(monthResult.data[0].income) || 0);
+        monthEl.textContent = formatted;
+      } else if (monthEl) {
+        monthEl.textContent = '0 DZD';
+      }
     } else {
-        const el = document.getElementById('stat-month-income');
-        if(el) el.textContent = '---';
+      const el = document.getElementById('stat-month-income');
+      if (el) el.textContent = '---';
     }
   } catch (error) {
     console.error('Error loading payment stats:', error);
@@ -902,15 +919,15 @@ async function loadPaymentStats() {
 
 async function filterPayments() {
   const filters = {};
-  
+
   const method = document.getElementById('payment-filter-method').value;
   const startDate = document.getElementById('payment-filter-start').value;
   const endDate = document.getElementById('payment-filter-end').value;
-  
+
   if (method) filters.paymentMethod = method;
   if (startDate) filters.startDate = startDate;
   if (endDate) filters.endDate = endDate;
-  
+
   await loadPayments(filters);
 }
 
@@ -930,7 +947,7 @@ async function deletePayment(paymentId) {
   if (!confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?')) {
     return;
   }
-  
+
   try {
     const result = await window.api.payment.delete(paymentId);
     if (result.success) {
@@ -963,9 +980,14 @@ async function sendPaymentRequestToAssistant(patientId, patientName, amount, con
       selectedActs,
       doctorId: currentUserId
     });
-    
+
     if (result.success) {
-      showNotification(`💰 Demande de paiement envoyée à l'assistante (${amount} DZD)`, 'success');
+      showNotification(
+        result.duplicate
+          ? `💰 Demande déjà en attente (${amount} DZD)`
+          : `💰 Demande de paiement envoyée à l'assistante (${amount} DZD)`,
+        result.duplicate ? 'info' : 'success'
+      );
       return true;
     } else {
       showNotification('Erreur lors de l\'envoi de la demande', 'error');
@@ -988,9 +1010,9 @@ async function openPaymentRequestModal(patientId, defaults = {}) {
       showNotification('Erreur lors du chargement du patient', 'error');
       return;
     }
-    
+
     const patient = patientResult.data;
-    
+
     document.getElementById('payment-request-patient-id').value = patientId;
     document.getElementById('payment-request-patient-name').value = `${patient.firstName} ${patient.lastName}`;
     populatePaymentServiceSelect('payment-request-service', defaults.service || 'consultation');
@@ -1003,7 +1025,7 @@ async function openPaymentRequestModal(patientId, defaults = {}) {
     document.getElementById('payment-request-notes').value = stripPaymentActsFromNotes(defaults.notes || '');
     document.getElementById('modal-payment-request').dataset.consultationId = defaults.consultationId || '';
     syncPaymentAmountFromService('payment-request-service', 'payment-request-amount', !defaults.amount);
-    
+
     showModal('modal-payment-request');
   } catch (error) {
     console.error('Error opening payment request modal:', error);
@@ -1024,14 +1046,14 @@ async function submitPaymentRequest() {
   const consultationId = document.getElementById('modal-payment-request')?.dataset?.consultationId || null;
   const selectedActs = getSelectedPaymentRequestActs();
   const normalizedSelectedActs = selectedActs.length ? selectedActs : [resolvePaymentActValue(serviceValue)];
-  
+
   if (!amount || amount <= 0) {
     showNotification('Veuillez entrer un montant valide', 'error');
     return;
   }
 
   const notes = buildPaymentNotesWithActs(freeNotes, normalizedSelectedActs);
-  
+
   const success = await sendPaymentRequestToAssistant(
     patientId,
     patientName,
@@ -1041,7 +1063,7 @@ async function submitPaymentRequest() {
     service,
     normalizedSelectedActs
   );
-  
+
   if (success) {
     closeModal('modal-payment-request');
   }
@@ -1054,15 +1076,15 @@ async function loadPendingPaymentRequests() {
   try {
     const requests = await getPendingPaymentRequestsCached(true);
     const container = document.getElementById('payment-requests-list');
-    
+
     if (!container) return;
-    
+
     if (!requests || requests.length === 0) {
       container.innerHTML = '<p class="empty-message">Aucune demande de paiement en attente</p>';
       updatePaymentRequestBadge(0);
       return;
     }
-    
+
     container.innerHTML = requests.map(req => {
       const data = JSON.parse(req.data || '{}');
       const createdAt = new Date(req.createdAt).toLocaleString('fr-FR');
@@ -1072,7 +1094,7 @@ async function loadPendingPaymentRequests() {
       const consultationRef = data.consultationId
         ? `<div class="request-time">${formatReferenceCode('Consultation', data.consultationId, req.createdAt)}</div>`
         : '';
-      
+
       return `
         <div class="payment-request-card" data-id="${req.id}">
           <div class="request-info">
@@ -1098,10 +1120,10 @@ async function loadPendingPaymentRequests() {
         </div>
       `;
     }).join('');
-    
+
     // Update badge count
     updatePaymentRequestBadge(requests.length);
-    
+
   } catch (error) {
     console.error('Error loading payment requests:', error);
   }
@@ -1114,6 +1136,28 @@ async function collectPayment(requestId, patientId, amount) {
   try {
     const payload = await getPendingPaymentRequestPayload(requestId);
     const data = payload?.data || {};
+    if (data.planId) {
+      if (!confirm(`Encaisser ${formatMoneyDZD(data.amount || amount || 0)} pour ${data.sessionLabel || data.planTitle || 'ce plan'} ?`)) {
+        return;
+      }
+      const result = await window.api.plans.addPaymentSession({
+        planId: data.planId,
+        paidAmount: data.amount || amount || 0,
+        paidDate: new Date().toISOString().split('T')[0],
+        paymentMethod: 'Espèces',
+        notes: data.notes || `${data.sessionLabel || 'Séance'} — ${data.planTitle || 'Plan de traitement'}`,
+        recordedBy: typeof currentUserId !== 'undefined' ? currentUserId : null
+      });
+      if (result.success) {
+        await window.api.paymentRequest.complete(requestId);
+        showNotification(result.autoClosed ? 'Paiement encaissé — plan terminé' : 'Paiement de plan encaissé', 'success');
+        await loadPendingPaymentRequests();
+        if (typeof loadPayments === 'function') loadPayments();
+        return;
+      }
+      showNotification('Erreur: ' + (result.error || 'Impossible d’encaisser'), 'error');
+      return;
+    }
     resetPaymentModalState();
 
     // Get patient details
@@ -1122,9 +1166,9 @@ async function collectPayment(requestId, patientId, amount) {
       showNotification('Erreur lors du chargement du patient', 'error');
       return;
     }
-    
+
     const patient = patientResult.data;
-    
+
     // Pre-fill payment modal
     document.getElementById('payment-patient-id').value = patientId;
     document.getElementById('payment-consultation-id').value = data.consultationId || '';
@@ -1140,7 +1184,7 @@ async function collectPayment(requestId, patientId, amount) {
     );
     document.getElementById('payment-notes').value = stripPaymentActsFromNotes(data.notes || '');
     setPaymentConsultationLabel(data.consultationId || '', new Date().toISOString().split('T')[0]);
-    
+
     // Store request ID to mark as complete after payment
     document.getElementById('modal-add-payment').dataset.requestId = requestId;
     if (currentUserRole === 'assistant') {
@@ -1150,7 +1194,7 @@ async function collectPayment(requestId, patientId, amount) {
         saveButton.textContent = '✅ Confirmer l’encaissement';
       }
     }
-    
+
     showModal('modal-add-payment');
   } catch (error) {
     console.error('Error collecting payment:', error);
@@ -1170,7 +1214,7 @@ async function dismissPaymentRequest(requestId) {
   if (!confirm('Êtes-vous sûr de vouloir ignorer cette demande de paiement ?')) {
     return;
   }
-  
+
   try {
     const result = await window.api.paymentRequest.dismiss(requestId);
     if (!result?.success) {
@@ -1221,10 +1265,10 @@ function initPaymentRequestsPolling() {
     if (section) {
       section.style.display = 'block';
     }
-    
+
     // Load immediately
     loadPendingPaymentRequests();
-    
+
     // Poll every 15 seconds
     setInterval(loadPendingPaymentRequests, 15000);
   }
@@ -1246,18 +1290,18 @@ async function openPaymentModalForPatient(patientId, patientName) {
     wirePaymentServiceAutoAmount('payment-service', 'payment-amount');
     wirePaymentServiceActDefaults('payment-service', 'payment-acts-grid', 'payment-acts');
     renderPaymentModalActCheckboxes(['consultation']);
-    
+
     // Set default date to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('payment-date').value = today;
-    
+
     // Reset other fields
     document.getElementById('payment-amount').value = '';
     document.getElementById('payment-method').value = 'Espèces';
     document.getElementById('payment-notes').value = '';
     setPaymentConsultationLabel('', today);
     syncPaymentAmountFromService('payment-service', 'payment-amount', true);
-    
+
     showModal('modal-add-payment');
   } catch (error) {
     console.error('Error opening payment modal:', error);
@@ -1319,7 +1363,7 @@ async function openPaymentDetails(paymentId) {
   }
 }
 
-loadPayments = async function(filters = null, options = {}) {
+loadPayments = async function (filters = null, options = {}) {
   try {
     if (paymentListState.isLoading) {
       return;
@@ -1425,12 +1469,12 @@ loadPayments = async function(filters = null, options = {}) {
   }
 };
 
-filterPayments = async function() {
+filterPayments = async function () {
   const filters = getPaymentFiltersFromInputs();
   await loadPayments(filters, { page: 1 });
 };
 
-resetPaymentFilters = async function() {
+resetPaymentFilters = async function () {
   document.getElementById('payment-filter-method').value = '';
   document.getElementById('payment-filter-start').value = '';
   document.getElementById('payment-filter-end').value = '';

@@ -7,6 +7,14 @@ import { ipcMain } from 'electron';
 import { queryOne, run } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import {
+  getLoadedSpecialtyBases,
+  getSpecialtyConfig,
+  mergeSpecialtyBaseIntoDb,
+  normalizeSpecialtyKey,
+  parseEnabledSpecialties,
+  readSpecialtyMedications
+} from '../specialty-assets.js';
 
 const PACKAGE_DEFINITIONS = {
   basic: {
@@ -119,44 +127,26 @@ function isEnabled(value) {
   return value === true || value === 1 || value === '1';
 }
 
-function normalizeSpecialtyKey(value = 'general') {
-  const raw = String(value || '').trim().toLowerCase();
-  if (['mpr', 'rehabilitation', 'reeducation', 'rÃ©Ã©ducation', 'medecine physique', 'mÃ©decine physique'].includes(raw)) {
-    return 'mpr';
-  }
-  if (['cardiology', 'cardiologie', 'cardiologue', 'cardio'].includes(raw)) {
-    return 'cardiology';
-  }
-  if (['dentistry', 'dentiste', 'dentaire', 'dentist'].includes(raw)) {
-    return 'dentistry';
-  }
-  return 'general';
-}
-
 function getEnabledSpecialtiesFromConfig(config = {}) {
-  const specialties = ['general'];
-  if (isEnabled(config.featureRehabilitation) || isEnabled(config.featureKineStaff)) {
-    specialties.push('mpr');
-  }
-  if (isEnabled(config.featureCardiology)) {
-    specialties.push('cardiology');
-  }
-  if (isEnabled(config.featureDentistry)) {
-    specialties.push('dentistry');
-  }
-  return specialties;
+  return parseEnabledSpecialties(config.enabledSpecialties, config);
 }
 
 function sanitizePackageConfig(rawConfig = {}) {
-  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || 'general');
-  const enabledSpecialties = getEnabledSpecialtiesFromConfig(rawConfig);
-  const activeSpecialty = requestedSpecialty !== 'general' && enabledSpecialties.includes(requestedSpecialty)
+  const enabledSpecialties = parseEnabledSpecialties(rawConfig.enabledSpecialties, rawConfig);
+  const safeEnabledSpecialties = enabledSpecialties.length ? enabledSpecialties : ['general'];
+  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || safeEnabledSpecialties[0] || 'general');
+  const activeSpecialty = safeEnabledSpecialties.includes(requestedSpecialty)
     ? requestedSpecialty
-    : 'general';
+    : (safeEnabledSpecialties[0] || 'general');
 
   return {
     ...rawConfig,
-    activeSpecialty
+    enabledSpecialties: safeEnabledSpecialties,
+    activeSpecialty,
+    featureRehabilitation: safeEnabledSpecialties.includes('mpr'),
+    featureKineStaff: safeEnabledSpecialties.includes('mpr'),
+    featureCardiology: safeEnabledSpecialties.includes('cardiology'),
+    featureDentistry: safeEnabledSpecialties.includes('dentistry')
   };
 }
 
@@ -186,9 +176,48 @@ export function handlePackageEvents() {
   ipcMain.handle('package:get-config', async () => {
     try {
       const config = await queryOne('SELECT * FROM package_config LIMIT 1');
+      if (config) {
+        config.enabledSpecialties = JSON.stringify(parseEnabledSpecialties(config.enabledSpecialties, config));
+      }
       return { success: true, data: config };
     } catch (error) {
       console.error('Error getting package config:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('package:get-specialty-config', async () => {
+    try {
+      return { success: true, data: getSpecialtyConfig() };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('package:get-loaded-bases', async () => {
+    try {
+      const data = await getLoadedSpecialtyBases();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('package:refresh-specialty-base', async (event, specialtyKey) => {
+    try {
+      return await mergeSpecialtyBaseIntoDb(specialtyKey);
+    } catch (error) {
+      console.error('Error refreshing specialty base:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('package:export-medications-json', async (event, specialtyKey) => {
+    try {
+      const key = normalizeSpecialtyKey(specialtyKey);
+      const { filePath, medications } = readSpecialtyMedications(key);
+      return { success: true, data: { specialty: key, filePath, count: medications.length } };
+    } catch (error) {
       return { success: false, error: error.message };
     }
   });
@@ -216,6 +245,7 @@ export function handlePackageEvents() {
         ['clientName', normalizedConfig.clientName],
         ['packageType', normalizedConfig.packageType || 'basic'],
         ['activeSpecialty', normalizedConfig.activeSpecialty || 'general'],
+        ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['general'])],
         ['maxDoctors', normalizedConfig.maxDoctors || 1],
         ['maxAssistants', normalizedConfig.maxAssistants || 0],
         ['featurePrescriptions', toBool(normalizedConfig.featurePrescriptions ?? true)],

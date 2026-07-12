@@ -1,0 +1,95 @@
+{
+  "specialite": "dentistry",
+  "medicaments": [
+    {
+      "id": "dent_001",
+      "nom_medicament": "Amoxicilline",
+      "dosage_posologie": "500mg",
+      "prise": "1 gélule matin, midi et soir",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Antibiotique - à prendre au cours des repas. Vérifier absence d'allergie à la pénicilline."
+    },
+    {
+      "id": "dent_002",
+      "nom_medicament": "Amoxicilline + Acide clavulanique",
+      "dosage_posologie": "1g",
+      "prise": "1 comprimé matin et soir",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Indiqué en cas d'infection dentaire résistante. À prendre au début du repas."
+    },
+    {
+      "id": "dent_003",
+      "nom_medicament": "Métronidazole",
+      "dosage_posologie": "500mg",
+      "prise": "1 comprimé matin, midi et soir",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Souvent associé à l'amoxicilline pour infections dentaires anaérobies. Éviter l'alcool pendant le traitement."
+    },
+    {
+      "id": "dent_004",
+      "nom_medicament": "Spiramycine + Métronidazole",
+      "dosage_posologie": "1,5 MUI / 250mg",
+      "prise": "2 comprimés matin, midi et soir",
+      "duree": "6 jours",
+      "boites": 1,
+      "instructions_observations": "Association classique en infection dentaire. Éviter l'alcool."
+    },
+    {
+      "id": "dent_005",
+      "nom_medicament": "Paracétamol",
+      "dosage_posologie": "1000mg",
+      "prise": "1 comprimé toutes les 6 heures si douleur",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique de première intention. Ne pas dépasser 4g/jour."
+    },
+    {
+      "id": "dent_006",
+      "nom_medicament": "Ibuprofène",
+      "dosage_posologie": "400mg",
+      "prise": "1 comprimé matin, midi et soir",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Anti-inflammatoire - à prendre au cours des repas. Contre-indiqué en cas d'infection non contrôlée par antibiotique."
+    },
+    {
+      "id": "dent_007",
+      "nom_medicament": "Paracétamol + Codéine",
+      "dosage_posologie": "500mg / 30mg",
+      "prise": "1 à 2 comprimés toutes les 6 heures si douleur intense",
+      "duree": "3 jours maximum",
+      "boites": 1,
+      "instructions_observations": "Antalgique palier 2. Somnolence possible - éviter la conduite."
+    },
+    {
+      "id": "dent_008",
+      "nom_medicament": "Chlorhexidine bain de bouche",
+      "dosage_posologie": "0,12%",
+      "prise": "1 bain de bouche matin et soir",
+      "duree": "7 à 10 jours",
+      "boites": 1,
+      "instructions_observations": "Ne pas avaler. Peut colorer temporairement les dents en cas d'usage prolongé."
+    },
+    {
+      "id": "dent_009",
+      "nom_medicament": "Lidocaïne gel",
+      "dosage_posologie": "2%",
+      "prise": "Application locale avant le soin",
+      "duree": "Selon besoin",
+      "boites": 1,
+      "instructions_observations": "Usage topique uniquement, anesthésie de surface avant injection ou petit acte."
+    },
+    {
+      "id": "dent_010",
+      "nom_medicament": "Prednisolone",
+      "dosage_posologie": "20mg",
+      "prise": "1 comprimé le matin",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Corticoïde en cas d'inflammation/œdème important post-chirurgical. Prise le matin au cours du repas."
+    }
+  ]
+}

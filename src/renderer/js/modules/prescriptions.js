@@ -14,6 +14,7 @@ let medicationAutocompleteRepositionBound = false;
 const medicationRemoteSearchCache = new Map();
 const MEDICATION_REMOTE_SEARCH_CACHE_LIMIT = 60;
 const MEDICATION_REMOTE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000;
+let specialtyMedicationBasesCache = null;
 
 function resetMedicationSuggestionsInlineStyles(suggestionsDiv) {
   if (!suggestionsDiv) return;
@@ -296,6 +297,21 @@ function mapMedicationSearchResult(entry = {}) {
   };
 }
 
+function mapSpecialtyMedicationSearchResult(entry = {}) {
+  return {
+    ...normalizeMedicationRecord({
+      name: entry.nom_medicament || entry.name || '',
+      dosage: entry.dosage_posologie || entry.defaultDosage || entry.dosage || '',
+      intake: entry.prise || entry.defaultIntake || entry.intake || '',
+      duration: entry.duree || entry.defaultDuration || entry.duration || '',
+      boxes: entry.boites ?? entry.defaultBoxes ?? entry.boxes ?? '',
+      instructions: entry.instructions_observations || entry.instructions || entry.notes || ''
+    }),
+    usageCount: 0,
+    lastUsed: null
+  };
+}
+
 function mergeMedicationSuggestions(...groups) {
   const merged = new Map();
 
@@ -305,7 +321,7 @@ function mergeMedicationSuggestions(...groups) {
       usageCount: entry?.usageCount || 0,
       lastUsed: entry?.lastUsed || null
     };
-    const key = normalizeMedicationName(normalized.name);
+    const key = `${normalizeMedicationName(normalized.name)}|${normalizeMedicationName(normalized.dosage)}`;
     if (!key || merged.has(key)) {
       return;
     }
@@ -313,6 +329,53 @@ function mergeMedicationSuggestions(...groups) {
   });
 
   return Array.from(merged.values());
+}
+
+async function getSpecialtyMedicationMatches(normalizedQuery) {
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const specialtyKey = typeof resolveActivePracticeSpecialty === 'function'
+    ? resolveActivePracticeSpecialty(window._packageConfig)
+    : (currentUserSpecialty || 'general');
+
+  if (window.api?.medication?.searchSpecialtyJson) {
+    try {
+      const result = await window.api.medication.searchSpecialtyJson({
+        specialtyKey,
+        term: normalizedQuery,
+        limit: 8
+      });
+      if (result.success && Array.isArray(result.data)) {
+        return result.data.map(mapSpecialtyMedicationSearchResult).slice(0, 8);
+      }
+    } catch (error) {
+      console.error('Impossible de rechercher dans la base medicaments de specialite:', error);
+    }
+  }
+
+  if (!window.api?.package?.getLoadedBases) {
+    return [];
+  }
+
+  try {
+    if (!specialtyMedicationBasesCache) {
+      const result = await window.api.package.getLoadedBases();
+      specialtyMedicationBasesCache = result.success && Array.isArray(result.data) ? result.data : [];
+    }
+
+    const specialtyBase = specialtyMedicationBasesCache.find((base) => base.key === specialtyKey)
+      || specialtyMedicationBasesCache.find((base) => base.key === 'general');
+
+    return (specialtyBase?.medications || [])
+      .map(mapSpecialtyMedicationSearchResult)
+      .filter((med) => (med.name || '').toLowerCase().startsWith(normalizedQuery))
+      .slice(0, 8);
+  } catch (error) {
+    console.error('Impossible de charger la base medicaments de specialite:', error);
+    return [];
+  }
 }
 
 async function searchMedicationSuggestions(query) {
@@ -338,16 +401,17 @@ async function searchMedicationSuggestions(query) {
       return (b.lastUsed || '').localeCompare(a.lastUsed || '');
     })
     .slice(0, 8);
+  const specialtyJsonMatches = await getSpecialtyMedicationMatches(normalizedQuery);
 
   // Only hit the database after 2 chars to keep typing snappy on large datasets.
   if (normalizedQuery.length < 2 || !window.api?.medication?.search) {
-    return localMatches;
+    return mergeMedicationSuggestions(specialtyJsonMatches, localMatches).slice(0, 8);
   }
 
   try {
     const cachedRemote = getCachedRemoteMedicationSearch(normalizedQuery);
     if (cachedRemote) {
-      return mergeMedicationSuggestions(cachedRemote, localMatches).slice(0, 8);
+      return mergeMedicationSuggestions(cachedRemote, specialtyJsonMatches, localMatches).slice(0, 8);
     }
 
     const result = await window.api.medication.search(normalizedQuery);
@@ -356,7 +420,7 @@ async function searchMedicationSuggestions(query) {
       : [];
 
     setCachedRemoteMedicationSearch(normalizedQuery, fetchedRemoteMatches);
-    return mergeMedicationSuggestions(fetchedRemoteMatches, localMatches).slice(0, 8);
+    return mergeMedicationSuggestions(fetchedRemoteMatches, specialtyJsonMatches, localMatches).slice(0, 8);
   } catch (error) {
     console.error('Impossible de rechercher les medicaments:', error);
     return localMatches;
@@ -1336,4 +1400,3 @@ async function saveSickLeave(e) {
     showNotification('Erreur lors de la sauvegarde', 'error');
   }
 }
-

@@ -96,7 +96,9 @@ function resolveDocumentWatermarkOpacity(settings = {}) {
 }
 
 function resolveDocumentStyleVariant(settings = {}) {
-  return settings?.documentStyleVariant === 'modern' ? 'modern' : 'classic';
+  const raw = String(settings?.documentStyleVariant || '').trim();
+  if (raw === 'modern') return 'gradient-header';
+  return ['classic', 'sidebar', 'gradient-header', 'minimal'].includes(raw) ? raw : 'classic';
 }
 
 function scalePtValue(value, factor = 1) {
@@ -198,6 +200,23 @@ function rgbToHex(r, g, b) {
   return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`
 }
 
+function mixHexColor(color, target = '#ffffff', amount = 0.82) {
+  const from = hexToRgb(color) || hexToRgb('#1a8c7e')
+  const to = hexToRgb(target) || hexToRgb('#ffffff')
+  return rgbToHex(
+    from.r + (to.r - from.r) * amount,
+    from.g + (to.g - from.g) * amount,
+    from.b + (to.b - from.b) * amount
+  )
+}
+
+function getReadableTextColor(backgroundColor) {
+  const rgb = hexToRgb(backgroundColor)
+  if (!rgb) return '#ffffff'
+  const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255
+  return luminance > 0.58 ? '#111827' : '#ffffff'
+}
+
 function generateMedicationColor(baseColor, index, colorMode = 'color') {
   if (colorMode === 'bw') return '#000000'
   const rgb = hexToRgb(baseColor)
@@ -214,6 +233,10 @@ function getLiveDocumentColorOverrides() {
   }
 
   const colorModeRaw = document.getElementById('document-color-mode')?.value
+  const styleVariantRaw = document.getElementById('document-style-variant')?.value
+  const textScaleRaw = document.getElementById('document-text-scale')?.value
+  const logoScaleRaw = document.getElementById('document-logo-scale')?.value
+  const watermarkOpacityRaw = document.getElementById('document-watermark-opacity')?.value
   const documentPrimaryColor = normalizeHex(document.getElementById('document-primary-color')?.value)
   const rawTypeColors = {
     prescription: normalizeHex(document.getElementById('document-color-prescription')?.value),
@@ -229,7 +252,11 @@ function getLiveDocumentColorOverrides() {
   )
   const hasAnyTypeColor = Object.keys(liveTypeColors).length > 0
 
-  const hasAnyOverride = Boolean(documentPrimaryColor) || hasAnyTypeColor || colorModeRaw === 'bw' || colorModeRaw === 'color'
+  const styleVariant = resolveDocumentStyleVariant({ documentStyleVariant: styleVariantRaw })
+  const textScale = Number(textScaleRaw)
+  const logoScale = Number(logoScaleRaw)
+  const watermarkOpacity = Number(watermarkOpacityRaw)
+  const hasAnyOverride = Boolean(documentPrimaryColor) || hasAnyTypeColor || colorModeRaw === 'bw' || colorModeRaw === 'color' || Boolean(styleVariantRaw) || Number.isFinite(textScale) || Number.isFinite(logoScale) || Number.isFinite(watermarkOpacity)
   if (!hasAnyOverride) return null
 
   const mergedTypeColors = hasAnyTypeColor
@@ -239,7 +266,11 @@ function getLiveDocumentColorOverrides() {
   return {
     documentColorMode: colorModeRaw === 'bw' ? 'bw' : 'color',
     ...(documentPrimaryColor ? { documentPrimaryColor } : {}),
-    ...(mergedTypeColors ? { documentTypeColors: mergedTypeColors } : {})
+    ...(mergedTypeColors ? { documentTypeColors: mergedTypeColors } : {}),
+    ...(styleVariantRaw ? { documentStyleVariant: styleVariant } : {}),
+    ...(Number.isFinite(textScale) ? { documentTextScale: Math.min(120, Math.max(90, textScale)) } : {}),
+    ...(Number.isFinite(logoScale) ? { documentLogoScale: Math.min(200, Math.max(80, logoScale)) } : {}),
+    ...(Number.isFinite(watermarkOpacity) ? { documentWatermarkOpacity: Math.min(35, Math.max(2, watermarkOpacity)) } : {})
   }
 }
 
@@ -437,8 +468,11 @@ function generateHtmlDocument(bodyContent, options = {}) {
   const documentType = typeof options === "string" ?options : (options.documentType || "generic")
   const layout = typeof options === "string" ?getPrintLayout("A5") : (options.layout || getPrintLayout("A5"))
   const primaryColor = typeof options === 'string' ?'#1a8c7e' : (options.primaryColor || '#1a8c7e')
+  const primarySoftColor = mixHexColor(primaryColor, '#ffffff', 0.35)
+  const primaryTintColor = mixHexColor(primaryColor, '#ffffff', 0.94)
+  const onPrimaryColor = getReadableTextColor(primaryColor)
   const colorMode = typeof options === 'string' ?'color' : (options.colorMode === 'bw' ? 'bw' : 'color')
-  const styleVariant = typeof options === 'string' ?'classic' : (options.styleVariant === 'modern' ? 'modern' : 'classic')
+  const styleVariant = typeof options === 'string' ?'classic' : resolveDocumentStyleVariant({ documentStyleVariant: options.styleVariant })
   return `<!DOCTYPE html>
     <html lang="fr">
     <head>
@@ -448,6 +482,9 @@ function generateHtmlDocument(bodyContent, options = {}) {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
           --doc-primary: ${primaryColor};
+          --doc-primary-soft: ${primarySoftColor};
+          --doc-primary-tint: ${primaryTintColor};
+          --doc-on-primary: ${onPrimaryColor};
           --doc-text: #000000;
           --doc-muted: ${colorMode === 'bw' ? '#000000' : '#0f4f47'};
           --doc-border: ${colorMode === 'bw' ? '#000000' : '#1a8c7e'};
@@ -1088,6 +1125,164 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
         body[data-document-style="modern"] .footer-divider {
           margin: 0.8mm 0 0.6mm;
+        }
+
+        body[data-document-style="sidebar"] .page {
+          grid-template-columns: 30% 70%;
+          grid-template-rows: 1fr auto;
+          padding: 0;
+        }
+        body[data-document-style="sidebar"] .page-header {
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          margin: 0;
+          padding: 10mm 7mm;
+          background: linear-gradient(180deg, var(--doc-primary), var(--doc-primary-soft));
+          color: var(--doc-on-primary);
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
+        }
+        body[data-document-style="sidebar"] .header-top {
+          display: flex;
+          flex-direction: column-reverse;
+          align-items: flex-start;
+          gap: 7mm;
+        }
+        body[data-document-style="sidebar"] .doctor-info {
+          color: var(--doc-on-primary);
+        }
+        body[data-document-style="sidebar"] .doctor-name,
+        body[data-document-style="sidebar"] .doctor-specialty,
+        body[data-document-style="sidebar"] .meta-label,
+        body[data-document-style="sidebar"] .meta-value,
+        body[data-document-style="sidebar"] .patient-label,
+        body[data-document-style="sidebar"] .patient-value,
+        body[data-document-style="sidebar"] .patient-separator,
+        body[data-document-style="sidebar"] .meta-separator {
+          color: var(--doc-on-primary);
+        }
+        body[data-document-style="sidebar"] .doctor-info .meta-item,
+        body[data-document-style="sidebar"] .doctor-info .patient-field {
+          display: block;
+          margin: 0 0 2mm;
+        }
+        body[data-document-style="sidebar"] .patient-line-main {
+          display: block;
+        }
+        body[data-document-style="sidebar"] .patient-separator {
+          display: none;
+        }
+        body[data-document-style="sidebar"] .logo-container {
+          filter: none;
+        }
+        body[data-document-style="sidebar"] .header-divider {
+          display: none;
+        }
+        body[data-document-style="sidebar"] .page-body {
+          grid-column: 2;
+          grid-row: 1;
+          padding: 9mm 9mm 5mm;
+          background: #ffffff;
+        }
+        body[data-document-style="sidebar"] .page-footer {
+          grid-column: 2;
+          grid-row: 2;
+          margin: 0 9mm 7mm;
+        }
+        body[data-document-style="sidebar"] .title-section {
+          text-align: left;
+          margin-top: 0;
+        }
+        body[data-document-style="sidebar"] .doc-title::after {
+          content: "";
+          width: 28mm;
+          height: 1px;
+          margin-top: 2mm;
+          background: var(--doc-primary);
+        }
+
+        body[data-document-style="gradient-header"] .page {
+          padding: 0;
+          grid-template-rows: auto 1fr auto;
+        }
+        body[data-document-style="gradient-header"] .page-header {
+          margin: 0;
+          padding: 9mm 9mm 8mm;
+          background: linear-gradient(135deg, var(--doc-primary), var(--doc-primary-soft));
+          color: var(--doc-on-primary);
+        }
+        body[data-document-style="gradient-header"] .doctor-name,
+        body[data-document-style="gradient-header"] .doctor-specialty,
+        body[data-document-style="gradient-header"] .meta-label,
+        body[data-document-style="gradient-header"] .meta-value,
+        body[data-document-style="gradient-header"] .patient-label,
+        body[data-document-style="gradient-header"] .patient-value,
+        body[data-document-style="gradient-header"] .patient-separator,
+        body[data-document-style="gradient-header"] .meta-separator {
+          color: var(--doc-on-primary);
+        }
+        body[data-document-style="gradient-header"] .header-divider {
+          display: none;
+        }
+        body[data-document-style="gradient-header"] .page-body {
+          padding: 8mm 9mm 5mm;
+          background: #ffffff;
+        }
+        body[data-document-style="gradient-header"] .page-footer {
+          margin: 0 9mm 7mm;
+        }
+        body[data-document-style="gradient-header"] .title-section {
+          text-align: left;
+          margin-top: 0;
+        }
+        body[data-document-style="gradient-header"] .doc-title::after {
+          content: "";
+          width: 24mm;
+          height: 1px;
+          margin-top: 2mm;
+          background: var(--doc-primary);
+        }
+
+        body[data-document-style="minimal"] .page {
+          padding: ${layout.pageSize === 'A4' ? '12mm 16mm' : '9mm 11mm'};
+        }
+        body[data-document-style="minimal"] .page-header {
+          padding: 0;
+        }
+        body[data-document-style="minimal"] .doctor-name {
+          color: #111827;
+          letter-spacing: 0;
+        }
+        body[data-document-style="minimal"] .doctor-specialty {
+          color: #374151;
+          letter-spacing: 0;
+        }
+        body[data-document-style="minimal"] .header-divider,
+        body[data-document-style="minimal"] .footer-divider,
+        body[data-document-style="minimal"] .page-footer {
+          border-color: var(--doc-primary);
+        }
+        body[data-document-style="minimal"] .title-section {
+          text-align: left;
+          margin: 5mm 0 6mm;
+        }
+        body[data-document-style="minimal"] .doc-title {
+          color: #111827;
+          letter-spacing: 0.04em;
+        }
+        body[data-document-style="minimal"] .doc-title::after {
+          content: "";
+          width: 18mm;
+          height: 1px;
+          background: var(--doc-primary);
+          margin-top: 2mm;
+        }
+        body[data-document-style="minimal"] .content-box,
+        body[data-document-style="minimal"] .rapport-meta-item,
+        body[data-document-style="minimal"] .info-item {
+          border-color: var(--doc-primary);
+          background: transparent;
         }
       </style>
     </head>

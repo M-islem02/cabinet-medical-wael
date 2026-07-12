@@ -17,7 +17,10 @@ function refreshUsersList() {
 }
 
 function canCurrentUserCreateAccounts() {
-  return currentUserRole === 'admin' || currentUserIsSuperAdmin === true;
+  return currentUserIsAdmin === true
+    || currentUserIsSuperAdmin === true
+    || localStorage.getItem('currentUserIsAdmin') === 'true'
+    || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
 }
 
 function getRequesterContext() {
@@ -32,7 +35,11 @@ function getRequesterContext() {
 }
 
 function canManageAccounts() {
-  return currentUserIsAdmin === true || currentUserIsSuperAdmin === true;
+  return canCurrentUserCreateAccounts();
+}
+
+function isCurrentUserSuperAdmin() {
+  return currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
 }
 
 function populateManagedRoleOptions(selectedRole = 'doctor') {
@@ -40,11 +47,14 @@ function populateManagedRoleOptions(selectedRole = 'doctor') {
   if (!roleSelect) return;
 
   roleSelect.innerHTML = `
+    ${isCurrentUserSuperAdmin() ? '<option value="doctor_admin">👨‍⚕️ Médecin admin</option>' : ''}
     <option value="doctor">👨‍⚕️ Médecin</option>
     <option value="assistant">🧑‍💼 Assistant(e)</option>
   `;
 
-  roleSelect.value = selectedRole === 'assistant' ? 'assistant' : 'doctor';
+  roleSelect.value = (selectedRole === 'doctor_admin' && isCurrentUserSuperAdmin())
+    ? 'doctor_admin'
+    : (selectedRole === 'assistant' ? 'assistant' : 'doctor');
 }
 
 function populateSpecialtyOptions(selectedSpecialty = '') {
@@ -63,6 +73,8 @@ function populateSpecialtyOptions(selectedSpecialty = '') {
 
   if (selectedSpecialty) {
     specialtySelect.value = selectedSpecialty;
+  } else if (availableSpecialties.length === 1) {
+    specialtySelect.value = availableSpecialties[0].key;
   }
 }
 
@@ -82,13 +94,13 @@ function setUserFormMode(mode = 'create', user = null) {
   if (modeInput) modeInput.value = isEditMode ? 'edit' : 'create';
   if (editingUserId) editingUserId.value = isEditMode && user?.id ? user.id : '';
 
-  if (title) title.textContent = isEditMode ? '✏️ Modifier le Compte' : '➕ Créer un Nouveau Compte';
+  if (title) title.textContent = isEditMode ? 'Modifier le compte' : 'Créer un compte';
   if (subtitle) {
     subtitle.textContent = isEditMode
       ? 'Modifiez le nom, le nom d’utilisateur, la spécialité ou le mot de passe du compte sélectionné.'
       : 'Ajoutez un médecin avec sa spécialité individuelle ou un assistant du cabinet, sans créer de second administrateur.';
   }
-  if (submitBtn) submitBtn.textContent = isEditMode ? '💾 Enregistrer les modifications' : '➕ Créer le compte';
+  if (submitBtn) submitBtn.textContent = isEditMode ? 'Enregistrer' : 'Créer le compte';
   if (passwordLabel) passwordLabel.textContent = isEditMode ? 'Nouveau mot de passe' : 'Mot de passe temporaire *';
   if (confirmLabel) confirmLabel.textContent = isEditMode ? 'Confirmer le nouveau mot de passe' : 'Confirmer le mot de passe *';
   if (passwordHint) {
@@ -118,6 +130,9 @@ function renderUserRoleBadge(user) {
     ? getPracticeSpecialtyMeta(user.specialty || user.role)
     : null;
   const roleLabel = specialtyMeta?.doctorBadgeLabel || (user.role === 'dentist' ? 'DENTISTE' : 'MÉDECIN');
+  if (user.isAdmin) {
+    return `<span style="background: #0f172a; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">👨‍⚕️ ${roleLabel} ADMIN</span>`;
+  }
   return `<span style="background: #2563eb; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">👨‍⚕️ ${roleLabel}</span>`;
 }
 
@@ -141,10 +156,9 @@ async function loadUsersList() {
     }
 
     tbody.innerHTML = users.map(user => {
-      const canManageUser =
-        currentUserIsSuperAdmin
-          ? !user.isSuperAdmin
-          : (currentUserIsAdmin && !user.isSuperAdmin && user.role !== 'admin');
+      const canManageUser = isCurrentUserSuperAdmin()
+        ? !user.isSuperAdmin
+        : (!user.isSuperAdmin && !user.isAdmin);
 
       return `
       <tr style="border-bottom: 1px solid #dee2e6; ${!user.isActive ? 'background: #fee;' : ''}">
@@ -189,7 +203,7 @@ async function loadUsersList() {
 
 function showAddUserModal() {
   if (!canCurrentUserCreateAccounts()) {
-    showNotification('❌ Seuls les administrateurs peuvent ajouter des utilisateurs', 'error');
+    showNotification('❌ Création de comptes non autorisée', 'error');
     return;
   }
   
@@ -205,7 +219,7 @@ function showAddUserModal() {
 
 async function openEditUserModal(userId) {
   if (!canManageAccounts()) {
-    showNotification('Acces refuse: seuls les administrateurs peuvent modifier des comptes', 'error');
+    showNotification('Acces refuse: modification de comptes non autorisée', 'error');
     return;
   }
 
@@ -217,7 +231,7 @@ async function openEditUserModal(userId) {
     }
 
     const user = result.data;
-    const editableRole = user.role === 'assistant' ? 'assistant' : 'doctor';
+    const editableRole = user.role === 'assistant' ? 'assistant' : (user.isAdmin ? 'doctor_admin' : 'doctor');
 
     document.getElementById('add-user-form').reset();
     setUserFormMode('edit', user);
@@ -254,9 +268,16 @@ function updateAddUserRolePresentation(role) {
     return;
   }
 
+  if (role === 'doctor_admin') {
+    badge.textContent = 'Médecin admin';
+    heading.textContent = 'Accès cabinet complet';
+    summary.textContent = 'Le médecin admin voit les dossiers, rendez-vous, consultations et paiements de tout le cabinet.';
+    return;
+  }
+
   badge.textContent = 'Compte médecin';
   heading.textContent = 'Accès médecin';
-  summary.textContent = 'Le compte médecin reçoit une spécialité individuelle qui pilote ses formulaires, ses champs et ses dossiers patients.';
+  summary.textContent = 'Le compte médecin voit uniquement ses dossiers et ses paiements du jour.';
 }
 
 // Global function for form interactivity
@@ -266,10 +287,17 @@ window.toggleSpecialtyField = function() {
   const specialtySelect = document.getElementById('new-user-specialty');
   
   if (group) {
-    if (role === 'doctor') {
-      group.style.display = '';
-      group.classList.add('is-visible');
+    if (role === 'doctor' || role === 'doctor_admin') {
+      const availableSpecialties = typeof getAvailablePracticeSpecialties === 'function'
+        ? getAvailablePracticeSpecialties()
+        : [{ key: 'general', label: 'Médecin généraliste' }];
+      const singleSpecialty = availableSpecialties.length <= 1;
+      group.style.display = singleSpecialty ? 'none' : '';
+      group.classList.toggle('is-visible', !singleSpecialty);
       if (specialtySelect) specialtySelect.required = true;
+      if (singleSpecialty && specialtySelect) {
+        specialtySelect.value = availableSpecialties[0]?.key || 'general';
+      }
     } else {
       group.style.display = 'none';
       group.classList.remove('is-visible');
@@ -284,7 +312,7 @@ async function addUser(event) {
   event.preventDefault();
 
   if (!canCurrentUserCreateAccounts()) {
-    showNotification('❌ Seuls les administrateurs peuvent ajouter des utilisateurs', 'error');
+    showNotification('❌ Création de comptes non autorisée', 'error');
     return;
   }
 
@@ -296,7 +324,9 @@ async function addUser(event) {
   const formMode = document.getElementById('user-form-mode')?.value || 'create';
   const editingUserId = document.getElementById('editing-user-id')?.value || '';
   const roleSelect = document.getElementById('new-user-role');
-  const role = roleSelect ? roleSelect.value : 'doctor';
+  const selectedRole = roleSelect ? roleSelect.value : 'doctor';
+  const role = selectedRole === 'doctor_admin' ? 'doctor' : selectedRole;
+  const isDoctorAdmin = selectedRole === 'doctor_admin';
   const isEditMode = formMode === 'edit';
 
   // Validation
@@ -314,7 +344,12 @@ async function addUser(event) {
     let specialty = '';
     const spSelect = document.getElementById('new-user-specialty');
     if (role === 'doctor' && spSelect) {
-      specialty = spSelect.value;
+      const availableSpecialties = typeof getAvailablePracticeSpecialties === 'function'
+        ? getAvailablePracticeSpecialties()
+        : [{ key: 'general' }];
+      specialty = availableSpecialties.length === 1
+        ? availableSpecialties[0].key
+        : spSelect.value;
     }
 
     const payload = {
@@ -322,7 +357,7 @@ async function addUser(event) {
       password,
       fullName,
       phone,
-      isAdmin: false,
+      isAdmin: isDoctorAdmin,
       ...getRequesterContext(),
       role,
       specialty

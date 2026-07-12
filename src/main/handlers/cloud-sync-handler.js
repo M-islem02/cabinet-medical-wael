@@ -13,7 +13,6 @@ import path from 'path';
 import { app } from 'electron';
 import os from 'os';
 import crypto from 'crypto';
-import Database from 'better-sqlite3';
 import archiver from 'archiver';
 import AdmZip from 'adm-zip';
 
@@ -25,8 +24,9 @@ let lastEndOfDayRunDate = null;
 
 const SYNC_TABLES = [
   'patients', 'consultations', 'appointments', 'payments', 'prescriptions',
-  'documents', 'expenses', 'inventory', 'medication_records', 'settings',
-  'dental_records', 'dental_teeth', 'dental_treatments', 'dental_plans', 'dental_xrays'
+  'documents', 'expenses', 'inventory', 'medication_records', 'settings', 'licenses',
+  'dental_records', 'dental_teeth', 'dental_treatments', 'dental_plans', 'dental_xrays',
+  'treatment_plans', 'plan_payment_sessions'
 ];
 
 const FILE_COLUMN_PATTERN = /photo|image|img|file|fichier|attachment|piece_jointe|document|signature|logo|avatar|scan|radio|resultat_fichier|base64|blob|data/i;
@@ -173,7 +173,7 @@ function getMariaDBBackupConfig() {
 
   return {
     host: nested.host || dbConfig.host || syncConfig?.remoteHost || '',
-    port: parseInt(nested.port || dbConfig.port || syncConfig?.remotePort || 3306, 10) || 3306,
+    port: parseInt(nested.port || dbConfig.port || syncConfig?.remotePort || 5432, 10) || 5432,
     user: nested.user || dbConfig.user || syncConfig?.remoteUser || '',
     password: nested.password || dbConfig.password || syncConfig?.remotePassword || '',
     database: nested.database || dbConfig.database || syncConfig?.remoteDatabase || ''
@@ -399,6 +399,7 @@ function normalizeBackupRow(row, sourceType, tableName, artifacts) {
 }
 
 async function discoverSQLiteBackupSource(artifacts) {
+  return null;
   const sqlitePath = getSQLiteDatabasePath();
   if (!sqlitePath || !fs.existsSync(sqlitePath)) {
     return null;
@@ -440,20 +441,13 @@ async function discoverSQLiteBackupSource(artifacts) {
 }
 
 async function discoverMariaDBBackupSource(artifacts) {
+  return null;
   const config = getMariaDBBackupConfig();
   if (!config.host || !config.user || !config.database) {
     return null;
   }
 
-  const mysql2 = await import('mysql2/promise');
-  const connection = await mysql2.default.createConnection({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: config.database,
-    charset: 'utf8mb4'
-  });
+  const connection = null;
 
   try {
     const [tables] = await connection.execute(`
@@ -1042,7 +1036,7 @@ function defaultSyncConfig() {
     firebaseProject: '',
     firebaseKey: '',
     remoteHost: '',
-    remotePort: 3306,
+    remotePort: 5432,
     remoteUser: '',
     remotePassword: '',
     remoteDatabase: '',
@@ -1100,7 +1094,7 @@ async function loadSyncConfig() {
         firebaseProject: row.firebaseProject || '',
         firebaseKey: row.firebaseKey || '',
         remoteHost: row.remoteHost || '',
-        remotePort: parseInt(row.remotePort) || 3306,
+        remotePort: parseInt(row.remotePort) || 5432,
         remoteUser: row.remoteUser || '',
         remotePassword: row.remotePassword || '',
         remoteDatabase: row.remoteDatabase || '',
@@ -1152,7 +1146,7 @@ async function saveSyncConfig(config) {
         [
           mergedConfig.enabled ? 1 : 0, mergedConfig.provider || 'rest', mergedConfig.apiUrl || '', mergedConfig.apiKey || '',
           mergedConfig.firebaseProject || '', mergedConfig.firebaseKey || '',
-          mergedConfig.remoteHost || '', mergedConfig.remotePort || 3306, mergedConfig.remoteUser || '', mergedConfig.remotePassword || '', mergedConfig.remoteDatabase || '',
+          mergedConfig.remoteHost || '', mergedConfig.remotePort || 5432, mergedConfig.remoteUser || '', mergedConfig.remotePassword || '', mergedConfig.remoteDatabase || '',
           mergedConfig.syncIntervalMinutes || 1440, mergedConfig.autoSync ? 1 : 0,
           mergedConfig.dailyBackupEnabled ? 1 : 0, mergedConfig.dailyBackupTime || '23:55', mergedConfig.autoPushEndOfDay ? 1 : 0,
           mergedConfig.backupDirectory || '',
@@ -1175,7 +1169,7 @@ async function saveSyncConfig(config) {
         [
           uuidv4(), mergedConfig.enabled ? 1 : 0, mergedConfig.provider || 'rest', mergedConfig.apiUrl || '', mergedConfig.apiKey || '',
           mergedConfig.firebaseProject || '', mergedConfig.firebaseKey || '',
-          mergedConfig.remoteHost || '', mergedConfig.remotePort || 3306, mergedConfig.remoteUser || '', mergedConfig.remotePassword || '', mergedConfig.remoteDatabase || '',
+          mergedConfig.remoteHost || '', mergedConfig.remotePort || 5432, mergedConfig.remoteUser || '', mergedConfig.remotePassword || '', mergedConfig.remoteDatabase || '',
           mergedConfig.syncIntervalMinutes || 1440, mergedConfig.autoSync ? 1 : 0,
           mergedConfig.dailyBackupEnabled ? 1 : 0, mergedConfig.dailyBackupTime || '23:55', mergedConfig.autoPushEndOfDay ? 1 : 0,
           mergedConfig.backupDirectory || '',
@@ -1588,15 +1582,12 @@ async function syncFromRESTAPI(config) {
 // ========== CLOUD SYNC - REMOTE MARIADB ==========
 
 async function syncToRemoteMariaDB(config) {
+  return {
+    success: false,
+    error: 'Remote MariaDB sync is disabled in PostgreSQL-only runtime.'
+  };
   try {
-    const mysql2 = await import('mysql2/promise');
-    const connection = await mysql2.default.createConnection({
-      host: config.remoteHost,
-      port: config.remotePort || 3306,
-      user: config.remoteUser,
-      password: config.remotePassword,
-      database: config.remoteDatabase
-    });
+    const connection = null;
 
     const backupBundle = await buildExportBundle('cloud_export');
     const exported = backupBundle.payload;

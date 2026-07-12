@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne, getCurrentMode } from '../database-unified.js';
+import { query, run, queryOne } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -56,6 +56,38 @@ function isAssistantUser() {
   return global.currentUser?.role === 'assistant';
 }
 
+function normalizeUserRole(role) {
+  return role === 'director' ? 'doctor' : String(role || '').trim();
+}
+
+function getPaymentUserContext() {
+  const role = normalizeUserRole(global.currentUser?.role);
+  return {
+    userId: global.currentUser?.id || null,
+    role,
+    isAdmin: !!global.currentUser?.isAdmin && !global.currentUser?.isSuperAdmin,
+    isSuperAdmin: !!global.currentUser?.isSuperAdmin,
+    isPractitioner: role === 'doctor' || role === 'dentist',
+    isAssistant: role === 'assistant'
+  };
+}
+
+function getTodayPaymentDateClause(paymentAlias = 'payments') {
+  return `DATE(${paymentAlias}.paymentDate) = CURRENT_DATE`;
+}
+
+function getPaymentAccessScope(paymentAlias = 'payments', patientAlias = 'patients') {
+  const userContext = getPaymentUserContext();
+  if (userContext.isPractitioner && !userContext.isAdmin && userContext.userId) {
+    return {
+      clause: getTodayPaymentDateClause(paymentAlias),
+      params: []
+    };
+  }
+
+  return { clause: '', params: [] };
+}
+
 function buildPaymentSelect() {
   return `
     SELECT payments.*,
@@ -82,6 +114,17 @@ export function handlePaymentEvents() {
     try {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
+      const consultationId = toNullIfEmpty(paymentData.consultationId);
+
+      if (consultationId) {
+        const existing = await queryOne(
+          'SELECT id FROM payments WHERE consultationId = ? ORDER BY createdAt DESC LIMIT 1',
+          [consultationId]
+        );
+        if (existing?.id) {
+          return { success: true, id: existing.id, duplicate: true };
+        }
+      }
 
       await run(
         `INSERT INTO payments
@@ -90,7 +133,7 @@ export function handlePaymentEvents() {
         [
           id,
           paymentData.patientId,
-          toNullIfEmpty(paymentData.consultationId),
+          consultationId,
           toNumberOrNull(paymentData.amount) || 0,
           paymentData.paymentDate || now,
           paymentData.paymentMethod || 'Especes',
@@ -110,12 +153,22 @@ export function handlePaymentEvents() {
 
   ipcMain.handle('payment:getByPatient', async (event, patientId) => {
     try {
+      const scope = getPaymentAccessScope('payments', 'patients');
+      const whereParts = ['payments.patientId = ?'];
+      const params = [patientId];
+
+      if (scope.clause) {
+        whereParts.push(scope.clause);
+        params.push(...scope.params);
+      }
+
       const payments = await query(
-        `SELECT *
+        `SELECT payments.*
          FROM payments
-         WHERE patientId = ?
+         LEFT JOIN patients ON patients.id = payments.patientId
+         WHERE ${whereParts.join(' AND ')}
          ORDER BY paymentDate DESC`,
-        [patientId]
+        params
       );
 
       return { success: true, data: payments.map(applyPaymentVisibility) };
@@ -131,16 +184,25 @@ export function handlePaymentEvents() {
         return { success: true, data: null };
       }
 
+      const scope = getPaymentAccessScope('payments', 'patients');
+      const whereParts = ['payments.consultationId = ?'];
+      const params = [consultationId];
+
+      if (scope.clause) {
+        whereParts.push(scope.clause);
+        params.push(...scope.params);
+      }
+
       const payment = await queryOne(
         `SELECT payments.*,
                 patients.firstName AS patientFirstName,
                 patients.lastName AS patientLastName
          FROM payments
          LEFT JOIN patients ON patients.id = payments.patientId
-         WHERE payments.consultationId = ?
+         WHERE ${whereParts.join(' AND ')}
          ORDER BY payments.paymentDate DESC
          LIMIT 1`,
-        [consultationId]
+        params
       );
 
       return { success: true, data: payment ? applyPaymentVisibility(payment) : null };
@@ -156,7 +218,22 @@ export function handlePaymentEvents() {
         return { success: false, error: 'Acces refuse' };
       }
 
-      const payment = await queryOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+      const scope = getPaymentAccessScope('payments', 'patients');
+      const whereParts = ['payments.id = ?'];
+      const params = [paymentId];
+
+      if (scope.clause) {
+        whereParts.push(scope.clause);
+        params.push(...scope.params);
+      }
+
+      const payment = await queryOne(
+        `SELECT payments.*
+         FROM payments
+         LEFT JOIN patients ON patients.id = payments.patientId
+         WHERE ${whereParts.join(' AND ')}`,
+        params
+      );
       if (!payment) {
         return { success: false, error: 'Paiement non trouve' };
       }
@@ -189,6 +266,12 @@ export function handlePaymentEvents() {
         params.push(request.paymentMethod);
       }
 
+      const scope = getPaymentAccessScope('payments', 'patients');
+      if (scope.clause) {
+        whereParts.push(scope.clause);
+        params.push(...scope.params);
+      }
+
       const whereClause = whereParts.join(' AND ');
 
       if (!request.paginated) {
@@ -205,6 +288,7 @@ export function handlePaymentEvents() {
       const totalRow = await queryOne(
         `SELECT COUNT(*) as total
          FROM payments
+         LEFT JOIN patients ON patients.id = payments.patientId
          WHERE ${whereClause}`,
         params
       );
@@ -235,17 +319,28 @@ export function handlePaymentEvents() {
 
   ipcMain.handle('payment:getTotalIncome', async (event, filters = {}) => {
     try {
-      let sql = 'SELECT SUM(amount) as total FROM payments WHERE 1=1';
+      let sql = `
+        SELECT SUM(payments.amount) as total
+        FROM payments
+        LEFT JOIN patients ON patients.id = payments.patientId
+        WHERE 1=1
+      `;
       const params = [];
 
       if (filters.startDate) {
-        sql += ' AND paymentDate >= ?';
+        sql += ' AND payments.paymentDate >= ?';
         params.push(filters.startDate);
       }
 
       if (filters.endDate) {
-        sql += ' AND paymentDate <= ?';
+        sql += ' AND payments.paymentDate <= ?';
         params.push(filters.endDate);
+      }
+
+      const scope = getPaymentAccessScope('payments', 'patients');
+      if (scope.clause) {
+        sql += ` AND ${scope.clause}`;
+        params.push(...scope.params);
       }
 
       const result = await queryOne(sql, params);
@@ -262,44 +357,46 @@ export function handlePaymentEvents() {
   ipcMain.handle('payment:getIncomeByPeriod', async (event, options = {}) => {
     try {
       const { period = 'month', startDate, endDate } = options;
-      const isSQLite = getCurrentMode() === 'sqlite';
 
       let groupBy = '';
       let whereClause = '';
       const params = [];
 
       if (period === 'day') {
-        groupBy = 'DATE(paymentDate)';
+        groupBy = 'DATE(payments.paymentDate)';
       } else if (period === 'week') {
-        groupBy = isSQLite
-          ? "STRFTIME('%Y-%W', paymentDate)"
-          : "DATE_FORMAT(paymentDate, '%x-%v')";
+        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'IYYY-\"W\"IW')";
       } else if (period === 'year') {
-        groupBy = isSQLite
-          ? "STRFTIME('%Y', paymentDate)"
-          : 'YEAR(paymentDate)';
+        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'YYYY')";
       } else {
-        groupBy = isSQLite
-          ? "STRFTIME('%Y-%m', paymentDate)"
-          : "DATE_FORMAT(paymentDate, '%Y-%m')";
+        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'YYYY-MM')";
       }
 
       if (startDate && endDate) {
-        whereClause = 'WHERE paymentDate BETWEEN ? AND ?';
+        whereClause = 'WHERE payments.paymentDate BETWEEN ? AND ?';
         params.push(startDate, endDate);
       } else if (startDate) {
-        whereClause = 'WHERE paymentDate >= ?';
+        whereClause = 'WHERE payments.paymentDate >= ?';
         params.push(startDate);
       } else if (endDate) {
-        whereClause = 'WHERE paymentDate <= ?';
+        whereClause = 'WHERE payments.paymentDate <= ?';
         params.push(endDate);
       }
+
+      const whereParts = whereClause ? [whereClause.replace(/^WHERE\s+/i, '')] : [];
+      const scope = getPaymentAccessScope('payments', 'patients');
+      if (scope.clause) {
+        whereParts.push(scope.clause);
+        params.push(...scope.params);
+      }
+      whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
       const results = await query(
         `SELECT
            ${groupBy} as period,
-           SUM(amount) as income
+           SUM(payments.amount) as income
          FROM payments
+         LEFT JOIN patients ON patients.id = payments.patientId
          ${whereClause}
          GROUP BY ${groupBy}
          ORDER BY ${groupBy} DESC
@@ -318,6 +415,20 @@ export function handlePaymentEvents() {
     try {
       if (isAssistantUser()) {
         return { success: false, error: 'Modification non autorisee' };
+      }
+
+      const scope = getPaymentAccessScope('payments', 'patients');
+      if (scope.clause) {
+        const allowed = await queryOne(
+          `SELECT payments.id
+           FROM payments
+           LEFT JOIN patients ON patients.id = payments.patientId
+           WHERE payments.id = ? AND ${scope.clause}`,
+          [paymentId, ...scope.params]
+        );
+        if (!allowed) {
+          return { success: false, error: 'Modification non autorisee' };
+        }
       }
 
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -348,6 +459,20 @@ export function handlePaymentEvents() {
     try {
       if (isAssistantUser()) {
         return { success: false, error: 'Suppression non autorisee' };
+      }
+
+      const scope = getPaymentAccessScope('payments', 'patients');
+      if (scope.clause) {
+        const allowed = await queryOne(
+          `SELECT payments.id
+           FROM payments
+           LEFT JOIN patients ON patients.id = payments.patientId
+           WHERE payments.id = ? AND ${scope.clause}`,
+          [paymentId, ...scope.params]
+        );
+        if (!allowed) {
+          return { success: false, error: 'Suppression non autorisee' };
+        }
       }
 
       await run('DELETE FROM payments WHERE id = ?', [paymentId]);

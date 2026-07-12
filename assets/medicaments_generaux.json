@@ -1,0 +1,95 @@
+{
+  "specialite": "general",
+  "medicaments": [
+    {
+      "id": "gen_001",
+      "nom_medicament": "Paracétamol",
+      "dosage_posologie": "1000mg",
+      "prise": "1 comprimé toutes les 6 heures si douleur/fièvre",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique/antipyrétique de première intention. Ne pas dépasser 4g/jour."
+    },
+    {
+      "id": "gen_002",
+      "nom_medicament": "Amoxicilline",
+      "dosage_posologie": "500mg",
+      "prise": "1 gélule matin, midi et soir",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Antibiotique à large spectre. Vérifier absence d'allergie à la pénicilline."
+    },
+    {
+      "id": "gen_003",
+      "nom_medicament": "Ibuprofène",
+      "dosage_posologie": "400mg",
+      "prise": "1 comprimé matin, midi et soir",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Anti-inflammatoire - à prendre au cours des repas."
+    },
+    {
+      "id": "gen_004",
+      "nom_medicament": "Oméprazole",
+      "dosage_posologie": "20mg",
+      "prise": "1 gélule le matin à jeun",
+      "duree": "4 à 8 semaines",
+      "boites": 1,
+      "instructions_observations": "Inhibiteur de la pompe à protons - reflux/gastrite. Prendre avant le petit-déjeuner."
+    },
+    {
+      "id": "gen_005",
+      "nom_medicament": "Métformine",
+      "dosage_posologie": "500mg",
+      "prise": "1 comprimé matin et soir",
+      "duree": "Traitement au long cours",
+      "boites": 1,
+      "instructions_observations": "Antidiabétique oral. Prendre au cours des repas pour limiter les troubles digestifs."
+    },
+    {
+      "id": "gen_006",
+      "nom_medicament": "Amoxicilline + Acide clavulanique",
+      "dosage_posologie": "1g",
+      "prise": "1 comprimé matin et soir",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Infections ORL/respiratoires résistantes. À prendre au début du repas."
+    },
+    {
+      "id": "gen_007",
+      "nom_medicament": "Cétirizine",
+      "dosage_posologie": "10mg",
+      "prise": "1 comprimé par jour, de préférence le soir",
+      "duree": "Selon besoin",
+      "boites": 1,
+      "instructions_observations": "Antihistaminique - allergies. Peu sédatif mais prudence sur la conduite."
+    },
+    {
+      "id": "gen_008",
+      "nom_medicament": "Salbutamol spray",
+      "dosage_posologie": "100µg/dose",
+      "prise": "1 à 2 bouffées en cas de gêne respiratoire",
+      "duree": "À la demande",
+      "boites": 1,
+      "instructions_observations": "Bronchodilatateur d'action rapide. Bien agiter avant usage."
+    },
+    {
+      "id": "gen_009",
+      "nom_medicament": "Fer + Acide folique",
+      "dosage_posologie": "80mg / 0,35mg",
+      "prise": "1 comprimé par jour",
+      "duree": "1 à 3 mois",
+      "boites": 1,
+      "instructions_observations": "Traitement de l'anémie ferriprive. Peut colorer les selles en noir (normal)."
+    },
+    {
+      "id": "gen_010",
+      "nom_medicament": "Solution de réhydratation orale (SRO)",
+      "dosage_posologie": "1 sachet dans 200ml d'eau",
+      "prise": "Après chaque selle liquide",
+      "duree": "Jusqu'à amélioration",
+      "boites": 1,
+      "instructions_observations": "Prévention de la déshydratation en cas de diarrhée. Préparer une solution fraîche à chaque prise."
+    }
+  ]
+}

@@ -38,6 +38,7 @@ logs/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
 
 # Licenses
 licenses/*.json

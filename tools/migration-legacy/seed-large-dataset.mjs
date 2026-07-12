@@ -15,6 +15,18 @@ const DEFAULTS = {
   inventory: 400
 };
 
+const PRESETS = {
+  test: {
+    patients: 100,
+    consultations: 50,
+    prescriptions: 50,
+    payments: 50,
+    appointments: 50,
+    documents: 50,
+    inventory: 50
+  }
+};
+
 const FIRST_NAMES = [
   'Mohamed', 'Ahmed', 'Yacine', 'Islam', 'Imene', 'Asma', 'Aya', 'Lina', 'Nour', 'Sarra',
   'Rania', 'Amine', 'Sofiane', 'Walid', 'Meriem', 'Abir', 'Samir', 'Nadia', 'Khaled', 'Nesrine'
@@ -43,8 +55,13 @@ const INVENTORY_CATEGORIES = [
 ];
 
 function parseArgs(argv) {
+  const presetIndex = argv.indexOf('--preset');
+  const presetName = presetIndex >= 0 ? argv[presetIndex + 1] : null;
+  const preset = presetName && PRESETS[presetName] ? PRESETS[presetName] : {};
   const options = {
     ...DEFAULTS,
+    ...preset,
+    preset: presetName || null,
     tag: `perf-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`
   };
 
@@ -53,10 +70,14 @@ function parseArgs(argv) {
     if (!arg.startsWith('--')) continue;
     const key = arg.slice(2);
     const next = argv[i + 1];
-    if (key in options && next && !next.startsWith('--')) {
+    if (key in options && key !== 'preset' && next && !next.startsWith('--')) {
       options[key] = key === 'tag' ? next : Number(next);
       i += 1;
     }
+  }
+
+  if (presetName && !PRESETS[presetName]) {
+    throw new Error(`Preset inconnu: ${presetName}. Presets disponibles: ${Object.keys(PRESETS).join(', ')}`);
   }
 
   return options;

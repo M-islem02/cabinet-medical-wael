@@ -1,12 +1,21 @@
-﻿/**
+/**
  * Gestionnaire IPC pour le module Dentiste
- * PhysioCare - SystÃ¨me de gestion dentaire professionnel
  */
 
 import { ipcMain } from 'electron';
 import { query, queryOne, run } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { broadcastRealtimeEvent } from '../realtime-server.js';
+import { recalculatePlanTotals, getOrCreateDefaultPlan } from './treatment-plans-handler.js';
+
+const ALLOWED_TRANSITIONS = {
+  proposed:    ['planned', 'cancelled'],
+  planned:     ['in_progress', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
+  completed:   [],
+  cancelled:   []
+};
 
 async function runWithFallback(primarySql, primaryParams, fallbackSql, fallbackParams = primaryParams) {
   try {
@@ -101,15 +110,23 @@ export function handleDentistEvents() {
             status = ?, surfaces = ?, notes = ?, updatedAt = ?
           WHERE id = ?
         `, [data.status, data.surfaces, data.notes, now, existing.id]);
-        return { success: true, id: existing.id };
       } else {
         const id = uuidv4();
         await run(`
           INSERT INTO dental_teeth (id, patientId, toothNumber, status, surfaces, notes, updatedAt)
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [id, data.patientId, data.toothNumber, data.status, data.surfaces, data.notes, now]);
-        return { success: true, id };
       }
+
+      // Broadcast tooth update for real-time chart refresh
+      broadcastRealtimeEvent({
+        type: 'dental:tooth-updated',
+        patientId: data.patientId,
+        toothNumber: data.toothNumber,
+        status: data.status
+      });
+
+      return { success: true };
     } catch (error) {
       console.error('Error saving tooth:', error);
       return { success: false, error: error.message };
@@ -146,26 +163,73 @@ export function handleDentistEvents() {
 
   // ========== DENTAL TREATMENTS ==========
 
+  // Get treatments grouped by tooth for real-time color overlay
+  ipcMain.handle('dental:getTreatmentsByPatient', async (event, patientId) => {
+    try {
+      const treatments = await query(`
+        SELECT toothNumber, status, treatmentType, treatmentDate
+        FROM dental_treatments
+        WHERE patientId = ?
+        ORDER BY treatmentDate DESC
+      `, [patientId]);
+      // Return map: toothNumber -> most recent treatment
+      const map = {};
+      for (const t of (treatments || [])) {
+        if (t.toothNumber && !map[t.toothNumber]) {
+          map[t.toothNumber] = t;
+        }
+      }
+      return { success: true, data: map };
+    } catch (error) {
+      console.error('Error getting treatments by patient:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('dental:createTreatment', async (event, data) => {
     try {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      await runWithFallback(
-        `INSERT INTO dental_treatments (id, patientId, toothNumber, treatmentDate, treatmentType,
-          surfaces, description, cost, paid, status, notes, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, data.patientId, data.toothNumber, data.treatmentDate || now,
-          data.treatmentType, data.surfaces, data.description,
-          data.cost || 0, data.paid || 0, data.status || 'completed', data.notes, now, now],
-        `INSERT INTO dental_treatments (id, patientId, toothNumber, treatmentDate, treatmentType,
-          surfaces, description, cost, isPaid, status, notes, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, data.patientId, data.toothNumber, data.treatmentDate || now,
-          data.treatmentType, data.surfaces, data.description,
-          data.cost || 0, (data.paid || 0) >= (data.cost || 0) ? 1 : 0,
-          data.status || 'completed', data.notes, now, now]
+
+      // Auto-link to a plan (create default if needed)
+      let planId = data.planId || null;
+      if (!planId && data.patientId) {
+        try {
+          planId = await getOrCreateDefaultPlan(data.patientId, data.doctorId, 'dentistry');
+        } catch (e) {
+          console.warn('Could not auto-create plan:', e.message);
+        }
+      }
+
+      await run(`
+        INSERT INTO dental_treatments
+          (id, patientId, toothNumber, treatmentDate, treatmentType,
+           surfaces, description, cost, status, planId, doctorId, notes, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, data.patientId, data.toothNumber,
+         data.treatmentDate || now, data.treatmentType,
+         data.surfaces, data.description,
+         data.cost || 0, data.status || 'proposed',
+         planId, data.doctorId || null, data.notes, now, now]
       );
-      return { success: true, id };
+
+      if (planId && data.cost > 0) {
+        try {
+          await recalculatePlanTotals(planId);
+          broadcastRealtimeEvent({ type: 'plan:updated', planId });
+        } catch (e) {
+          console.warn('Could not update plan cost:', e.message);
+        }
+      }
+
+      // Refresh tooth color via WS
+      broadcastRealtimeEvent({
+        type: 'dental:treatment-updated',
+        patientId: data.patientId,
+        toothNumber: data.toothNumber
+      });
+
+      return { success: true, id, planId };
     } catch (error) {
       console.error('Error creating treatment:', error);
       return { success: false, error: error.message };
@@ -236,21 +300,61 @@ export function handleDentistEvents() {
   ipcMain.handle('dental:updateTreatment', async (event, id, data) => {
     try {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      await runWithFallback(
-        `UPDATE dental_treatments SET
+
+      // Validate state machine transition
+      const existing = await queryOne(`SELECT status, planId FROM dental_treatments WHERE id = ?`, [id]);
+      if (!existing) return { success: false, error: 'Traitement introuvable' };
+
+      if (data.status && data.status !== existing.status) {
+        const allowed = ALLOWED_TRANSITIONS[existing.status] || [];
+        if (!allowed.includes(data.status)) {
+          return {
+            success: false,
+            error: `Transition de statut non autorisée : ${existing.status} → ${data.status}`
+          };
+        }
+        // Block editing completed treatment unless admin override
+        if (existing.status === 'completed' && !data._adminOverride) {
+          return { success: false, error: 'Traitement terminé — modification réservée aux admins' };
+        }
+      }
+
+      await run(`
+        UPDATE dental_treatments SET
           toothNumber = ?, treatmentType = ?, surfaces = ?,
-          description = ?, cost = ?, paid = ?, status = ?, notes = ?, updatedAt = ?
+          description = ?, cost = ?, status = ?, planId = ?, notes = ?, updatedAt = ?
         WHERE id = ?`,
         [data.toothNumber, data.treatmentType, data.surfaces,
-          data.description, data.cost, data.paid || 0, data.status, data.notes, now, id],
-        `UPDATE dental_treatments SET
-          toothNumber = ?, treatmentType = ?, surfaces = ?,
-          description = ?, cost = ?, isPaid = ?, status = ?, notes = ?, updatedAt = ?
-        WHERE id = ?`,
-        [data.toothNumber, data.treatmentType, data.surfaces,
-          data.description, data.cost, (data.paid || 0) >= (data.cost || 0) ? 1 : 0,
-          data.status, data.notes, now, id]
+         data.description, data.cost, data.status || existing.status,
+         data.planId || existing.planId, data.notes, now, id]
       );
+
+      const planId = data.planId || existing.planId;
+      if (planId) {
+        await recalculatePlanTotals(planId);
+      }
+      if (existing.planId && planId && String(existing.planId) !== String(planId)) {
+        await recalculatePlanTotals(existing.planId);
+      }
+
+      // If status → completed, check if all plan treatments are done
+      if (data.status === 'completed' && planId) {
+        const remaining = await queryOne(
+          `SELECT COUNT(*) as cnt FROM dental_treatments
+           WHERE planId = ? AND status != 'completed' AND status != 'cancelled'`,
+          [planId]
+        );
+        if (Number(remaining?.cnt || 0) === 0) {
+          broadcastRealtimeEvent({ type: 'plan:auto-close-check', planId });
+        }
+      }
+
+      broadcastRealtimeEvent({
+        type: 'dental:treatment-updated',
+        patientId: data.patientId,
+        toothNumber: data.toothNumber
+      });
+
       return { success: true };
     } catch (error) {
       console.error('Error updating treatment:', error);
@@ -260,7 +364,23 @@ export function handleDentistEvents() {
 
   ipcMain.handle('dental:deleteTreatment', async (event, id) => {
     try {
+      const treatment = await queryOne(`SELECT planId, cost FROM dental_treatments WHERE id = ?`, [id]);
       await run('DELETE FROM dental_treatments WHERE id = ?', [id]);
+
+      // Recalculate plan cost after deletion
+      if (treatment?.planId) {
+        const totalCostRow = await queryOne(
+          `SELECT COALESCE(SUM(cost), 0) as total FROM dental_treatments WHERE planId = ?`,
+          [treatment.planId]
+        );
+        await run(
+          `UPDATE treatment_plans SET totalCost = ?, updatedAt = ? WHERE id = ?`,
+          [Number(totalCostRow?.total || 0), moment().format('YYYY-MM-DD HH:mm:ss'), treatment.planId]
+        );
+        await recalculatePlanTotals(treatment.planId);
+        broadcastRealtimeEvent({ type: 'plan:updated', planId: treatment.planId });
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Error deleting treatment:', error);

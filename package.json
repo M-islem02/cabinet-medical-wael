@@ -19,14 +19,14 @@
   "dependencies": {
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
-    "better-sqlite3": "^11.10.0",
     "moment": "^2.29.4",
-    "mysql2": "^3.16.0",
     "node-fetch": "^3.3.2",
     "pdfkit": "^0.13.0",
+    "pg": "^8.13.1",
     "qrcode": "^1.5.4",
     "serialport": "^13.0.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.2",

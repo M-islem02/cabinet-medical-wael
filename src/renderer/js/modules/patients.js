@@ -1,5 +1,5 @@
 // ========== PATIENTS ==========
-const PATIENTS_PAGE_SIZE = 10;
+const PATIENTS_PAGE_SIZE = 15;
 let patientsFilteredData = [];
 let patientsSearchTerm = '';
 let patientsPagination = {
@@ -405,7 +405,7 @@ function showPatientForm() {
     window.api.user.getAll({ requestingUserId: currentUserId }).then(res => {
       if (res.success) {
         const doctors = (res.data || []).filter((user) => {
-          if (!user || !user.id || user.isSuperAdmin || user.isAdmin) return false;
+          if (!user || !user.id || user.isSuperAdmin) return false;
           return user.role === 'doctor' || user.role === 'dentist';
         });
         const select = document.getElementById('patient-primaryDoctorId');

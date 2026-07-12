@@ -6,6 +6,7 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { broadcastRealtimeEvent } from '../realtime-server.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -16,6 +17,12 @@ export function handleNotificationEvents() {
   // Créer une notification
   ipcMain.handle('notification:create', async (event, data) => {
     try {
+      const isAssistantMessage = global.currentUser?.role === 'assistant'
+        && String(data?.type || '').toLowerCase() === 'message';
+      if (isAssistantMessage) {
+        return { success: false, error: 'L’assistant ne peut pas envoyer de message au médecin' };
+      }
+
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
@@ -35,6 +42,16 @@ export function handleNotificationEvents() {
           now
         ]
       );
+
+      broadcastRealtimeEvent({
+        type: 'notification:new',
+        id,
+        notificationType: data.type,
+        title: data.title,
+        message: data.message,
+        relatedType: data.relatedType || '',
+        relatedId: data.relatedId || ''
+      }, data.userId ? { userId: data.userId } : {});
 
       return { success: true, id };
     } catch (error) {

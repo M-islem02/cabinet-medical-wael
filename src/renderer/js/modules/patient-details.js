@@ -733,6 +733,7 @@ async function openManualPaymentRequestFromConsultationDraft() {
     dueDate,
     context: 'consultation-draft'
   });
+  closeModal('modal-consultation');
 }
 
 async function openDirectPaymentFromConsultationDraft() {
@@ -787,6 +788,7 @@ async function openDirectPaymentFromConsultationDraft() {
     }
 
     showModal('modal-add-payment');
+    closeModal('modal-consultation');
   } catch (error) {
     console.error('Error opening direct payment from consultation draft:', error);
     showNotification('Erreur lors de l\'ouverture du paiement', 'error');
@@ -1119,13 +1121,18 @@ async function showPatientDetails(patientId) {
       currentPatientId = patientId;
       currentPatientData = patient;
 
+      // Keep summary cards collapsed on first view; content is ready when opened.
+      const personalCard = document.getElementById('patient-personal-card');
+      const medicalCard = document.getElementById('patient-medical-card');
+      if (personalCard) personalCard.removeAttribute('open');
+      if (medicalCard) medicalCard.removeAttribute('open');
+
       // Update Header Info
       const nameEl = document.getElementById('details-patient-name');
       if (nameEl) nameEl.textContent = `${patient.firstName} ${patient.lastName}`;
 
       // Populate Info Card
       const infoContent = document.getElementById('patient-info-content');
-      const personalCard = document.getElementById('patient-personal-card');
       if (infoContent) {
         const ageYears = typeof calculatePatientAgeYears === 'function'
           ? calculatePatientAgeYears(patient.dateOfBirth)
@@ -1355,11 +1362,11 @@ function renderPatientConsultations() {
         <td>${paymentStatus}</td>
         <td>
           <div class="table-actions consultation-table-actions">
-            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" title="Ouvrir la fiche de consultation" onclick="viewConsultationDetails('${c.id}')">&#128065;&#65039;</button>
-            <button class="btn btn-tiny btn-warning consultation-action-chip consultation-action-chip-icon" title="Créer une demande de paiement" onclick="openPaymentRequestFromConsultationRecord('${c.id}')">&#128176;</button>
-            <button class="btn btn-tiny btn-info consultation-action-chip consultation-action-chip-icon" title="Modifier la consultation" onclick="editConsultation('${c.id}')">&#9998;&#65039;</button>
-            <button class="btn btn-tiny btn-primary consultation-action-chip consultation-action-chip-icon" title="Imprimer la consultation" onclick="printConsultationDetails('${c.id}')">&#128424;&#65039;</button>
-            <button class="btn btn-tiny btn-danger consultation-action-chip consultation-action-chip-icon" title="Supprimer la consultation" onclick="deleteConsultation('${c.id}')">&#128465;&#65039;</button>
+            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" title="Voir la consultation" aria-label="Voir la consultation" data-tooltip="Voir la consultation" onclick="viewConsultationDetails('${c.id}')">&#128065;&#65039;</button>
+            <button class="btn btn-tiny btn-warning consultation-action-chip consultation-action-chip-icon" title="Demander un paiement" aria-label="Demander un paiement" data-tooltip="Demander un paiement" onclick="openPaymentRequestFromConsultationRecord('${c.id}')">&#128176;</button>
+            <button class="btn btn-tiny btn-info consultation-action-chip consultation-action-chip-icon" title="Modifier la consultation" aria-label="Modifier la consultation" data-tooltip="Modifier la consultation" onclick="editConsultation('${c.id}')">&#9998;&#65039;</button>
+            <button class="btn btn-tiny btn-primary consultation-action-chip consultation-action-chip-icon" title="Imprimer la consultation" aria-label="Imprimer la consultation" data-tooltip="Imprimer la consultation" onclick="printConsultationDetails('${c.id}')">&#128424;&#65039;</button>
+            <button class="btn btn-tiny btn-danger consultation-action-chip consultation-action-chip-icon" title="Supprimer la consultation" aria-label="Supprimer la consultation" data-tooltip="Supprimer la consultation" onclick="deleteConsultation('${c.id}')">&#128465;&#65039;</button>
           </div>
         </td>
       </tr>
@@ -3428,31 +3435,43 @@ function renderPatientDentalImages(images) {
 // Navigate to full dental chart with the current patient pre-selected
 function goToFullDentalChart() {
   if (!currentPatientId) return;
-  // Switch to dentistry section
   if (typeof showSection === 'function') showSection('dentistry');
-  // Select the patient in the dental chart
-  setTimeout(() => {
+  const selectCurrentPatient = (attempt = 0) => {
+    if (typeof switchDentalTab === 'function') switchDentalTab('chart');
     const selector = document.getElementById('dental-patient-selector');
-    if (selector) {
-      selector.value = currentPatientId;
-      if (typeof selectDentalPatient === 'function') selectDentalPatient(currentPatientId);
+    if (!selector && attempt < 10) {
+      setTimeout(() => selectCurrentPatient(attempt + 1), 120);
+      return;
     }
-  }, 200);
+    if (typeof window.setLazyPatientFieldValue === 'function') {
+      window.setLazyPatientFieldValue('dental-patient-selector', currentPatientId);
+    }
+    if (selector) selector.value = currentPatientId;
+    if (typeof selectDentalPatient === 'function') selectDentalPatient(currentPatientId);
+  };
+  setTimeout(() => selectCurrentPatient(), 120);
 }
 
 function goToFullDentalChartTooth(toothNumber) {
   if (!currentPatientId) return;
   if (typeof showSection === 'function') showSection('dentistry');
-  setTimeout(() => {
+  const selectCurrentPatientTooth = (attempt = 0) => {
+    if (typeof switchDentalTab === 'function') switchDentalTab('chart');
     const selector = document.getElementById('dental-patient-selector');
-    if (selector) {
-      selector.value = currentPatientId;
-      if (typeof selectDentalPatient === 'function') selectDentalPatient(currentPatientId);
-      setTimeout(() => {
-        if (typeof selectDentalTooth === 'function') selectDentalTooth(toothNumber);
-      }, 400);
+    if (!selector && attempt < 10) {
+      setTimeout(() => selectCurrentPatientTooth(attempt + 1), 120);
+      return;
     }
-  }, 200);
+    if (typeof window.setLazyPatientFieldValue === 'function') {
+      window.setLazyPatientFieldValue('dental-patient-selector', currentPatientId);
+    }
+    if (selector) selector.value = currentPatientId;
+    if (typeof selectDentalPatient === 'function') selectDentalPatient(currentPatientId);
+    setTimeout(() => {
+      if (typeof selectDentalTooth === 'function') selectDentalTooth(toothNumber);
+    }, 450);
+  };
+  setTimeout(() => selectCurrentPatientTooth(), 120);
 }
 
 // Open treatment modal from patient details (using global dental patient context)

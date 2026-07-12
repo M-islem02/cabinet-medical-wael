@@ -1,4 +1,4 @@
-﻿// ========== INVOICE & REPORT GENERATION ==========
+// ========== INVOICE & REPORT GENERATION ==========
 // NOTE: ensureSettingsLoaded and cachedSettings are now defined in globals.js
 
 function normalizeDocumentTarget(target) {
@@ -372,7 +372,7 @@ function renderFacturePreview() {
       `).join('')
     : `
       <tr>
-        <td colspan="3">Aucune ligne de facturation ajout?e pour le moment.</td>
+        <td colspan="3">Aucune ligne de facturation ajoutée pour le moment.</td>
       </tr>
     `;
   const totalLabel = data.totalPrice !== '' || totals.baseTotal || totals.additionalTotal
@@ -1584,7 +1584,7 @@ window.printRapportDocument = printRapportDocument;
 /**
  * Open the "Bon Pour" modal for medical requests (analyses, radios, etc.)
  */
-async function openBonPourModal(patientId) {
+async function openBonPourModal(patientId, preset = null) {
   if (!patientId) {
     showNotification('Veuillez selectionner un patient', 'warning');
     return;
@@ -1702,6 +1702,13 @@ async function openBonPourModal(patientId) {
               </div>
             </div>
             
+            <div id="bonpour-specialty-presets-container" class="bonpour-specialty-presets-container" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+              <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block;">Modèles d'examens par spécialité</label>
+              <div id="bonpour-specialty-presets" class="patient-documents-chip-grid" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <!-- Populated dynamically by JS -->
+              </div>
+            </div>
+            
             <div class="orientation-quick-panel bonpour-check-panel" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
               <label style="font-size: 13px; font-weight: 600; margin-bottom: 10px; display: block;">Examens courants (cochez pour ajouter)</label>
               <div id="bonpour-quick-items" class="checkbox-grid bonpour-checkbox-grid">
@@ -1732,7 +1739,7 @@ async function openBonPourModal(patientId) {
   document.getElementById('bonpour-details').value = '';
   document.getElementById('bonpour-indication').value = '';
   document.getElementById('bonpour-notes').value = '';
-  document.getElementById('bonpour-type').value = 'analyses';
+  document.getElementById('bonpour-type').value = preset?.type || 'analyses';
   document.getElementById('bonpour-body-font-size').value = '11';
   
   // Clear edit ID (for new documents)
@@ -1747,6 +1754,57 @@ async function openBonPourModal(patientId) {
   
   // Update quick items
   updateBonPourContent();
+
+  const specialtyConfig = typeof getPatientDocumentSpecialtyConfig === 'function'
+    ? getPatientDocumentSpecialtyConfig()
+    : { label: 'Général', imaging: [], orientations: [] };
+
+  const presetsContainer = document.getElementById('bonpour-specialty-presets');
+  if (presetsContainer) {
+    if (specialtyConfig.imaging && specialtyConfig.imaging.length > 0) {
+      document.getElementById('bonpour-specialty-presets-container').style.display = 'block';
+      window.patientDocumentPresetMap = window.patientDocumentPresetMap || {};
+      
+      presetsContainer.innerHTML = specialtyConfig.imaging.map((p) => {
+        const id = `imaging-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        window.patientDocumentPresetMap[id] = p;
+        return `
+          <button type="button" class="patient-documents-chip btn btn-secondary btn-small" 
+                  onclick="applyBonPourPreset('${id}')" 
+                  style="cursor: pointer; background: #fff; border: 1px solid #d1d5db; padding: 4px 10px; border-radius: 6px; font-size: 12px; margin: 2px;">
+            ${escapeHTML(p.label)}
+          </button>
+        `;
+      }).join('') + `
+        <button type="button" class="patient-documents-chip btn btn-outline btn-small" 
+                onclick="clearBonPourForm()" 
+                style="cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 12px; margin: 2px;">
+          Demande libre (Vider)
+        </button>
+      `;
+    } else {
+      document.getElementById('bonpour-specialty-presets-container').style.display = 'none';
+    }
+  }
+
+  if (preset) {
+    const detailsTextarea = document.getElementById('bonpour-details');
+    const indicationInput = document.getElementById('bonpour-indication');
+    const notesInput = document.getElementById('bonpour-notes');
+
+    if (detailsTextarea && preset.details) {
+      detailsTextarea.value = String(preset.details || '')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => line.startsWith('-') ? line : `- ${line}`)
+        .join('\n');
+    }
+    if (indicationInput && preset.indication) indicationInput.value = preset.indication;
+    if (notesInput && preset.notes) notesInput.value = preset.notes;
+    syncBonPourDetailColumnsFromTextarea();
+    syncBonPourSelectionsFromTextarea();
+  }
 
   const detailsTextarea = document.getElementById('bonpour-details');
   if (detailsTextarea && !detailsTextarea.dataset.syncBound) {
@@ -1863,16 +1921,16 @@ function updateBonPourContent() {
       'ECBU', 'Protéinurie des 24h', 'Microalbuminurie'
     ],
     radio: [
-      // Membre sup?rieur
-      'Rx de l\'?paule face et profil',
+      // Membre supérieur
+      'Rx de l\'épaule face et profil',
       'Rx du coude face et profil',
       'Rx du poignet face et profil',
       'Rx de la main face et profil',
       'Rx du bras face et profil',
       'Rx de l\'avant-bras face et profil',
-      // Membre inf?rieur
+      // Membre inférieur
       'Rx de la hanche face et profil',
-      'Rx du f?mur face et profil',
+      'Rx du fémur face et profil',
       'Rx du genou face et profil',
       'Rx du genou en charge',
       'Rx de la jambe face et profil',
@@ -1882,18 +1940,18 @@ function updateBonPourContent() {
       'Rx du rachis cervical face et profil',
       'Rx du rachis dorsal face et profil',
       'Rx du rachis lombaire face et profil',
-      'Rx du rachis entier F/P (T?l?m?trie)',
+      'Rx du rachis entier F/P (Télémétrie)',
       // Autres
       'Rx du bassin face',
       'Rx du thorax face',
       'Rx des sacro-iliaques'
     ],
-    scanner: ['Scanner c?r?bral', 'Scanner rachis cervical', 'Scanner rachis dorsal', 'Scanner rachis lombaire', 'Scanner ?paule', 'Scanner genou', 'Scanner cheville', 'Scanner hanche', 'TDM thoracique', 'TDM abdomino-pelvien'],
-    irm: ['IRM c?r?brale', 'IRM rachis cervical', 'IRM rachis dorsal', 'IRM rachis lombaire', 'IRM ?paule', 'IRM genou', 'IRM hanche', 'IRM cheville', 'IRM poignet', 'IRM coude'],
-    echo: ['?cho abdominale', '?cho thyro?de', '?cho parties molles', '?cho articulaire', '?cho ?paule', '?cho genou', '?cho hanche'],
-    emg: ['EMG membres sup?rieurs', 'EMG membres inf?rieurs', 'EMG 4 membres', 'ENMG', 'Vitesses de conduction nerveuse'],
-    doppler: ['Doppler TSA', 'Doppler membres inf?rieurs art?riel', 'Doppler membres inf?rieurs veineux', 'Doppler membres sup?rieurs'],
-    kine: ['Reeducation fonctionnelle', 'Renforcement musculaire', 'Mobilisation passive', 'Drainage lymphatique', 'Electrotherapie', 'Massage', 'Physiotherapie'],
+    scanner: ['Scanner cérébral', 'Scanner rachis cervical', 'Scanner rachis dorsal', 'Scanner rachis lombaire', 'Scanner épaule', 'Scanner genou', 'Scanner cheville', 'Scanner hanche', 'TDM thoracique', 'TDM abdomino-pelvien'],
+    irm: ['IRM cérébrale', 'IRM rachis cervical', 'IRM rachis dorsal', 'IRM rachis lombaire', 'IRM épaule', 'IRM genou', 'IRM hanche', 'IRM cheville', 'IRM poignet', 'IRM coude'],
+    echo: ['Écho abdominale', 'Écho thyroïde', 'Écho parties molles', 'Écho articulaire', 'Écho épaule', 'Écho genou', 'Écho hanche'],
+    emg: ['EMG membres supérieurs', 'EMG membres inférieurs', 'EMG 4 membres', 'ENMG', 'Vitesses de conduction nerveuse'],
+    doppler: ['Doppler TSA', 'Doppler membres inférieurs artériel', 'Doppler membres inférieurs veineux', 'Doppler membres supérieurs'],
+    kine: ['Rééducation fonctionnelle', 'Renforcement musculaire', 'Mobilisation passive', 'Drainage lymphatique', 'Électrothérapie', 'Massage', 'Physiothérapie'],
     other: []
   };
   
@@ -2164,7 +2222,7 @@ window.syncBonPourSelectionsFromTextarea = syncBonPourSelectionsFromTextarea;
 /**
  * Open the "Lettre d'orientation" modal for referral letters to specialists
  */
-async function openOrientationModal(patientId) {
+async function openOrientationModal(patientId, preset = null) {
   if (!patientId) {
     showNotification('Veuillez selectionner un patient', 'warning');
     return;
@@ -2283,6 +2341,13 @@ async function openOrientationModal(patientId) {
               </small>
             </div>
             
+            <div id="orientation-specialty-presets-container" class="orientation-specialty-presets-container" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+              <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block;">Modèles courants par spécialité</label>
+              <div id="orientation-specialty-presets" class="patient-documents-chip-grid" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <!-- Populated dynamically by JS -->
+              </div>
+            </div>
+            
             <div class="orientation-quick-panel" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
               <label style="font-size: 13px; font-weight: 600; margin-bottom: 10px; display: block;">Motifs courants (cliquez pour ajouter)</label>
               <div id="orientation-quick-items" style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -2328,6 +2393,56 @@ async function openOrientationModal(patientId) {
   document.getElementById('orientation-antecedents').value = '';
   document.getElementById('orientation-symptoms').value = '';
   document.getElementById('orientation-motif').value = '';
+
+  const specialtyConfig = typeof getPatientDocumentSpecialtyConfig === 'function'
+    ? getPatientDocumentSpecialtyConfig()
+    : { label: 'Général', imaging: [], orientations: [] };
+
+  const presetsContainer = document.getElementById('orientation-specialty-presets');
+  if (presetsContainer) {
+    if (specialtyConfig.orientations && specialtyConfig.orientations.length > 0) {
+      document.getElementById('orientation-specialty-presets-container').style.display = 'block';
+      window.patientDocumentPresetMap = window.patientDocumentPresetMap || {};
+      
+      presetsContainer.innerHTML = specialtyConfig.orientations.map((p) => {
+        const id = `orientation-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        window.patientDocumentPresetMap[id] = p;
+        return `
+          <button type="button" class="patient-documents-chip btn btn-secondary btn-small" 
+                  onclick="applyOrientationPreset('${id}')" 
+                  style="cursor: pointer; background: #fff; border: 1px solid #d1d5db; padding: 4px 10px; border-radius: 6px; font-size: 12px; margin: 2px;">
+            ${escapeHTML(p.label)}
+          </button>
+        `;
+      }).join('') + `
+        <button type="button" class="patient-documents-chip btn btn-outline btn-small" 
+                onclick="clearOrientationForm()" 
+                style="cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 12px; margin: 2px;">
+          Orientation libre (Vider)
+        </button>
+      `;
+    } else {
+      document.getElementById('orientation-specialty-presets-container').style.display = 'none';
+    }
+  }
+
+  if (preset) {
+    const specialtySelect = document.getElementById('orientation-specialty');
+    if (specialtySelect && preset.specialty) {
+      const presetSpecialty = String(preset.specialty || '').trim();
+      const hasOption = Array.from(specialtySelect.options).some((option) => option.value === presetSpecialty);
+      if (!hasOption) {
+        const option = document.createElement('option');
+        option.value = presetSpecialty;
+        option.textContent = presetSpecialty;
+        specialtySelect.appendChild(option);
+      }
+      specialtySelect.value = presetSpecialty;
+    }
+    if (preset.antecedents) document.getElementById('orientation-antecedents').value = preset.antecedents;
+    if (preset.symptoms) document.getElementById('orientation-symptoms').value = preset.symptoms;
+    if (preset.motif) document.getElementById('orientation-motif').value = preset.motif;
+  }
   renderOrientationPreview();
   
   // Clear edit ID (for new documents)
@@ -2525,4 +2640,93 @@ async function runOrientationPrintPipeline({ patientId, specialty, dateLabel, pa
     showNotification(error.message || "Erreur lors de l'impression", 'error');
   }
 }
+
+// Preset and Form Helpers for "Faire Svp" and "Orientations"
+function applyBonPourPreset(presetId) {
+  const preset = window.patientDocumentPresetMap?.[presetId];
+  if (!preset) return;
+
+  const detailsTextarea = document.getElementById('bonpour-details');
+  const indicationInput = document.getElementById('bonpour-indication');
+  const typeSelect = document.getElementById('bonpour-type');
+
+  if (typeSelect) {
+    typeSelect.value = preset.type || 'analyses';
+    updateBonPourContent();
+  }
+
+  if (detailsTextarea) {
+    detailsTextarea.value = String(preset.details || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.startsWith('-') ? line : `- ${line}`)
+      .join('\n');
+  }
+  if (indicationInput) {
+    indicationInput.value = preset.indication || '';
+  }
+  
+  syncBonPourDetailColumnsFromTextarea();
+  syncBonPourSelectionsFromTextarea();
+}
+
+function clearBonPourForm() {
+  const detailsTextarea = document.getElementById('bonpour-details');
+  const indicationInput = document.getElementById('bonpour-indication');
+  const notesInput = document.getElementById('bonpour-notes');
+  if (detailsTextarea) detailsTextarea.value = '';
+  if (indicationInput) indicationInput.value = '';
+  if (notesInput) notesInput.value = '';
+  syncBonPourDetailColumnsFromTextarea();
+  syncBonPourSelectionsFromTextarea();
+}
+
+function applyOrientationPreset(presetId) {
+  const preset = window.patientDocumentPresetMap?.[presetId];
+  if (!preset) return;
+
+  const specialtySelect = document.getElementById('orientation-specialty');
+  const motifInput = document.getElementById('orientation-motif');
+
+  if (specialtySelect && preset.specialty) {
+    const presetSpecialty = String(preset.specialty || '').trim();
+    const hasOption = Array.from(specialtySelect.options).some((option) => option.value === presetSpecialty);
+    if (!hasOption) {
+      const option = document.createElement('option');
+      option.value = presetSpecialty;
+      option.textContent = presetSpecialty;
+      specialtySelect.appendChild(option);
+    }
+    specialtySelect.value = presetSpecialty;
+  }
+  if (motifInput && preset.motif) {
+    motifInput.value = preset.motif;
+  }
+  
+  if (typeof renderOrientationPreview === 'function') {
+    renderOrientationPreview();
+  }
+}
+
+function clearOrientationForm() {
+  const specialtySelect = document.getElementById('orientation-specialty');
+  const motifInput = document.getElementById('orientation-motif');
+  const antecedentsInput = document.getElementById('orientation-antecedents');
+  const symptomsInput = document.getElementById('orientation-symptoms');
+
+  if (specialtySelect) specialtySelect.value = '';
+  if (motifInput) motifInput.value = '';
+  if (antecedentsInput) antecedentsInput.value = '';
+  if (symptomsInput) symptomsInput.value = '';
+  
+  if (typeof renderOrientationPreview === 'function') {
+    renderOrientationPreview();
+  }
+}
+
+window.applyBonPourPreset = applyBonPourPreset;
+window.clearBonPourForm = clearBonPourForm;
+window.applyOrientationPreset = applyOrientationPreset;
+window.clearOrientationForm = clearOrientationForm;
 

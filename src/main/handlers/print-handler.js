@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, dialog } from 'electron';
 import { getScopedSettings } from '../services/settings-scope-service.js';
 
 function normalizePageSize(pageSize) {
@@ -159,6 +159,101 @@ export function handlePrintEvents() {
       });
 
       printWindow.loadURL(dataUrl).catch((error) => {
+        finish({
+          success: false,
+          error: error?.message || 'Chargement du document impossible'
+        });
+      });
+    });
+  });
+
+  ipcMain.handle('print:save-pdf', async (event, payload = {}) => {
+    const html = String(payload.html || '');
+    if (!html.trim()) {
+      return { success: false, error: 'Document vide à exporter' };
+    }
+
+    const pageSize = normalizePageSize(payload.pageSize);
+    const { width, height } = getPrintViewport(pageSize);
+    const sourceWindow = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getAllWindows()[0] || null;
+    const safeTitle = String(payload.documentTitle || 'document')
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const saveResult = await dialog.showSaveDialog(sourceWindow || undefined, {
+      title: 'Enregistrer le document PDF',
+      defaultPath: `${safeTitle || 'document'}.pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }]
+    });
+
+    if (saveResult.canceled || !saveResult.filePath) {
+      return { success: false, canceled: true };
+    }
+
+    const pdfWindow = new BrowserWindow({
+      width,
+      height,
+      title: safeTitle || 'Export PDF',
+      show: false,
+      autoHideMenuBar: true,
+      backgroundColor: '#ffffff',
+      webPreferences: {
+        sandbox: false,
+        backgroundThrottling: false
+      }
+    });
+
+    pdfWindow.setMenuBarVisibility(false);
+
+    try {
+      pdfWindow.webContents.setZoomFactor(1);
+      pdfWindow.webContents.setZoomLevel(0);
+    } catch (_) {}
+
+    const dataUrl = `data:text/html;charset=utf-8;base64,${Buffer.from(html, 'utf8').toString('base64')}`;
+
+    return await new Promise((resolve) => {
+      let settled = false;
+
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        try {
+          if (!pdfWindow.isDestroyed()) {
+            pdfWindow.close();
+          }
+        } catch (_) {}
+        resolve(result);
+      };
+
+      pdfWindow.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
+        finish({
+          success: false,
+          error: `Chargement du document impossible (${errorCode} - ${errorDescription})`
+        });
+      });
+
+      pdfWindow.webContents.once('did-finish-load', async () => {
+        try {
+          const pdfBuffer = await pdfWindow.webContents.printToPDF({
+            pageSize,
+            landscape: !!payload.landscape,
+            printBackground: false,
+            preferCSSPageSize: true,
+            margins: { marginType: 'none' }
+          });
+          await import('fs').then((fs) => fs.promises.writeFile(saveResult.filePath, pdfBuffer));
+          finish({ success: true, filePath: saveResult.filePath });
+        } catch (error) {
+          finish({
+            success: false,
+            error: error?.message || 'Export PDF impossible'
+          });
+        }
+      });
+
+      pdfWindow.loadURL(dataUrl).catch((error) => {
         finish({
           success: false,
           error: error?.message || 'Chargement du document impossible'

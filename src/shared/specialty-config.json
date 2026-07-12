@@ -1,0 +1,50 @@
+{
+  "general": {
+    "key": "general",
+    "label": "Généraliste",
+    "doctorLabel": "Médecin généraliste",
+    "logo": "Généraliste.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_generaux.json",
+    "exams": ["Examen clinique général", "Certificat médical", "Bilan biologique"],
+    "imagingFamilies": ["Radiographie", "Échographie", "Scanner", "IRM"],
+    "equipmentCategories": []
+  },
+  "mpr": {
+    "key": "mpr",
+    "label": "MPR",
+    "doctorLabel": "Médecin MPR",
+    "logo": "MPR.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_mpr.json",
+    "exams": ["Bilan fonctionnel", "Bilan articulaire", "Bilan musculaire", "Échelles MPR"],
+    "imagingFamilies": ["Radiographie ostéo-articulaire", "IRM", "Scanner", "Échographie musculo-squelettique"],
+    "equipmentCategories": ["Orthèse", "Prothèse", "Fauteuil roulant", "Aide à la marche", "Matériel de rééducation", "Appareillage"]
+  },
+  "cardiology": {
+    "key": "cardiology",
+    "label": "Cardiologue",
+    "doctorLabel": "Cardiologue",
+    "logo": "Cardiologue.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_cardio.json",
+    "exams": ["ECG", "Échocardiographie", "Holter ECG", "MAPA", "Épreuve d'effort"],
+    "imagingFamilies": ["Échocardiographie", "Doppler", "Coroscanner", "IRM cardiaque"],
+    "equipmentCategories": ["Holter", "Tensiomètre", "Électrocardiographe"]
+  },
+  "dentistry": {
+    "key": "dentistry",
+    "label": "Dentiste",
+    "doctorLabel": "Médecin dentiste",
+    "logo": "Dentiste.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_dentaire.json",
+    "exams": ["Bilan bucco-dentaire", "Odontogramme", "Contrôle post-soin"],
+    "imagingFamilies": ["Panoramique dentaire", "Rétro-alvéolaire", "Cone beam"],
+    "equipmentCategories": ["Instrumentation dentaire", "Consommables dentaires", "Matériel de stérilisation"]
+  }
+}

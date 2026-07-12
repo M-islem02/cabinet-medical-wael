@@ -1,125 +1,62 @@
-﻿/**
- * Module unifiÃ© de gestion de base de donnÃ©es
- * SÃ©lectionne automatiquement SQLite ou MariaDB selon la configuration
- */
-
-import path from 'path';
-import fs from 'fs';
-import { app } from 'electron';
-
-let currentMode = 'sqlite'; // 'sqlite' ou 'mariadb'
-let dbModule = null;
-
 /**
- * Convertit undefined en null pour la compatibilitÃ© MariaDB
+ * PostgreSQL-only database facade.
+ *
+ * The application runtime no longer switches between SQLite/MariaDB/PostgreSQL.
+ * Legacy engines are supported only by the migration kit outside the runtime.
  */
+
+import {
+  initializeDatabase as initializePostgreSqlDatabase,
+  closeDatabase as closePostgreSqlDatabase,
+  query as postgreSqlQuery,
+  queryOne as postgreSqlQueryOne,
+  run as postgreSqlRun,
+  getDatabase as getPostgreSqlDatabase,
+  getConfig as getPostgreSqlConfig,
+  loadConfig as loadPostgreSqlConfig
+} from './database-postgresql.js';
+
+const currentMode = 'postgresql';
+
 function sanitizeParams(params) {
   if (!Array.isArray(params)) return params;
-  return params.map(p => p === undefined ? null : p);
+  return params.map((param) => (param === undefined ? null : param));
 }
 
-/**
- * Charge la configuration de la base de donnÃ©es
- */
 export function loadDatabaseConfig() {
-  try {
-    const configPath = path.join(app.getPath('userData'), 'database-config.json');
-    
-    if (fs.existsSync(configPath)) {
-      const configData = fs.readFileSync(configPath, 'utf-8');
-      return JSON.parse(configData);
-    }
-    
-    return { type: 'sqlite' };
-  } catch (error) {
-    console.error('Erreur lecture config DB:', error);
-    return { type: 'sqlite' };
-  }
+  return {
+    database: loadPostgreSqlConfig()
+  };
 }
 
-/**
- * Initialise la base de donnÃ©es selon la configuration
- * Avec fallback automatique vers SQLite si MariaDB est inaccessible
- */
 export async function initializeDatabase() {
-  const config = loadDatabaseConfig();
-  currentMode = config.type || 'sqlite';
-  
-  console.log(`Database mode configured: ${currentMode.toUpperCase()}`);
-  
-  if (currentMode === 'mariadb') {
-    try {
-      // Charger le module MariaDB dynamiquement
-      dbModule = await import('./database-mariadb.js');
-      return await dbModule.initializeDatabase();
-    } catch (error) {
-      // Si MariaDB Ã©choue, fallback vers SQLite
-      console.error('MariaDB unavailable:', error.code || 'UNKNOWN', error.message);
-      console.log('Automatic fallback to SQLite (local mode)...');
-      
-      currentMode = 'sqlite';
-      dbModule = await import('./database-sqlite3.js');
-      const result = await dbModule.initializeDatabase();
-      console.log('SQLite connection established in fallback mode');
-      console.log('Note: Data will be stored locally. Reconfigure MariaDB if needed.');
-      return result;
-    }
-  } else {
-    // Utiliser SQLite par dÃ©faut
-    dbModule = await import('./database-sqlite3.js');
-    return dbModule.initializeDatabase();
-  }
+  return initializePostgreSqlDatabase();
 }
 
-/**
- * ExÃ©cute une requÃªte SELECT
- */
 export function query(sql, params = []) {
-  if (!dbModule) {
-    throw new Error('Base de donnÃ©es non initialisÃ©e');
-  }
-  return dbModule.query(sql, sanitizeParams(params));
+  return postgreSqlQuery(sql, sanitizeParams(params));
 }
 
-/**
- * ExÃ©cute une requÃªte SELECT qui retourne une seule ligne
- */
 export function queryOne(sql, params = []) {
-  if (!dbModule) {
-    throw new Error('Base de donnÃ©es non initialisÃ©e');
-  }
-  return dbModule.queryOne(sql, sanitizeParams(params));
+  return postgreSqlQueryOne(sql, sanitizeParams(params));
 }
 
-/**
- * ExÃ©cute une requÃªte INSERT/UPDATE/DELETE
- */
 export function run(sql, params = []) {
-  if (!dbModule) {
-    throw new Error('Base de donnÃ©es non initialisÃ©e');
-  }
-  return dbModule.run(sql, sanitizeParams(params));
+  return postgreSqlRun(sql, sanitizeParams(params));
 }
 
-/**
- * Ferme la connexion Ã  la base de donnÃ©es
- */
 export function closeDatabase() {
-  if (!dbModule) return;
-  return dbModule.closeDatabase();
+  return closePostgreSqlDatabase();
 }
 
-/**
- * Retourne le mode actuel (sqlite ou mariadb)
- */
 export function getCurrentMode() {
   return currentMode;
 }
 
-/**
- * Retourne l'objet base de donnÃ©es (pour cas spÃ©ciaux)
- */
 export function getDatabase() {
-  if (!dbModule) return null;
-  return dbModule.getDatabase();
+  return getPostgreSqlDatabase();
+}
+
+export function getDatabaseConfig() {
+  return getPostgreSqlConfig();
 }

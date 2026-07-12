@@ -1,0 +1,340 @@
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-bg-subtle: #f8fafc;
+  --color-bg-hover: #f3f4f6;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-soft: #94a3b8;
+  --color-heading: #1f2937;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-accent: #0f766e;
+  --color-accent-hover: #115e59;
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 20px;
+  --spacing-xl: 32px;
+  --font-size-h1: 24px;
+  --font-size-title: var(--font-size-h1);
+  --font-size-section: 14px;
+  --font-size-stat: 30px;
+  --font-size-label: 13px;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --shadow-none: none;
+}
+
+body {
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+}
+
+.section-title,
+.page-title,
+.dashboard-title,
+.patient-details-title,
+h1 {
+  font-size: var(--font-size-h1) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  color: var(--color-heading) !important;
+}
+
+.card h2,
+.card h3,
+.section-header h2,
+.section-header h3,
+.stat-card h3,
+.settings-card h3,
+.admin-panel h3,
+.panel-title,
+.feature-card h3 {
+  font-size: var(--font-size-section) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--color-heading) !important;
+}
+
+.stat-value,
+.stat-number,
+.metric-value,
+[id^="stat-adv-"],
+.dashboard-stat-value {
+  font-size: var(--font-size-stat) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+
+.stat-label,
+.metric-label,
+.card-label,
+.section-subtitle,
+.patient-summary-label {
+  font-size: var(--font-size-label) !important;
+  font-weight: 400 !important;
+  color: var(--color-text-muted) !important;
+}
+
+small,
+.small,
+.badge,
+.metadata,
+.patient-meta,
+.date-text {
+  font-size: var(--font-size-small) !important;
+}
+
+* {
+  box-shadow: none !important;
+}
+
+.card,
+.stat-card,
+.dashboard-card,
+.content-card,
+.settings-card,
+.admin-panel,
+.patient-card,
+.patient-summary-card,
+.patient-details-card,
+.equipment-card,
+.inventory-card,
+.payment-card,
+.statistics-card,
+.treatment-plan-card,
+.plan-card,
+.modal-content,
+.dental-card,
+.agenda-card,
+.waiting-card,
+.feature-card {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  padding: var(--spacing-lg) !important;
+}
+
+.stats-grid,
+.dashboard-stats,
+.inventory-stats,
+.equipment-stats,
+.payment-stats,
+.statistics-summary,
+#stats-financial-container,
+.patient-details-overview {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: var(--spacing-lg) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.stats-grid > *,
+.dashboard-stats > *,
+.inventory-stats > *,
+.equipment-stats > *,
+.payment-stats > *,
+.statistics-summary > *,
+#stats-financial-container > *,
+.patient-details-overview > * {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius) !important;
+  padding: var(--spacing-lg) !important;
+}
+
+.btn,
+button.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 14px;
+  font-size: var(--font-size-body) !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.btn-primary,
+button.btn-primary {
+  border: 1px solid var(--color-accent) !important;
+  background: var(--color-accent) !important;
+  color: #fff !important;
+}
+
+.btn-primary:hover,
+button.btn-primary:hover {
+  background: var(--color-accent-hover) !important;
+  border-color: var(--color-accent-hover) !important;
+}
+
+.btn-secondary,
+button.btn-secondary,
+.btn-outline,
+.btn-light {
+  border: 1px solid var(--color-border-strong) !important;
+  background: #fff !important;
+  color: var(--color-heading) !important;
+}
+
+.btn-danger,
+button.btn-danger,
+.delete-btn,
+.danger-btn {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--color-danger) !important;
+  padding-inline: 8px !important;
+}
+
+.tabs,
+.tabs-nav,
+.tab-buttons,
+.feature-tabs,
+.inventory-tabs,
+.equipment-tabs,
+.payment-tabs,
+.settings-page-nav,
+.patient-tabs {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-sm) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  scrollbar-width: thin;
+}
+
+.tabs button,
+.tabs-nav button,
+.tab-buttons button,
+.feature-tab-btn,
+.inventory-tabs button,
+.equipment-tabs button,
+.payment-tabs button,
+.settings-page-tab,
+.patient-tabs button {
+  flex: 0 0 auto;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--color-text-muted) !important;
+  font-size: var(--font-size-body) !important;
+  font-weight: 600 !important;
+  padding: 10px 8px !important;
+}
+
+.tabs button.active,
+.tabs-nav button.active,
+.tab-buttons button.active,
+.feature-tab-btn.active,
+.inventory-tabs button.active,
+.equipment-tabs button.active,
+.payment-tabs button.active,
+.settings-page-tab.active,
+.patient-tabs button.active {
+  color: var(--color-accent) !important;
+  border-bottom-color: var(--color-accent) !important;
+}
+
+table,
+.data-table,
+.patients-table,
+.inventory-table,
+.payments-table,
+.table-clean {
+  width: 100%;
+  border-collapse: collapse !important;
+  font-size: var(--font-size-body) !important;
+}
+
+thead th,
+table th,
+.data-table th,
+.patients-table th,
+.inventory-table th,
+.payments-table th,
+.table-clean th {
+  background: transparent !important;
+  color: var(--color-text-muted) !important;
+  font-size: var(--font-size-small) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+table td,
+table th,
+.data-table td,
+.data-table th,
+.patients-table td,
+.patients-table th,
+.inventory-table td,
+.inventory-table th,
+.payments-table td,
+.payments-table th,
+.table-clean td,
+.table-clean th {
+  border-bottom: 1px solid var(--color-border) !important;
+  padding: 10px 12px !important;
+}
+
+tbody tr:nth-child(even),
+tbody tr:nth-child(odd) {
+  background: transparent !important;
+}
+
+td.amount,
+th.amount,
+td[data-type="amount"],
+.amount-cell,
+.text-right {
+  text-align: right !important;
+}
+
+.empty-state,
+.dental-empty-state,
+.statistics-list-empty,
+.no-data,
+.empty-list {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--spacing-sm) !important;
+  min-height: 120px;
+  padding: var(--spacing-xl) !important;
+  border: 1px dashed var(--color-border-strong) !important;
+  border-radius: var(--radius) !important;
+  background: var(--color-bg-subtle) !important;
+  color: var(--color-text-muted) !important;
+  text-align: center !important;
+}
+
+.document-actions .btn,
+.patient-document-button,
+.document-btn {
+  border: 1px solid var(--color-border-strong) !important;
+  background: #fff !important;
+  color: var(--color-heading) !important;
+}

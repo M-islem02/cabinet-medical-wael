@@ -360,9 +360,11 @@ function getPracticeSpecialtyMeta(value = 'general') {
   return PRACTICE_SPECIALTY_META[key] || PRACTICE_SPECIALTY_META.general;
 }
 
-function getAvailablePracticeSpecialties() {
-  return Object.values(PRACTICE_SPECIALTY_META)
-    .filter((meta) => meta && meta.key && meta.key !== 'general')
+function getAvailablePracticeSpecialties(config = window._packageConfig || null) {
+  const enabledKeys = getEnabledPracticeSpecialties(config);
+  return enabledKeys
+    .map((key) => PRACTICE_SPECIALTY_META[key])
+    .filter((meta) => meta && meta.key)
     .map((meta) => ({
       key: meta.key,
       label: meta.label || meta.shortLabel || meta.key
@@ -370,6 +372,21 @@ function getAvailablePracticeSpecialties() {
 }
 
 function getEnabledPracticeSpecialties(config = window._packageConfig || null) {
+  if (config?.enabledSpecialties) {
+    try {
+      const rawList = Array.isArray(config.enabledSpecialties)
+        ? config.enabledSpecialties
+        : JSON.parse(config.enabledSpecialties);
+      const normalizedList = rawList
+        .map((entry) => normalizePracticeSpecialtyKey(entry))
+        .filter((entry) => PRACTICE_SPECIALTY_META[entry]);
+      const unique = [...new Set(normalizedList)];
+      return unique.length ? unique : ['general'];
+    } catch (_) {
+      // Fall back to legacy feature columns below.
+    }
+  }
+
   const specialties = ['general'];
   if (config?.featureRehabilitation === 1 || config?.featureRehabilitation === true || config?.featureRehabilitation === '1') {
     specialties.push('mpr');
@@ -393,8 +410,8 @@ function resolveActivePracticeSpecialty(config = window._packageConfig || null) 
   const assistantSelectedDoctorSpecialty = normalizePracticeSpecialtyKey(
     window.selectedDoctorSpecialty || ''
   );
-  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || '');
   const enabled = getEnabledPracticeSpecialties(config);
+  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || enabled[0] || 'general');
 
   if (currentUserRole === 'assistant' && assistantSelectedDoctorSpecialty !== 'general') {
     return assistantSelectedDoctorSpecialty;
@@ -408,14 +425,11 @@ function resolveActivePracticeSpecialty(config = window._packageConfig || null) 
     return requested;
   }
 
-  if (config?.activeSpecialty) {
+  if (enabled.length > 1) {
     return 'general';
   }
 
-  if (enabled.includes('mpr')) return 'mpr';
-  if (enabled.includes('cardiology')) return 'cardiology';
-  if (enabled.includes('dentistry')) return 'dentistry';
-  if (enabled.includes('urology')) return 'urology';
+  if (enabled.length === 1) return enabled[0];
   return 'general';
 }
 
@@ -529,6 +543,19 @@ function getCabinetWatermarkLogoDataUrl() {
 }
 
 function getAppBrandLogoSrc() {
+  const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
+    ? resolveActivePracticeSpecialty(window._packageConfig)
+    : 'general';
+  const userSpecialty = normalizePracticeSpecialtyKey(currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || '');
+  const specialtyLogoMap = {
+    general: userSpecialty === 'general' && currentUserRole === 'doctor' ? 'assets/Généraliste.png' : 'assets/logo.png',
+    mpr: 'assets/MPR.png',
+    cardiology: 'assets/Cardiologue.png',
+    dentistry: 'assets/Dentiste.png'
+  };
+  if (specialtyLogoMap[activeSpecialty]) {
+    return specialtyLogoMap[activeSpecialty];
+  }
   const appLogo = document.querySelector('.app-brand-logo');
   if (appLogo && typeof appLogo.src === 'string' && appLogo.src) {
     return appLogo.src;
@@ -1467,6 +1494,116 @@ function formatConsultationOptionLabel(consultation) {
   return `${dateLabel} • ${reason}`;
 }
 
+function getPatientDocumentSpecialtyKey() {
+  const rawSpecialty = String(
+    (typeof currentUserSpecialty !== 'undefined' && currentUserSpecialty)
+      || localStorage.getItem('currentUserSpecialty')
+      || (typeof currentUserRole !== 'undefined' ? currentUserRole : '')
+      || ''
+  ).trim().toLowerCase();
+
+  if (['dentist', 'dentiste', 'dentistry', 'dentaire'].includes(rawSpecialty)) return 'dentiste';
+  if (['cardio', 'cardiologie', 'cardiologue'].includes(rawSpecialty)) return 'cardiologue';
+  if (['mpr', 'physio', 'rehab', 'rééducation', 'reeducation'].includes(rawSpecialty)) return 'mpr';
+  return rawSpecialty || 'general';
+}
+
+function getPatientDocumentSpecialtyConfig() {
+  const key = getPatientDocumentSpecialtyKey();
+  const configs = {
+    dentiste: {
+      label: 'Dentiste',
+      imaging: [
+        { label: 'Panoramique dentaire', type: 'radio', details: 'Radiographie panoramique dentaire', indication: 'Bilan dentaire / orientation diagnostique' },
+        { label: 'Cone Beam CT', type: 'scanner', details: 'Cone Beam CT dentaire ciblé', indication: 'Étude 3D pré-thérapeutique ou lésion dentaire' },
+        { label: 'Rétro-alvéolaire', type: 'radio', details: 'Radiographie rétro-alvéolaire ciblée', indication: 'Douleur dentaire / contrôle endodontique' },
+        { label: 'Télécrâne', type: 'radio', details: 'Téléradiographie de profil', indication: 'Bilan orthodontique' }
+      ],
+      orientations: [
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Bilan d’imagerie dentaire orienté' },
+        { label: 'Chirurgie maxillo-faciale', specialty: 'Autre', motif: 'Avis spécialisé en chirurgie maxillo-faciale' },
+        { label: 'ORL', specialty: 'ORL', motif: 'Avis ORL selon contexte sinusien ou maxillo-facial' }
+      ]
+    },
+    cardiologue: {
+      label: 'Cardiologue',
+      imaging: [
+        { label: 'ECG', type: 'other', details: 'Électrocardiogramme de repos', indication: 'Bilan cardiologique' },
+        { label: 'Échocardiographie', type: 'echo', details: 'Échocardiographie transthoracique', indication: 'Évaluation morphologique et fonctionnelle cardiaque' },
+        { label: 'Holter ECG', type: 'other', details: 'Holter ECG 24h / 48h', indication: 'Trouble du rythme suspecté' },
+        { label: 'Épreuve d’effort', type: 'other', details: 'Épreuve d’effort', indication: 'Bilan d’ischémie / capacité fonctionnelle' },
+        { label: 'Angio-scanner coronaire', type: 'scanner', details: 'Angio-scanner coronaire', indication: 'Exploration coronaire non invasive' },
+        { label: 'IRM cardiaque', type: 'irm', details: 'IRM cardiaque', indication: 'Caractérisation myocardique / bilan spécialisé' }
+      ],
+      orientations: [
+        { label: 'Rythmologue', specialty: 'Cardiologue', motif: 'Avis spécialisé en rythmologie' },
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Imagerie cardiovasculaire spécialisée' },
+        { label: 'Urgences', specialty: 'Autre', motif: 'Orientation urgente selon le contexte clinique' }
+      ]
+    },
+    mpr: {
+      label: 'MPR',
+      imaging: [
+        { label: 'Rx ostéo-articulaire', type: 'radio', details: 'Radiographie ostéo-articulaire ciblée', indication: 'Bilan de douleur ou limitation fonctionnelle' },
+        { label: 'IRM rachis / articulation', type: 'irm', details: 'IRM rachis ou articulation selon clinique', indication: 'Bilan lésionnel et fonctionnel' },
+        { label: 'EMG / ENMG', type: 'emg', details: 'EMG / ENMG', indication: 'Bilan neuro-musculaire' },
+        { label: 'Doppler', type: 'doppler', details: 'Doppler vasculaire selon indication', indication: 'Bilan vasculaire complémentaire' },
+        { label: 'Kinésithérapie', type: 'kine', details: 'Rééducation fonctionnelle', indication: 'Programme de réadaptation' }
+      ],
+      orientations: [
+        { label: 'Kinésithérapeute', specialty: 'Kinesitherapeute', motif: 'Prise en charge rééducative fonctionnelle' },
+        { label: 'Orthopédiste', specialty: 'Orthopediste', motif: 'Avis orthopédique spécialisé' },
+        { label: 'Neurologue', specialty: 'Neurologue', motif: 'Avis neurologique / bilan neuro-musculaire' },
+        { label: 'Rhumatologue', specialty: 'Rhumatologue', motif: 'Avis rhumatologique spécialisé' }
+      ]
+    },
+    general: {
+      label: 'Général',
+      imaging: [
+        { label: 'Analyses', type: 'analyses', details: '', indication: 'Bilan biologique' },
+        { label: 'Radiographie', type: 'radio', details: '', indication: 'Bilan radiologique' },
+        { label: 'Échographie', type: 'echo', details: '', indication: 'Bilan échographique' },
+        { label: 'Scanner', type: 'scanner', details: '', indication: 'Bilan scanner' }
+      ],
+      orientations: [
+        { label: 'Spécialiste', specialty: 'Autre', motif: 'Avis spécialisé' },
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Bilan complémentaire' }
+      ]
+    }
+  };
+
+  return configs[key] || configs.general;
+}
+
+window.patientDocumentPresetMap = window.patientDocumentPresetMap || {};
+
+function registerPatientDocumentPreset(group, preset) {
+  const id = `${group}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  window.patientDocumentPresetMap[id] = preset;
+  return id;
+}
+
+function buildPatientDocumentPresetButton(group, preset) {
+  const id = registerPatientDocumentPreset(group, preset);
+  return `
+    <button type="button" class="patient-documents-chip" onclick="openPatientDocumentPreset('${id}')">
+      <span>${escapeHTML(preset.label)}</span>
+    </button>
+  `;
+}
+
+function openPatientDocumentPreset(presetId) {
+  const preset = window.patientDocumentPresetMap?.[presetId];
+  if (!preset) return;
+
+  if (preset.specialty || preset.motif) {
+    handlePatientDocumentAction('orientation', preset);
+    return;
+  }
+
+  handlePatientDocumentAction('bonpour', preset);
+}
+
 function renderPatientDocumentWidget() {
   const panel = document.getElementById('patient-documents-panel');
   if (!panel) return;
@@ -1482,18 +1619,17 @@ function renderPatientDocumentWidget() {
 
   panel.innerHTML = `
     <div class="patient-documents-select">
-      <p style="margin:0; color: var(--text-light);">Générez un document personnalisé pour <strong>${escapeHTML(patientLabel)}</strong>.</p>
+      <p>Générer un document pour <strong>${escapeHTML(patientLabel)}</strong>.</p>
     </div>
-    <div class="patient-documents-actions">
-      <button class="btn btn-success" onclick="handlePatientDocumentAction('ordonnance')">💊 Ordonnance</button>
-      <button class="btn btn-warning" onclick="handlePatientDocumentAction('certificate')">🏥 Certificat médical</button>
-      <button class="btn btn-secondary" onclick="handlePatientDocumentAction('workstop')">🪪 Arrêt de travail</button>
-      <button class="btn btn-info" onclick="handlePatientDocumentAction('invoice')">🧾 Facture</button>
-      <button class="btn btn-secondary" onclick="handlePatientDocumentAction('rapport')">📄 Rapport</button>
-      <button class="btn btn-primary" onclick="handlePatientDocumentAction('bonpour')" style="background: #8b5cf6; border-color: #7c3aed;">📋 Faire Svp</button>
-      <button class="btn btn-primary" onclick="handlePatientDocumentAction('orientation')" style="background: #059669; border-color: #047857;">📨 Orientation</button>
+    <div class="patient-documents-actions patient-documents-actions-single">
+      <button class="btn btn-small" onclick="handlePatientDocumentAction('ordonnance')">Ordonnance</button>
+      <button class="btn btn-small" onclick="handlePatientDocumentAction('certificate')">Certificat médical</button>
+      <button class="btn btn-small" onclick="handlePatientDocumentAction('workstop')">Arrêt de travail</button>
+      <button class="btn btn-small" onclick="handlePatientDocumentAction('invoice')">Facture</button>
+      <button class="btn btn-small" onclick="handlePatientDocumentAction('rapport')">Rapport</button>
+      <button class="btn btn-small" onclick="openBonPourModal(currentPatientId)">Faire Svp</button>
+      <button class="btn btn-small" onclick="openOrientationModal(currentPatientId)">Orientations</button>
     </div>
-    <p class="patient-documents-hint">Facture et rapport sont désormais liés au dossier patient. Plus besoin de sélectionner une consultation.</p>
   `;
 }
 
@@ -1501,7 +1637,7 @@ function refreshPatientDocumentWidget() {
   renderPatientDocumentWidget();
 }
 
-function handlePatientDocumentAction(action) {
+function handlePatientDocumentAction(action, preset = null) {
   if (!currentPatientId) {
     showNotification('Sélectionnez un patient avant de continuer', 'warning');
     return;
@@ -1565,7 +1701,7 @@ function handlePatientDocumentAction(action) {
       ? openBonPourModal
       : window.openBonPourModal;
     if (typeof openBonPour === 'function') {
-      openBonPour(currentPatientId);
+      openBonPour(currentPatientId, preset || null);
     } else {
       showNotification('Module bon pour non charge', 'error');
     }
@@ -1577,13 +1713,15 @@ function handlePatientDocumentAction(action) {
       ? openOrientationModal
       : window.openOrientationModal;
     if (typeof openOrientation === 'function') {
-      openOrientation(currentPatientId);
+      openOrientation(currentPatientId, preset || null);
     } else {
       showNotification('Module orientation non charge', 'error');
     }
     return;
   }
 }
+
+window.openPatientDocumentPreset = openPatientDocumentPreset;
 
 /**
  * Initialize date inputs with French locale format (DD/MM/YYYY)
@@ -1671,3 +1809,51 @@ function initializeTimeInputs() {
 window.initializeDateInputs = initializeDateInputs;
 window.initializeTimeInputs = initializeTimeInputs;
 window.initializePasswordToggles = initializePasswordToggles;
+
+const SPECIALTY_CONFIG = {
+  general: {
+    accent: '#145da0', // Professional blue
+    accentLight: '#2d7fbe',
+    accentDark: '#0f4272'
+  },
+  mpr: {
+    accent: '#8b5cf6', // Purple
+    accentLight: '#a78bfa',
+    accentDark: '#6d28d9'
+  },
+  cardiology: {
+    accent: '#dc2626', // Red
+    accentLight: '#ef4444',
+    accentDark: '#b91c1c'
+  },
+  dentistry: {
+    accent: '#0f766e', // Teal/cyan
+    accentLight: '#14b8a6',
+    accentDark: '#115e59'
+  },
+  urology: {
+    accent: '#2563eb', // Blue
+    accentLight: '#3b82f6',
+    accentDark: '#1d4ed8'
+  }
+};
+
+function applySpecialtyAccent() {
+  const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
+    ? resolveActivePracticeSpecialty(window._packageConfig)
+    : 'general';
+  
+  const colors = SPECIALTY_CONFIG[activeSpecialty] || SPECIALTY_CONFIG.general;
+  
+  const root = document.documentElement;
+  root.style.setProperty('--primary-color', colors.accent);
+  root.style.setProperty('--primary-light', colors.accentLight);
+  root.style.setProperty('--primary-dark', colors.accentDark);
+  root.style.setProperty('--color-accent', colors.accent);
+  console.log(`🎨 Applied specialty colors for active specialty [${activeSpecialty}]:`, colors);
+}
+
+window.SPECIALTY_CONFIG = SPECIALTY_CONFIG;
+window.applySpecialtyAccent = applySpecialtyAccent;
+window.getPatientDocumentSpecialtyConfig = getPatientDocumentSpecialtyConfig;
+window.getPatientDocumentSpecialtyKey = getPatientDocumentSpecialtyKey;

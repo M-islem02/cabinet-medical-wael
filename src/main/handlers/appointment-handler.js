@@ -21,14 +21,15 @@ function getCurrentUserContext() {
   return {
     userId: global.currentUser?.id || null,
     role,
-    isAdmin: !!global.currentUser?.isAdmin,
+    isAdmin: !!global.currentUser?.isAdmin && !global.currentUser?.isSuperAdmin,
+    isSuperAdmin: !!global.currentUser?.isSuperAdmin,
     isPractitioner: role === 'doctor' || role === 'dentist',
     isAssistant: role === 'assistant'
   };
 }
 
 function getAppointmentScope(userContext, patientAlias = 'p') {
-  if (userContext.isPractitioner && userContext.userId) {
+  if (userContext.isPractitioner && !userContext.isAdmin && userContext.userId) {
     return {
       clause: `${patientAlias}.primaryDoctorId = ?`,
       params: [userContext.userId]
@@ -37,8 +38,8 @@ function getAppointmentScope(userContext, patientAlias = 'p') {
 
   if (userContext.isAssistant && userContext.userId) {
     return {
-      clause: `${patientAlias}.createdByUserId = ?`,
-      params: [userContext.userId]
+      clause: '',
+      params: []
     };
   }
 
@@ -51,12 +52,15 @@ function getAppointmentScope(userContext, patientAlias = 'p') {
 async function getAppointmentDailyTicketNumber(appointment) {
   if (!appointment?.appointmentDateTime) return 0;
 
+  const startOfDay = moment(appointment.appointmentDateTime).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  const endOfDay = moment(appointment.appointmentDateTime).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
   const rows = await query(
     `SELECT id
      FROM appointments
-     WHERE DATE(appointmentDateTime) = DATE(?)
+     WHERE appointmentDateTime BETWEEN ? AND ?
      ORDER BY appointmentDateTime ASC, createdAt ASC, id ASC`,
-    [appointment.appointmentDateTime]
+    [startOfDay, endOfDay]
   );
 
   const index = (rows || []).findIndex((row) => row.id === appointment.id);
@@ -66,9 +70,6 @@ async function getAppointmentDailyTicketNumber(appointment) {
 async function getAppointmentDetailsById(id) {
   const appointment = await queryOne(
     `SELECT a.*,
-     DATE(a.appointmentDateTime) as date,
-     SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-     a.appointmentType as type,
      p.firstName, p.lastName, p.phone, p.email, p.dateOfBirth
      FROM appointments a
      JOIN patients p ON a.patientId = p.id
@@ -78,8 +79,12 @@ async function getAppointmentDetailsById(id) {
 
   if (!appointment) return null;
 
+  const momentDateTime = moment(appointment.appointmentDateTime);
   return {
     ...appointment,
+    date: momentDateTime.format('YYYY-MM-DD'),
+    time: momentDateTime.format('HH:mm'),
+    type: appointment.appointmentType,
     patientName: buildPatientName(appointment.firstName, appointment.lastName),
     dailyTicketNumber: await getAppointmentDailyTicketNumber(appointment)
   };
@@ -189,9 +194,6 @@ export function handleAppointmentEvents() {
     try {
       const appointments = await query(
         `SELECT a.*,
-         DATE(a.appointmentDateTime) as date,
-         SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-         a.appointmentType as type,
          p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
          JOIN patients p ON a.patientId = p.id
@@ -202,10 +204,16 @@ export function handleAppointmentEvents() {
 
       return {
         success: true,
-        data: (appointments || []).map((appointment) => ({
-          ...appointment,
-          patientName: buildPatientName(appointment.firstName, appointment.lastName)
-        }))
+        data: (appointments || []).map((appointment) => {
+          const momentDateTime = moment(appointment.appointmentDateTime);
+          return {
+            ...appointment,
+            date: momentDateTime.format('YYYY-MM-DD'),
+            time: momentDateTime.format('HH:mm'),
+            type: appointment.appointmentType,
+            patientName: buildPatientName(appointment.firstName, appointment.lastName)
+          };
+        })
       };
     } catch (error) {
       console.error('Erreur lors de la recuperation des rendez-vous:', error);
@@ -216,10 +224,11 @@ export function handleAppointmentEvents() {
   // Recuperer les rendez-vous d'aujourd'hui
   ipcMain.handle('appointment:getToday', async () => {
     try {
-      const today = moment().format('YYYY-MM-DD');
+      const todayStart = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      const todayEnd = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
       const scope = getAppointmentScope(getCurrentUserContext(), 'p');
-      const whereParts = ['DATE(a.appointmentDateTime) = ?'];
-      const params = [today];
+      const whereParts = ['a.appointmentDateTime BETWEEN ? AND ?'];
+      const params = [todayStart, todayEnd];
 
       if (scope.clause) {
         whereParts.push(scope.clause);
@@ -227,10 +236,7 @@ export function handleAppointmentEvents() {
       }
 
       const appointments = await query(
-        `SELECT a.*,
-         DATE(a.appointmentDateTime) as date,
-         SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-         a.appointmentType as type, p.firstName, p.lastName, p.phone, p.email
+        `SELECT a.*, p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
          JOIN patients p ON a.patientId = p.id
          WHERE ${whereParts.join(' AND ')}
@@ -240,10 +246,16 @@ export function handleAppointmentEvents() {
 
       return {
         success: true,
-        data: (appointments || []).map((appointment) => ({
-          ...appointment,
-          patientName: buildPatientName(appointment.firstName, appointment.lastName)
-        }))
+        data: (appointments || []).map((appointment) => {
+          const momentDateTime = moment(appointment.appointmentDateTime);
+          return {
+            ...appointment,
+            date: momentDateTime.format('YYYY-MM-DD'),
+            time: momentDateTime.format('HH:mm'),
+            type: appointment.appointmentType,
+            patientName: buildPatientName(appointment.firstName, appointment.lastName)
+          };
+        })
       };
     } catch (error) {
       console.error('Erreur lors de la recuperation des rendez-vous du jour:', error);
@@ -272,10 +284,7 @@ export function handleAppointmentEvents() {
     try {
       const scope = getAppointmentScope(getCurrentUserContext(), 'p');
       const appointments = await query(
-        `SELECT a.*,
-         DATE(a.appointmentDateTime) as date,
-         SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-         a.appointmentType as type, p.firstName, p.lastName, p.phone, p.email
+        `SELECT a.*, p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
          JOIN patients p ON a.patientId = p.id
          ${scope.clause ? `WHERE ${scope.clause}` : ''}
@@ -285,10 +294,16 @@ export function handleAppointmentEvents() {
 
       return {
         success: true,
-        data: (appointments || []).map((appointment) => ({
-          ...appointment,
-          patientName: buildPatientName(appointment.firstName, appointment.lastName)
-        }))
+        data: (appointments || []).map((appointment) => {
+          const momentDateTime = moment(appointment.appointmentDateTime);
+          return {
+            ...appointment,
+            date: momentDateTime.format('YYYY-MM-DD'),
+            time: momentDateTime.format('HH:mm'),
+            type: appointment.appointmentType,
+            patientName: buildPatientName(appointment.firstName, appointment.lastName)
+          };
+        })
       };
     } catch (error) {
       console.error('Erreur lors de la recuperation de tous les rendez-vous:', error);
@@ -300,9 +315,11 @@ export function handleAppointmentEvents() {
   ipcMain.handle('appointment:getByDateRange', async (event, startDate, endDate) => {
     try {
       console.log('appointment:getByDateRange called:', startDate, 'to', endDate);
+      const startOfDay = moment(startDate).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+      const endOfDay = moment(endDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
       const scope = getAppointmentScope(getCurrentUserContext(), 'p');
-      const whereParts = ['DATE(a.appointmentDateTime) BETWEEN DATE(?) AND DATE(?)'];
-      const params = [startDate, endDate];
+      const whereParts = ['a.appointmentDateTime BETWEEN ? AND ?'];
+      const params = [startOfDay, endOfDay];
 
       if (scope.clause) {
         whereParts.push(scope.clause);
@@ -310,10 +327,7 @@ export function handleAppointmentEvents() {
       }
 
       const appointments = await query(
-        `SELECT a.*,
-         DATE(a.appointmentDateTime) as date,
-         SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-         a.appointmentType as type, p.firstName, p.lastName, p.phone, p.email
+        `SELECT a.*, p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
          JOIN patients p ON a.patientId = p.id
          WHERE ${whereParts.join(' AND ')}
@@ -321,10 +335,16 @@ export function handleAppointmentEvents() {
         params
       );
 
-      const data = (appointments || []).map((appointment) => ({
-        ...appointment,
-        patientName: buildPatientName(appointment.firstName, appointment.lastName)
-      }));
+      const data = (appointments || []).map((appointment) => {
+        const momentDateTime = moment(appointment.appointmentDateTime);
+        return {
+          ...appointment,
+          date: momentDateTime.format('YYYY-MM-DD'),
+          time: momentDateTime.format('HH:mm'),
+          type: appointment.appointmentType,
+          patientName: buildPatientName(appointment.firstName, appointment.lastName)
+        };
+      });
 
       console.log('appointment:getByDateRange found:', data?.length || 0);
       return { success: true, data };

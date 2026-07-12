@@ -282,6 +282,7 @@ function showSection(sectionId) {
     'daily-summary': 'featureDailySummary',
     'statistics': 'featureStatistics',
     'inventory': 'featureInventory',
+    'equipment': 'featureInventory',
     'kine-staff': 'featureKineStaff',
     'rehabilitation': 'featureRehabilitation',
     'dentistry': 'featureDentistry',
@@ -322,7 +323,7 @@ function showSection(sectionId) {
 
   // Check role-based access for assistant
   if (currentUserRole === 'assistant') {
-    const assistantRestrictedSections = ['statistics', 'inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
+    const assistantRestrictedSections = ['statistics', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
     if (assistantRestrictedSections.includes(sectionId)) {
       showNotification('Accès non autorisé', 'error');
       return;
@@ -337,9 +338,9 @@ function showSection(sectionId) {
     }
   }
 
-  // Restrict client config to admins/superadmins only
-  if (sectionId === 'package-config' && !(currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    showNotification('Accès réservé à l\'administrateur', 'error');
+  // Restrict client config and integrations to superadmin only.
+  if (['package-config', 'sms-config', 'cloud-sync'].includes(sectionId) && !currentUserIsSuperAdmin) {
+    showNotification('Accès réservé au super administrateur', 'error');
     return;
   }
   
@@ -351,6 +352,10 @@ function showSection(sectionId) {
   // Show target section
   const targetSection = document.getElementById(sectionId);
   if (targetSection) {
+    if (currentUserIsSuperAdmin && ['package-config', 'sms-config', 'cloud-sync', 'settings'].includes(sectionId)) {
+      targetSection.style.display = '';
+      targetSection.classList.remove('role-hidden');
+    }
     targetSection.classList.add('active');
   }
 
@@ -383,10 +388,12 @@ function showSection(sectionId) {
       'settings': 'Paramètres',
       'expenses': 'Gestion des Dépenses',
       'inventory': 'Gestion du Stock',
+      'equipment': 'Équipement du Cabinet',
       'debts': 'Gestion des Impayés',
       'kine-staff': 'Kinésithérapeutes (Staff)',
       'rehabilitation': 'Rééducation',
       'dentistry': 'Dentisterie',
+      'treatment-plans': 'Plans de Traitement',
       'cardiology': 'Cardiologie',
       'sms-config': 'SMS Rappels',
       'cloud-sync': 'Cloud Sync'
@@ -409,7 +416,7 @@ function showSection(sectionId) {
     loadLicenseStatus();
     loadLicenseInventory();
     // Load users list if admin
-    if (currentUserIsAdmin || currentUserIsSuperAdmin) {
+    if (currentUserIsSuperAdmin) {
       loadUsersList();
     }
   } else if (sectionId === 'appointments-calendar') {
@@ -422,6 +429,8 @@ function showSection(sectionId) {
     if (typeof initExpenses === 'function') initExpenses();
   } else if (sectionId === 'inventory') {
     if (typeof initInventory === 'function') initInventory();
+  } else if (sectionId === 'equipment') {
+    if (typeof initEquipment === 'function') initEquipment();
   } else if (sectionId === 'debts') {
     if (typeof initDebts === 'function') initDebts();
   } else if (sectionId === 'waiting-room') {
@@ -434,6 +443,8 @@ function showSection(sectionId) {
     if (typeof initRehabilitation === 'function') initRehabilitation();
   } else if (sectionId === 'dentistry') {
     if (typeof initDentistry === 'function') initDentistry();
+  } else if (sectionId === 'treatment-plans') {
+    if (typeof initTreatmentPlans === 'function') initTreatmentPlans();
   } else if (sectionId === 'cardiology') {
     if (typeof initCardiology === 'function') initCardiology();
   } else if (sectionId === 'medical-imaging') {

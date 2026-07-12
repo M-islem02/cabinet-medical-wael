@@ -1,0 +1,13 @@
+{
+  "name": "medcareso-migration-legacy",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "mysql2": "^3.16.0",
+    "pg": "^8.13.1"
+  },
+  "scripts": {
+    "migrate:postgres": "node migrate-to-postgresql.mjs"
+  }
+}

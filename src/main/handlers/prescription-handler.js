@@ -59,11 +59,19 @@ function parsePrescriptionRow(row) {
 }
 
 function isCurrentUserDirector() {
-  return normalizeUserRole(global.currentUser?.role) === 'director';
+  return String(global.currentUser?.role || '').trim() === 'director';
 }
 
 function denyDirectorMedicalAccess() {
   return { success: false, error: 'Accès refusé: le directeur ne peut pas accéder aux données médicales détaillées' };
+}
+
+function isCurrentUserAssistant() {
+  return normalizeUserRole(global.currentUser?.role) === 'assistant';
+}
+
+function denyAssistantPrescriptionWrite() {
+  return { success: false, error: 'Accès refusé: le compte assistant ne peut pas créer, signer ou modifier une ordonnance' };
 }
 
 export function handlePrescriptionEvents() {
@@ -71,6 +79,9 @@ export function handlePrescriptionEvents() {
     try {
       if (isCurrentUserDirector()) {
         return denyDirectorMedicalAccess();
+      }
+      if (isCurrentUserAssistant()) {
+        return denyAssistantPrescriptionWrite();
       }
 
       const id = uuidv4();
@@ -215,6 +226,9 @@ export function handlePrescriptionEvents() {
       if (isCurrentUserDirector()) {
         return denyDirectorMedicalAccess();
       }
+      if (isCurrentUserAssistant()) {
+        return denyAssistantPrescriptionWrite();
+      }
 
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
@@ -241,6 +255,9 @@ export function handlePrescriptionEvents() {
     try {
       if (isCurrentUserDirector()) {
         return denyDirectorMedicalAccess();
+      }
+      if (isCurrentUserAssistant()) {
+        return denyAssistantPrescriptionWrite();
       }
 
       await run('DELETE FROM prescriptions WHERE id = ?', [prescriptionId]);

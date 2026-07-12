@@ -8,15 +8,35 @@ import crypto from 'crypto';
 import moment from 'moment';
 import os from 'os';
 
+const LICENSE_SECRET = 'MEDPRO-SECURE-PEPPER-2026-X89';
+
+function calculateKeySignature(days, partA) {
+  return crypto
+    .createHmac('sha256', LICENSE_SECRET)
+    .update(`${days}D-${partA}`)
+    .digest('hex')
+    .substring(0, 6)
+    .toUpperCase();
+}
+
 export const TRIAL_LICENSE_KEY = 'MEDPRO-TRIAL-7JOURS';
+export const FIVE_DAY_LICENSE_KEY = 'MEDPRO-TRIAL-5JOURS';
+export const FIFTEEN_DAY_LICENSE_KEY = 'MEDPRO-TRIAL-15JOURS';
 export const ANNUAL_LICENSE_KEY = 'MEDPRO-ANNUELLE-1AN';
 export const UNLIMITED_LICENSE_KEY = 'MEDPRO-ILLIMITEE-ACTIVE';
 export const LEGACY_MASTER_LICENSE_KEY = 'MEDPRO-MASTER-2024-ACTIVATED';
 const LICENSE_TYPES = {
   trial: 'trial',
+  duration: 'duration',
   annual: 'annual',
   unlimited: 'unlimited'
 };
+
+const DURATION_LICENSES = new Map([
+  [FIVE_DAY_LICENSE_KEY, 5],
+  [TRIAL_LICENSE_KEY, 7],
+  [FIFTEEN_DAY_LICENSE_KEY, 15]
+]);
 
 async function getDatabaseNowMoment() {
   try {
@@ -57,10 +77,21 @@ export function generateMachineId() {
 }
 
 function getLicenseTypeFromKey(licenseKey) {
-  if (licenseKey === TRIAL_LICENSE_KEY) return LICENSE_TYPES.trial;
+  if (DURATION_LICENSES.has(licenseKey)) return LICENSE_TYPES.trial;
+  if (/^MEDPRO-\d+D-[A-Z0-9]{6}-[A-Z0-9]{6}$/.test(licenseKey)) return LICENSE_TYPES.duration;
   if (licenseKey === ANNUAL_LICENSE_KEY || licenseKey === LEGACY_MASTER_LICENSE_KEY) return LICENSE_TYPES.annual;
   if (licenseKey === UNLIMITED_LICENSE_KEY) return LICENSE_TYPES.unlimited;
   return null;
+}
+
+function getDurationDaysFromKey(licenseKey) {
+  if (DURATION_LICENSES.has(licenseKey)) {
+    return DURATION_LICENSES.get(licenseKey);
+  }
+  const match = String(licenseKey || '').match(/^MEDPRO-(\d+)D-/);
+  if (!match) return null;
+  const days = Number(match[1]);
+  return Number.isFinite(days) && days > 0 ? Math.min(365, Math.round(days)) : null;
 }
 
 async function getValidActiveLicense() {
@@ -71,11 +102,11 @@ async function getValidActiveLicense() {
 
   const now = await getDatabaseNowMoment();
   for (const license of licenses) {
-    const expirationDate = getLicenseExpirationMoment(license.expirationDate);
-    if (expirationDate && expirationDate.isSameOrBefore(now)) {
+    const validation = await validateLicense(license.key);
+    if (!validation.valid) {
       await run(
-        "UPDATE licenses SET activated = 0, status = 'expired' WHERE id = ?",
-        [license.id]
+        "UPDATE licenses SET activated = 0, status = ? WHERE id = ?",
+        [validation.reason === 'Licence expirée' ? 'expired' : 'inactive', license.id]
       );
       continue;
     }
@@ -129,6 +160,21 @@ export async function validateLicense(licenseKey) {
         reason: 'Clé de licence non trouvée'
       };
     }
+
+    // Verify signature for generated duration keys
+    const match = String(licenseKey || '').match(/^MEDPRO-(\d+)D-([A-Z0-9]{6})-([A-Z0-9]{6})$/);
+    if (match) {
+      const days = Number(match[1]);
+      const partA = match[2];
+      const signature = match[3];
+      const expectedSignature = calculateKeySignature(days, partA);
+      if (signature !== expectedSignature) {
+        return {
+          valid: false,
+          reason: 'Clé de licence invalide ou corrompue'
+        };
+      }
+    }
     
     const expirationDate = getLicenseExpirationMoment(license.expirationDate);
     const now = await getDatabaseNowMoment();
@@ -153,6 +199,13 @@ export async function validateLicense(licenseKey) {
     }
     
     const machineMismatch = !!(license.machineId && license.machineId !== generateMachineId());
+    if (machineMismatch) {
+      return {
+        valid: false,
+        reason: 'Licence déjà activée sur une autre machine',
+        license: license
+      };
+    }
     
     // Calculer les jours restants (null si pas d'expiration)
     const daysRemaining = expirationDate ? Math.max(0, expirationDate.diff(now, 'days')) : null;
@@ -161,7 +214,7 @@ export async function validateLicense(licenseKey) {
       valid: true,
       daysRemaining: daysRemaining,
       expirationDate: license.expirationDate,
-      machineMismatch,
+      machineMismatch: false,
       license: license
     };
   } catch (error) {
@@ -211,20 +264,21 @@ export async function activateLicense(licenseKey) {
       };
     }
 
-    if (validation.reason === 'Licence expirée' && licenseType === LICENSE_TYPES.trial) {
+    if (validation.reason === 'Licence expirée' && [LICENSE_TYPES.trial, LICENSE_TYPES.duration].includes(licenseType)) {
       return {
         success: false,
-        reason: 'La clé d\'essai a expiré'
+        reason: 'La clé temporaire a expiré'
       };
     }
 
     const now = await getDatabaseNowMoment();
     const activationDate = now.format('YYYY-MM-DD HH:mm:ss');
-    const expirationDate = licenseType === LICENSE_TYPES.trial
+    const durationDays = getDurationDaysFromKey(normalizedKey);
+    const expirationDate = [LICENSE_TYPES.trial, LICENSE_TYPES.duration].includes(licenseType)
       ? (
           license.activationDate && license.expirationDate
             ? license.expirationDate
-            : now.clone().add(7, 'days').format('YYYY-MM-DD HH:mm:ss')
+            : now.clone().add(durationDays || 7, 'days').format('YYYY-MM-DD HH:mm:ss')
         )
       : licenseType === LICENSE_TYPES.annual
         ? now.clone().add(1, 'year').format('YYYY-MM-DD HH:mm:ss')
@@ -245,6 +299,7 @@ export async function activateLicense(licenseKey) {
       message: 'Licence activée avec succès',
       clientName: license.clientName,
       licenseType,
+      durationDays,
       expirationDate: expirationDate || 'Illimitée'
     };
   } catch (error) {
@@ -329,6 +384,36 @@ export async function getLicenseInfo() {
   }
 }
 
+export async function generateLicenseKeys({ durationDays = 7, quantity = 1, clientName = 'Licence générée' } = {}) {
+  const days = Math.min(365, Math.max(1, Math.round(Number(durationDays) || 7)));
+  const count = Math.min(200, Math.max(1, Math.round(Number(quantity) || 1)));
+  const label = String(clientName || `Licence ${days} jours`).trim();
+  const now = await getDatabaseNowMoment();
+  const generatedDate = now.format('YYYY-MM-DD HH:mm:ss');
+  const generated = [];
+
+  for (let index = 0; index < count; index += 1) {
+    let key = '';
+    let exists = true;
+    while (exists) {
+      const partA = crypto.randomBytes(3).toString('hex').toUpperCase();
+      const signature = calculateKeySignature(days, partA);
+      key = `MEDPRO-${days}D-${partA}-${signature}`;
+      exists = await queryOne('SELECT id FROM licenses WHERE `key` = ?', [key]);
+    }
+
+    const rowClientName = `${label} - ${days} jours`;
+    await run(
+      `INSERT INTO licenses (id, \`key\`, clientName, generatedDate, expirationDate, activated, activationDate, machineId, status)
+       VALUES (?, ?, ?, ?, NULL, 0, NULL, NULL, 'pending')`,
+      [crypto.randomUUID(), key, rowClientName, generatedDate]
+    );
+    generated.push({ key, durationDays: days, clientName: rowClientName, status: 'pending' });
+  }
+
+  return { success: true, generated, durationDays: days, quantity: count };
+}
+
 /**
  * Récupère le statut de la licence pour affichage (login)
  */
@@ -347,7 +432,9 @@ export async function getLicenseStatus() {
         clientName: null,
         message: 'Aucune licence active. Connectez-vous avec un compte administrateur pour activer une clé.',
         availableKeys: {
-          trial: trialLicense?.key || TRIAL_LICENSE_KEY,
+          trial5: FIVE_DAY_LICENSE_KEY,
+          trial7: trialLicense?.key || TRIAL_LICENSE_KEY,
+          trial15: FIFTEEN_DAY_LICENSE_KEY,
           annual: ANNUAL_LICENSE_KEY,
           unlimited: unlimitedLicense?.key || UNLIMITED_LICENSE_KEY
         }
@@ -367,7 +454,8 @@ export async function getLicenseStatus() {
         expirationDate: expirationDate,
         message: validation.reason,
         licenseKey: activeLicense.key,
-        clientName: activeLicense.clientName
+        clientName: activeLicense.clientName,
+        durationDays: getDurationDaysFromKey(activeLicense.key)
       };
     }
     
@@ -379,7 +467,8 @@ export async function getLicenseStatus() {
       status: activeLicense.status,
       licenseKey: activeLicense.key,
       clientName: activeLicense.clientName,
-      licenseType: getLicenseTypeFromKey(activeLicense.key)
+      licenseType: getLicenseTypeFromKey(activeLicense.key),
+      durationDays: getDurationDaysFromKey(activeLicense.key)
     };
   } catch (error) {
     console.error('❌ Erreur lors de la récupération du statut:', error);

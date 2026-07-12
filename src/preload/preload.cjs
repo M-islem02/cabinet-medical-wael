@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
     validate: (licenseKey) => ipcRenderer.invoke('license:validate', licenseKey),
     activate: (licenseKey) => ipcRenderer.invoke('license:activate', licenseKey),
     deactivate: (licenseKey) => ipcRenderer.invoke('license:deactivate', licenseKey),
+    generateKeys: (payload) => ipcRenderer.invoke('license:generate-keys', payload),
     activated: () => ipcRenderer.invoke('license:activated'),
     getStatus: () => ipcRenderer.invoke('license:getStatus'),
     showLicenseWindow: () => ipcRenderer.invoke('license:showLicenseWindow')
@@ -151,7 +152,14 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   print: {
-    html: (payload) => ipcRenderer.invoke('print:html', payload)
+    html: (payload) => ipcRenderer.invoke('print:html', payload),
+    savePdf: (payload) => ipcRenderer.invoke('print:save-pdf', payload)
+  },
+
+  appZoom: {
+    get: () => ipcRenderer.invoke('appZoom:get'),
+    set: (value) => ipcRenderer.invoke('appZoom:set', value),
+    reset: () => ipcRenderer.invoke('appZoom:reset')
   },
 
   dialog: {
@@ -163,6 +171,10 @@ contextBridge.exposeInMainWorld('api', {
     openFile: (filePath) => ipcRenderer.invoke('system:openFile', filePath),
     downloadFile: (filePath, fileName) => ipcRenderer.invoke('system:downloadFile', { filePath, fileName }),
     openExternal: (url) => ipcRenderer.invoke('system:openExternal', url)
+  },
+
+  realtime: {
+    getConfig: () => ipcRenderer.invoke('realtime:get-config')
   },
 
   // ========== NOUVELLES APIs ==========
@@ -194,7 +206,61 @@ contextBridge.exposeInMainWorld('api', {
     getMovements: (id) => ipcRenderer.invoke('inventory:getMovements', id),
     getLowStock: () => ipcRenderer.invoke('inventory:getLowStock'),
     getExpiringSoon: (days) => ipcRenderer.invoke('inventory:getExpiringSoon', days),
-    getStats: () => ipcRenderer.invoke('inventory:getStats')
+    getStats: () => ipcRenderer.invoke('inventory:getStats'),
+    getFullStats: () => ipcRenderer.invoke('inventory:getFullStats'),
+    getPurchaseHistory: (filters) => ipcRenderer.invoke('inventory:getPurchaseHistory', filters),
+    getPurchaseReports: (filters) => ipcRenderer.invoke('inventory:getPurchaseReports', filters),
+    getPriceComparison: (inventoryId) => ipcRenderer.invoke('inventory:getPriceComparison', inventoryId)
+  },
+
+  supplier: {
+    create: (data) => ipcRenderer.invoke('supplier:create', data),
+    getAll: (filters) => ipcRenderer.invoke('supplier:getAll', filters),
+    getById: (id) => ipcRenderer.invoke('supplier:getById', id),
+    update: (id, data) => ipcRenderer.invoke('supplier:update', id, data),
+    delete: (id) => ipcRenderer.invoke('supplier:delete', id)
+  },
+
+  inventoryLot: {
+    create: (data) => ipcRenderer.invoke('inventoryLot:create', data),
+    getByInventory: (inventoryId, filters) => ipcRenderer.invoke('inventoryLot:getByInventory', inventoryId, filters),
+    getExpiringSoon: (days) => ipcRenderer.invoke('inventoryLot:getExpiringSoon', days),
+    adjust: (id, data) => ipcRenderer.invoke('inventoryLot:adjust', id, data)
+  },
+
+  purchaseOrder: {
+    create: (data) => ipcRenderer.invoke('purchaseOrder:create', data),
+    getAll: (filters) => ipcRenderer.invoke('purchaseOrder:getAll', filters),
+    update: (id, data) => ipcRenderer.invoke('purchaseOrder:update', id, data),
+    receive: (id, data) => ipcRenderer.invoke('purchaseOrder:receive', id, data),
+    delete: (id) => ipcRenderer.invoke('purchaseOrder:delete', id)
+  },
+
+  actConsumable: {
+    getByActType: (actType, specialty) => ipcRenderer.invoke('actConsumable:getByActType', actType, specialty),
+    save: (data) => ipcRenderer.invoke('actConsumable:save', data),
+    delete: (id) => ipcRenderer.invoke('actConsumable:delete', id),
+    apply: (actType, specialty, meta) => ipcRenderer.invoke('actConsumable:apply', actType, specialty, meta)
+  },
+
+  pos: {
+    createSale: (data) => ipcRenderer.invoke('pos:createSale', data),
+    getSales: (filters) => ipcRenderer.invoke('pos:getSales', filters),
+    getSaleById: (id) => ipcRenderer.invoke('pos:getSaleById', id),
+    getSalesReports: (filters) => ipcRenderer.invoke('pos:getSalesReports', filters)
+  },
+
+  equipment: {
+    getCategories: () => ipcRenderer.invoke('equipment:getCategories'),
+    create: (data) => ipcRenderer.invoke('equipment:create', data),
+    getAll: (filters) => ipcRenderer.invoke('equipment:getAll', filters),
+    getById: (id) => ipcRenderer.invoke('equipment:getById', id),
+    update: (id, data) => ipcRenderer.invoke('equipment:update', id, data),
+    delete: (id) => ipcRenderer.invoke('equipment:delete', id),
+    addMaintenance: (data) => ipcRenderer.invoke('equipment:addMaintenance', data),
+    getAlerts: (days) => ipcRenderer.invoke('equipment:getAlerts', days),
+    requestMaintenance: (id, reason) => ipcRenderer.invoke('equipment:requestMaintenance', id, reason),
+    linkToPlan: (data) => ipcRenderer.invoke('equipment:linkToPlan', data)
   },
 
   // API Analyses médicales
@@ -242,8 +308,10 @@ contextBridge.exposeInMainWorld('api', {
   // API Médicaments
   medication: {
     create: (data) => ipcRenderer.invoke('medication:create', data),
+    addToSpecialtyJson: (payload) => ipcRenderer.invoke('medication:add-to-specialty-json', payload),
     getAll: () => ipcRenderer.invoke('medication:getAll'),
     search: (term) => ipcRenderer.invoke('medication:search', term),
+    searchSpecialtyJson: (payload) => ipcRenderer.invoke('medication:search-specialty-json', payload),
     getById: (id) => ipcRenderer.invoke('medication:getById', id),
     incrementUsage: (name) => ipcRenderer.invoke('medication:incrementUsage', name),
     update: (id, data) => ipcRenderer.invoke('medication:update', id, data),
@@ -368,6 +436,7 @@ contextBridge.exposeInMainWorld('api', {
     getTeeth: (patientId) => ipcRenderer.invoke('dental:getTeeth', patientId),
     saveTooth: (data) => ipcRenderer.invoke('dental:saveTooth', data),
     saveMultipleTeeth: (patientId, teeth) => ipcRenderer.invoke('dental:saveMultipleTeeth', patientId, teeth),
+    getTreatmentsByPatient: (patientId) => ipcRenderer.invoke('dental:getTreatmentsByPatient', patientId),
     createTreatment: (data) => ipcRenderer.invoke('dental:createTreatment', data),
     getTreatments: (patientId) => ipcRenderer.invoke('dental:getTreatments', patientId),
     getAllTreatments: (filters) => ipcRenderer.invoke('dental:getAllTreatments', filters),
@@ -382,6 +451,27 @@ contextBridge.exposeInMainWorld('api', {
     deleteXray: (id) => ipcRenderer.invoke('dental:deleteXray', id),
     getStats: (patientId) => ipcRenderer.invoke('dental:getStats', patientId),
     getToothHistory: (patientId, toothNumber) => ipcRenderer.invoke('dental:getToothHistory', patientId, toothNumber)
+  },
+
+  // ========== API PLANS DE TRAITEMENT ==========
+  plans: {
+    create: (data) => ipcRenderer.invoke('plans:create', data),
+    getAll: (filters) => ipcRenderer.invoke('plans:getAll', filters),
+    getByPatient: (patientId) => ipcRenderer.invoke('plans:getByPatient', patientId),
+    getById: (id) => ipcRenderer.invoke('plans:getById', id),
+    update: (id, data) => ipcRenderer.invoke('plans:update', id, data),
+    archive: (id) => ipcRenderer.invoke('plans:archive', id),
+    delete: (id) => ipcRenderer.invoke('plans:delete', id),
+    addPaymentSession: (data) => ipcRenderer.invoke('plans:addPaymentSession', data),
+    updateSessionPayment: (data) => ipcRenderer.invoke('plans:updateSessionPayment', data),
+    getSessions: (planId) => ipcRenderer.invoke('plans:getSessions', planId),
+    updateSessions: (planId, sessions) => ipcRenderer.invoke('plans:updateSessions', planId, sessions),
+    recalculate: (planId) => ipcRenderer.invoke('plans:recalculate', planId),
+    requestPayment: (data) => ipcRenderer.invoke('plans:requestPayment', data),
+    getPendingBalances: () => ipcRenderer.invoke('plans:getPendingBalances'),
+    getOrCreateDefault: (data) => ipcRenderer.invoke('plans:getOrCreateDefault', data),
+    getFinancialStats: (filters) => ipcRenderer.invoke('plans:getFinancialStats', filters),
+    updateSessionStatus: (sessionId, status) => ipcRenderer.invoke('plans:updateSessionStatus', sessionId, status)
   },
 
   // ========== API SMS ==========
@@ -482,20 +572,16 @@ contextBridge.exposeInMainWorld('api', {
   // ========== API PACKAGE CONFIGURATION ==========
   package: {
     getConfig: () => ipcRenderer.invoke('package:get-config'),
+    getSpecialtyConfig: () => ipcRenderer.invoke('package:get-specialty-config'),
+    getLoadedBases: () => ipcRenderer.invoke('package:get-loaded-bases'),
+    refreshSpecialtyBase: (specialtyKey) => ipcRenderer.invoke('package:refresh-specialty-base', specialtyKey),
+    exportMedicationsJson: (specialtyKey) => ipcRenderer.invoke('package:export-medications-json', specialtyKey),
     getDefinitions: () => ipcRenderer.invoke('package:get-definitions'),
     saveConfig: (config) => ipcRenderer.invoke('package:save-config', config),
     checkFeature: (featureName) => ipcRenderer.invoke('package:check-feature', featureName),
     checkUserLimit: (role) => ipcRenderer.invoke('package:check-user-limit', role),
     isConfigured: () => ipcRenderer.invoke('package:is-configured'),
     showConfigWindow: () => ipcRenderer.invoke('package:show-config-window')
-  },
-
-  // ========== API INTELLIGENCE ARTIFICIELLE (Ollama) ==========
-  ai: {
-    checkStatus: () => ipcRenderer.invoke('ai:check-status'),
-    generateReport: (data) => ipcRenderer.invoke('ai:generate-report', data),
-    chat: (data) => ipcRenderer.invoke('ai:chat', data),
-    generateConclusion: (consultationData) => ipcRenderer.invoke('ai:generate-conclusion', consultationData)
   },
 
   // ========== API DEV/TEST ==========
@@ -518,6 +604,7 @@ contextBridge.exposeInMainWorld('api', {
   // ========== API CONFIGURATION BASE DE DONNÉES ==========
   dbConfig: {
     get: () => ipcRenderer.invoke('dbConfig:get'),
+    getStatus: () => ipcRenderer.invoke('dbConfig:getStatus'),
     save: (config) => ipcRenderer.invoke('dbConfig:save', config),
     testConnection: (config) => ipcRenderer.invoke('dbConfig:testConnection', config),
     restart: () => ipcRenderer.invoke('dbConfig:restart'),

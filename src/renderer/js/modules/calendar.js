@@ -1914,13 +1914,18 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
     const currentRequestId = ++searchRequestId;
     const value = String(rawTerm || '').trim();
 
-    dropdown.classList.add('active');
-
     if (value.length < minChars) {
+      if (options.hideWhenEmpty) {
+        dropdown.innerHTML = '';
+        closeDropdown();
+        return;
+      }
+      dropdown.classList.add('active');
       createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
       return;
     }
 
+    dropdown.classList.add('active');
     createPatientSearchMessage(dropdown, options.loadingMessage || 'Recherche des patients...');
 
     const patients = await searchPatientsByPrefix(value, options.staticPatients || null);
@@ -1933,12 +1938,17 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
   };
 
   searchInput.addEventListener('focus', () => {
-    dropdown.classList.add('active');
     const currentValue = searchInput.value.trim();
     if (currentValue.length >= minChars) {
       runSearch(currentValue);
       return;
     }
+    if (options.hideWhenEmpty) {
+      dropdown.innerHTML = '';
+      closeDropdown();
+      return;
+    }
+    dropdown.classList.add('active');
     createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
   });
 
@@ -1997,7 +2007,12 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
     }
   });
 
-  createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
+  if (options.hideWhenEmpty) {
+    dropdown.innerHTML = '';
+    closeDropdown();
+  } else {
+    createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
+  }
 
   if (options.selectedPatientId) {
     setLazyPatientFieldValue(valueInputId, options.selectedPatientId, options.selectedPatientName || '', {

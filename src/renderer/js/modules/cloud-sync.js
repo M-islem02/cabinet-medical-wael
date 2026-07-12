@@ -17,13 +17,13 @@ async function loadSyncConfigUI() {
     if (result.success && result.data) {
       const c = result.data;
       document.getElementById('sync-enabled').checked = c.enabled || false;
-      currentSyncProvider = c.provider || 'rest';
+      currentSyncProvider = c.provider === 'mariadb' ? 'rest' : (c.provider || 'rest');
       setSyncProvider(currentSyncProvider);
 
       document.getElementById('sync-api-url').value = c.apiUrl || '';
       document.getElementById('sync-api-key').value = c.apiKey || '';
       document.getElementById('sync-remote-host').value = c.remoteHost || '';
-      document.getElementById('sync-remote-port').value = c.remotePort || 3306;
+      document.getElementById('sync-remote-port').value = c.remotePort || 5432;
       document.getElementById('sync-remote-user').value = c.remoteUser || '';
       document.getElementById('sync-remote-pass').value = c.remotePassword || '';
       document.getElementById('sync-remote-db').value = c.remoteDatabase || '';
@@ -78,13 +78,12 @@ async function loadSyncStorageInfo() {
 }
 
 function setSyncProvider(provider) {
+  provider = provider === 'mariadb' ? 'rest' : provider;
   currentSyncProvider = provider;
   document.getElementById('sync-rest-config').style.display = provider === 'rest' ? 'grid' : 'none';
-  document.getElementById('sync-mariadb-config').style.display = provider === 'mariadb' ? 'grid' : 'none';
+  document.getElementById('sync-mariadb-config').style.display = 'none';
   document.getElementById('sync-prov-rest').style.borderColor = provider === 'rest' ? '#3b82f6' : '#e5e7eb';
   document.getElementById('sync-prov-rest').style.background = provider === 'rest' ? '#eff6ff' : '#fff';
-  document.getElementById('sync-prov-mariadb').style.borderColor = provider === 'mariadb' ? '#3b82f6' : '#e5e7eb';
-  document.getElementById('sync-prov-mariadb').style.background = provider === 'mariadb' ? '#eff6ff' : '#fff';
 }
 
 function toggleSyncEnabled() { /* saved on button click */ }
@@ -106,7 +105,7 @@ async function saveSyncConfig() {
       apiUrl: document.getElementById('sync-api-url').value,
       apiKey: document.getElementById('sync-api-key').value,
       remoteHost: document.getElementById('sync-remote-host').value,
-      remotePort: parseInt(document.getElementById('sync-remote-port').value) || 3306,
+      remotePort: parseInt(document.getElementById('sync-remote-port').value) || 5432,
       remoteUser: document.getElementById('sync-remote-user').value,
       remotePassword: document.getElementById('sync-remote-pass').value,
       remoteDatabase: document.getElementById('sync-remote-db').value,

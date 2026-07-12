@@ -12,8 +12,6 @@ const PKG_PRICES = {
     dentistry: 12000,
     cardiology: 12000,
     medicalImaging: 0,
-    aiReports: 10000,
-    aiChatbot: 8000,
     waitingRoom: 0,
     inventory: 0,
     afterSalesSupport: 0
@@ -33,7 +31,7 @@ const PKG_PACKAGES = {
     professional: {
         doctors: 1,
         assistants: 1,
-        features: ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'aiReports', 'aiChatbot']
+        features: ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging']
     },
     custom: {
         doctors: 1,
@@ -44,6 +42,8 @@ const PKG_PACKAGES = {
 
 let selectedPackageType = 'standard';
 let selectedPackageSpecialty = 'general';
+let selectedPackageSpecialties = ['general'];
+let loadedSpecialtyBasesCache = [];
 
 const PKG_SPECIALTY_LABELS = {
     general: 'Mode généraliste',
@@ -79,54 +79,76 @@ async function applySavedPackageConfigState() {
 }
 
 function getEnabledPackageSpecialties() {
-    const enabled = ['general'];
+    const enabled = [];
+    if (document.getElementById('pkg-check-specialty-general')?.checked) enabled.push('general');
     if (document.getElementById('pkg-check-rehabilitation')?.checked) enabled.push('mpr');
     if (document.getElementById('pkg-check-cardiology')?.checked) enabled.push('cardiology');
     if (document.getElementById('pkg-check-dentistry')?.checked) enabled.push('dentistry');
+    if (!enabled.length) {
+        const generalCheckbox = document.getElementById('pkg-check-specialty-general');
+        if (generalCheckbox) generalCheckbox.checked = true;
+        document.getElementById('pkg-option-specialty-general')?.classList.add('selected');
+        return ['general'];
+    }
     return enabled;
+}
+
+function parseEnabledSpecialtiesFromConfig(config = {}) {
+    if (config.enabledSpecialties) {
+        try {
+            const parsed = Array.isArray(config.enabledSpecialties)
+                ? config.enabledSpecialties
+                : JSON.parse(config.enabledSpecialties);
+            const cleaned = parsed.filter((key) => PKG_SPECIALTY_LABELS[key]);
+            if (cleaned.length) return [...new Set(cleaned)];
+        } catch (_) {}
+    }
+    const enabled = ['general'];
+    if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureKineStaff === 1 || config.featureKineStaff === true) enabled.push('mpr');
+    if (config.featureCardiology === 1 || config.featureCardiology === true) enabled.push('cardiology');
+    if (config.featureDentistry === 1 || config.featureDentistry === true) enabled.push('dentistry');
+    return [...new Set(enabled)];
 }
 
 function syncPackageSpecialtyButtons(preferredSpecialty = selectedPackageSpecialty) {
     const enabled = getEnabledPackageSpecialties();
+    selectedPackageSpecialties = enabled;
     const specialtyButtons = document.querySelectorAll('[data-pkg-specialty]');
 
     specialtyButtons.forEach((button) => {
         const specialtyKey = button.dataset.pkgSpecialty;
-        const isAvailable = specialtyKey === 'general' || enabled.includes(specialtyKey);
-        const isSelected = specialtyKey === selectedPackageSpecialty;
+        const isAvailable = true;
+        const isSelected = enabled.includes(specialtyKey);
 
-        button.disabled = !isAvailable;
         button.classList.toggle('btn-primary', isSelected);
         button.classList.toggle('btn-outline', !isSelected);
-        button.classList.toggle('is-disabled', !isAvailable);
         button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        if (!isAvailable) {
-            button.title = 'Activez d’abord le module correspondant';
-        } else {
-            button.removeAttribute('title');
-        }
     });
 
-    const safeSpecialty = enabled.includes(preferredSpecialty) ? preferredSpecialty : 'general';
+    const safeSpecialty = enabled.includes(preferredSpecialty) ? preferredSpecialty : enabled[0] || 'general';
     selectedPackageSpecialty = safeSpecialty;
-
-    specialtyButtons.forEach((button) => {
-        const specialtyKey = button.dataset.pkgSpecialty;
-        const isSelected = specialtyKey === selectedPackageSpecialty;
-        button.classList.toggle('btn-primary', isSelected);
-        button.classList.toggle('btn-outline', !isSelected);
-        button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-    });
 
     const activeLabel = document.getElementById('pkg-active-specialty-label');
     if (activeLabel) {
-        activeLabel.textContent = PKG_SPECIALTY_LABELS[selectedPackageSpecialty] || PKG_SPECIALTY_LABELS.general;
+        activeLabel.textContent = enabled.map((key) => PKG_SPECIALTY_LABELS[key] || key).join(', ');
     }
 }
 
 function setPackageActiveSpecialty(specialtyKey = 'general') {
     const normalized = String(specialtyKey || 'general').trim().toLowerCase();
-    syncPackageSpecialtyButtons(normalized);
+    const checkboxMap = {
+        general: 'pkg-check-specialty-general',
+        mpr: 'pkg-check-rehabilitation',
+        cardiology: 'pkg-check-cardiology',
+        dentistry: 'pkg-check-dentistry'
+    };
+    const checkbox = document.getElementById(checkboxMap[normalized]);
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        const row = checkbox.closest('.pkg-option-row') || document.getElementById(`pkg-option-${normalized === 'mpr' ? 'rehabilitation' : normalized}`);
+        if (row) row.classList.toggle('selected', checkbox.checked);
+    }
+    syncPackageSpecialtyButtons(selectedPackageSpecialty);
     updatePackageSummary();
 }
 
@@ -174,7 +196,7 @@ function initializePackageConfig() {
     });
     
     // Feature checkboxes
-    ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'aiReports', 'aiChatbot'].forEach(feature => {
+    ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general'].forEach(feature => {
         const checkbox = document.getElementById(`pkg-check-${feature}`);
         if (checkbox) {
             checkbox.addEventListener('change', () => {
@@ -198,7 +220,19 @@ function initializePackageConfig() {
     
     syncPackageSpecialtyButtons(selectedPackageSpecialty);
     updatePackageSummary();
+    loadPackageSpecialtyBasesSummary();
     console.log('✅ Package Config module initialized');
+}
+
+async function loadPackageSpecialtyBasesSummary() {
+    if (!window.api?.package?.getLoadedBases) return;
+    try {
+        const result = await window.api.package.getLoadedBases();
+        loadedSpecialtyBasesCache = result.success && Array.isArray(result.data) ? result.data : [];
+        updatePackageSummary();
+    } catch (error) {
+        console.error('Error loading specialty bases summary:', error);
+    }
 }
 
 async function loadExistingPackageConfig() {
@@ -217,16 +251,15 @@ async function loadExistingPackageConfig() {
             document.getElementById('pkg-check-assistant').checked = config.maxAssistants > 0;
             
             // Load features
+            const enabledSpecialties = parseEnabledSpecialtiesFromConfig(config);
+            document.getElementById('pkg-check-specialty-general').checked = enabledSpecialties.includes('general');
             document.getElementById('pkg-check-inventory').checked = config.featureInventory !== 0;
-            document.getElementById('pkg-check-rehabilitation').checked = config.featureRehabilitation === 1;
-            document.getElementById('pkg-check-dentistry').checked = config.featureDentistry === 1;
-            document.getElementById('pkg-check-cardiology').checked = config.featureCardiology === 1;
+            document.getElementById('pkg-check-rehabilitation').checked = enabledSpecialties.includes('mpr');
+            document.getElementById('pkg-check-dentistry').checked = enabledSpecialties.includes('dentistry');
+            document.getElementById('pkg-check-cardiology').checked = enabledSpecialties.includes('cardiology');
             document.getElementById('pkg-check-medicalImaging').checked = config.featureMedicalImaging !== 0;
-            document.getElementById('pkg-check-aiReports').checked = config.featureAiReports === 1;
-            document.getElementById('pkg-check-aiChatbot').checked = config.featureAiChatbot === 1;
-            
             // Update UI
-            ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'aiReports', 'aiChatbot'].forEach(feature => {
+            ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general'].forEach(feature => {
                 const checkbox = document.getElementById(`pkg-check-${feature}`);
                 const row = document.getElementById(`pkg-option-${feature}`);
                 if (checkbox && row) {
@@ -234,7 +267,8 @@ async function loadExistingPackageConfig() {
                 }
             });
 
-            selectedPackageSpecialty = config.activeSpecialty || 'general';
+            selectedPackageSpecialties = enabledSpecialties;
+            selectedPackageSpecialty = enabledSpecialties.includes(config.activeSpecialty) ? config.activeSpecialty : enabledSpecialties[0] || 'general';
             syncPackageSpecialtyButtons(selectedPackageSpecialty);
             
             updateDoctorPrice();
@@ -265,7 +299,7 @@ function selectPackageType(packageId) {
         document.getElementById('pkg-check-assistant').checked = preset.assistants > 0;
         
         // Reset optional features
-        ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'aiReports', 'aiChatbot'].forEach(feature => {
+        ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging'].forEach(feature => {
             const checkbox = document.getElementById(`pkg-check-${feature}`);
             const row = document.getElementById(`pkg-option-${feature}`);
             if (checkbox && row) {
@@ -282,6 +316,11 @@ function selectPackageType(packageId) {
                 : preset.features.includes('dentistry')
                     ? 'dentistry'
                     : 'general';
+        const generalCheckbox = document.getElementById('pkg-check-specialty-general');
+        if (generalCheckbox) {
+            generalCheckbox.checked = !preset.features.some((feature) => ['rehabilitation', 'cardiology', 'dentistry'].includes(feature));
+            document.getElementById('pkg-option-specialty-general')?.classList.toggle('selected', generalCheckbox.checked);
+        }
         syncPackageSpecialtyButtons(presetSpecialty);
         
         updateDoctorPrice();
@@ -330,9 +369,7 @@ function updatePackageSummary() {
         { id: 'rehabilitation', label: '♿ Module Rééducation MPR' },
         { id: 'dentistry', label: '🦷 Module Dentiste' },
         { id: 'cardiology', label: '💓 Module Cardiologue' },
-        { id: 'medicalImaging', label: '🩻 Imagerie médicale', includedWhenChecked: true },
-        { id: 'aiReports', label: '📝 Rapports IA' },
-        { id: 'aiChatbot', label: '💬 Assistant IA' }
+        { id: 'medicalImaging', label: '🩻 Imagerie médicale', includedWhenChecked: true }
     ];
     
     optionalFeatures.forEach(feature => {
@@ -345,11 +382,22 @@ function updatePackageSummary() {
         }
     });
     
-    // Included features
+    const enabledSpecialties = getEnabledPackageSpecialties();
     html += `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
-        <span>🩺 Spécialité active</span>
-        <span style="color: #145da0; font-weight: 700;">${PKG_SPECIALTY_LABELS[selectedPackageSpecialty] || PKG_SPECIALTY_LABELS.general}</span>
+        <span>🩺 Spécialités activées</span>
+        <span style="color: #145da0; font-weight: 700;">${enabledSpecialties.map((key) => PKG_SPECIALTY_LABELS[key] || key).join(', ')}</span>
     </div>`;
+
+    const loadedRows = loadedSpecialtyBasesCache
+        .filter((base) => enabledSpecialties.includes(base.key))
+        .map((base) => `<div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+            <span>${base.label}</span>
+            <span>${base.logoExists ? 'Logo OK' : 'Logo app'} · ${base.medicationJsonLoaded ? base.medicationCount : 0} méd. · ${base.examsCount} examens · ${base.imagingFamiliesCount} imagerie · ${base.equipmentCategoriesCount} équip.</span>
+        </div>`)
+        .join('');
+    if (loadedRows) {
+        html += loadedRows;
+    }
     
     summaryEl.innerHTML = html;
     document.getElementById('pkg-total-price').textContent = 'Prête à enregistrer';
@@ -367,11 +415,9 @@ async function savePackageConfig() {
     const dentistryEnabled = document.getElementById('pkg-check-dentistry').checked;
     const cardiologyEnabled = document.getElementById('pkg-check-cardiology').checked;
     const medicalImagingEnabled = document.getElementById('pkg-check-medicalImaging').checked;
-    const aiReportsEnabled = document.getElementById('pkg-check-aiReports').checked;
-    const aiChatbotEnabled = document.getElementById('pkg-check-aiChatbot').checked;
-
     syncPackageSpecialtyButtons(selectedPackageSpecialty);
     const safeActiveSpecialty = selectedPackageSpecialty;
+    const enabledSpecialties = getEnabledPackageSpecialties();
     
     const config = {
         clientName,
@@ -396,9 +442,10 @@ async function savePackageConfig() {
         featureCardiology: cardiologyEnabled,
         featureMedicalImaging: medicalImagingEnabled,
         activeSpecialty: safeActiveSpecialty,
+        enabledSpecialties,
         featureMultiPC: false,
-        featureAiReports: aiReportsEnabled,
-        featureAiChatbot: aiChatbotEnabled,
+        featureAiReports: false,
+        featureAiChatbot: false,
         totalPrice: calculatePackageTotal()
     };
     
@@ -432,6 +479,7 @@ async function skipPackageConfig() {
         featureCardiology: false,
         featureMedicalImaging: true,
         activeSpecialty: 'general',
+        enabledSpecialties: ['general'],
         featureMultiPC: false,
         featureAiReports: false,
         featureAiChatbot: false,
@@ -460,7 +508,7 @@ function calculatePackageTotal() {
     total += qtyDoctors * PKG_PRICES.doctor;
     total += qtyAssistants * PKG_PRICES.assistant;
     
-    const features = ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'aiReports', 'aiChatbot'];
+    const features = ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging'];
     features.forEach(feature => {
         const checkbox = document.getElementById(`pkg-check-${feature}`);
         if (checkbox && checkbox.checked && PKG_PRICES[feature] > 0) {

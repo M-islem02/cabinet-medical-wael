@@ -196,10 +196,14 @@ function createTables() {
       ownerUserId TEXT,
       cabinetLogoDataUrl TEXT,
       cabinetWatermarkLogoDataUrl TEXT,
+      customTreatmentTypes TEXT,
       updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
+  try {
+    db.exec(`ALTER TABLE settings ADD COLUMN customTreatmentTypes TEXT`);
+  } catch (e) { /* Column exists */ }
   try {
     db.exec(`ALTER TABLE settings ADD COLUMN preferredPrinter TEXT`);
   } catch (e) { /* Column exists */ }
@@ -1064,14 +1068,259 @@ function createTables() {
   // Add dentistry tables
   createDentistryTables();
   
+  // Add treatment plans tables (multi-specialty)
+  createTreatmentPlansTables();
+  
   // Add SMS and Cloud Sync tables
   createSMSTables();
   createCloudSyncTables();
-  
+
+  // Add Inventory & POS module tables (Sous-plan F)
+  createInventoryModuleTables();
+
+  // Add Equipment module tables (Sous-plan G)
+  createEquipmentTables();
+
   ensureSchemaUpgrades();
   ensureDefaultData();
   ensureDefaultCategories();
   ensureMPRDefaultData();
+}
+
+// ========== MODULE INVENTAIRE & POINT DE VENTE (Sous-plan F) ==========
+
+function createInventoryModuleTables() {
+  // Fournisseurs
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      contactName TEXT,
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      specialty TEXT,
+      isActive INTEGER DEFAULT 1,
+      notes TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Inventory item master data (existing table extended via migrations below)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS inventory (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT DEFAULT 'Général',
+      description TEXT,
+      quantity INTEGER DEFAULT 0,
+      minQuantity INTEGER DEFAULT 5,
+      unit TEXT DEFAULT 'unité',
+      purchasePrice REAL DEFAULT 0,
+      sellingPrice REAL DEFAULT 0,
+      supplier TEXT,
+      supplierId TEXT,
+      expirationDate TEXT,
+      location TEXT,
+      photoPath TEXT,
+      notes TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(supplierId) REFERENCES suppliers(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Lots / traçabilité FEFO
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS inventory_lots (
+      id TEXT PRIMARY KEY,
+      inventoryId TEXT NOT NULL,
+      supplierId TEXT,
+      lotNumber TEXT,
+      purchaseDate TEXT,
+      expirationDate TEXT,
+      initialQuantity INTEGER NOT NULL,
+      remainingQuantity INTEGER NOT NULL,
+      unitPrice REAL DEFAULT 0,
+      notes TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE,
+      FOREIGN KEY(supplierId) REFERENCES suppliers(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Purchase orders
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id TEXT PRIMARY KEY,
+      supplierId TEXT,
+      orderDate TEXT DEFAULT CURRENT_TIMESTAMP,
+      expectedDeliveryDate TEXT,
+      status TEXT DEFAULT 'draft',
+      totalAmount REAL DEFAULT 0,
+      invoiceNumber TEXT,
+      invoiceAmount REAL,
+      notes TEXT,
+      createdBy TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(supplierId) REFERENCES suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY(createdBy) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS purchase_order_items (
+      id TEXT PRIMARY KEY,
+      purchaseOrderId TEXT NOT NULL,
+      inventoryId TEXT NOT NULL,
+      orderedQuantity INTEGER NOT NULL,
+      receivedQuantity INTEGER DEFAULT 0,
+      unitPrice REAL DEFAULT 0,
+      notes TEXT,
+      FOREIGN KEY(purchaseOrderId) REFERENCES purchase_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Point of Sale sales
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pos_sales (
+      id TEXT PRIMARY KEY,
+      patientId TEXT,
+      customerName TEXT,
+      saleDate TEXT DEFAULT CURRENT_TIMESTAMP,
+      totalAmount REAL DEFAULT 0,
+      discountAmount REAL DEFAULT 0,
+      discountPercent REAL DEFAULT 0,
+      finalAmount REAL DEFAULT 0,
+      paymentMethod TEXT DEFAULT 'Espèces',
+      paymentId TEXT,
+      notes TEXT,
+      createdBy TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE SET NULL,
+      FOREIGN KEY(createdBy) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(paymentId) REFERENCES payments(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pos_sale_items (
+      id TEXT PRIMARY KEY,
+      posSaleId TEXT NOT NULL,
+      inventoryId TEXT NOT NULL,
+      lotId TEXT,
+      quantity INTEGER NOT NULL,
+      unitPrice REAL DEFAULT 0,
+      purchasePrice REAL DEFAULT 0,
+      totalPrice REAL DEFAULT 0,
+      FOREIGN KEY(posSaleId) REFERENCES pos_sales(id) ON DELETE CASCADE,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE,
+      FOREIGN KEY(lotId) REFERENCES inventory_lots(id) ON DELETE SET NULL
+    )
+  `);
+
+  // Acte -> consommables par défaut (Sous-plan F5)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS act_consumables (
+      id TEXT PRIMARY KEY,
+      actType TEXT NOT NULL,
+      inventoryId TEXT NOT NULL,
+      quantity REAL DEFAULT 1,
+      specialty TEXT DEFAULT 'dentistry',
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Migrations for existing installations must run before indexes that depend on the columns.
+  try { db.exec(`ALTER TABLE inventory ADD COLUMN supplierId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE inventory ADD COLUMN photoPath TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE inventory_lots ADD COLUMN supplierId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE inventory_lots ADD COLUMN updatedAt TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE purchase_orders ADD COLUMN supplierId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE purchase_orders ADD COLUMN invoiceNumber TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE purchase_orders ADD COLUMN invoiceAmount REAL`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE purchase_orders ADD COLUMN updatedAt TEXT`); } catch (e) { /* exists */ }
+
+  // Indexes
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_lots_inventory ON inventory_lots(inventoryId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_lots_expiration ON inventory_lots(expirationDate)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_lots_supplier ON inventory_lots(supplierId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_supplier ON inventory(supplierId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier ON purchase_orders(supplierId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_purchase_order_items_po ON purchase_order_items(purchaseOrderId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pos_sales_patient ON pos_sales(patientId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pos_sale_items_sale ON pos_sale_items(posSaleId)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_act_consumables_act ON act_consumables(actType)`);
+
+  // Extend inventory_movements with lot and sale references
+  try { db.exec(`ALTER TABLE inventory_movements ADD COLUMN lotId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE inventory_movements ADD COLUMN posSaleId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE inventory_movements ADD COLUMN purchaseOrderId TEXT`); } catch (e) { /* exists */ }
+
+  console.log('✅ Inventory & POS module tables created');
+}
+
+// ========== MODULE ÉQUIPEMENT (Sous-plan G) ==========
+
+function createEquipmentTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS equipment (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      brand TEXT,
+      model TEXT,
+      serialNumber TEXT,
+      purchaseDate TEXT,
+      warrantyEnd TEXT,
+      assignedRoom TEXT,
+      assignedDoctorId TEXT,
+      status TEXT DEFAULT 'available',
+      lastMaintenanceDate TEXT,
+      nextMaintenanceDate TEXT,
+      notes TEXT,
+      specificFields TEXT,
+      isActive INTEGER DEFAULT 1,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(assignedDoctorId) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS equipment_maintenance (
+      id TEXT PRIMARY KEY,
+      equipmentId TEXT NOT NULL,
+      maintenanceDate TEXT NOT NULL,
+      maintenanceType TEXT NOT NULL,
+      cost REAL DEFAULT 0,
+      technician TEXT,
+      supplierId TEXT,
+      notes TEXT,
+      performedBy TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(equipmentId) REFERENCES equipment(id) ON DELETE CASCADE,
+      FOREIGN KEY(supplierId) REFERENCES suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY(performedBy) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_equipment_category ON equipment(category)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_equipment_status ON equipment(status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_equipment_maintenance_eq ON equipment_maintenance(equipmentId)`);
+
+  // Migration: add equipmentId to plan_equipment_usage
+  try { db.exec(`ALTER TABLE plan_equipment_usage ADD COLUMN equipmentId TEXT`); } catch (e) { /* exists */ }
+
+  console.log('✅ Equipment module tables created');
 }
 
 /**
@@ -1097,6 +1346,7 @@ function createPackageConfigTable() {
       featureCardiology INTEGER DEFAULT 0,
       featureMedicalImaging INTEGER DEFAULT 1,
       activeSpecialty TEXT DEFAULT 'general',
+      enabledSpecialties TEXT DEFAULT '["general"]',
       featureDebts INTEGER DEFAULT 1,
       featureCalendar INTEGER DEFAULT 1,
       featureDocuments INTEGER DEFAULT 1,
@@ -1147,6 +1397,9 @@ function createPackageConfigTable() {
     db.exec(`ALTER TABLE package_config ADD COLUMN activeSpecialty TEXT DEFAULT 'general'`);
   } catch (e) { /* column exists */ }
   try {
+    db.exec(`ALTER TABLE package_config ADD COLUMN enabledSpecialties TEXT DEFAULT '["general"]'`);
+  } catch (e) { /* column exists */ }
+  try {
     db.exec(`ALTER TABLE package_config ADD COLUMN priceCardiology REAL DEFAULT 12000`);
   } catch (e) { /* column exists */ }
 
@@ -1160,6 +1413,18 @@ function createPackageConfigTable() {
         ELSE 'general'
       END
       WHERE activeSpecialty IS NULL OR TRIM(activeSpecialty) = ''
+    `);
+    db.exec(`
+      UPDATE package_config
+      SET enabledSpecialties =
+        '["general"' ||
+        CASE WHEN featureRehabilitation = 1 OR featureKineStaff = 1 THEN ',"mpr"' ELSE '' END ||
+        CASE WHEN featureCardiology = 1 THEN ',"cardiology"' ELSE '' END ||
+        CASE WHEN featureDentistry = 1 THEN ',"dentistry"' ELSE '' END ||
+        ']'
+      WHERE enabledSpecialties IS NULL
+         OR TRIM(enabledSpecialties) = ''
+         OR (enabledSpecialties = '["general"]' AND (featureRehabilitation = 1 OR featureKineStaff = 1 OR featureCardiology = 1 OR featureDentistry = 1))
     `);
   } catch (e) { /* ignore migration update issues */ }
   
@@ -1279,7 +1544,73 @@ function createDentistryTables() {
     )
   `);
 
+  // Migrations: add missing columns to dental_treatments
+  try { db.exec(`ALTER TABLE dental_treatments ADD COLUMN status TEXT DEFAULT 'proposed'`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE dental_treatments ADD COLUMN planId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE dental_treatments ADD COLUMN doctorId TEXT`); } catch (e) { /* exists */ }
+  try { db.exec(`ALTER TABLE dental_treatments ADD COLUMN paid REAL DEFAULT 0`); } catch (e) { /* exists */ }
+
   console.log('✅ Dentistry tables created');
+}
+
+/**
+ * Create treatment plans tables (multi-specialty: dentistry, MPR, etc.)
+ */
+function createTreatmentPlansTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS treatment_plans (
+      id TEXT PRIMARY KEY,
+      patientId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      treatmentType TEXT,
+      description TEXT,
+      specialty TEXT DEFAULT 'dentistry',
+      totalCost REAL DEFAULT 0,
+      totalPaid REAL DEFAULT 0,
+      sessionsCount INTEGER DEFAULT 1,
+      status TEXT DEFAULT 'active',
+      createdBy TEXT,
+      notes TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE RESTRICT,
+      FOREIGN KEY(createdBy) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS plan_payment_sessions (
+      id TEXT PRIMARY KEY,
+      planId TEXT NOT NULL,
+      sessionNumber INTEGER NOT NULL,
+      scheduledDate TEXT,
+      paidDate TEXT,
+      expectedAmount REAL DEFAULT 0,
+      paidAmount REAL DEFAULT 0,
+      status TEXT DEFAULT 'pending',
+      notes TEXT,
+      recordedBy TEXT,
+      paymentId TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(planId) REFERENCES treatment_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(recordedBy) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS plan_equipment_usage (
+      id TEXT PRIMARY KEY,
+      planId TEXT NOT NULL,
+      inventoryId TEXT NOT NULL,
+      usageDate TEXT DEFAULT CURRENT_TIMESTAMP,
+      notes TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(planId) REFERENCES treatment_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE
+    )
+  `);
+
+  console.log('✅ Treatment plans tables created');
 }
 
 // ========== TABLES SMS ==========
@@ -1621,6 +1952,34 @@ function ensureSchemaUpgrades() {
     'equipmentDetails',
     'TEXT'
   );
+
+  // Verify and add columns for treatment_plans to support multi-specialty plans
+  ensureColumnExists('treatment_plans', 'patientId', 'TEXT NOT NULL');
+  ensureColumnExists('treatment_plans', 'title', 'TEXT NOT NULL');
+  ensureColumnExists('treatment_plans', 'treatmentType', 'TEXT');
+  ensureColumnExists('treatment_plans', 'description', 'TEXT');
+  ensureColumnExists('treatment_plans', 'specialty', "TEXT DEFAULT 'dentistry'");
+  ensureColumnExists('treatment_plans', 'totalCost', 'REAL DEFAULT 0');
+  ensureColumnExists('treatment_plans', 'totalPaid', 'REAL DEFAULT 0');
+  ensureColumnExists('treatment_plans', 'sessionsCount', 'INTEGER DEFAULT 1');
+  ensureColumnExists('treatment_plans', 'status', "TEXT DEFAULT 'active'");
+  ensureColumnExists('treatment_plans', 'createdBy', 'TEXT');
+  ensureColumnExists('treatment_plans', 'notes', 'TEXT');
+  ensureColumnExists('treatment_plans', 'createdAt', 'TEXT DEFAULT CURRENT_TIMESTAMP');
+  ensureColumnExists('treatment_plans', 'updatedAt', 'TEXT DEFAULT CURRENT_TIMESTAMP');
+
+  // Verify and add columns for plan_payment_sessions to support installment billing
+  ensureColumnExists('plan_payment_sessions', 'planId', 'TEXT NOT NULL');
+  ensureColumnExists('plan_payment_sessions', 'sessionNumber', 'INTEGER NOT NULL');
+  ensureColumnExists('plan_payment_sessions', 'scheduledDate', 'TEXT');
+  ensureColumnExists('plan_payment_sessions', 'paidDate', 'TEXT');
+  ensureColumnExists('plan_payment_sessions', 'expectedAmount', 'REAL DEFAULT 0');
+  ensureColumnExists('plan_payment_sessions', 'paidAmount', 'REAL DEFAULT 0');
+  ensureColumnExists('plan_payment_sessions', 'status', "TEXT DEFAULT 'pending'");
+  ensureColumnExists('plan_payment_sessions', 'notes', 'TEXT');
+  ensureColumnExists('plan_payment_sessions', 'recordedBy', 'TEXT');
+  ensureColumnExists('plan_payment_sessions', 'paymentId', 'TEXT');
+  ensureColumnExists('plan_payment_sessions', 'createdAt', 'TEXT DEFAULT CURRENT_TIMESTAMP');
 }
 
 function ensureMedicationsTableAllowsDuplicateNames() {
@@ -2266,8 +2625,18 @@ function createDefaultLicenses() {
     const unlimitedAlreadyExists = db.prepare('SELECT id FROM licenses WHERE key = ?').get(UNLIMITED_LICENSE_KEY);
     const licenses = [
       {
+        key: 'MEDPRO-TRIAL-5JOURS',
+        clientName: 'Licence Essai 5 Jours',
+        expirationDate: null
+      },
+      {
         key: TRIAL_LICENSE_KEY,
         clientName: 'Licence Essai 7 Jours',
+        expirationDate: null
+      },
+      {
+        key: 'MEDPRO-TRIAL-15JOURS',
+        clientName: 'Licence Essai 15 Jours',
         expirationDate: null
       },
       {

@@ -10,10 +10,119 @@ const DEFAULT_DOCUMENT_TYPE_COLORS = {
   consultation: '#ef4444',
   generic: '#1a8c7e'
 };
+const DOCUMENT_STYLE_VARIANTS = new Set(['classic', 'sidebar', 'gradient-header', 'minimal']);
+
+let activeSettingsPage = 'general';
+
+function ensureSettingsAdminCardsVisibility() {
+  const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
+  const isDoctorAdminUser = currentUserIsAdmin === true && !isSuperAdminUser;
+  const userManagementCard = document.getElementById('user-management-card');
+  const licenseInfoCard = document.getElementById('license-info-card');
+  const dbConfigCard = document.getElementById('db-config-card');
+
+  if (userManagementCard && (isSuperAdminUser || isDoctorAdminUser)) {
+    userManagementCard.classList.remove('role-hidden', 'hidden');
+    userManagementCard.style.display = '';
+    userManagementCard.removeAttribute('aria-hidden');
+  }
+
+  if (licenseInfoCard && isSuperAdminUser) {
+    licenseInfoCard.classList.remove('role-hidden', 'hidden');
+    licenseInfoCard.style.display = '';
+    licenseInfoCard.removeAttribute('aria-hidden');
+  }
+
+  if (dbConfigCard && isSuperAdminUser) {
+    dbConfigCard.classList.remove('role-hidden', 'hidden');
+    dbConfigCard.style.display = '';
+    dbConfigCard.removeAttribute('aria-hidden');
+  }
+}
+
+function switchSettingsPage(page = 'general') {
+  document.documentElement.classList.add('settings-pages-ready');
+  ensureSettingsAdminCardsVisibility();
+
+  const visiblePages = new Set();
+  document.querySelectorAll('[data-settings-page]').forEach((card) => {
+    if (card.classList.contains('role-hidden')) return;
+    String(card.dataset.settingsPage || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((pageKey) => visiblePages.add(pageKey));
+  });
+
+  document.querySelectorAll('.settings-page-tab').forEach((button) => {
+    const hasVisibleCards = visiblePages.has(button.dataset.settingsTab || '');
+    button.classList.toggle('role-hidden', !hasVisibleCards);
+    button.disabled = !hasVisibleCards;
+  });
+
+  const requestedPage = page || 'general';
+  activeSettingsPage = visiblePages.has(requestedPage)
+    ? requestedPage
+    : (visiblePages.values().next().value || 'general');
+
+  document.querySelectorAll('.settings-page-tab').forEach((button) => {
+    button.classList.toggle('active', button.dataset.settingsTab === activeSettingsPage);
+  });
+
+  document.querySelectorAll('[data-settings-page]').forEach((card) => {
+    if (card.classList.contains('role-hidden')) {
+      card.classList.remove('settings-page-hidden');
+      return;
+    }
+    const pages = String(card.dataset.settingsPage || '')
+      .split(/\s+/)
+      .filter(Boolean);
+    card.classList.toggle('settings-page-hidden', !pages.includes(activeSettingsPage));
+  });
+}
 
 function normalizeHexColor(value, fallback = '#1a8c7e') {
   const raw = String(value || '').trim();
   return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : fallback;
+}
+
+function normalizeDocumentStyleVariant(value) {
+  const raw = String(value || '').trim();
+  if (raw === 'modern') return 'gradient-header';
+  return DOCUMENT_STYLE_VARIANTS.has(raw) ? raw : 'classic';
+}
+
+function mixHexColor(color, target = '#ffffff', amount = 0.82) {
+  const parse = (value) => {
+    const raw = String(value || '').replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(raw)) return null;
+    return [parseInt(raw.slice(0, 2), 16), parseInt(raw.slice(2, 4), 16), parseInt(raw.slice(4, 6), 16)];
+  };
+  const from = parse(color) || parse('#1a8c7e');
+  const to = parse(target) || parse('#ffffff');
+  return `#${from.map((channel, index) => Math.round(channel + (to[index] - channel) * amount).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function getReadableTextColor(backgroundColor) {
+  const raw = String(backgroundColor || '').replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(raw)) return '#ffffff';
+  const r = parseInt(raw.slice(0, 2), 16);
+  const g = parseInt(raw.slice(2, 4), 16);
+  const b = parseInt(raw.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.58 ? '#111827' : '#ffffff';
+}
+
+function updateDocumentStylePreview() {
+  const preview = document.getElementById('document-style-preview');
+  if (!preview) return;
+  const accent = normalizeHexColor(document.getElementById('document-primary-color')?.value, '#1a8c7e');
+  const style = normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value);
+  const opacity = Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5));
+  preview.dataset.style = style;
+  preview.style.setProperty('--preview-accent', accent);
+  preview.style.setProperty('--preview-accent-soft', mixHexColor(accent, '#ffffff', 0.35));
+  preview.style.setProperty('--preview-on-accent', getReadableTextColor(accent));
+  preview.style.setProperty('--preview-watermark-opacity', (opacity / 100).toFixed(2));
 }
 
 function parseDocumentTypeColors(rawValue) {
@@ -114,6 +223,7 @@ function updateWatermarkOpacityLabel(value) {
   if (!output) return;
   const safe = Math.min(35, Math.max(2, Number(value) || 5));
   output.textContent = `${safe}%`;
+  updateDocumentStylePreview();
 }
 
 async function handleCabinetLogoChange(event) {
@@ -284,6 +394,7 @@ async function loadSettings() {
     document.getElementById('doctor-name-input').value = s.doctorName || '';
     document.getElementById('doctor-rpps').value = s.doctorRPPS || '';
     document.getElementById('doctor-specialty').value = s.doctorSpecialty || '';
+    if(document.getElementById('custom-treatment-types')) document.getElementById('custom-treatment-types').value = s.customTreatmentTypes || '';
     const documentColorModeEl = document.getElementById('document-color-mode');
     if (documentColorModeEl) {
       documentColorModeEl.value = s.documentColorMode === 'bw' ? 'bw' : 'color';
@@ -308,7 +419,7 @@ async function loadSettings() {
     }
     const documentStyleVariantEl = document.getElementById('document-style-variant');
     if (documentStyleVariantEl) {
-      documentStyleVariantEl.value = s.documentStyleVariant === 'modern' ? 'modern' : 'classic';
+      documentStyleVariantEl.value = normalizeDocumentStyleVariant(s.documentStyleVariant);
     }
     const documentWatermarkOpacityEl = document.getElementById('document-watermark-opacity');
     if (documentWatermarkOpacityEl) {
@@ -323,6 +434,7 @@ async function loadSettings() {
     }
     updateCabinetLogoPreview(s.cabinetLogoDataUrl || '');
     updateCabinetWatermarkLogoPreview(s.cabinetWatermarkLogoDataUrl || '');
+    updateDocumentStylePreview();
 
     const publicBookingEnabledEl = document.getElementById('public-booking-enabled');
     const publicBookingPortEl = document.getElementById('public-booking-port');
@@ -342,10 +454,16 @@ async function loadSettings() {
       refreshDocumentEditorLogos();
     }
 
-    // Load users list (admin only)
-    if (currentUserIsAdmin) {
+    // Load users list for superadmin and doctor-admin.
+    if (
+      currentUserIsSuperAdmin
+      || currentUserIsAdmin
+      || localStorage.getItem('currentUserIsSuperAdmin') === 'true'
+      || localStorage.getItem('currentUserIsAdmin') === 'true'
+    ) {
       await loadUsersList();
     }
+    switchSettingsPage(activeSettingsPage);
   } catch (error) {
     console.error('Error loading settings:', error);
   }
@@ -366,6 +484,7 @@ function buildSettingsPayload({
     doctorName: includePractice ? document.getElementById('doctor-name-input')?.value?.trim() || '' : (existing.doctorName || ''),
     doctorRPPS: includePractice ? document.getElementById('doctor-rpps')?.value?.trim() || '' : (existing.doctorRPPS || ''),
     doctorSpecialty: includePractice ? document.getElementById('doctor-specialty')?.value?.trim() || '' : (existing.doctorSpecialty || ''),
+    customTreatmentTypes: includePractice ? document.getElementById('custom-treatment-types')?.value?.trim() || '' : (existing.customTreatmentTypes || ''),
     documentColorMode: includePractice ? (document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color') : (existing.documentColorMode === 'bw' ? 'bw' : 'color'),
     documentPrimaryColor: includePractice
       ? normalizeHexColor(String(document.getElementById('document-primary-color')?.value || '').trim(), '#1a8c7e')
@@ -387,8 +506,8 @@ function buildSettingsPayload({
       ? Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value) || 90))
       : (Math.min(200, Math.max(80, Number(existing.documentLogoScale) || 90))),
     documentStyleVariant: includePractice
-      ? (document.getElementById('document-style-variant')?.value === 'modern' ? 'modern' : 'classic')
-      : (existing.documentStyleVariant === 'modern' ? 'modern' : 'classic'),
+      ? normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value)
+      : normalizeDocumentStyleVariant(existing.documentStyleVariant),
     documentWatermarkOpacity: includePractice
       ? Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5))
       : (Math.min(35, Math.max(2, Number(existing.documentWatermarkOpacity) || 5))),
@@ -442,8 +561,12 @@ async function persistSettings(settingsData, successMessage = 'Parametres enregi
 }
 
 async function saveSettings() {
-  if (currentUserIsAdmin) {
-    showNotification('Connectez-vous avec le compte médecin pour personnaliser le cabinet.', 'warning');
+  if (currentUserIsSuperAdmin) {
+    showNotification('Connectez-vous avec un compte médecin pour personnaliser le cabinet.', 'warning');
+    return;
+  }
+  if (!currentUserIsAdmin) {
+    showNotification('Accès réservé au médecin admin', 'warning');
     return;
   }
   const settingsData = {
@@ -454,12 +577,13 @@ async function saveSettings() {
     doctorName: document.getElementById('doctor-name-input').value,
     doctorRPPS: document.getElementById('doctor-rpps').value,
     doctorSpecialty: document.getElementById('doctor-specialty').value,
+    customTreatmentTypes: document.getElementById('custom-treatment-types')?.value || '',
     documentColorMode: document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color',
     documentPrimaryColor: normalizeHexColor(String(document.getElementById('document-primary-color')?.value || '').trim(), '#1a8c7e'),
     documentTypeColors: JSON.stringify(collectDocumentTypeColorsFromInputs()),
     documentTextScale: Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value) || 100)),
     documentLogoScale: Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value) || 90)),
-    documentStyleVariant: document.getElementById('document-style-variant')?.value === 'modern' ? 'modern' : 'classic',
+    documentStyleVariant: normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value),
     documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5)),
     documentHideSignature: Boolean(document.getElementById('document-hide-signature')?.checked),
     cabinetLogoDataUrl: document.getElementById('cabinet-logo-data')?.value || '',
@@ -494,8 +618,12 @@ async function saveSettings() {
 }
 
 async function savePracticeSettings() {
-  if (currentUserIsAdmin) {
-    showNotification('Le profil administrateur ne peut pas modifier les informations medicales du cabinet.', 'warning');
+  if (currentUserIsSuperAdmin) {
+    showNotification('Le super administrateur ne peut pas modifier les informations medicales du cabinet.', 'warning');
+    return { success: false };
+  }
+  if (!currentUserIsAdmin) {
+    showNotification('Accès réservé au médecin admin', 'warning');
     return { success: false };
   }
 
@@ -539,7 +667,7 @@ async function refreshDeviceOptions() {
 async function loadLicenseStatus() {
   const licenseInfo = document.getElementById('license-info');
   if (!licenseInfo) return;
-  const canManageLicense = currentUserIsAdmin || currentUserIsSuperAdmin;
+  const canManageLicense = currentUserIsSuperAdmin;
 
   const maskLicenseKey = (licenseKey) => (licenseKey ? '*****' : '-');
 
@@ -553,9 +681,9 @@ async function loadLicenseStatus() {
     if (!status || !status.hasActiveLicense) {
       licenseInfo.innerHTML = `
         <p><strong>Aucune licence active.</strong></p>
-        <p>${escapeHTML(status?.message || 'Connectez-vous avec un compte administrateur pour activer une clé.')}</p>
+        <p>${escapeHTML(status?.message || 'Connectez-vous avec le super administrateur pour activer une clé.')}</p>
         <p><strong>Clés disponibles:</strong> <code>*****</code></p>
-        <p>Utilisez les boutons <strong>Clé essai 7 jours</strong>, <strong>Clé 1 an</strong> ou <strong>Clé illimitée</strong> pour remplir le champ sans afficher la clé.</p>
+        <p>Utilisez les boutons <strong>5 jours</strong>, <strong>7 jours</strong>, <strong>15 jours</strong>, <strong>1 an</strong> ou <strong>illimitée</strong> pour remplir le champ sans afficher la clé.</p>
       `;
       return;
     }
@@ -563,7 +691,7 @@ async function loadLicenseStatus() {
     if (status.expired) {
       licenseInfo.innerHTML = `
         <p><strong>Licence actuelle:</strong> <code>${maskLicenseKey(status.licenseKey)}</code></p>
-        <p><strong>Type:</strong> ${status.licenseType === 'trial' ? 'Essai 7 jours' : (status.licenseType === 'annual' ? '1 an' : 'Illimitée')}</p>
+        <p><strong>Type:</strong> ${formatLicenseTypeLabel(status)}</p>
         <p style="color: #dc3545; font-weight: 600;">Licence expirée le ${status.expirationDate}</p>
         <p>${status.message || 'Veuillez activer une nouvelle licence.'}</p>
       `;
@@ -574,7 +702,7 @@ async function loadLicenseStatus() {
       licenseInfo.innerHTML = `
         <p><strong>Client:</strong> ${escapeHTML(status.clientName || '-')}</p>
         <p><strong>Clé active:</strong> <code>${maskLicenseKey(status.licenseKey)}</code></p>
-        <p><strong>Type:</strong> ${status.licenseType === 'trial' ? 'Essai 7 jours' : (status.licenseType === 'annual' ? '1 an' : 'Illimitée')}</p>
+        <p><strong>Type:</strong> ${formatLicenseTypeLabel(status)}</p>
         <p><strong>Expiration:</strong> ${status.expirationDate}</p>
         <p><strong>Jours restants:</strong> ${remainingLabel}</p>
         <p><strong>Statut:</strong> ${status.status === 'activated' ? '✅ Active' : escapeHTML(status.status || '-')}</p>
@@ -586,9 +714,25 @@ async function loadLicenseStatus() {
   }
 }
 
-function fillTrialLicenseKey() {
+function formatLicenseTypeLabel(status = {}) {
+  if (status.licenseType === 'trial' || status.licenseType === 'duration') {
+    return `Essai ${status.durationDays || 7} jours`;
+  }
+  return status.licenseType === 'annual' ? '1 an' : 'Illimitée';
+}
+
+function fillDurationLicenseKey(days = 7) {
   const input = document.getElementById('license-key-input');
-  if (input) input.value = 'MEDPRO-TRIAL-7JOURS';
+  const keyMap = {
+    5: 'MEDPRO-TRIAL-5JOURS',
+    7: 'MEDPRO-TRIAL-7JOURS',
+    15: 'MEDPRO-TRIAL-15JOURS'
+  };
+  if (input) input.value = keyMap[Number(days)] || keyMap[7];
+}
+
+function fillTrialLicenseKey() {
+  fillDurationLicenseKey(7);
 }
 
 function fillUnlimitedLicenseKey() {
@@ -602,8 +746,8 @@ function fillAnnualLicenseKey() {
 }
 
 async function disableCurrentLicense() {
-  if (!(currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    showNotification('Accès réservé à l\'administrateur', 'error');
+  if (!currentUserIsSuperAdmin) {
+    showNotification('Accès réservé au super administrateur', 'error');
     return;
   }
 
@@ -631,8 +775,8 @@ async function disableCurrentLicense() {
 document.getElementById('license-management-form')?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  if (!(currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    showNotification('Accès réservé à l\'administrateur', 'error');
+  if (!currentUserIsSuperAdmin) {
+    showNotification('Accès réservé au super administrateur', 'error');
     return;
   }
 
@@ -653,8 +797,8 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
 
     if (input) input.value = '';
     showNotification(
-      result.licenseType === 'trial'
-        ? 'Licence d\'essai 7 jours activée'
+      result.licenseType === 'trial' || result.licenseType === 'duration'
+        ? `Licence ${result.durationDays || 7} jours activée`
         : (result.licenseType === 'annual' ? 'Licence 1 an activée' : 'Licence illimitée activée'),
       'success'
     );
@@ -666,6 +810,7 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
 });
 
 window.fillTrialLicenseKey = fillTrialLicenseKey;
+window.fillDurationLicenseKey = fillDurationLicenseKey;
 window.fillAnnualLicenseKey = fillAnnualLicenseKey;
 window.fillUnlimitedLicenseKey = fillUnlimitedLicenseKey;
 window.disableCurrentLicense = disableCurrentLicense;
@@ -676,18 +821,33 @@ async function loadLicenseInventory() {
   const container = document.getElementById('license-keys-container');
   if (!container) return;
 
-  const startYearInput = document.getElementById('license-start-year');
-  if (startYearInput && !startYearInput.dataset.initialized) {
-    startYearInput.value = new Date().getFullYear();
-    startYearInput.dataset.initialized = 'true';
-  }
-
-  if (!(currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    container.innerHTML = '<p style="color: #666;">Accès réservé à l\'administrateur.</p>';
+  if (!currentUserIsSuperAdmin) {
+    container.innerHTML = '<p style="color: #666;">Accès réservé au super administrateur.</p>';
     return;
   }
 
-  container.innerHTML = '<p>La gestion des packs de licences est désactivée : chaque installation génère et active automatiquement une licence unique liée à cette machine.</p>';
+  updateLicensePricePreview();
+  container.innerHTML = '<p style="color:#64748b;">Générez un lot pour afficher les clés ici. Les clés générées sont sauvegardées dans la base et synchronisées via cloud/VPS.</p>';
+}
+
+function getSuggestedLicenseUnitPrice(durationDays) {
+  const days = Number(durationDays) || 7;
+  if (days <= 5) return 1500;
+  if (days <= 7) return 2000;
+  if (days <= 15) return 4000;
+  if (days >= 365) return 60000;
+  return Math.ceil(days * 300 / 500) * 500;
+}
+
+function updateLicensePricePreview() {
+  const durationDays = Number(document.getElementById('license-duration-days')?.value || 7);
+  const count = Math.max(1, Number(document.getElementById('license-count')?.value || 1));
+  const unit = getSuggestedLicenseUnitPrice(durationDays);
+  const total = unit * count;
+  const target = document.getElementById('license-price-preview');
+  if (target) {
+    target.textContent = `${unit.toLocaleString('fr-FR')} DZD / clé · Total: ${total.toLocaleString('fr-FR')} DZD`;
+  }
 }
 
 async function copyLicenseKey(key) {
@@ -712,34 +872,50 @@ async function copyLicenseKey(key) {
 async function handleGenerateLicensePack(event) {
   event.preventDefault();
 
-  if (!(currentUserIsAdmin || currentUserIsSuperAdmin)) {
-    showNotification('Accès réservé à l\'administrateur', 'error');
-    return;
-  }
-
-  const requesterId = Number(currentUserId);
-  if (!requesterId) {
-    showNotification('Identifiant utilisateur introuvable', 'error');
+  if (!currentUserIsSuperAdmin) {
+    showNotification('Accès réservé au super administrateur', 'error');
     return;
   }
 
   const form = event.target;
-  const doctorName = form.querySelector('#license-doctor-name')?.value?.trim();
-  const startYearValue = form.querySelector('#license-start-year')?.value;
+  const clientName = form.querySelector('#license-client-name')?.value?.trim() || 'Licence cabinet';
+  const durationDays = Number(form.querySelector('#license-duration-days')?.value || 7);
   const countValue = form.querySelector('#license-count')?.value;
-  const startYear = startYearValue ? parseInt(startYearValue, 10) : undefined;
   const count = countValue ? parseInt(countValue, 10) : undefined;
-
-  if (!doctorName) {
-    showNotification('Merci d\'indiquer le nom du médecin/cabinet', 'error');
-    return;
-  }
 
   const submitBtn = form.querySelector('#btn-generate-license-pack');
   const initialText = submitBtn ? submitBtn.innerHTML : '';
 
   try {
-    showNotification('Génération de packs désactivée : une licence unique est créée automatiquement pour chaque installation.', 'info');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Génération...';
+    }
+
+    const result = await window.api.license.generateKeys({ durationDays, quantity: count, clientName });
+    if (!result.success) {
+      showNotification(result.error || 'Génération impossible', 'error');
+      return;
+    }
+
+    const container = document.getElementById('license-keys-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="info-box" style="padding: 12px;">
+          <strong>${result.generated.length} clé(s) générée(s)</strong>
+          <div style="display:grid;gap:8px;margin-top:10px;">
+            ${result.generated.map((entry) => `
+              <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+                <code>${entry.key}</code>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="copyLicenseKey('${entry.key}')">Copier</button>
+              </div>
+            `).join('')}
+          </div>
+          <p style="margin:10px 0 0;color:#64748b;">Sauvegardé en base locale. Inclus dans la synchronisation cloud/VPS via la table <code>licenses</code>.</p>
+        </div>
+      `;
+    }
+    showNotification('Clés générées avec succès', 'success');
   } catch (error) {
     console.error('Error generating license pack:', error);
     showNotification('Erreur inattendue lors de la génération', 'error');
@@ -750,6 +926,11 @@ async function handleGenerateLicensePack(event) {
     }
   }
 }
+
+window.handleGenerateLicensePack = handleGenerateLicensePack;
+window.copyLicenseKey = copyLicenseKey;
+window.loadLicenseInventory = loadLicenseInventory;
+window.updateLicensePricePreview = updateLicensePricePreview;
 
 // --- Test Data Seeding ---
 async function seedTestData() {
@@ -816,48 +997,128 @@ async function clearAllData() {
 // --- Database Configuration ---
 async function loadDbConfigStatus() {
   try {
-    const config = await window.api.dbConfig.get();
+    const statusResult = await window.api.dbConfig.getStatus();
+    const status = statusResult?.data || {};
     const modeDisplay = document.getElementById('db-mode-display');
     if (modeDisplay) {
-      if (config.type === 'mariadb') {
-        modeDisplay.innerHTML = `<span style="color: #28a745;">🌐 MariaDB (Réseau)</span> - ${config.mariadb.host}:${config.mariadb.port}`;
-      } else {
-        modeDisplay.innerHTML = `<span style="color: #007bff;">💻 SQLite (Local)</span> - Ce PC uniquement`;
-      }
+      const modeLabel = status.mode === 'network' ? 'Réseau' : 'Local';
+      const badgeClass = status.connected ? 'success' : 'danger';
+      modeDisplay.innerHTML = `<span class="badge ${badgeClass}">PostgreSQL</span> ${modeLabel} - ${status.host || 'localhost'}:${status.port || 5432}`;
+    }
+
+    const connectionDisplay = document.getElementById('db-connection-display');
+    if (connectionDisplay) {
+      connectionDisplay.textContent = status.connected
+        ? 'Connecté - SELECT 1 réussi'
+        : `Déconnecté - ${status.error || 'connexion impossible'}`;
+      connectionDisplay.style.color = status.connected ? 'var(--color-success)' : 'var(--color-danger)';
+    }
+
+    const counts = status.tableCounts || {};
+    const tableCounts = document.getElementById('db-table-counts');
+    if (tableCounts) {
+      tableCounts.innerHTML = `
+        <span class="stat-item"><span class="stat-value">${counts.patients ?? 0}</span><span class="stat-label">patients</span></span>
+        <span class="stat-item"><span class="stat-value">${counts.treatment_plans ?? 0}</span><span class="stat-label">plans</span></span>
+        <span class="stat-item"><span class="stat-value">${counts.inventory ?? 0}</span><span class="stat-label">articles</span></span>
+      `;
     }
     
-    // Show the card for admins
+    // Show the card for superadmin only
     const dbConfigCard = document.getElementById('db-config-card');
-    if (dbConfigCard && (currentUserIsAdmin || currentUserIsSuperAdmin)) {
+    if (dbConfigCard && currentUserIsSuperAdmin) {
       dbConfigCard.style.display = 'block';
+      await loadSpecialtyBasesStatus();
     }
   } catch (error) {
     console.error('Error loading DB config status:', error);
   }
 }
 
-let inlineDbInitialType = 'sqlite';
+async function loadSpecialtyBasesStatus() {
+  const container = document.getElementById('specialty-bases-list');
+  if (!container || !currentUserIsSuperAdmin) return;
+
+  try {
+    const result = await window.api.package.getLoadedBases();
+    const bases = result.success && Array.isArray(result.data) ? result.data.filter((base) => base.enabled) : [];
+    if (!bases.length) {
+      container.innerHTML = '<div class="db-status-help">Aucune base de spécialité activée.</div>';
+      return;
+    }
+
+    container.innerHTML = bases.map((base) => `
+      <div class="specialty-base-row">
+        <div>
+          <strong>${base.label}</strong>
+          <div class="db-status-help">
+            Logo: ${base.logoExists ? base.logoFile : 'logo général'} ·
+            Médicaments: ${base.medicationFileName} (${base.medicationCount}) ·
+            Examens: ${base.examsCount} ·
+            Imagerie: ${base.imagingFamiliesCount} ·
+            Équipements: ${base.equipmentCategoriesCount}
+          </div>
+        </div>
+        <div class="specialty-base-actions">
+          <button type="button" class="btn btn-sm btn-primary" onclick="refreshSpecialtyBase('${base.key}')">Mettre à jour la base ${base.label}</button>
+          <button type="button" class="btn btn-sm btn-info" onclick="exportSpecialtyMedicationsJson('${base.key}')">Télécharger la liste des médicaments (.json)</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Error loading specialty bases:', error);
+    container.innerHTML = '<div class="db-status-help">Erreur de chargement des bases de spécialité.</div>';
+  }
+}
+
+async function refreshSpecialtyBase(specialtyKey) {
+  if (!currentUserIsSuperAdmin) return;
+  const result = await window.api.package.refreshSpecialtyBase(specialtyKey);
+  if (result.success) {
+    showNotification(`Base mise à jour: ${result.inserted} ajout(s), ${result.updated} mise(s) à jour`, 'success');
+    await loadSpecialtyBasesStatus();
+  } else {
+    showNotification(result.error || 'Impossible de mettre à jour la base', 'error');
+  }
+}
+
+async function exportSpecialtyMedicationsJson(specialtyKey) {
+  if (!currentUserIsSuperAdmin) return;
+  const result = await window.api.package.exportMedicationsJson(specialtyKey);
+  if (result.success && result.data?.filePath) {
+    const fileName = result.data.filePath.split(/[\\/]/).pop();
+    const downloadResult = await window.api.system.downloadFile(result.data.filePath, fileName);
+    if (downloadResult?.success) {
+      showNotification('Liste des médicaments téléchargée', 'success');
+    } else if (!downloadResult?.canceled) {
+      showNotification(downloadResult?.error || 'Impossible de télécharger le JSON', 'error');
+    }
+  } else {
+    showNotification(result.error || 'Impossible de télécharger le JSON', 'error');
+  }
+}
+
+let inlineDbInitialType = 'local';
 let inlineDbLastConnectionCheckSucceeded = false;
 
 function setInlineDbTypeSelection(type) {
-  const sqliteRadio = document.querySelector('input[name="inline-db-type"][value="sqlite"]');
-  const mariadbRadio = document.querySelector('input[name="inline-db-type"][value="mariadb"]');
-  const sqliteOption = document.getElementById('inline-db-option-sqlite');
-  const mariadbOption = document.getElementById('inline-db-option-mariadb');
-  const mariadbConfig = document.getElementById('inline-mariadb-config');
+  const localRadio = document.querySelector('input[name="inline-db-type"][value="local"]');
+  const networkRadio = document.querySelector('input[name="inline-db-type"][value="network"]');
+  const localOption = document.getElementById('inline-db-option-local');
+  const networkOption = document.getElementById('inline-db-option-network');
+  const postgresqlConfig = document.getElementById('inline-postgresql-config');
   const migrationBox = document.getElementById('inline-db-migration-box');
   const migrateCheckbox = document.getElementById('inline-migrate-data-checkbox');
 
-  if (sqliteRadio) sqliteRadio.checked = type === 'sqlite';
-  if (mariadbRadio) mariadbRadio.checked = type === 'mariadb';
-  if (sqliteOption) sqliteOption.classList.toggle('selected', type === 'sqlite');
-  if (mariadbOption) mariadbOption.classList.toggle('selected', type === 'mariadb');
-  if (mariadbConfig) mariadbConfig.style.display = type === 'mariadb' ? 'block' : 'none';
+  if (localRadio) localRadio.checked = type === 'local';
+  if (networkRadio) networkRadio.checked = type === 'network';
+  if (localOption) localOption.classList.toggle('selected', type === 'local');
+  if (networkOption) networkOption.classList.toggle('selected', type === 'network');
+  if (postgresqlConfig) postgresqlConfig.style.display = 'block';
 
   if (migrationBox) {
-    const showMigration = inlineDbInitialType === 'sqlite' && type === 'mariadb';
-    migrationBox.style.display = showMigration ? 'block' : 'none';
-    if (!showMigration && migrateCheckbox) migrateCheckbox.checked = true;
+    migrationBox.style.display = 'none';
+    if (migrateCheckbox) migrateCheckbox.checked = false;
   }
 
   inlineDbLastConnectionCheckSucceeded = false;
@@ -882,26 +1143,25 @@ function hideInlineDbStatus(elementId) {
 
 async function loadInlineDbConfigModalData() {
   const config = await window.api.dbConfig.get();
+  const database = config.database || {};
   const currentModeEl = document.getElementById('inline-db-current-mode');
   const currentServerEl = document.getElementById('inline-db-current-server');
 
   if (currentModeEl) {
-    currentModeEl.textContent = config.type === 'mariadb' ? 'MariaDB (Reseau)' : 'SQLite (Local)';
+    currentModeEl.textContent = database.mode === 'network' ? 'PostgreSQL (Réseau)' : 'PostgreSQL (Local)';
   }
   if (currentServerEl) {
-    currentServerEl.textContent = config.type === 'mariadb'
-      ? `${config.mariadb.host}:${config.mariadb.port}`
-      : 'Ce poste uniquement';
+    currentServerEl.textContent = `${database.host || 'localhost'}:${database.port || 5432}`;
   }
 
-  inlineDbInitialType = config.type || 'sqlite';
-  document.getElementById('inline-db-host').value = config?.mariadb?.host || 'localhost';
-  document.getElementById('inline-db-port').value = config?.mariadb?.port || 3306;
-  document.getElementById('inline-db-name').value = config?.mariadb?.database || 'physiocare';
-  document.getElementById('inline-db-user').value = config?.mariadb?.user || 'physiocare_user';
-  document.getElementById('inline-db-password').value = config?.mariadb?.password || '';
+  inlineDbInitialType = database.mode || 'local';
+  document.getElementById('inline-db-host').value = database.host || 'localhost';
+  document.getElementById('inline-db-port').value = database.port || 5432;
+  document.getElementById('inline-db-name').value = database.database || 'cabinet_db';
+  document.getElementById('inline-db-user').value = database.user || 'cabinet_app';
+  document.getElementById('inline-db-password').value = database.password || '';
 
-  setInlineDbTypeSelection(config.type === 'mariadb' ? 'mariadb' : 'sqlite');
+  setInlineDbTypeSelection(database.mode === 'network' ? 'network' : 'local');
   hideInlineDbStatus('inline-db-config-message');
 }
 
@@ -923,7 +1183,7 @@ async function testInlineDbConnection() {
   const btnTest = document.getElementById('inline-db-test-btn');
   const config = {
     host: document.getElementById('inline-db-host')?.value?.trim(),
-    port: parseInt(document.getElementById('inline-db-port')?.value, 10) || 3306,
+    port: parseInt(document.getElementById('inline-db-port')?.value, 10) || 5432,
     database: document.getElementById('inline-db-name')?.value?.trim(),
     user: document.getElementById('inline-db-user')?.value?.trim(),
     password: document.getElementById('inline-db-password')?.value || ''
@@ -931,7 +1191,7 @@ async function testInlineDbConnection() {
 
   if (!config.host || !config.user) {
     inlineDbLastConnectionCheckSucceeded = false;
-    showInlineDbStatus('inline-db-connection-status', 'error', 'Veuillez remplir au minimum l\'hote et l\'utilisateur MariaDB.');
+    showInlineDbStatus('inline-db-connection-status', 'error', 'Veuillez remplir au minimum l\'hote et l\'utilisateur PostgreSQL.');
     return;
   }
 
@@ -941,10 +1201,10 @@ async function testInlineDbConnection() {
   }
 
   try {
-    const result = await window.api.dbConfig.testConnection(config);
+    const result = await window.api.dbConfig.testConnection({ database: config });
     if (result.success) {
       inlineDbLastConnectionCheckSucceeded = true;
-      showInlineDbStatus('inline-db-connection-status', 'success', 'Connexion reussie. La base MariaDB est accessible.');
+      showInlineDbStatus('inline-db-connection-status', 'success', 'Connexion réussie. PostgreSQL est accessible.');
     } else {
       inlineDbLastConnectionCheckSucceeded = false;
       showInlineDbStatus('inline-db-connection-status', 'error', `Echec de connexion: ${result.error}`);
@@ -963,39 +1223,36 @@ async function testInlineDbConnection() {
 async function saveInlineDbConfig(event) {
   event.preventDefault();
 
-  const dbType = document.querySelector('input[name="inline-db-type"]:checked')?.value || 'sqlite';
-  const config = { type: dbType };
-  const messageId = 'inline-db-config-message';
-
-  if (dbType === 'mariadb') {
-    config.mariadb = {
+  const dbType = document.querySelector('input[name="inline-db-type"]:checked')?.value || 'local';
+  const config = {
+    database: {
+      mode: dbType,
       host: document.getElementById('inline-db-host')?.value?.trim(),
-      port: parseInt(document.getElementById('inline-db-port')?.value, 10) || 3306,
+      port: parseInt(document.getElementById('inline-db-port')?.value, 10) || 5432,
       database: document.getElementById('inline-db-name')?.value?.trim(),
       user: document.getElementById('inline-db-user')?.value?.trim(),
       password: document.getElementById('inline-db-password')?.value || ''
-    };
+    }
+  };
+  const messageId = 'inline-db-config-message';
 
-    if (!config.mariadb.host || !config.mariadb.user) {
-      showInlineDbStatus(messageId, 'error', 'Veuillez remplir tous les champs obligatoires MariaDB.');
+  if (dbType === 'network') {
+    if (!config.database.host || !config.database.user) {
+      showInlineDbStatus(messageId, 'error', 'Veuillez remplir tous les champs obligatoires PostgreSQL.');
       return;
     }
 
-    config.migration = {
-      fromSqlite: inlineDbInitialType === 'sqlite' && Boolean(document.getElementById('inline-migrate-data-checkbox')?.checked)
-    };
-
     if (!inlineDbLastConnectionCheckSucceeded) {
-      showInlineDbStatus(messageId, 'loading', 'Verification de la connexion MariaDB avant sauvegarde...');
-      const testBeforeSave = await window.api.dbConfig.testConnection(config.mariadb);
+      showInlineDbStatus(messageId, 'loading', 'Vérification de la connexion PostgreSQL avant sauvegarde...');
+      const testBeforeSave = await window.api.dbConfig.testConnection(config);
       if (!testBeforeSave.success) {
-        showInlineDbStatus(messageId, 'error', `Connexion MariaDB impossible: ${testBeforeSave.error || 'Erreur inconnue'}`);
+        showInlineDbStatus(messageId, 'error', `Connexion PostgreSQL impossible: ${testBeforeSave.error || 'Erreur inconnue'}`);
         return;
       }
     }
   }
 
-  showInlineDbStatus(messageId, 'loading', 'Sauvegarde de la configuration en cours...');
+  showInlineDbStatus(messageId, 'loading', 'Sauvegarde de la configuration PostgreSQL en cours...');
 
   try {
     const result = await window.api.dbConfig.save(config);
@@ -1004,12 +1261,9 @@ async function saveInlineDbConfig(event) {
       return;
     }
 
-    const migrationInfo = result.migration?.migrated
-      ? `\nMigration OK: ${result.migration.copiedTables?.length || 0} table(s) copiee(s).`
-      : (result.migration?.skipped ? `\nMigration ignoree: ${result.migration.reason}` : '');
     const warningInfo = result.warning ? `\nAttention: ${result.warning}` : '';
 
-    showInlineDbStatus(messageId, 'success', `Configuration sauvegardee.${migrationInfo}${warningInfo}\nRedemarrage en cours...`);
+    showInlineDbStatus(messageId, 'success', `Configuration PostgreSQL sauvegardée.${warningInfo}\nRedémarrage en cours...`);
     await loadDbConfigStatus();
     setTimeout(() => {
       window.api.dbConfig.restart();
@@ -1026,12 +1280,15 @@ function initializeInlineDbConfigModal() {
   form.dataset.bound = 'true';
   form.addEventListener('submit', saveInlineDbConfig);
   document.getElementById('inline-db-test-btn')?.addEventListener('click', testInlineDbConnection);
-  document.getElementById('inline-db-option-sqlite')?.addEventListener('click', () => setInlineDbTypeSelection('sqlite'));
-  document.getElementById('inline-db-option-mariadb')?.addEventListener('click', () => setInlineDbTypeSelection('mariadb'));
+  document.getElementById('inline-db-option-local')?.addEventListener('click', () => setInlineDbTypeSelection('local'));
+  document.getElementById('inline-db-option-network')?.addEventListener('click', () => setInlineDbTypeSelection('network'));
 }
 
 window.openDbConfigWindow = openDbConfigWindow;
 window.closeDbConfigModal = closeDbConfigModal;
+window.refreshDbStatus = loadDbConfigStatus;
+window.refreshSpecialtyBase = refreshSpecialtyBase;
+window.exportSpecialtyMedicationsJson = exportSpecialtyMedicationsJson;
 
 // Call loadDbConfigStatus when settings page loads
 document.addEventListener('DOMContentLoaded', () => {
@@ -1046,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 1000);
 
   initializeInlineDbConfigModal();
+  updateLicensePricePreview();
 
   const watermarkOpacityInput = document.getElementById('document-watermark-opacity');
   if (watermarkOpacityInput && !watermarkOpacityInput.dataset.bound) {
@@ -1055,6 +1313,16 @@ document.addEventListener('DOMContentLoaded', () => {
     watermarkOpacityInput.dataset.bound = '1';
     updateWatermarkOpacityLabel(watermarkOpacityInput.value);
   }
+
+  ['document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-logo-scale'].forEach((id) => {
+    const field = document.getElementById(id);
+    if (field && !field.dataset.previewBound) {
+      field.addEventListener('input', updateDocumentStylePreview);
+      field.addEventListener('change', updateDocumentStylePreview);
+      field.dataset.previewBound = '1';
+    }
+  });
+  updateDocumentStylePreview();
 });
 
 window.refreshDeviceOptions = refreshDeviceOptions;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Processus principal Electron.js
  * PhysioCare - Gestion de Cabinet de MÃ©decine Physique et Fonctionnelle
  */
@@ -6,13 +6,13 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initializeDatabase, closeDatabase, query, queryOne, getCurrentMode } from './database-unified.js';
-import { seedTestData } from './database.js';
+import { initializeDatabase, closeDatabase, query, queryOne } from './database-unified.js';
 import {
   validateLicense, 
   activateLicense, 
   deactivateLicense,
   checkLicenseAtStartup,
+  generateLicenseKeys,
   getLicenseStatus
 } from './license-manager.js';
 import {
@@ -35,6 +35,8 @@ import { setupPDFHandlers } from './handlers/pdf-handler.js';
 import { handleDocumentEvents } from './handlers/document-handler.js';
 import { handleExpenseEvents } from './handlers/expense-handler.js';
 import { handleInventoryEvents } from './handlers/inventory-handler.js';
+import { handleInventoryModuleEvents } from './handlers/inventory-module-handler.js';
+import { handleEquipmentEvents } from './handlers/equipment-handler.js';
 import { handleAnalysisEvents } from './handlers/analysis-handler.js';
 import { handleDebtEvents } from './handlers/debt-handler.js';
 import { handleMedicationEvents } from './handlers/medication-handler.js';
@@ -43,16 +45,21 @@ import { handleRehabilitationEvents } from './handlers/rehabilitation-handler.js
 import { handleWaitingRoomEvents } from './handlers/waiting-room-handler.js';
 import { handlePackageEvents } from './handlers/package-handler.js';
 import { handleDentistEvents } from './handlers/dentist-handler.js';
+import { handleTreatmentPlanEvents } from './handlers/treatment-plans-handler.js';
 import { handleSMSEvents } from './handlers/sms-handler.js';
 import { handleCloudSyncEvents } from './handlers/cloud-sync-handler.js';
-import { handlePrintEvents } from './handlers/print-handler.js';
-import { setupOllamaHandlers, startOllamaServer } from './services/ollama-service.js';
-import { setupDbConfigHandlers, createDbConfigWindow, isMariaDBMode, loadDatabaseConfig } from './handlers/db-config-handler.js';
+import { handlePrintEvents } from './handlers/print-handler.js'; // watcher test
+import { setupDbConfigHandlers, createDbConfigWindow, loadDatabaseConfig } from './handlers/db-config-handler.js';
 import {
   handlePublicBookingEvents,
   initializePublicBookingServer,
   stopPublicBookingServer
 } from './services/public-booking-service.js';
+import {
+  getRealtimeConfig,
+  startRealtimeServer,
+  stopRealtimeServer
+} from './realtime-server.js';
 import { getResponsiveWindowBounds, applyWindowPresentation } from './window-utils.js';
 import fs from 'fs';
 
@@ -118,51 +125,56 @@ function normalizeAppUserRole(role) {
 
 function getScopedUserContext() {
   const role = normalizeAppUserRole(global.currentUser?.role);
+  const isAdmin = !!global.currentUser?.isAdmin && !global.currentUser?.isSuperAdmin;
+  const isSuperAdmin = !!global.currentUser?.isSuperAdmin;
+  const isPractitioner = role === 'doctor' || role === 'dentist';
   return {
     userId: global.currentUser?.id || null,
     role,
-    isAdmin: !!(global.currentUser?.isAdmin || global.currentUser?.isSuperAdmin),
-    isPractitioner: role === 'doctor' || role === 'dentist',
-    isAssistant: role === 'assistant'
+    isAdmin,
+    isSuperAdmin,
+    isPractitioner,
+    isAssistant: role === 'assistant',
+    // isDoctorAdmin = practitioner with cabinet-wide scope
+    isDoctorAdmin: isPractitioner && isAdmin
   };
 }
 
 function getScopedPatientFilter(userContext, patientAlias = 'patients') {
-  if (userContext.isPractitioner && userContext.userId) {
-    return { clause: `${patientAlias}.primaryDoctorId = ?`, params: [userContext.userId] };
-  }
-
-  if (userContext.isAssistant && userContext.userId) {
-    return { clause: `${patientAlias}.createdByUserId = ?`, params: [userContext.userId] };
-  }
-
+  // Patients are cabinet-wide for doctor-admin, normal doctors and assistants.
   return { clause: '', params: [] };
 }
 
 function getScopedConsultationFilter(userContext, consultationAlias = 'consultations', patientAlias = 'patients') {
-  if (userContext.isPractitioner && userContext.userId) {
-    return { clause: `${consultationAlias}.doctorId = ?`, params: [userContext.userId] };
+  if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
+    return {
+      clause: `(${consultationAlias}.doctorId = ? OR ${patientAlias}.primaryDoctorId = ? OR (${consultationAlias}.doctorId IS NULL AND (${patientAlias}.primaryDoctorId IS NULL OR ${patientAlias}.primaryDoctorId = '')))`,
+      params: [userContext.userId, userContext.userId]
+    };
   }
-
-  if (userContext.isAssistant && userContext.userId) {
-    return { clause: `${patientAlias}.createdByUserId = ?`, params: [userContext.userId] };
-  }
-
   return { clause: '', params: [] };
 }
 
 function getScopedPrescriptionFilter(userContext, prescriptionAlias = 'pr', patientAlias = 'p', consultationAlias = 'c') {
-  if (userContext.isPractitioner && userContext.userId) {
+  if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
     return {
-      clause: `(${consultationAlias}.doctorId = ? OR (${consultationAlias}.doctorId IS NULL AND ${patientAlias}.primaryDoctorId = ?))`,
+      clause: `(${consultationAlias}.doctorId = ? OR ${patientAlias}.primaryDoctorId = ? OR (${consultationAlias}.doctorId IS NULL AND (${patientAlias}.primaryDoctorId IS NULL OR ${patientAlias}.primaryDoctorId = '')))`,
       params: [userContext.userId, userContext.userId]
     };
   }
+  return { clause: '', params: [] };
+}
 
-  if (userContext.isAssistant && userContext.userId) {
-    return { clause: `${patientAlias}.createdByUserId = ?`, params: [userContext.userId] };
+function getScopedPaymentFilter(userContext, paymentAlias = 'pay', patientAlias = 'p') {
+  // Normal practitioner: today-only financial visibility.
+  if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
+    const todayClause = `DATE(${paymentAlias}.paymentDate) = CURRENT_DATE`;
+    return {
+      clause: todayClause,
+      params: []
+    };
   }
-
+  // Doctor-admin and assistant see all payments
   return { clause: '', params: [] };
 }
 
@@ -175,7 +187,6 @@ app.setPath('userData', stableUserDataPath);
 
 app.commandLine.appendSwitch('lang', 'fr-FR');
 app.commandLine.appendSwitch('high-dpi-support', '1');
-app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('disable-pinch');
 
 // ===== PREVENT EPIPE CRASHES =====
@@ -200,6 +211,55 @@ let licenseWindow = null;
 let setupWindow = null;
 let loginWindow = null;
 let shutdownCleanupStarted = false;
+const DEFAULT_APP_ZOOM = 0.9;
+
+function clampAppZoom(value) {
+  const zoom = Number(value);
+  if (!Number.isFinite(zoom)) return DEFAULT_APP_ZOOM;
+  return Math.min(1.4, Math.max(0.75, zoom));
+}
+
+function setupHotReload(win) {
+  if (app.isPackaged) return;
+
+  const targetPath = path.join(__dirname, '..', 'renderer');
+  const watchDirs = [
+    targetPath,
+    path.join(targetPath, 'js'),
+    path.join(targetPath, 'js', 'modules'),
+    path.join(targetPath, 'css')
+  ];
+
+  let reloadTimeout = null;
+  const watchers = [];
+
+  watchDirs.forEach(dir => {
+    if (fs.existsSync(dir)) {
+      try {
+        const watcher = fs.watch(dir, (eventType, filename) => {
+          if (filename && (filename.endsWith('.html') || filename.endsWith('.css') || filename.endsWith('.js'))) {
+            clearTimeout(reloadTimeout);
+            reloadTimeout = setTimeout(() => {
+              if (win && !win.isDestroyed()) {
+                console.log(`[Hot Reload] Renderer file changed: ${filename}. Reloading page...`);
+                win.webContents.reloadIgnoringCache();
+              }
+            }, 200);
+          }
+        });
+        watchers.push(watcher);
+      } catch (err) {
+        console.error(`[Hot Reload] Error watching directory ${dir}:`, err);
+      }
+    }
+  });
+
+  win.on('closed', () => {
+    watchers.forEach(w => {
+      try { w.close(); } catch (_) {}
+    });
+  });
+}
 
 function getAppWindowTitle(section = '') {
   const baseTitle = `MedCareSO v${app.getVersion()}`;
@@ -212,6 +272,7 @@ function performShutdownCleanup() {
   }
 
   shutdownCleanupStarted = true;
+  stopRealtimeServer();
   stopPublicBookingServer();
   closeDatabase();
 }
@@ -266,6 +327,7 @@ function createMainWindow() {
   applyWindowPresentation(mainWindow, { maximizeOnShow: true });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  setupHotReload(mainWindow);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -302,6 +364,7 @@ function createLicenseWindow() {
 
   applyWindowPresentation(licenseWindow);
   licenseWindow.loadFile(path.join(__dirname, '..', 'renderer', 'license.html'));
+  setupHotReload(licenseWindow);
   
   licenseWindow.on('closed', () => {
     // Si l'utilisateur ferme la fenÃªtre sans valider, montrer la fenÃªtre login
@@ -346,6 +409,7 @@ function createSetupWindow() {
 
   applyWindowPresentation(setupWindow, { maximizeWhenTight: true });
   setupWindow.loadFile(path.join(__dirname, '..', 'renderer', 'setup.html'));
+  setupHotReload(setupWindow);
   
   setupWindow.on('closed', () => {
     if (!mainWindow && !loginWindow) {
@@ -387,6 +451,7 @@ function createClientConfigWindow() {
 
   applyWindowPresentation(clientConfigWindow, { maximizeOnShow: true });
   clientConfigWindow.loadFile(path.join(__dirname, '..', 'renderer', 'client-config.html'));
+  setupHotReload(clientConfigWindow);
   
   clientConfigWindow.on('closed', () => {
     // Si l'utilisateur ferme la fenÃªtre sans valider, montrer la fenÃªtre login
@@ -431,6 +496,7 @@ function createLoginWindow() {
 
   applyWindowPresentation(loginWindow, { maximizeWhenTight: true });
   loginWindow.loadFile(path.join(__dirname, '..', 'renderer', 'login.html'));
+  setupHotReload(loginWindow);
   
   loginWindow.on('closed', () => {
     if (!mainWindow) {
@@ -555,8 +621,6 @@ async function initializeApp() {
     console.log('Login screen displayed');
     createLoginWindow();
     
-    // AI/Ollama now starts only on demand to keep startup lighter.
-    
   } catch (error) {
     console.error('Application initialization error:', error);
     dialog.showErrorBox('Erreur', 'Erreur lors de l\'initialisation de l\'application');
@@ -568,8 +632,35 @@ async function initializeApp() {
  * Initialise les gestionnaires IPC
  */
 function setupIPCHandlers() {
+  startRealtimeServer();
+
   // ========== HANDLERS CONFIG DB ==========
   setupDbConfigHandlers();
+
+  ipcMain.handle('realtime:get-config', () => getRealtimeConfig());
+
+  ipcMain.handle('appZoom:get', (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    return senderWindow?.webContents?.getZoomFactor?.() || 1;
+  });
+
+  ipcMain.handle('appZoom:set', (event, value) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    const zoom = clampAppZoom(value);
+    if (senderWindow?.webContents) {
+      senderWindow.webContents.setZoomFactor(zoom);
+    }
+    return { success: true, zoom };
+  });
+
+  ipcMain.handle('appZoom:reset', (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (senderWindow?.webContents) {
+      senderWindow.webContents.setZoomFactor(DEFAULT_APP_ZOOM);
+      senderWindow.webContents.setZoomLevel(0);
+    }
+    return { success: true, zoom: DEFAULT_APP_ZOOM };
+  });
   
   // Handlers de licence
   ipcMain.handle('license:validate', (event, licenseKey) => {
@@ -582,6 +673,10 @@ function setupIPCHandlers() {
 
   ipcMain.handle('license:deactivate', (event, licenseKey) => {
     return deactivateLicense(licenseKey);
+  });
+
+  ipcMain.handle('license:generate-keys', (event, payload) => {
+    return generateLicenseKeys(payload || {});
   });
 
   // AprÃ¨s activation rÃ©ussie de la licence
@@ -710,6 +805,8 @@ function setupIPCHandlers() {
   // Nouveaux handlers
   handleExpenseEvents();
   handleInventoryEvents();
+  handleInventoryModuleEvents();
+  handleEquipmentEvents();
   handleAnalysisEvents();
   handleDebtEvents();
   handleMedicationEvents();
@@ -718,57 +815,35 @@ function setupIPCHandlers() {
   handleWaitingRoomEvents();
   handlePackageEvents();
   handleDentistEvents();
+  handleTreatmentPlanEvents();
   handleSMSEvents();
   handleCloudSyncEvents();
   handlePrintEvents();
   handlePublicBookingEvents();
   
-  // AI Handlers (Ollama)
-  setupOllamaHandlers();
-
   // Handler to seed test data (for development/testing)
   ipcMain.handle('dev:seed-test-data', async () => {
-    try {
-      console.log('Seeding test data...');
-      const result = seedTestData();
-      return result;
-    } catch (error) {
-      console.error('Error seeding test data:', error);
-      return { success: false, error: error.message };
-    }
+    return {
+      success: false,
+      error: 'Demo seeding is disabled in PostgreSQL-only runtime. Use the legacy migration kit to import data.'
+    };
   });
 
   // Auto-seed demo data once (background) when database is still light
   ipcMain.handle('dev:ensure-demo-data', async () => {
-    try {
-      const markerFile = path.join(app.getPath('userData'), 'demo-seeded-v2.flag');
-      const countRow = await queryOne('SELECT COUNT(*) as count FROM patients');
-      const patientsCount = Number(countRow?.count || 0);
-
-      if (patientsCount >= 80) {
-        return { success: true, skipped: true, patients: patientsCount };
-      }
-
-      const seedResult = seedTestData();
-      fs.writeFileSync(markerFile, String(new Date().toISOString()), 'utf8');
-      return { success: true, seeded: true, result: seedResult };
-    } catch (error) {
-      console.error('Error ensuring demo data:', error);
-      return { success: false, error: error.message };
-    }
+    return {
+      success: true,
+      skipped: true,
+      message: 'Demo seeding is disabled in PostgreSQL-only runtime.'
+    };
   });
 
   // Handler to clear all data (for development/testing)
   ipcMain.handle('dev:clear-all-data', async () => {
-    try {
-      console.log('Clearing all data...');
-      const { clearAllData } = await import('./database.js');
-      const result = clearAllData();
-      return result;
-    } catch (error) {
-      console.error('Error clearing data:', error);
-      return { success: false, error: error.message };
-    }
+    return {
+      success: false,
+      error: 'Bulk clearing is disabled in PostgreSQL-only runtime.'
+    };
   });
 
   // Handler pour ouvrir des fichiers
@@ -815,9 +890,26 @@ function setupIPCHandlers() {
 
   ipcMain.handle('system:downloadFile', async (event, { filePath, fileName }) => {
     try {
-      const { shell } = await import('electron');
-      await shell.openPath(filePath);
-      return { success: true };
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, error: 'Fichier introuvable' };
+      }
+
+      const safeFileName = fileName || path.basename(filePath);
+      const extension = path.extname(safeFileName).replace('.', '').toLowerCase() || '*';
+      const result = await dialog.showSaveDialog(mainWindow, {
+        defaultPath: safeFileName,
+        filters: [
+          { name: extension === 'json' ? 'JSON' : 'Fichier', extensions: [extension] },
+          { name: 'Tous les fichiers', extensions: ['*'] }
+        ]
+      });
+
+      if (result.canceled || !result.filePath) {
+        return { success: false, canceled: true };
+      }
+
+      fs.copyFileSync(filePath, result.filePath);
+      return { success: true, path: result.filePath };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -835,11 +927,8 @@ function setupIPCHandlers() {
 
   ipcMain.handle('dashboard:getQuickStats', async () => {
     try {
-      const isSQLite = getCurrentMode() === 'sqlite';
       const userContext = getScopedUserContext();
-      const monthStartExpression = isSQLite
-        ? "date('now', 'start of month')"
-        : "DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+      const monthStartExpression = "DATE_TRUNC('month', CURRENT_DATE)";
       const patientScope = getScopedPatientFilter(userContext, 'patients');
       const consultationScope = getScopedConsultationFilter(userContext, 'c', 'p');
       const prescriptionScope = getScopedPrescriptionFilter(userContext, 'pr', 'p', 'c');
@@ -877,6 +966,393 @@ function setupIPCHandlers() {
         }
       };
     } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('statistics:getAdvancedOverview', async (event, filters = {}) => {
+    try {
+      const userContext = getScopedUserContext();
+      
+      // Resolve start and end dates
+      let startDate = filters.startDate || '';
+      let endDate = filters.endDate || '';
+      const period = filters.period || 'month'; // 'day' | 'month' | 'year'
+      
+      // Default dates if none provided
+      if (!startDate) {
+        if (period === 'day') {
+          startDate = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+          endDate = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        } else if (period === 'year') {
+          startDate = moment().startOf('year').format('YYYY-MM-DD HH:mm:ss');
+          endDate = moment().endOf('year').format('YYYY-MM-DD HH:mm:ss');
+        } else {
+          startDate = moment().startOf('month').format('YYYY-MM-DD HH:mm:ss');
+          endDate = moment().endOf('month').format('YYYY-MM-DD HH:mm:ss');
+        }
+      } else {
+        startDate = moment(startDate).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        endDate = moment(endDate || startDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
+      
+      const hasFinancialAccess = userContext.isSuperAdmin || userContext.isDoctorAdmin;
+      const hasOperationalAccess = userContext.isSuperAdmin || userContext.isDoctorAdmin;
+      
+      const result = {
+        role: userContext.role,
+        isSuperAdmin: userContext.isSuperAdmin,
+        isDoctorAdmin: userContext.isDoctorAdmin,
+        isPractitioner: userContext.isPractitioner,
+        isAssistant: userContext.isAssistant,
+        financials: null,
+        clinicals: null,
+        operationals: null
+      };
+      const tableExists = async (tableName) => {
+        const row = await queryOne('SELECT to_regclass(?) as table_name', [`public.${tableName}`]);
+        return !!row?.table_name;
+      };
+
+      // 2. Fetch Financial Data
+      if (hasFinancialAccess) {
+        const [hasPosSales, hasInventoryLots] = await Promise.all([
+          tableExists('pos_sales'),
+          tableExists('inventory_lots')
+        ]);
+
+        // Consultation Revenues
+        const consultationRevenues = await queryOne(
+          `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+           WHERE paymentDate BETWEEN ? AND ? 
+             AND id NOT IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`,
+          [startDate, endDate]
+        );
+
+        // Treatment Plan Revenues
+        const planRevenues = await queryOne(
+          `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+           WHERE paymentDate BETWEEN ? AND ? 
+             AND id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`,
+          [startDate, endDate]
+        );
+
+        // POS Revenues
+        const posRevenues = hasPosSales ? await queryOne(
+          `SELECT COALESCE(SUM(finalAmount), 0) as total FROM pos_sales 
+           WHERE saleDate BETWEEN ? AND ?`,
+          [startDate, endDate]
+        ) : { total: 0 };
+
+        // General Expenses (Excluding Salaires)
+        const generalExpenses = await queryOne(
+          `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+           WHERE expenseDate BETWEEN ? AND ? AND (category IS NULL OR category != 'Salaires')`,
+          [startDate, endDate]
+        );
+
+        // Salary Expenses
+        const salaryExpenses = await queryOne(
+          `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
+           WHERE expenseDate BETWEEN ? AND ? AND category = 'Salaires'`,
+          [startDate, endDate]
+        );
+
+        // Inventory Lot Purchases
+        const inventoryPurchases = hasInventoryLots ? await queryOne(
+          `SELECT COALESCE(SUM(initialQuantity * unitPrice), 0) as total FROM inventory_lots 
+           WHERE purchaseDate BETWEEN ? AND ?`,
+          [startDate, endDate]
+        ) : { total: 0 };
+
+        // Pending payments (Active plans remaining balance)
+        const pendingPayments = await queryOne(
+          `SELECT COALESCE(SUM(totalCost - totalPaid), 0) as total FROM treatment_plans 
+           WHERE status = 'active'`
+        );
+
+        const revConsultations = Number(consultationRevenues?.total || 0);
+        const revPlans = Number(planRevenues?.total || 0);
+        const revPOS = Number(posRevenues?.total || 0);
+        const totalRev = revConsultations + revPlans + revPOS;
+
+        const expGeneral = Number(generalExpenses?.total || 0);
+        const expSalaries = Number(salaryExpenses?.total || 0);
+        const expInventory = Number(inventoryPurchases?.total || 0);
+        const totalExp = expGeneral + expSalaries + expInventory;
+
+        // Grouped by period details (for trends table)
+        const dateSubstrLen = period === 'day' ? 10 : (period === 'year' ? 4 : 7);
+
+        const payGroup = await query(
+          `SELECT SUBSTR(CAST(paymentDate AS VARCHAR), 1, ?) as period, 
+                  SUM(CASE WHEN id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL) THEN 0 ELSE amount END) as consultRev,
+                  SUM(CASE WHEN id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL) THEN amount ELSE 0 END) as planRev
+           FROM payments 
+           WHERE paymentDate BETWEEN ? AND ?
+           GROUP BY 1`,
+          [dateSubstrLen, startDate, endDate]
+        );
+
+        const posGroup = hasPosSales ? await query(
+          `SELECT SUBSTR(CAST(saleDate AS VARCHAR), 1, ?) as period, SUM(finalAmount) as posRev 
+           FROM pos_sales 
+           WHERE saleDate BETWEEN ? AND ?
+           GROUP BY 1`,
+          [dateSubstrLen, startDate, endDate]
+        ) : [];
+
+        const expGroup = await query(
+          `SELECT SUBSTR(CAST(expenseDate AS VARCHAR), 1, ?) as period, 
+                  SUM(CASE WHEN category = 'Salaires' THEN amount ELSE 0 END) as salaryExp,
+                  SUM(CASE WHEN category != 'Salaires' THEN amount ELSE 0 END) as generalExp
+           FROM expenses 
+           WHERE expenseDate BETWEEN ? AND ?
+           GROUP BY 1`,
+          [dateSubstrLen, startDate, endDate]
+        );
+
+        const invGroup = hasInventoryLots ? await query(
+          `SELECT SUBSTR(CAST(purchaseDate AS VARCHAR), 1, ?) as period, SUM(initialQuantity * unitPrice) as invExp 
+           FROM inventory_lots 
+           WHERE purchaseDate BETWEEN ? AND ?
+           GROUP BY 1`,
+          [dateSubstrLen, startDate, endDate]
+        ) : [];
+
+        // Merge all groups in memory
+        const periodMap = new Map();
+        const addPeriodData = (p, data) => {
+          if (!periodMap.has(p)) {
+            periodMap.set(p, { period: p, revenue: 0, expenses: 0, consultRev: 0, planRev: 0, posRev: 0, generalExp: 0, salaryExp: 0, invExp: 0 });
+          }
+          const curr = periodMap.get(p);
+          Object.assign(curr, { ...curr, ...data });
+        };
+
+        payGroup.forEach(row => addPeriodData(row.period, { consultRev: Number(row.consultRev || 0), planRev: Number(row.planRev || 0) }));
+        posGroup.forEach(row => addPeriodData(row.period, { posRev: Number(row.posRev || 0) }));
+        expGroup.forEach(row => addPeriodData(row.period, { salaryExp: Number(row.salaryExp || 0), generalExp: Number(row.generalExp || 0) }));
+        invGroup.forEach(row => addPeriodData(row.period, { invExp: Number(row.invExp || 0) }));
+
+        // Calculate total revenues & expenses per period
+        const periodicalFinancials = Array.from(periodMap.values()).map(item => {
+          const rev = item.consultRev + item.planRev + item.posRev;
+          const exp = item.salaryExp + item.generalExp + item.invExp;
+          return {
+            period: item.period,
+            revenue: rev,
+            expenses: exp,
+            margin: rev - exp
+          };
+        }).sort((a, b) => b.period.localeCompare(a.period));
+
+        result.financials = {
+          totalRevenue: totalRev,
+          revenueBreakdown: {
+            consultations: revConsultations,
+            treatmentPlans: revPlans,
+            posSales: revPOS
+          },
+          totalExpenses: totalExp,
+          expenseBreakdown: {
+            general: expGeneral,
+            salaires: expSalaries,
+            inventory: expInventory
+          },
+          netMargin: totalRev - totalExp,
+          pendingPayments: Number(pendingPayments?.total || 0),
+          periodicalFinancials
+        };
+      } else if (userContext.isPractitioner) {
+        // Scoped Payments: Doctor Normal's payments collected TODAY
+        const todayStrStart = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const todayStrEnd = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+        const consultationPayments = await queryOne(
+          `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
+           JOIN consultations c ON c.id = pay.consultationId
+           WHERE pay.paymentDate BETWEEN ? AND ? AND c.doctorId = ?`,
+          [todayStrStart, todayStrEnd, userContext.userId]
+        );
+
+        const planPayments = await queryOne(
+          `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
+           JOIN plan_payment_sessions pps ON pps.paymentId = pay.id
+           JOIN treatment_plans tp ON tp.id = pps.planId
+           WHERE pay.paymentDate BETWEEN ? AND ? AND tp.createdBy = ?`,
+          [todayStrStart, todayStrEnd, userContext.userId]
+        );
+
+        result.financials = {
+          todayCollected: Number(consultationPayments?.total || 0) + Number(planPayments?.total || 0)
+        };
+      }
+
+      // 3. Fetch Clinical Data
+      let patientsSeenCount = 0;
+      let acts = [];
+      let plansCompletion = { active: 0, completed: 0, cancelled: 0, completionRate: 0 };
+      
+      const clinicalScopeParams = [];
+      let clinicalConsultationClause = 'c.consultationDate BETWEEN ? AND ?';
+      clinicalScopeParams.push(startDate, endDate);
+
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
+        clinicalConsultationClause += ' AND c.doctorId = ?';
+        clinicalScopeParams.push(userContext.userId);
+      }
+
+      const patientsSeenRow = await queryOne(
+        `SELECT COUNT(DISTINCT c.patientId) as count FROM consultations c
+         WHERE ${clinicalConsultationClause}`,
+        clinicalScopeParams
+      );
+      patientsSeenCount = Number(patientsSeenRow?.count || 0);
+
+      // Dental treatments (acts)
+      const actsParams = [startDate, endDate];
+      let actsClause = 'treatmentDate BETWEEN ? AND ?';
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
+        actsClause += ' AND dentistId = ?';
+        actsParams.push(userContext.userId);
+      }
+      acts = await query(
+        `SELECT treatmentType as label, COUNT(*) as count FROM dental_treatments
+         WHERE ${actsClause}
+         GROUP BY treatmentType
+         ORDER BY count DESC
+         LIMIT 10`,
+        actsParams
+      );
+
+      // Treatment plans completion
+      const plansParams = [startDate, endDate];
+      let plansClause = 'createdAt BETWEEN ? AND ?';
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
+        plansClause += ' AND createdBy = ?';
+        plansParams.push(userContext.userId);
+      }
+      const plansCompletionRows = await query(
+        `SELECT status, COUNT(*) as count FROM treatment_plans
+         WHERE ${plansClause}
+         GROUP BY status`,
+        plansParams
+      );
+      plansCompletionRows.forEach(row => {
+        if (row.status === 'active') plansCompletion.active = Number(row.count || 0);
+        else if (row.status === 'completed') plansCompletion.completed = Number(row.count || 0);
+        else if (row.status === 'cancelled') plansCompletion.cancelled = Number(row.count || 0);
+      });
+      const totalPlans = plansCompletion.active + plansCompletion.completed + plansCompletion.cancelled;
+      plansCompletion.completionRate = totalPlans > 0 
+        ? Math.round((plansCompletion.completed / totalPlans) * 100) 
+        : 0;
+
+      // Patients seen by doctor leaderboard (only for Superadmin/Doctor Admin)
+      let patientsSeenByDoctor = [];
+      if (hasFinancialAccess) {
+        patientsSeenByDoctor = await query(
+          `SELECT COALESCE(u.fullName, u.username, 'Médecin') as doctorName, COUNT(DISTINCT c.patientId) as count
+           FROM consultations c
+           JOIN users u ON u.id = c.doctorId
+           WHERE c.consultationDate BETWEEN ? AND ?
+           GROUP BY c.doctorId
+           ORDER BY count DESC
+           LIMIT 10`,
+          [startDate, endDate]
+        );
+      }
+
+      result.clinicals = {
+        patientsSeen: patientsSeenCount,
+        actsBreakdown: acts,
+        plansCompletion,
+        patientsSeenByDoctor: patientsSeenByDoctor.map(item => ({
+          name: item.doctorName,
+          count: Number(item.count)
+        }))
+      };
+
+      // 4. Fetch Operational Data
+      if (hasOperationalAccess) {
+        // Chair occupancy rate
+        const todayDateStr = moment().format('YYYY-MM-DD');
+        const activeConsultingPatients = await queryOne(
+          `SELECT COUNT(*) as count FROM waiting_room 
+           WHERE status = 'in-consultation' AND DATE(arrivalTime) = ?`,
+          [todayDateStr]
+        );
+        const totalCapacity = 3;
+        const chairOccupancy = Math.min(100, Math.round((Number(activeConsultingPatients?.count || 0) / totalCapacity) * 100));
+
+        // Equipment occupancy rate
+        const totalEquipments = await queryOne(
+          `SELECT COUNT(*) as count FROM inventory 
+           WHERE category IN ('Équipements de rééducation', 'Mobilier médical', 'Équipement') AND isActive = 1`
+        );
+        const equipmentsInUse = await queryOne(
+          `SELECT COUNT(DISTINCT inventoryId) as count FROM plan_equipment_usage pe
+           JOIN treatment_plans tp ON tp.id = pe.planId
+           WHERE tp.status = 'active'`
+        );
+        const totalEquip = Number(totalEquipments?.count || 0);
+        const inUseEquip = Number(equipmentsInUse?.count || 0);
+        const equipmentOccupancy = totalEquip > 0 ? Math.min(100, Math.round((inUseEquip / totalEquip) * 100)) : 0;
+
+        // Alerts
+        // Low Stock
+        const lowStock = await query(
+          `SELECT id, name, quantity, minQuantity, unit FROM inventory 
+           WHERE quantity <= minQuantity AND isActive = 1`
+        );
+
+        // Expiring Soon (30 days)
+        const thirtyDaysOut = moment().add(30, 'days').format('YYYY-MM-DD');
+        const hasInventoryLots = await tableExists('inventory_lots');
+        const expiringLots = hasInventoryLots ? await query(
+          `SELECT l.id, i.name, l.lotNumber, l.expirationDate, l.remainingQuantity 
+           FROM inventory_lots l
+           JOIN inventory i ON i.id = l.inventoryId
+           WHERE l.expirationDate <= ? AND l.remainingQuantity > 0 AND l.isActive = 1`,
+          [thirtyDaysOut]
+        ) : [];
+
+        // Equipment maintenance needed (stock older than 180 days)
+        const halfYearAgo = moment().subtract(180, 'days').format('YYYY-MM-DD');
+        const maintenanceLots = await query(
+          `SELECT id, name, createdAt FROM inventory 
+           WHERE category IN ('Équipements de rééducation', 'Mobilier médical', 'Équipement') 
+             AND createdAt <= ? AND isActive = 1`,
+          [halfYearAgo]
+        );
+
+        result.operationals = {
+          chairOccupancy,
+          equipmentOccupancy,
+          alerts: {
+            lowStock: lowStock.map(item => ({
+              id: item.id,
+              name: item.name,
+              message: `Stock bas : ${item.quantity} ${item.unit} restant(s) (seuil ${item.minQuantity})`
+            })),
+            expiringLots: expiringLots.map(item => ({
+              id: item.id,
+              name: item.name,
+              message: `Lot ${item.lotNumber || 'N/A'} expire le ${moment(item.expirationDate).format('DD/MM/YYYY')} (${item.remainingQuantity} restants)`
+            })),
+            maintenanceLots: maintenanceLots.map(item => ({
+              id: item.id,
+              name: item.name,
+              message: `Équipement en stock depuis le ${moment(item.createdAt).format('DD/MM/YYYY')}. Maintenance recommandée.`
+            }))
+          }
+        };
+      }
+
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('Error calculating advanced statistics:', error);
       return { success: false, error: error.message };
     }
   });

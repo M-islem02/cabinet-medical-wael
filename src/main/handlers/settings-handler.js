@@ -41,6 +41,12 @@ function normalizeDocumentTypeColors(rawValue) {
   }
 }
 
+function normalizeDocumentStyleVariant(value) {
+  const raw = String(value || '').trim();
+  if (raw === 'modern') return 'gradient-header';
+  return ['classic', 'sidebar', 'gradient-header', 'minimal'].includes(raw) ? raw : 'classic';
+}
+
 export function handleSettingsEvents() {
   // Récupérer les paramètres
   ipcMain.handle('settings:get', async () => {
@@ -73,7 +79,7 @@ export function handleSettingsEvents() {
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
                doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, updatedAt = ?
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
            WHERE id = ?`,
           [
             settingsData.cabinetName,
@@ -88,7 +94,7 @@ export function handleSettingsEvents() {
             normalizeDocumentTypeColors(settingsData.documentTypeColors),
             Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
             Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            settingsData.documentStyleVariant === 'modern' ? 'modern' : 'classic',
+            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
             Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
             settingsData.documentHideSignature ? 1 : 0,
             settingsData.preferredPrinter || null,
@@ -100,6 +106,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
+            settingsData.customTreatmentTypes || null,
             now,
             existingSettings.id
           ]
@@ -112,8 +119,8 @@ export function handleSettingsEvents() {
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature,
             preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -129,7 +136,7 @@ export function handleSettingsEvents() {
             normalizeDocumentTypeColors(settingsData.documentTypeColors),
             Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
             Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            settingsData.documentStyleVariant === 'modern' ? 'modern' : 'classic',
+            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
             Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
             settingsData.documentHideSignature ? 1 : 0,
             settingsData.preferredPrinter || null,
@@ -141,6 +148,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
+            settingsData.customTreatmentTypes || null,
             now
           ]
         );
@@ -170,7 +178,7 @@ export function handleSettingsEvents() {
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
                doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, updatedAt = ?
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
            WHERE id = ?`,
           [
             settingsData.cabinetName,
@@ -185,7 +193,7 @@ export function handleSettingsEvents() {
             normalizeDocumentTypeColors(settingsData.documentTypeColors),
             Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
             Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            settingsData.documentStyleVariant === 'modern' ? 'modern' : 'classic',
+            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
             Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
             settingsData.documentHideSignature ? 1 : 0,
             settingsData.preferredPrinter || null,
@@ -197,6 +205,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
+            settingsData.customTreatmentTypes || null,
             now,
             existingSettings.id
           ]
@@ -209,8 +218,8 @@ export function handleSettingsEvents() {
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature,
             preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -226,7 +235,7 @@ export function handleSettingsEvents() {
             normalizeDocumentTypeColors(settingsData.documentTypeColors),
             Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
             Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            settingsData.documentStyleVariant === 'modern' ? 'modern' : 'classic',
+            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
             Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
             settingsData.documentHideSignature ? 1 : 0,
             settingsData.preferredPrinter || null,
@@ -238,6 +247,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
+            settingsData.customTreatmentTypes || null,
             now
           ]
         );

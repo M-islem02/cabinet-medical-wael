@@ -10,6 +10,10 @@ import moment from 'moment';
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
 
+function getAssistantPatientScopeClause() {
+  return '1=1';
+}
+
 function normalizeUserRole(role) {
   return role === 'director' ? 'doctor' : String(role || '').trim();
 }
@@ -59,7 +63,7 @@ function normalizePatientListRequest(payload = null) {
         paginated: false,
         searchTerm: '',
         page: 1,
-        pageSize: 10
+        pageSize: 15
       };
   }
 
@@ -67,7 +71,7 @@ function normalizePatientListRequest(payload = null) {
     paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.searchTerm !== undefined,
     searchTerm: String(payload.searchTerm || '').trim(),
     page: toPositiveInt(payload.page, 1),
-    pageSize: Math.min(100, toPositiveInt(payload.pageSize, 10))
+    pageSize: Math.min(100, toPositiveInt(payload.pageSize, 15))
   };
 }
 
@@ -111,12 +115,19 @@ function normalizeSocialSecurity(value) {
 
 function getCurrentUserContext() {
   const role = normalizeUserRole(global.currentUser?.role);
+  const isAdmin = !!global.currentUser?.isAdmin;
+  const isSuperAdmin = !!global.currentUser?.isSuperAdmin;
+  const isPractitioner = role === 'doctor' || role === 'dentist';
+  // A doctor-admin (isPractitioner && isAdmin) sees the whole cabinet — same scope as assistant.
+  // A normal practitioner (isPractitioner && !isAdmin) is scoped to their own patients.
   return {
     userId: global.currentUser?.id || null,
     role,
-    isAdmin: !!global.currentUser?.isAdmin,
-    isPractitioner: role === 'doctor' || role === 'dentist',
-    isAssistant: role === 'assistant'
+    isAdmin,
+    isSuperAdmin,
+    isPractitioner,
+    isAssistant: role === 'assistant',
+    isDoctorAdmin: isPractitioner && isAdmin
   };
 }
 
@@ -127,16 +138,6 @@ export function handlePatientEvents() {
       const userContext = getCurrentUserContext();
       const whereParts = [];
       const params = [];
-
-      if (userContext.isPractitioner && userContext.userId) {
-        whereParts.push('primaryDoctorId = ?');
-        params.push(userContext.userId);
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        whereParts.push('createdByUserId = ?');
-        params.push(userContext.userId);
-      }
 
       const whereClause = whereParts.length ? ` WHERE ${whereParts.join(' AND ')}` : '';
       const row = await queryOne(`SELECT COUNT(*) as count FROM patients${whereClause}`, params);
@@ -155,8 +156,9 @@ export function handlePatientEvents() {
       }
 
       const userContext = getCurrentUserContext();
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
+      // Superadmin cannot manage patients
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé' };
       }
 
       const id = uuidv4();
@@ -181,8 +183,10 @@ export function handlePatientEvents() {
           return { success: false, error: 'Médecin cible introuvable ou inactif' };
         }
 
+        // Target must be a practitioner (doctor or dentist) and must not be the superadmin.
+        // Doctor-admin (role='doctor', isAdmin=1) is a valid target.
         const validPractitionerRole = targetDoctor.role === 'doctor' || targetDoctor.role === 'dentist';
-        if (!validPractitionerRole || targetDoctor.isAdmin || targetDoctor.isSuperAdmin) {
+        if (!validPractitionerRole || targetDoctor.isSuperAdmin) {
           return { success: false, error: 'Le patient doit être rattaché à un compte médecin valide' };
         }
       }
@@ -231,23 +235,14 @@ export function handlePatientEvents() {
       const params = [];
       const userContext = getCurrentUserContext();
 
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
-      }
-
-      if (userContext.isPractitioner && userContext.userId) {
-        whereParts.push('primaryDoctorId = ?');
-        params.push(userContext.userId);
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        whereParts.push('createdByUserId = ?');
-        params.push(userContext.userId);
+      // Superadmin cannot access clinical data
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé: le super administrateur n\'a pas accès aux dossiers cliniques' };
       }
 
       if (request.searchTerm) {
         const searchPattern = `%${request.searchTerm}%`;
-        whereParts.push('(firstName LIKE ? OR lastName LIKE ? OR email LIKE ? OR phone LIKE ? OR socialSecurityNumber LIKE ?)');
+        whereParts.push('(firstName ILIKE ? OR lastName ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)');
         params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
       }
 
@@ -299,22 +294,13 @@ export function handlePatientEvents() {
       }
 
       const userContext = getCurrentUserContext();
-      
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
+
+      // Superadmin cannot access clinical data
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé' };
       }
 
-      if (userContext.isPractitioner && userContext.userId) {
-        if (patient.primaryDoctorId && patient.primaryDoctorId !== userContext.userId) {
-          return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
-        }
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        if (patient.createdByUserId && patient.createdByUserId !== userContext.userId) {
-          return { success: false, error: 'Accès refusé: vous ne pouvez consulter que les dossiers que vous avez créés' };
-        }
-      }
+      // Doctors and assistants can view cabinet-wide patient dossiers.
 
       if (isCurrentUserDirector()) {
         return { success: true, data: sanitizePatientForDirector(patient) };
@@ -349,25 +335,15 @@ export function handlePatientEvents() {
         return { success: true, data: [] };
       }
 
-      const searchPattern = `${request.searchTerm}%`;
+      const searchPattern = `%${request.searchTerm}%`;
       const userContext = getCurrentUserContext();
 
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé' };
       }
 
-      const whereParts = ['(firstName LIKE ? OR lastName LIKE ? OR email LIKE ? OR phone LIKE ? OR socialSecurityNumber LIKE ?)'];
+      const whereParts = ['(firstName ILIKE ? OR lastName ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)'];
       const params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern];
-
-      if (userContext.isPractitioner && userContext.userId) {
-        whereParts.push('primaryDoctorId = ?');
-        params.push(userContext.userId);
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        whereParts.push('createdByUserId = ?');
-        params.push(userContext.userId);
-      }
 
       const patients = await query(
         `SELECT * FROM patients
@@ -396,22 +372,16 @@ export function handlePatientEvents() {
       }
 
       const userContext = getCurrentUserContext();
-      
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
+
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé' };
       }
 
-      if (userContext.isPractitioner && userContext.userId) {
+      // Normal practitioner scoped to own patients only
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
         const existing = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [patientId]);
         if (!existing || (existing.primaryDoctorId && existing.primaryDoctorId !== userContext.userId)) {
           return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
-        }
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        const existing = await queryOne('SELECT id, createdByUserId FROM patients WHERE id = ?', [patientId]);
-        if (!existing || (existing.createdByUserId && existing.createdByUserId !== userContext.userId)) {
-          return { success: false, error: 'Accès refusé: vous ne pouvez modifier que les dossiers que vous avez créés' };
         }
       }
 
@@ -459,22 +429,16 @@ export function handlePatientEvents() {
       }
 
       const userContext = getCurrentUserContext();
-      
-      if (userContext.role === 'admin') {
-        return { success: false, error: 'Accès refusé: un administrateur ne gère pas les patients' };
+
+      if (userContext.isSuperAdmin) {
+        return { success: false, error: 'Accès refusé' };
       }
 
-      if (userContext.isPractitioner && userContext.userId) {
+      // Normal practitioner scoped to own patients only
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
         const existing = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [patientId]);
         if (!existing || (existing.primaryDoctorId && existing.primaryDoctorId !== userContext.userId)) {
           return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
-        }
-      }
-
-      if (userContext.isAssistant && userContext.userId) {
-        const existing = await queryOne('SELECT id, createdByUserId FROM patients WHERE id = ?', [patientId]);
-        if (!existing || (existing.createdByUserId && existing.createdByUserId !== userContext.userId)) {
-          return { success: false, error: 'Accès refusé: vous ne pouvez supprimer que les dossiers que vous avez créés' };
         }
       }
 

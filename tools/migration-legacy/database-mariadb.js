@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Module de gestion de la base de donnÃ©es MariaDB/MySQL
  * Pour utilisation multi-postes (plusieurs PC)
  */
@@ -207,6 +207,7 @@ async function createTables() {
       ownerUserId VARCHAR(36),
       cabinetLogoDataUrl LONGTEXT,
       cabinetWatermarkLogoDataUrl LONGTEXT,
+      customTreatmentTypes LONGTEXT,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
@@ -522,6 +523,16 @@ async function createTables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS expense_categories (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      description TEXT,
+      isActive BOOLEAN DEFAULT TRUE,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   // Table de l'inventaire
   await run(`
     CREATE TABLE IF NOT EXISTS inventory (
@@ -596,6 +607,75 @@ async function createTables() {
       scheduledFor DATETIME,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS treatment_plans (
+      id VARCHAR(36) PRIMARY KEY,
+      patientId VARCHAR(36) NOT NULL,
+      consultationId VARCHAR(36),
+      title VARCHAR(255) NOT NULL,
+      description TEXT,
+      startDate DATE NOT NULL,
+      endDate DATE,
+      sessions INT DEFAULT 1,
+      completedSessions INT DEFAULT 0,
+      frequency VARCHAR(100),
+      status VARCHAR(50) DEFAULT 'active',
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY(consultationId) REFERENCES consultations(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS plan_payment_sessions (
+      id VARCHAR(36) PRIMARY KEY,
+      planId VARCHAR(36) NOT NULL,
+      sessionNumber INT NOT NULL,
+      scheduledDate DATETIME,
+      paidDate DATETIME,
+      expectedAmount DECIMAL(10,2) DEFAULT 0,
+      paidAmount DECIMAL(10,2) DEFAULT 0,
+      status VARCHAR(50) DEFAULT 'pending',
+      notes TEXT,
+      recordedBy VARCHAR(36),
+      paymentId VARCHAR(36),
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(planId) REFERENCES treatment_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(recordedBy) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS plan_equipment_usage (
+      id VARCHAR(36) PRIMARY KEY,
+      planId VARCHAR(36) NOT NULL,
+      inventoryId VARCHAR(36) NOT NULL,
+      usageDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(planId) REFERENCES treatment_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(inventoryId) REFERENCES inventory(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS treatment_sessions (
+      id VARCHAR(36) PRIMARY KEY,
+      treatmentPlanId VARCHAR(36) NOT NULL,
+      sessionNumber INT NOT NULL,
+      scheduledDate DATE NOT NULL,
+      completedDate DATE,
+      status VARCHAR(50) DEFAULT 'scheduled',
+      therapistId VARCHAR(36),
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(treatmentPlanId) REFERENCES treatment_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY(therapistId) REFERENCES users(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
@@ -683,6 +763,7 @@ async function createTables() {
       featureCardiology BOOLEAN DEFAULT FALSE,
       featureMedicalImaging BOOLEAN DEFAULT TRUE,
       activeSpecialty VARCHAR(40) DEFAULT 'general',
+      enabledSpecialties TEXT,
       featureDebts BOOLEAN DEFAULT TRUE,
       featureCalendar BOOLEAN DEFAULT TRUE,
       featureDocuments BOOLEAN DEFAULT TRUE,
@@ -984,6 +1065,28 @@ async function createTables() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS patient_equipment (
+      id VARCHAR(36) PRIMARY KEY,
+      patientId VARCHAR(36) NOT NULL,
+      consultationId VARCHAR(36),
+      prescribedBy VARCHAR(36),
+      equipmentType VARCHAR(100) NOT NULL,
+      equipmentName VARCHAR(255) NOT NULL,
+      description TEXT,
+      prescriptionDate DATE NOT NULL,
+      deliveryDate DATE,
+      supplier VARCHAR(255),
+      status VARCHAR(50) DEFAULT 'prescribed',
+      notes TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY(consultationId) REFERENCES consultations(id) ON DELETE SET NULL,
+      FOREIGN KEY(prescribedBy) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   await run(`CREATE INDEX IF NOT EXISTS idx_functional_evaluations_patient_date ON functional_evaluations(patientId, evaluationDate DESC)`).catch(() => {});
   await run(`CREATE INDEX IF NOT EXISTS idx_rehabilitation_plans_patient_date ON rehabilitation_plans(patientId, startDate DESC)`).catch(() => {});
   await run(`CREATE INDEX IF NOT EXISTS idx_rehabilitation_sessions_plan_date ON rehabilitation_sessions(rehabilitationPlanId, sessionDate DESC)`).catch(() => {});
@@ -1224,6 +1327,7 @@ async function ensureMariaDBSchemaUpgrades() {
   await safeAlter(`ALTER TABLE package_config ADD COLUMN featureCardiology BOOLEAN DEFAULT FALSE`);
   await safeAlter(`ALTER TABLE package_config ADD COLUMN featureMedicalImaging BOOLEAN DEFAULT TRUE`);
   await safeAlter(`ALTER TABLE package_config ADD COLUMN activeSpecialty VARCHAR(40) DEFAULT 'general'`);
+  await safeAlter(`ALTER TABLE package_config ADD COLUMN enabledSpecialties TEXT`);
   await safeAlter(`ALTER TABLE package_config ADD COLUMN featureDebts BOOLEAN DEFAULT TRUE`);
   await safeAlter(`ALTER TABLE package_config ADD COLUMN featureCalendar BOOLEAN DEFAULT TRUE`);
   await safeAlter(`ALTER TABLE package_config ADD COLUMN featureDocuments BOOLEAN DEFAULT TRUE`);
@@ -1270,6 +1374,19 @@ async function ensureMariaDBSchemaUpgrades() {
       END
       WHERE activeSpecialty IS NULL OR TRIM(activeSpecialty) = ''
     `);
+    await run(`
+      UPDATE package_config
+      SET enabledSpecialties = CONCAT(
+        '["general"',
+        IF(featureRehabilitation = TRUE OR featureKineStaff = TRUE, ',"mpr"', ''),
+        IF(featureCardiology = TRUE, ',"cardiology"', ''),
+        IF(featureDentistry = TRUE, ',"dentistry"', ''),
+        ']'
+      )
+      WHERE enabledSpecialties IS NULL
+         OR TRIM(enabledSpecialties) = ''
+         OR (enabledSpecialties = '["general"]' AND (featureRehabilitation = TRUE OR featureKineStaff = TRUE OR featureCardiology = TRUE OR featureDentistry = TRUE))
+    `);
   } catch (error) {
     console.warn('package_config activeSpecialty migration skipped:', error?.message || error);
   }
@@ -1285,6 +1402,7 @@ async function ensureMariaDBSchemaUpgrades() {
   await safeAlter(`ALTER TABLE settings ADD COLUMN publicBookingQrEnabled BOOLEAN DEFAULT TRUE`);
   await safeAlter(`ALTER TABLE settings ADD COLUMN cabinetLogoDataUrl LONGTEXT`);
   await safeAlter(`ALTER TABLE settings ADD COLUMN cabinetWatermarkLogoDataUrl LONGTEXT`);
+  await safeAlter(`ALTER TABLE settings ADD COLUMN customTreatmentTypes LONGTEXT`);
   await safeAlter(`ALTER TABLE settings ADD COLUMN documentColorMode VARCHAR(20) DEFAULT 'color'`);
   await safeAlter(`ALTER TABLE settings ADD COLUMN documentPrimaryColor VARCHAR(20) DEFAULT '#1a8c7e'`);
   await safeAlter(`ALTER TABLE settings ADD COLUMN documentTypeColors LONGTEXT`);
@@ -1326,6 +1444,15 @@ async function ensureMariaDBSchemaUpgrades() {
   await safeAlter(`ALTER TABLE dental_treatments ADD COLUMN material VARCHAR(255)`);
   await safeAlter(`ALTER TABLE dental_treatments ADD COLUMN color VARCHAR(100)`);
   await safeAlter(`ALTER TABLE dental_treatments ADD COLUMN isPaid BOOLEAN DEFAULT FALSE`);
+  await safeAlter(`ALTER TABLE dental_treatments ADD COLUMN planId VARCHAR(36)`);
+  await safeAlter(`ALTER TABLE dental_treatments ADD COLUMN doctorId VARCHAR(36)`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN treatmentType VARCHAR(255)`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN specialty VARCHAR(100) DEFAULT 'dentistry'`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN totalCost DECIMAL(10,2) DEFAULT 0`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN totalPaid DECIMAL(10,2) DEFAULT 0`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN sessionsCount INT DEFAULT 1`);
+  await safeAlter(`ALTER TABLE treatment_plans ADD COLUMN createdBy VARCHAR(36)`);
+  await safeAlter(`ALTER TABLE plan_payment_sessions ADD COLUMN paymentId VARCHAR(36)`);
   await safeAlter(`ALTER TABLE dental_xrays ADD COLUMN xrayType VARCHAR(100)`);
 }
 
@@ -1359,7 +1486,9 @@ async function createMasterLicense() {
   try {
     const { v4: uuidv4 } = await import('uuid');
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const FIVE_DAY_LICENSE_KEY = 'MEDPRO-TRIAL-5JOURS';
     const TRIAL_LICENSE_KEY = 'MEDPRO-TRIAL-7JOURS';
+    const FIFTEEN_DAY_LICENSE_KEY = 'MEDPRO-TRIAL-15JOURS';
     const ANNUAL_LICENSE_KEY = 'MEDPRO-ANNUELLE-1AN';
     const UNLIMITED_LICENSE_KEY = 'MEDPRO-ILLIMITEE-ACTIVE';
 
@@ -1377,7 +1506,9 @@ async function createMasterLicense() {
     }
 
     const defaults = [
+      [FIVE_DAY_LICENSE_KEY, 'Licence Essai 5 Jours'],
       [TRIAL_LICENSE_KEY, 'Licence Essai 7 Jours'],
+      [FIFTEEN_DAY_LICENSE_KEY, 'Licence Essai 15 Jours'],
       [ANNUAL_LICENSE_KEY, 'Licence 1 An'],
       [UNLIMITED_LICENSE_KEY, 'Licence IllimitÃ©e']
     ];
@@ -1394,6 +1525,54 @@ async function createMasterLicense() {
     }
   } catch (error) {
     console.error('Erreur crÃ©ation licence par dÃ©faut:', error);
+  }
+}
+
+export async function ensureSchemaForConfig(config) {
+  const previousPool = pool;
+  const previousConfig = dbConfig;
+  const targetConfig = {
+    host: config.host || 'localhost',
+    port: Number(config.port) || 3306,
+    user: config.user,
+    password: config.password || '',
+    database: config.database || 'physiocare'
+  };
+
+  const schemaPool = mysql.createPool({
+    host: targetConfig.host,
+    port: targetConfig.port,
+    user: targetConfig.user,
+    password: targetConfig.password,
+    database: targetConfig.database,
+    waitForConnections: true,
+    connectionLimit: 5,
+    queueLimit: 0,
+    charset: 'utf8mb4',
+    connectTimeout: 10000,
+    enableKeepAlive: true
+  });
+
+  try {
+    const connection = await schemaPool.getConnection();
+    connection.release();
+
+    pool = schemaPool;
+    dbConfig = targetConfig;
+    await createTables();
+
+    return {
+      success: true,
+      database: targetConfig.database
+    };
+  } finally {
+    try {
+      await schemaPool.end();
+    } catch (_) {
+      // Ignore close errors during migration preparation.
+    }
+    pool = previousPool;
+    dbConfig = previousConfig;
   }
 }
 

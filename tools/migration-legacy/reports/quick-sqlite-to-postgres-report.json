@@ -1,0 +1,392 @@
+{
+  "source": "/home/islem23/.config/physiocare/physiocare.db",
+  "startedAt": "2026-07-11T16:23:30.880Z",
+  "tables": [
+    {
+      "table": "licenses",
+      "sourceRows": 6,
+      "copied": 6,
+      "columns": 9
+    },
+    {
+      "table": "users",
+      "sourceRows": 4,
+      "copied": 4,
+      "columns": 16
+    },
+    {
+      "table": "settings",
+      "sourceRows": 1,
+      "copied": 1,
+      "columns": 29
+    },
+    {
+      "table": "patients",
+      "sourceRows": 101,
+      "copied": 101,
+      "columns": 20
+    },
+    {
+      "table": "consultations",
+      "sourceRows": 52,
+      "copied": 52,
+      "columns": 26
+    },
+    {
+      "table": "patient_attachments",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 13
+    },
+    {
+      "table": "prescriptions",
+      "sourceRows": 51,
+      "copied": 51,
+      "columns": 9
+    },
+    {
+      "table": "sick_leaves",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "appointments",
+      "sourceRows": 51,
+      "copied": 51,
+      "columns": 11
+    },
+    {
+      "table": "invoices",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 9
+    },
+    {
+      "table": "documents",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 9
+    },
+    {
+      "table": "payments",
+      "sourceRows": 54,
+      "copied": 54,
+      "columns": 10
+    },
+    {
+      "table": "patient_documents",
+      "sourceRows": 50,
+      "copied": 50,
+      "columns": 11
+    },
+    {
+      "table": "activity_log",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 7
+    },
+    {
+      "table": "prescription_templates",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 10
+    },
+    {
+      "table": "medications",
+      "sourceRows": 16,
+      "copied": 16,
+      "columns": 16
+    },
+    {
+      "table": "medical_analyses",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 14
+    },
+    {
+      "table": "analysis_types",
+      "sourceRows": 47,
+      "copied": 47,
+      "columns": 9
+    },
+    {
+      "table": "expenses",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "expense_categories",
+      "sourceRows": 13,
+      "copied": 13,
+      "columns": 5
+    },
+    {
+      "table": "inventory",
+      "sourceRows": 50,
+      "copied": 50,
+      "columns": 16
+    },
+    {
+      "table": "inventory_movements",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 10
+    },
+    {
+      "table": "debts",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "notifications",
+      "sourceRows": 5,
+      "copied": 5,
+      "columns": 10
+    },
+    {
+      "table": "treatment_plans",
+      "sourceRows": 2,
+      "copied": 2,
+      "columns": 14
+    },
+    {
+      "table": "treatment_sessions",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 9
+    },
+    {
+      "table": "functional_evaluations",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 33
+    },
+    {
+      "table": "clinical_exams",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 19
+    },
+    {
+      "table": "medical_scales",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "rehabilitation_plans",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 38
+    },
+    {
+      "table": "rehabilitation_sessions",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 18
+    },
+    {
+      "table": "patient_progress",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "patient_equipment",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 14
+    },
+    {
+      "table": "kine_staff",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 11
+    },
+    {
+      "table": "kine_sessions",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 11
+    },
+    {
+      "table": "waiting_room",
+      "sourceRows": 3,
+      "copied": 3,
+      "columns": 12
+    },
+    {
+      "table": "consultation_acts",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 8
+    },
+    {
+      "table": "user_notifications",
+      "sourceRows": 3,
+      "copied": 3,
+      "columns": 13
+    },
+    {
+      "table": "package_config",
+      "sourceRows": 1,
+      "copied": 1,
+      "columns": 38
+    },
+    {
+      "table": "dental_records",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 5
+    },
+    {
+      "table": "dental_teeth",
+      "sourceRows": 21,
+      "copied": 21,
+      "columns": 7
+    },
+    {
+      "table": "dental_treatments",
+      "sourceRows": 6,
+      "copied": 6,
+      "columns": 13
+    },
+    {
+      "table": "dental_plans",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 12
+    },
+    {
+      "table": "dental_xrays",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 6
+    },
+    {
+      "table": "sms_config",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 19
+    },
+    {
+      "table": "sms_log",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 7
+    },
+    {
+      "table": "sms_reminders",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 6
+    },
+    {
+      "table": "cloud_sync_config",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 26
+    },
+    {
+      "table": "sync_log",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 5
+    },
+    {
+      "table": "cloud_sync_exports",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 13
+    },
+    {
+      "table": "medication_categories",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "plan_payment_sessions",
+      "sourceRows": 12,
+      "copied": 12,
+      "columns": 12
+    },
+    {
+      "table": "plan_equipment_usage",
+      "sourceRows": 0,
+      "copied": 0,
+      "columns": 6
+    },
+    {
+      "table": "suppliers",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "inventory_lots",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "purchase_orders",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "purchase_order_items",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "pos_sales",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "pos_sale_items",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "act_consumables",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "equipment",
+      "skipped": true,
+      "reason": "missing target table"
+    },
+    {
+      "table": "equipment_maintenance",
+      "skipped": true,
+      "reason": "missing target table"
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-07-11T16:23:50.955Z",
+  "validationCounts": [
+    {
+      "table_name": "users",
+      "count": 4
+    },
+    {
+      "table_name": "licenses",
+      "count": 6
+    },
+    {
+      "table_name": "patients",
+      "count": 101
+    },
+    {
+      "table_name": "payments",
+      "count": 54
+    },
+    {
+      "table_name": "inventory",
+      "count": 50
+    }
+  ]
+}

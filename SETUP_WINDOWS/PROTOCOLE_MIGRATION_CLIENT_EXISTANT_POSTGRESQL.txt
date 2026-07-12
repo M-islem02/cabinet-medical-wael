@@ -1,0 +1,179 @@
+PHYSIOCARE - SOUS-PLAN L9
+PROTOCOLE DE MIGRATION POUR CLIENT EXISTANT
+PostgreSQL + nouveau design deja en place
+====================================================
+
+CONTEXTE
+--------
+Ce protocole concerne uniquement les clients deja installes qui possedent des
+donnees reelles dans l'ancien systeme: SQLite local ou MariaDB.
+
+Un nouveau client peut recevoir une installation vide. Un client existant ne
+doit jamais etre traite comme un nouveau client, car ses donnees patients,
+ses paiements, ses plans de traitement et son inventaire doivent etre conserves
+sans perte.
+
+PRINCIPE NON NEGOCIABLE
+-----------------------
+1) Ne jamais migrer directement l'unique base du client.
+2) Toujours migrer une copie sur la machine de developpement.
+3) Toujours valider les totaux et plusieurs dossiers reels avant installation.
+4) Toujours conserver l'ancienne base pendant 1 a 2 mois minimum apres bascule.
+
+
+L9.1 - AVANT DE TOUCHER AU PC DU CLIENT: PREPARATION A DISTANCE
+---------------------------------------------------------------
+1) Recuperer une copie de la base actuelle du client:
+   - fichier .db si SQLite;
+   - dump .sql si MariaDB.
+
+   La recuperation peut se faire:
+   - sur place via cle USB;
+   - a distance via TeamViewer, AnyDesk ou autre acces autorise.
+
+2) Ne jamais travailler sur l'unique copie du client.
+   Copier la base sur la machine de developpement.
+
+3) Executer le script de migration PostgreSQL prevu au sous-plan L5 sur cette
+   copie, jamais sur l'original.
+
+   Exemple SQLite:
+
+     node tools\migration-legacy\migrate-to-postgresql.mjs --source sqlite --sqlite C:\backup\client.db --pg-host localhost --pg-port 5432 --pg-db cabinet_db --pg-user cabinet_app --pg-password PhysioCare2024! --truncate
+
+   Exemple MariaDB:
+
+     node tools\migration-legacy\migrate-to-postgresql.mjs --source mariadb --mariadb-host localhost --mariadb-port 3306 --mariadb-db physiocare --mariadb-user physiocare_user --mariadb-password MOT_DE_PASSE_MARIADB --pg-host localhost --pg-port 5432 --pg-db cabinet_db --pg-user cabinet_app --pg-password PhysioCare2024! --truncate
+
+   Le script cree un rapport JSON contenant les lignes migrees par table et les
+   totaux de validation L9.2.
+
+
+L9.2 - VALIDATION AVANT TOUT DEPLOIEMENT
+----------------------------------------
+Apres migration sur la machine de developpement, comparer les totaux
+avant/apres:
+
+  [ ] Nombre de patients identique.
+      Exemple: si l'ancienne application affiche 101 patients, PostgreSQL doit
+      afficher 101 patients apres migration.
+
+  [ ] Nombre de plans de traitement identique.
+
+  [ ] Montants payes et soldes restants identiques.
+
+  [ ] Nombre d'articles en inventaire identique.
+
+  [ ] Quantites d'inventaire identiques.
+
+Ouvrir ensuite l'application avec la nouvelle base PostgreSQL migree sur la
+machine de test.
+
+Verification visuelle obligatoire:
+  [ ] Controler 3 a 4 dossiers patients connus du client.
+  [ ] Verifier les memes montants.
+  [ ] Verifier le meme historique.
+  [ ] Verifier les plans en cours et les soldes de paiement.
+
+Ne passer a l'etape suivante que si cette validation est complete et sans
+erreur.
+
+
+L9.3 - PREPARER LE NOUVEL INSTALLEUR POUR CE CLIENT PRECIS
+----------------------------------------------------------
+Preparer une version de l'application contenant:
+
+  [ ] Le nouveau design du sous-plan M deja integre.
+
+  [ ] PostgreSQL configure en mode local si le client utilise un seul PC.
+
+  [ ] La vraie base du client deja migree et validee a l'etape L9.2.
+
+Important: ce paquet client ne doit pas contenir une base vide. Il doit contenir
+la base PostgreSQL convertie, verifiee et prete pour ce client precis.
+
+
+L9.4 - JOUR DE LA MIGRATION CHEZ LE CLIENT
+------------------------------------------
+Planifier une interruption courte avec le client, idealement hors heures de
+consultation: en soiree, pendant une pause longue ou un jour de fermeture.
+
+Sur place ou a distance:
+
+1) Faire une derniere sauvegarde de securite de l'ancienne base juste avant de
+   desinstaller l'ancienne application.
+
+2) Verifier si des donnees ont ete ajoutees entre la recuperation initiale
+   L9.1 et le jour de migration:
+   - comparer les dates de derniere modification;
+   - ou refaire tourner le script L5 sur la version la plus recente.
+
+3) Si des donnees ont ete ajoutees, migrer cette version recente ou migrer le
+   delta avant installation.
+
+4) Desinstaller l'ancienne application SQLite/MariaDB.
+
+5) Installer la nouvelle application avec:
+   - PostgreSQL;
+   - le nouveau design;
+   - la base client deja migree.
+
+6) Faire verifier par le client lui-meme:
+   [ ] patients presents;
+   [ ] plans en cours presents;
+   [ ] soldes de paiement identiques;
+   [ ] quelques dossiers que le client connait bien.
+
+Ce controle rapide par le client permet de detecter immediatement les anomalies
+sur les donnees les plus sensibles.
+
+
+L9.5 - APRES LA MIGRATION
+-------------------------
+1) Ne jamais supprimer l'ancienne base tout de suite.
+
+2) Conserver l'ancienne base:
+   - chez le client en sauvegarde froide;
+   - et/ou sur la machine de developpement;
+   - pendant au moins 1 a 2 mois.
+
+3) Documenter la migration dans un registre simple:
+   - nom du client;
+   - date de migration;
+   - ancienne source: SQLite ou MariaDB;
+   - nombre d'enregistrements migres par table;
+   - problemes rencontres;
+   - resolution appliquee;
+   - emplacement de la sauvegarde froide.
+
+Ce registre est indispensable si le client signale plus tard une anomalie,
+par exemple: "il me manque un patient de mars".
+
+
+L9.6 - DIFFERENCE ENTRE NOUVEAU CLIENT ET CLIENT EXISTANT
+---------------------------------------------------------
++--------------------------+----------------------------+-------------------------------+
+| Sujet                    | Nouveau client             | Client existant               |
++--------------------------+----------------------------+-------------------------------+
+| Base de donnees          | Vide des l'installation    | Migree et validee avant       |
+|                          |                            | installation                  |
++--------------------------+----------------------------+-------------------------------+
+| Risque                   | Aucun risque historique    | Risque reel: donnees patients |
+|                          |                            | et financieres en jeu         |
++--------------------------+----------------------------+-------------------------------+
+| Temps necessaire         | Installation directe       | Sauvegarde, migration test,   |
+|                          |                            | validation, maintenance       |
++--------------------------+----------------------------+-------------------------------+
+| Sauvegarde ancienne base | Non applicable             | Obligatoire, conservee 1 a 2  |
+|                          |                            | mois minimum                  |
++--------------------------+----------------------------+-------------------------------+
+
+
+RESUME POUR L'AGENT
+-------------------
+Ne jamais traiter un client existant comme un nouveau client.
+
+La regle est simple:
+  migrer et valider une copie avant de toucher a l'original, puis conserver
+  l'ancienne base tant que le nouveau systeme n'a pas fait ses preuves en usage
+  reel chez ce client precis.

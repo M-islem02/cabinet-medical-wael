@@ -146,12 +146,22 @@ async function loadWaitingDoctorOptions() {
     const usersResult = await window.api.user.getAll({ requestingUserId: currentUserId });
     const users = Array.isArray(usersResult?.data) ? usersResult.data : [];
     const doctors = users.filter((user) => {
-      if (!user || user.isAdmin || user.isSuperAdmin || !user.isActive) return false;
+      if (!user || user.isSuperAdmin || !user.isActive) return false;
       return user.role === 'doctor' || user.role === 'dentist';
     });
 
     if (!doctors.length) {
       doctorSelect.innerHTML = '<option value="">Aucun médecin disponible</option>';
+      return;
+    }
+
+    const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
+      ? getEnabledPracticeSpecialties(window._packageConfig)
+      : ['general'];
+    if (currentUserRole === 'assistant' && enabledSpecialties.length <= 1) {
+      doctorSelect.innerHTML = '<option value="">Tous les médecins actifs</option>';
+      doctorSelect.value = '';
+      doctorSelect.disabled = true;
       return;
     }
 
@@ -181,7 +191,10 @@ async function addToWaitingRoom(event) {
     return;
   }
 
-  if (!assignedTo) {
+  const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
+    ? getEnabledPracticeSpecialties(window._packageConfig)
+    : ['general'];
+  if (!assignedTo && !(currentUserRole === 'assistant' && enabledSpecialties.length <= 1)) {
     showNotification('Veuillez sélectionner le médecin responsable', 'error');
     return;
   }
@@ -229,6 +242,10 @@ async function loadWaitingRoom() {
     renderWaitingRoom();
     updateWaitingRoomStats();
     updateWaitingRoomBadge();
+    const stamp = document.getElementById('waiting-room-last-refresh');
+    if (stamp) {
+      stamp.textContent = `Auto ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
   } catch (error) {
     console.error('Error loading waiting room:', error);
   }
@@ -709,6 +726,7 @@ function refreshWaitingRoom() {
  * Start auto-refresh for waiting room
  */
 function startWaitingRoomRefresh() {
+  if (waitingRoomRefreshInterval) return;
   // Refresh every 30 seconds
   waitingRoomRefreshInterval = setInterval(() => {
     if (document.getElementById('waiting-room').classList.contains('active')) {
@@ -716,6 +734,10 @@ function startWaitingRoomRefresh() {
     }
   }, 30000);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  initWaitingRoom();
+});
 
 /**
  * Show notification toast

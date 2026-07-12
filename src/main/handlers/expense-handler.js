@@ -162,11 +162,11 @@ export function handleExpenseEvents() {
         params
       );
 
-      // Par mois (compatible MariaDB)
+      // Par mois (compatible MariaDB/PostgreSQL)
       const byMonth = await query(
-        `SELECT SUBSTR(expenseDate, 1, 7) as month, SUM(amount) as total 
+        `SELECT SUBSTR(CAST(expenseDate AS VARCHAR), 1, 7) as month, SUM(amount) as total 
          FROM expenses WHERE ${whereClause}
-         GROUP BY SUBSTR(expenseDate, 1, 7) ORDER BY month DESC LIMIT 12`,
+         GROUP BY 1 ORDER BY month DESC LIMIT 12`,
         params
       );
 

@@ -6,9 +6,35 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { normalizeSpecialtyKey, writeMergedSpecialtyMedication, readSpecialtyMedications } from '../specialty-assets.js';
 
 function normalizeMedicationName(name) {
   return String(name || '').trim().toLowerCase();
+}
+
+function normalizeMedicationSearchText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function specialtyMedicationMatches(entry, normalizedTerm) {
+  const searchableFields = [
+    entry.nom_medicament,
+    entry.name,
+    entry.nom_commercial,
+    entry.dci,
+    entry.dosage_posologie,
+    entry.forme
+  ];
+
+  return searchableFields.some((field) => {
+    const normalizedField = normalizeMedicationSearchText(field);
+    return normalizedField.startsWith(normalizedTerm);
+  });
 }
 
 export function handleMedicationEvents() {
@@ -162,6 +188,17 @@ export function handleMedicationEvents() {
           ]
         );
 
+        if (data.specialty || data.specialtyKey) {
+          writeMergedSpecialtyMedication(normalizeSpecialtyKey(data.specialty || data.specialtyKey), {
+            nom_medicament: data.name,
+            dosage_posologie: data.defaultDosage,
+            prise: data.defaultIntake,
+            duree: data.defaultDuration,
+            boites: data.defaultBoxes,
+            instructions_observations: data.instructions
+          });
+        }
+
         return { success: true, id: existingMedication.id, reused: true };
       }
 
@@ -190,9 +227,57 @@ export function handleMedicationEvents() {
         ]
       );
 
+      if (data.specialty || data.specialtyKey) {
+        writeMergedSpecialtyMedication(normalizeSpecialtyKey(data.specialty || data.specialtyKey), {
+          nom_medicament: data.name,
+          dosage_posologie: data.defaultDosage,
+          prise: data.defaultIntake,
+          duree: data.defaultDuration,
+          boites: data.defaultBoxes,
+          instructions_observations: data.instructions
+        });
+      }
+
       return { success: true, id };
     } catch (error) {
       console.error('❌ Erreur création médicament:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('medication:add-to-specialty-json', async (event, payload = {}) => {
+    try {
+      const specialty = normalizeSpecialtyKey(payload.specialty || payload.specialtyKey || 'general');
+      const medication = payload.medication || payload;
+      return writeMergedSpecialtyMedication(specialty, medication);
+    } catch (error) {
+      console.error('❌ Erreur ajout médicament JSON spécialité:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('medication:search-specialty-json', async (event, payload = {}) => {
+    try {
+      const normalizedTerm = normalizeMedicationSearchText(payload.term || payload.searchTerm || '');
+      if (!normalizedTerm) {
+        return { success: true, data: [] };
+      }
+
+      const specialty = normalizeSpecialtyKey(payload.specialty || payload.specialtyKey || 'general');
+      const limit = Math.min(30, Math.max(1, Number(payload.limit) || 10));
+      const { medications } = readSpecialtyMedications(specialty);
+      const matches = medications
+        .filter((entry) => specialtyMedicationMatches(entry, normalizedTerm))
+        .slice(0, limit)
+        .map((entry) => ({
+          ...entry,
+          specialtyKey: specialty,
+          source: 'specialty-json'
+        }));
+
+      return { success: true, data: matches };
+    } catch (error) {
+      console.error('❌ Erreur recherche médicaments JSON spécialité:', error);
       return { success: false, error: error.message };
     }
   });

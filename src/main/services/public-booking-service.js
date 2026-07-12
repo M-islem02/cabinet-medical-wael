@@ -259,15 +259,21 @@ async function getSlotsForDate(dateValue) {
     return { slots: createSlotList([]) };
   }
 
+  const startOfDay = moment(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  const endOfDay = moment(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
   const rows = await query(
-    `SELECT SUBSTR(TIME(appointmentDateTime), 1, 5) as time
+    `SELECT appointmentDateTime
      FROM appointments
-     WHERE DATE(appointmentDateTime) = ? AND status != 'cancelled'
+     WHERE appointmentDateTime BETWEEN ? AND ? AND status != 'cancelled'
      ORDER BY appointmentDateTime ASC`,
-    [date]
+    [startOfDay, endOfDay]
   );
 
-  const bookedTimes = (rows || []).map((row) => row.time).filter(Boolean);
+  const bookedTimes = (rows || []).map((row) => {
+    return moment(row.appointmentDateTime).format('HH:mm');
+  }).filter(Boolean);
+
   return {
     slots: createSlotList(bookedTimes)
   };
@@ -318,9 +324,6 @@ async function findOrCreatePatientFromBooking(data) {
 async function getAppointmentDetailsById(id) {
   const appointment = await queryOne(
     `SELECT a.*,
-            DATE(a.appointmentDateTime) as date,
-            SUBSTR(TIME(a.appointmentDateTime), 1, 5) as time,
-            a.appointmentType as type,
             p.firstName, p.lastName, p.phone, p.email
      FROM appointments a
      JOIN patients p ON a.patientId = p.id
@@ -329,8 +332,12 @@ async function getAppointmentDetailsById(id) {
   );
 
   if (!appointment) return null;
+  const momentDateTime = moment(appointment.appointmentDateTime);
   return {
     ...appointment,
+    date: momentDateTime.format('YYYY-MM-DD'),
+    time: momentDateTime.format('HH:mm'),
+    type: appointment.appointmentType,
     patientName: `${appointment.firstName || ''} ${appointment.lastName || ''}`.trim()
   };
 }

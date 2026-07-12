@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import moment from 'moment';
 import { clearLoginSession } from '../session-manager.js';
+import { normalizeSpecialtyKey, parseEnabledSpecialties } from '../specialty-assets.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -20,12 +21,26 @@ function normalizeLegacyRole(role) {
   return role === 'director' ? 'doctor' : role;
 }
 
+async function resolveAllowedDoctorSpecialty(requestedSpecialty) {
+  const packageConfig = await queryOne('SELECT * FROM package_config LIMIT 1');
+  const enabled = parseEnabledSpecialties(packageConfig?.enabledSpecialties, packageConfig);
+  const allowed = enabled.length ? enabled : ['general'];
+  const normalized = normalizeSpecialtyKey(requestedSpecialty || allowed[0] || 'general');
+  if (allowed.length === 1) {
+    return { success: true, specialty: allowed[0], enabled: allowed };
+  }
+  if (!allowed.includes(normalized)) {
+    return { success: false, error: 'Spécialité non activée dans la configuration du cabinet', enabled: allowed };
+  }
+  return { success: true, specialty: normalized, enabled: allowed };
+}
+
 async function normalizeUserPrivileges(user) {
   if (!user?.id) return user;
 
   const normalizedRole = user.isSuperAdmin ? 'admin' : normalizeLegacyRole(user.role || 'doctor');
   const normalizedIsSuperAdmin = user.isSuperAdmin ? 1 : 0;
-  const normalizedIsAdmin = (normalizedRole === 'admin' || normalizedIsSuperAdmin) ? 1 : 0;
+  const normalizedIsAdmin = normalizedIsSuperAdmin ? 0 : Number(user.isAdmin || 0);
 
   if (
     normalizedRole !== user.role
@@ -51,7 +66,8 @@ async function normalizeUserPrivileges(user) {
 async function normalizeAllUsersPrivileges() {
   await run(`UPDATE users SET role = 'doctor' WHERE role = 'director'`);
   await run(`UPDATE users SET role = 'admin' WHERE isSuperAdmin = 1 AND role <> 'admin'`);
-  await run(`UPDATE users SET isAdmin = CASE WHEN role = 'admin' OR isSuperAdmin = 1 THEN 1 ELSE 0 END`);
+  await run(`UPDATE users SET role = 'doctor', specialty = COALESCE(NULLIF(specialty, ''), 'general'), isAdmin = 1 WHERE role = 'admin' AND isSuperAdmin = 0`);
+  await run(`UPDATE users SET isAdmin = 0 WHERE isSuperAdmin = 1`);
 }
 
 /**
@@ -79,12 +95,6 @@ function getDefaultColorForRole(role) {
 }
 
 const SYSTEM_ACCOUNT_DEFAULTS = {
-  admin: {
-    username: 'admin',
-    password: 'admin2024',
-    fullName: 'Administrateur Système',
-    isSuperAdmin: 0
-  },
   superadmin: {
     username: 'superadmin',
     password: 'MedPro@2024!',
@@ -107,7 +117,7 @@ async function repairSystemAccount(username) {
        SET password = ?,
            fullName = COALESCE(NULLIF(fullName, ''), ?),
            role = 'admin',
-           isAdmin = 1,
+           isAdmin = 0,
            isSuperAdmin = ?,
            isActive = 1
        WHERE username = ?`,
@@ -119,7 +129,7 @@ async function repairSystemAccount(username) {
   const id = uuidv4();
   await run(
     `INSERT INTO users (id, username, password, fullName, role, isAdmin, isSuperAdmin, isActive, createdAt)
-     VALUES (?, ?, ?, ?, 'admin', 1, ?, 1, ?)`,
+     VALUES (?, ?, ?, ?, 'admin', 0, ?, 1, ?)`,
     [id, account.username, passwordHash, account.fullName, account.isSuperAdmin, now]
   );
 
@@ -281,36 +291,43 @@ export function handleUserEvents() {
       const effectiveRequesterId = global.currentUser?.id || payload.requestingUserId || null;
       const effectiveRequesterUsername = global.currentUser?.username || payload.requestingUsername || null;
 
-      // Check if requesting user is super admin
+      // Check requester role. Superadmin manages all accounts; doctor-admin
+      // manages only normal doctors and assistants.
       let requestingUser = effectiveRequesterId
-        ? await queryOne('SELECT isSuperAdmin, role FROM users WHERE id = ?', [effectiveRequesterId])
+        ? await queryOne('SELECT isAdmin, isSuperAdmin, role FROM users WHERE id = ?', [effectiveRequesterId])
         : null;
 
       if (!requestingUser && effectiveRequesterUsername) {
-        requestingUser = await queryOne('SELECT isSuperAdmin, role FROM users WHERE username = ?', [effectiveRequesterUsername]);
+        requestingUser = await queryOne('SELECT isAdmin, isSuperAdmin, role FROM users WHERE username = ?', [effectiveRequesterUsername]);
       }
 
       if (!requestingUser && payload.requestingUserIsSuperAdmin === true) {
-        requestingUser = { isSuperAdmin: 1, role: 'admin' };
+        requestingUser = { isAdmin: 0, isSuperAdmin: 1, role: 'admin' };
       }
       
       const isSuperAdminRequester = !!requestingUser?.isSuperAdmin;
-      const isAdminRequester = isSuperAdminRequester || requestingUser?.role === 'admin';
+      const isDoctorAdminRequester = !!requestingUser?.isAdmin && !isSuperAdminRequester;
 
       let users;
       if (isSuperAdminRequester) {
         users = await query(
           'SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin FROM users ORDER BY createdAt DESC'
         );
-      } else if (isAdminRequester) {
+      } else if (isDoctorAdminRequester) {
         users = await query(
-          'SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin FROM users WHERE isSuperAdmin = 0 ORDER BY createdAt DESC'
+          `SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin
+           FROM users
+           WHERE isSuperAdmin = 0
+             AND isAdmin = 0
+             AND role IN ('doctor', 'dentist', 'assistant')
+           ORDER BY createdAt DESC`
         );
       } else {
         users = await query(
           `SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin
            FROM users
-           WHERE isSuperAdmin = 0 AND role <> 'admin'
+           WHERE isSuperAdmin = 0
+             AND role IN ('doctor', 'dentist')
            ORDER BY createdAt DESC`
         );
       }
@@ -338,10 +355,9 @@ export function handleUserEvents() {
         return { success: false, error: 'Utilisateur non trouvé' };
       }
       
-      const isAdmin = !!requestingUser.isAdmin;
-      const canCreateUsers = requestingUser.role === 'admin' || !!requestingUser.isSuperAdmin;
+      const canCreateUsers = !!(requestingUser.isSuperAdmin || requestingUser.isAdmin);
       if (!canCreateUsers) {
-        return { success: false, error: 'Seuls les administrateurs peuvent ajouter des utilisateurs' };
+        return { success: false, error: 'Accès refusé: création de comptes non autorisée' };
       }
 
       // Check if username exists
@@ -354,11 +370,18 @@ export function handleUserEvents() {
       const passwordHash = hashPassword(userData.password);
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
-      const newUserIsAdmin = userData.isAdmin && isAdmin ? 1 : 0;
+      const requestedAdmin = !!requestingUser.isSuperAdmin
+        && (userData.isAdmin === true || userData.isAdmin === 1 || userData.isAdmin === '1');
       
-      // Validate role (admin, doctor, assistant, kinesitherapeute, ergotherapeute, orthophoniste, nurse)
-      const validRoles = ['admin', 'doctor', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'dentist'];
+      const validRoles = ['doctor', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
       const role = normalizeLegacyRole(validRoles.includes(userData.role) ? userData.role : 'doctor');
+      const newUserIsAdmin = requestedAdmin && isPractitionerRole(role) ? 1 : 0;
+      const specialtyCheck = isPractitionerRole(role)
+        ? await resolveAllowedDoctorSpecialty(userData.specialty)
+        : { success: true, specialty: null };
+      if (!specialtyCheck.success) {
+        return { success: false, error: specialtyCheck.error };
+      }
 
       await run(
         `INSERT INTO users (id, username, password, fullName, phone, role, isAdmin, color, specialty, createdAt)
@@ -372,7 +395,7 @@ export function handleUserEvents() {
           role,
           newUserIsAdmin,
           userData.color || getDefaultColorForRole(role),
-          toNullIfEmpty(userData.specialty),
+          toNullIfEmpty(specialtyCheck.specialty),
           now
         ]
       );
@@ -402,7 +425,7 @@ export function handleUserEvents() {
       }
 
       const requestingUser = await queryOne('SELECT role, isAdmin, isSuperAdmin FROM users WHERE id = ?', [effectiveRequesterId]);
-      if (!requestingUser || (requestingUser.role !== 'admin' && !requestingUser.isSuperAdmin)) {
+      if (!requestingUser || !(requestingUser.isSuperAdmin || requestingUser.isAdmin)) {
         return { success: false, error: 'Accès refusé' };
       }
 
@@ -417,8 +440,8 @@ export function handleUserEvents() {
         return { success: false, error: 'Utilisateur introuvable' };
       }
 
-      if (user.isSuperAdmin && !requestingUser.isSuperAdmin) {
-        return { success: false, error: 'Le super administrateur est protégé' };
+      if (user.isSuperAdmin || (user.isAdmin && !requestingUser.isSuperAdmin)) {
+        return { success: false, error: 'Compte protégé' };
       }
 
       return { success: true, data: user };
@@ -438,8 +461,8 @@ export function handleUserEvents() {
       }
 
       const requestingUser = await queryOne('SELECT role, isAdmin, isSuperAdmin FROM users WHERE id = ?', [effectiveRequesterId]);
-      if (!requestingUser || (requestingUser.role !== 'admin' && !requestingUser.isSuperAdmin)) {
-        return { success: false, error: 'Seuls les administrateurs peuvent modifier des comptes' };
+      if (!requestingUser || !(requestingUser.isSuperAdmin || requestingUser.isAdmin)) {
+        return { success: false, error: 'Accès refusé: modification de comptes non autorisée' };
       }
 
       const targetUser = await queryOne('SELECT id, role, isAdmin, isSuperAdmin FROM users WHERE id = ?', [payload.userId]);
@@ -451,15 +474,12 @@ export function handleUserEvents() {
         return { success: false, error: 'Le super administrateur ne peut pas être modifié ici' };
       }
 
-      if (targetUser.role === 'admin' && !requestingUser.isSuperAdmin) {
-        return { success: false, error: 'Le compte administrateur principal est protégé' };
+      if (targetUser.isAdmin && !requestingUser.isSuperAdmin) {
+        return { success: false, error: 'Seul le super administrateur peut modifier un médecin admin' };
       }
 
-      const validRoles = ['admin', 'doctor', 'assistant', 'dentist'];
+      const validRoles = ['doctor', 'assistant'];
       const requestedRole = normalizeLegacyRole(validRoles.includes(payload.role) ? payload.role : targetUser.role);
-      if (requestedRole === 'admin' && !requestingUser.isSuperAdmin) {
-        return { success: false, error: 'Modification en administrateur non autorisée' };
-      }
 
       const username = String(payload.username || '').trim();
       if (!username.length) {
@@ -472,9 +492,14 @@ export function handleUserEvents() {
       }
 
       const specialty = (requestedRole === 'doctor' || requestedRole === 'dentist')
-        ? toNullIfEmpty(payload.specialty)
+        ? await resolveAllowedDoctorSpecialty(payload.specialty)
         : null;
-      const normalizedIsAdmin = requestedRole === 'admin' ? 1 : 0;
+      if (specialty && !specialty.success) {
+        return { success: false, error: specialty.error };
+      }
+      const requestedAdmin = !!requestingUser.isSuperAdmin
+        && (payload.isAdmin === true || payload.isAdmin === 1 || payload.isAdmin === '1');
+      const normalizedIsAdmin = requestedAdmin && isPractitionerRole(requestedRole) ? 1 : 0;
 
       const updateFields = [
         'username = ?',
@@ -490,7 +515,7 @@ export function handleUserEvents() {
         toNullIfEmpty(payload.fullName),
         toNullIfEmpty(payload.phone),
         requestedRole,
-        specialty,
+        specialty ? toNullIfEmpty(specialty.specialty) : null,
         normalizedIsAdmin,
         payload.color || getDefaultColorForRole(requestedRole)
       ];
@@ -529,8 +554,7 @@ export function handleUserEvents() {
         return { success: false, error: 'Utilisateur demandeur introuvable' };
       }
 
-      const isAdmin = !!requestingUser.isAdmin;
-      if (!isAdmin && !requestingUser.isSuperAdmin) {
+      if (!(requestingUser.isSuperAdmin || requestingUser.isAdmin)) {
         return { success: false, error: 'Accès refusé: suppression non autorisée' };
       }
 
@@ -546,13 +570,7 @@ export function handleUserEvents() {
       }
 
       if (targetUser?.isAdmin && !requestingUser?.isSuperAdmin) {
-        return { success: false, error: 'Seul le super administrateur peut supprimer un administrateur' };
-      }
-
-      // Don't allow deleting the last admin (except super admin check)
-      const admins = await query('SELECT id FROM users WHERE isAdmin = 1 AND isSuperAdmin = 0');
-      if (admins.length === 1 && admins[0].id === userId) {
-        return { success: false, error: 'Impossible de supprimer le dernier administrateur' };
+        return { success: false, error: 'Seul le super administrateur peut supprimer un médecin admin' };
       }
 
       await run('DELETE FROM users WHERE id = ?', [userId]);
@@ -597,8 +615,7 @@ export function handleUserEvents() {
         return { success: false, error: 'Utilisateur demandeur introuvable' };
       }
 
-      const isAdmin = !!requestingUser.isAdmin;
-      if (!isAdmin && !requestingUser.isSuperAdmin) {
+      if (!(requestingUser.isSuperAdmin || requestingUser.isAdmin)) {
         return { success: false, error: 'Accès refusé: modification non autorisée' };
       }
 
@@ -608,7 +625,7 @@ export function handleUserEvents() {
       }
 
       if (targetUser.isAdmin && !requestingUser?.isSuperAdmin) {
-        return { success: false, error: 'Seul le super administrateur peut modifier un administrateur' };
+        return { success: false, error: 'Seul le super administrateur peut modifier un médecin admin' };
       }
 
       await run('UPDATE users SET isActive = NOT isActive WHERE id = ?', [userId]);
@@ -636,8 +653,7 @@ export function handleUserEvents() {
         return { success: false, error: 'Utilisateur demandeur introuvable' };
       }
 
-      const isAdmin = !!requestingUser.isAdmin;
-      if (!isAdmin && !requestingUser.isSuperAdmin) {
+      if (!(requestingUser.isSuperAdmin || requestingUser.isAdmin)) {
         return { success: false, error: 'Accès refusé: réinitialisation non autorisée' };
       }
 
@@ -651,7 +667,7 @@ export function handleUserEvents() {
       }
 
       if (targetUser.isAdmin && !requestingUser?.isSuperAdmin) {
-        return { success: false, error: 'Seul le super administrateur peut changer le mot de passe d\'un administrateur' };
+        return { success: false, error: 'Seul le super administrateur peut changer le mot de passe d\'un médecin admin' };
       }
 
       const newHash = hashPassword(newPassword);
