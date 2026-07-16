@@ -1,3 +1,10 @@
+import { patientApi } from '../../features/patients/patient-api.js';
+import { patientState } from '../../features/patients/patient-state.js';
+import { renderPatientRows } from '../../features/patients/patient-list.js';
+import { collectPatientFormData } from '../../features/patients/patient-form.js';
+import { eventBus } from '../../core/state/event-bus.js';
+import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
+
 // ========== PATIENTS ==========
 const PATIENTS_PAGE_SIZE = 15;
 let patientsFilteredData = [];
@@ -30,34 +37,13 @@ function createPatientActionButtons(patientId) {
 function renderPatientsRows(patients) {
   const tbody = document.getElementById('patients-tbody');
   if (!tbody) return;
-
-  tbody.innerHTML = '';
-
-  if (!patients.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6" class="text-center">Aucun patient trouvé</td></tr>';
-    return;
-  }
-
-  patients.forEach(patient => {
-    const row = document.createElement('tr');
-    row.style.cursor = 'pointer';
-    row.onclick = (e) => {
-      if (!e.target.closest('button')) {
-        if (isDirectorUser()) {
-          return;
-        }
-        showPatientDetails(patient.id);
-      }
-    };
-    row.innerHTML = `
-      <td>${patient.lastName}</td>
-      <td>${patient.firstName}</td>
-      <td>${patient.dateOfBirth ? formatDateToDDMMYYYY(patient.dateOfBirth) : '-'}</td>
-      <td>${patient.socialSecurityNumber || '-'}</td>
-      <td>${patient.phone || '-'}</td>
-      <td>${createPatientActionButtons(patient.id)}</td>
-    `;
-    tbody.appendChild(row);
+  renderPatientRows({
+    tbody,
+    patients,
+    readOnly: isDirectorUser(),
+    onOpen: (id) => window.showPatientDetails?.(id),
+    onEdit: editPatient,
+    onDelete: deletePatient
   });
 }
 
@@ -132,20 +118,24 @@ async function changePatientsPage(direction) {
 }
 
 async function loadPatients(page = 1) {
+  const requestVersion = patientState.beginRequest();
   try {
-    const result = await window.api.patient.getAll({
+    const result = await patientApi.getAll({
       searchTerm: patientsSearchTerm,
       page,
       pageSize: PATIENTS_PAGE_SIZE,
       paginated: true
     });
 
-    if (result.success) {
+    if (result.success && patientState.isCurrent(requestVersion)) {
+      patientState.setPatients(result.data || [], result.pagination);
       setPatientsData(result.data || [], result.pagination);
     }
   } catch (error) {
     console.error('❌ Erreur lors du chargement des patients:', error);
     showNotification('Erreur lors du chargement des patients', 'error');
+  } finally {
+    patientState.finishRequest(requestVersion);
   }
 }
 
@@ -161,8 +151,6 @@ async function searchPatients(term = '') {
     console.error('❌ Erreur lors de la recherche:', error);
   }
 }
-
-window.changePatientsPage = changePatientsPage;
 
 const PATIENT_PHOTO_STORAGE_PREFIX = 'medcare:patient-photo:';
 const PATIENT_DRAFT_PHOTO_KEY = `${PATIENT_PHOTO_STORAGE_PREFIX}draft`;
@@ -291,10 +279,6 @@ function setupPatientModalEnhancements() {
   }
 }
 
-window.triggerPatientPhotoPicker = triggerPatientPhotoPicker;
-window.getPatientPhotoUrl = getPatientPhotoUrl;
-window.getDefaultPatientAvatarDataUri = getDefaultPatientAvatarDataUri;
-
 function resetSickLeaveFormFields({ prefillDates = false, documentKind = 'certificate' } = {}) {
   const form = document.getElementById('sickleave-form');
   if (form) {
@@ -380,8 +364,6 @@ function showWorkStopForm() {
   showModal('modal-add-sickleave');
 }
 
-window.showWorkStopForm = showWorkStopForm;
-
 function showPatientForm() {
   if (isDirectorUser()) {
     showNotification('❌ Accès refusé: le directeur est en lecture seule sur les patients', 'error');
@@ -402,7 +384,7 @@ function showPatientForm() {
     }
     
     // Charger la liste des médecins pour l'assistant
-    window.api.user.getAll({ requestingUserId: currentUserId }).then(res => {
+    patientApi.getUsers({ requestingUserId: currentUserId }).then(res => {
       if (res.success) {
         const doctors = (res.data || []).filter((user) => {
           if (!user || !user.id || user.isSuperAdmin) return false;
@@ -450,7 +432,7 @@ async function editPatient(patientId) {
   }
 
   try {
-    const result = await window.api.patient.getById(patientId);
+    const result = await patientApi.getById(patientId);
 
     if (result.success) {
       const patient = result.data;
@@ -504,23 +486,7 @@ async function savePatient(e) {
   const activePatientTabId = getActivePatientDetailsTabId();
   const patientDetailsVisible = document.getElementById('patient-details')?.classList.contains('active') === true;
 
-  const patientData = {
-    firstName: getValue('patient-firstName'),
-    lastName: getValue('patient-lastName'),
-    dateOfBirth: document.getElementById('patient-dateOfBirth').value,
-    gender: document.getElementById('patient-gender').value,
-    socialSecurityNumber: getValue('patient-socialSecurityNumber') || null,
-    email: getValue('patient-email'),
-    phone: getValue('patient-phone'),
-    address: getValue('patient-address'),
-    city: getValue('patient-city'),
-    zipCode: getValue('patient-zipCode'),
-    bloodType: document.getElementById('patient-bloodType').value,
-    allergies: getValue('patient-allergies'),
-    medicalHistory: getValue('patient-medicalHistory'),
-    emergencyContact: getValue('patient-emergencyContact'),
-    emergencyPhone: getValue('patient-emergencyPhone')
-  };
+  const patientData = collectPatientFormData();
 
   // Ajout du champ médecin traitant si sélectionné par un assistant lors de la création
   if (!editingPatientId && currentUserRole === 'assistant') {
@@ -537,9 +503,9 @@ async function savePatient(e) {
     let savedPatientId = editingPatientId;
 
     if (editingPatientId) {
-      result = await window.api.patient.update(editingPatientId, patientData);
+      result = await patientApi.update(editingPatientId, patientData);
     } else {
-      result = await window.api.patient.create(patientData);
+      result = await patientApi.create(patientData);
       savedPatientId = result.id || null;
     }
 
@@ -560,6 +526,7 @@ async function savePatient(e) {
       }
       closeModal('modal-patient');
       await loadPatients();
+      eventBus.emit(editingPatientId ? 'patient:updated' : 'patient:created', { patientId: savedPatientId });
 
       if (editingPatientId && savedPatientId && patientDetailsVisible && typeof showPatientDetails === 'function') {
         await showPatientDetails(savedPatientId);
@@ -584,12 +551,13 @@ async function deletePatient(patientId) {
 
   if (confirm('Êtes-vous sûr de vouloir supprimer ce patient?')) {
     try {
-      const result = await window.api.patient.delete(patientId);
+      const result = await patientApi.delete(patientId);
 
       if (result.success) {
         localStorage.removeItem(getPatientPhotoStorageKey(patientId));
         showNotification('✅ Patient supprimé', 'success');
         loadPatients();
+        eventBus.emit('patient:list-refreshed');
       } else {
         showNotification('❌ Erreur: ' + result.error, 'error');
       }
@@ -601,3 +569,19 @@ async function deletePatient(patientId) {
 }
 
 setupPatientModalEnhancements();
+
+registerLegacyGlobals('patients', {
+  changePatientsPage,
+  deletePatient,
+  editPatient,
+  getDefaultPatientAvatarDataUri,
+  getPatientPhotoUrl,
+  loadPatients,
+  savePatient,
+  searchPatients,
+  showPatientForm,
+  showSickLeaveForm,
+  showWorkStopForm,
+  triggerPatientPhotoPicker,
+  updatePatientAgeDisplay
+});

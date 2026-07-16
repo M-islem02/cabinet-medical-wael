@@ -54,23 +54,26 @@ const PKG_SPECIALTY_LABELS = {
 
 async function applySavedPackageConfigState() {
     try {
-        const result = await window.api.package.getConfig();
-        if (!result.success || !result.data) {
+        const normalizedConfig = window.medcareApp?.reconcilePackageConfig
+            ? await window.medcareApp.reconcilePackageConfig()
+            : null;
+        const rawConfig = normalizedConfig?.raw;
+        if (!rawConfig) {
             return;
         }
 
-        window._packageConfig = result.data;
+        window._packageConfig = rawConfig;
 
         if (typeof applyPackageRestrictionsFromCache === 'function') {
-            applyPackageRestrictionsFromCache(result.data);
+            applyPackageRestrictionsFromCache(rawConfig);
         }
         if (typeof applyMprDependencyRestrictions === 'function') {
-            applyMprDependencyRestrictions(result.data);
+            applyMprDependencyRestrictions(rawConfig);
         }
         if (typeof updateUserDisplay === 'function') {
             updateUserDisplay();
         }
-        if (typeof currentPage !== 'undefined' && currentPage === 'inventory' && result.data.featureInventory === 0 && typeof showSection === 'function') {
+        if (typeof currentPage !== 'undefined' && currentPage === 'inventory' && rawConfig.featureInventory === 0 && typeof showSection === 'function') {
             showSection('dashboard');
         }
     } catch (error) {

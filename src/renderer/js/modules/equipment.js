@@ -113,7 +113,7 @@ function displayEquipmentList() {
             <td style="padding: 14px 16px; color: #64748b;">${[e.brand, e.model].filter(Boolean).join(' / ') || '-'}</td>
             <td style="padding: 14px 16px; color: #64748b;">${e.assignedRoom || '-'}</td>
             <td style="padding: 14px 16px;"><span style="background:${sc.bg};color:${sc.color};padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status] || e.status}</span></td>
-            <td style="padding: 14px 16px; color: #64748b;">${e.nextMaintenanceDate ? formatDate(e.nextMaintenanceDate) : '-'}</td>
+            <td style="padding: 14px 16px; color: #64748b;">${e.nextMaintenanceDate ? formatEquipmentDate(e.nextMaintenanceDate) : '-'}</td>
             <td style="padding: 14px 16px;" onclick="event.stopPropagation()">
                 ${canManageEquipment ? `<button onclick="editEquipment('${e.id}')" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>` : ''}
                 ${canManageEquipment ? `<button onclick="openAddMaintenanceModal('${e.id}')" class="inventory-action-btn inventory-action-btn-stock">Maintenance</button>` : ''}
@@ -139,8 +139,8 @@ async function showEquipmentDetail(id) {
         const maintenanceHtml = (e.maintenance || []).length
             ? e.maintenance.map(m => `<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px">
                 <div style="display:flex;justify-content:space-between;font-size:13px">
-                    <strong>${formatDate(m.maintenanceDate)} — ${MAINTENANCE_TYPE_LABELS[m.maintenanceType] || m.maintenanceType}</strong>
-                    ${canSeeEquipmentCosts ? `<span>${formatCurrency(m.cost)}</span>` : ''}
+                    <strong>${formatEquipmentDate(m.maintenanceDate)} — ${MAINTENANCE_TYPE_LABELS[m.maintenanceType] || m.maintenanceType}</strong>
+                    ${canSeeEquipmentCosts ? `<span>${formatEquipmentCurrency(m.cost)}</span>` : ''}
                 </div>
                 <div style="font-size:13px;color:#64748b">${m.technician || m.supplierName || ''}</div>
                 ${m.notes ? `<div style="font-size:12px;color:#94a3b8">${m.notes}</div>` : ''}
@@ -148,7 +148,7 @@ async function showEquipmentDetail(id) {
             : '<div style="font-size:13px;color:#94a3b8">Aucune maintenance enregistrée</div>';
 
         const planUsageHtml = (e.planUsage || []).length
-            ? e.planUsage.map(p => `<div style="font-size:13px;padding:4px 0">${p.planTitle || 'Plan'} — ${p.lastName || ''} ${p.firstName || ''} (${formatDate(p.usageDate)})</div>`).join('')
+            ? e.planUsage.map(p => `<div style="font-size:13px;padding:4px 0">${p.planTitle || 'Plan'} — ${p.lastName || ''} ${p.firstName || ''} (${formatEquipmentDate(p.usageDate)})</div>`).join('')
             : '<div style="font-size:13px;color:#94a3b8">Aucune utilisation enregistrée</div>';
 
         const container = document.getElementById('equipment-detail-content');
@@ -164,10 +164,10 @@ async function showEquipmentDetail(id) {
                     <tr><td style="padding:6px 0;color:#64748b">Modèle:</td><td><strong>${e.model || '-'}</strong></td></tr>
                     <tr><td style="padding:6px 0;color:#64748b">N° Série:</td><td><strong>${e.serialNumber || '-'}</strong></td></tr>
                     <tr><td style="padding:6px 0;color:#64748b">Salle:</td><td><strong>${e.assignedRoom || '-'}</strong></td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Achat:</td><td>${formatDate(e.purchaseDate)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Garantie:</td><td>${formatDate(e.warrantyEnd)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Dernière maintenance:</td><td>${formatDate(e.lastMaintenanceDate)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Prochaine maintenance:</td><td><strong>${formatDate(e.nextMaintenanceDate) || 'Non définie'}</strong></td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Achat:</td><td>${formatEquipmentDate(e.purchaseDate)}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Garantie:</td><td>${formatEquipmentDate(e.warrantyEnd)}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Dernière maintenance:</td><td>${formatEquipmentDate(e.lastMaintenanceDate)}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Prochaine maintenance:</td><td><strong>${formatEquipmentDate(e.nextMaintenanceDate) || 'Non définie'}</strong></td></tr>
                 </table>
                 ${specificHtml}
                 ${e.notes ? `<div style="margin-top:12px;font-size:13px;color:#64748b"><strong>Notes:</strong> ${e.notes.replace(/\n/g, '<br>')}</div>` : ''}
@@ -208,7 +208,7 @@ function displayEquipmentAlerts() {
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer" onclick="showEquipmentDetail('${e.id}')">
                 <div>
                     <strong>${e.name}</strong>
-                    <div style="font-size:12px;color:#64748b">${catLabel} · Prochaine: ${formatDate(e.nextMaintenanceDate)}</div>
+                    <div style="font-size:12px;color:#64748b">${catLabel} · Prochaine: ${formatEquipmentDate(e.nextMaintenanceDate)}</div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <span style="background:${sc.bg};color:${sc.color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status]}</span>
@@ -409,12 +409,12 @@ async function deleteEquipment(id) {
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-function formatCurrency(amount) {
-    if (typeof window.formatCurrency === 'function') return window.formatCurrency(amount);
+function formatEquipmentCurrency(amount) {
+    if (typeof window.formatEquipmentCurrency === 'function') return window.formatEquipmentCurrency(amount);
     return new Intl.NumberFormat('fr-DZ', { style: 'decimal', minimumFractionDigits: 2 }).format(amount) + ' DZD';
 }
 
-function formatDate(dateStr) {
+function formatEquipmentDate(dateStr) {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;

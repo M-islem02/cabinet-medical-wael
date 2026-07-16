@@ -95,7 +95,7 @@ function markNavigationReady() {
 }
 
 // ========== INITIALISATION ==========
-document.addEventListener('DOMContentLoaded', async () => {
+async function initializeLegacyApplication() {
   console.log('🚀 DOMContentLoaded event fired');
   
   try {
@@ -260,7 +260,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('❌ Error during initialization:', error);
     markNavigationReady();
   }
-});
+}
+
+window.initializeLegacyApplication = initializeLegacyApplication;
 
 function setupAlertStateObserver() {
   const targets = [
@@ -315,13 +317,12 @@ async function applyPackageRestrictions() {
       return;
     }
 
-    const result = await window.api.package.getConfig();
-    if (!result.success || !result.data) {
+    const normalizedConfig = window.medcareApp?.packageConfigService?.get?.();
+    const config = normalizedConfig?.raw || window._packageConfig || null;
+    if (!config) {
       console.log('📦 No package config found, all features enabled');
       return;
     }
-    
-    const config = result.data;
     console.log('📦 Package config:', config);
     
     applyPackageRestrictionsFromCache(config);

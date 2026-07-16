@@ -37,21 +37,21 @@ function computeAge(dateString) {
   return age >= 0 && Number.isFinite(age) ?age : "-"
 }
 
-function escapeHTML(str) {
+function escapePrintingHtml(str) {
   if (!str) return ""
   const div = document.createElement("div")
   div.textContent = str
   return div.innerHTML
 }
 
-function formatDocumentDateLabel(date) {
+function formatPrintingDocumentDateLabel(date) {
   if (!date) return new Date().toLocaleDateString("fr-FR")
   const d = new Date(date)
   return d.toLocaleDateString("fr-FR")
 }
 
-function formatRichTextHtml(text, fallback = "") {
-  return text ?escapeHTML(text) : fallback
+function formatPrintingRichTextHtml(text, fallback = "") {
+  return text ?escapePrintingHtml(text) : fallback
 }
 
 function getPrintLayout(pageSize = "A5") {
@@ -153,7 +153,7 @@ function getDefaultDocumentTypeColors() {
   }
 }
 
-function parseDocumentTypeColors(settings = {}) {
+function parsePrintingDocumentTypeColors(settings = {}) {
   const defaults = getDefaultDocumentTypeColors()
   const normalizeHex = (value, fallback) => {
     const raw = String(value || '').trim()
@@ -200,7 +200,7 @@ function rgbToHex(r, g, b) {
   return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`
 }
 
-function mixHexColor(color, target = '#ffffff', amount = 0.82) {
+function mixPrintingHexColor(color, target = '#ffffff', amount = 0.82) {
   const from = hexToRgb(color) || hexToRgb('#1a8c7e')
   const to = hexToRgb(target) || hexToRgb('#ffffff')
   return rgbToHex(
@@ -210,7 +210,7 @@ function mixHexColor(color, target = '#ffffff', amount = 0.82) {
   )
 }
 
-function getReadableTextColor(backgroundColor) {
+function getPrintingReadableTextColor(backgroundColor) {
   const rgb = hexToRgb(backgroundColor)
   if (!rgb) return '#ffffff'
   const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255
@@ -328,10 +328,10 @@ function buildPrintableHtml(opts = {}) {
   } = opts
   let layout = getPrintLayout(pageSize)
 
-  const dateText = escapeHTML(dateLabel || formatDocumentDateLabel(new Date()))
+  const dateText = escapePrintingHtml(dateLabel || formatPrintingDocumentDateLabel(new Date()))
   const ageLabel = computeAge(patient?.dateOfBirth)
-  const patientLast = escapeHTML(patient?.lastName || "-")
-  const patientFirst = escapeHTML(patient?.firstName || "-")
+  const patientLast = escapePrintingHtml(patient?.lastName || "-")
+  const patientFirst = escapePrintingHtml(patient?.firstName || "-")
 
   // Get settings from cache or use defaults
   const settings = getEffectivePrintSettings();
@@ -365,12 +365,12 @@ function buildPrintableHtml(opts = {}) {
     <div class="page-header">
       <div class="header-top">
         <div class="doctor-info">
-          <div class="doctor-name">DR. ${escapeHTML(doctorName.toUpperCase())}</div>
-          <div class="doctor-specialty">${escapeHTML(specialtyLines[0])}</div>
-          ${specialtyLines[1] ?`<div class="doctor-specialty">${escapeHTML(specialtyLines[1])}</div>` : ''}
+          <div class="doctor-name">DR. ${escapePrintingHtml(doctorName.toUpperCase())}</div>
+          <div class="doctor-specialty">${escapePrintingHtml(specialtyLines[0])}</div>
+          ${specialtyLines[1] ?`<div class="doctor-specialty">${escapePrintingHtml(specialtyLines[1])}</div>` : ''}
 
           <div class="header-meta-inline">
-            ${doctorRPPS ?`<span class="meta-item"><span class="meta-label">NUMÉRO D'ORDRE:</span> <span class="meta-value">${escapeHTML(doctorRPPS)}</span></span><span class="meta-separator">|</span>` : ''}
+            ${doctorRPPS ?`<span class="meta-item"><span class="meta-label">NUMÉRO D'ORDRE:</span> <span class="meta-value">${escapePrintingHtml(doctorRPPS)}</span></span><span class="meta-separator">|</span>` : ''}
             <span class="meta-item"><span class="meta-label">DATE</span> <span class="meta-value">${dateText}</span></span>
           </div>
 
@@ -400,12 +400,12 @@ function buildPrintableHtml(opts = {}) {
     <div class="page-footer">
       <div class="footer-signature">
         <div class="footer-date">ÉMIS LE ${dateText}</div>
-        ${hideSignature ? '' : `<div class="footer-sign">Dr. ${escapeHTML(doctorName)} - Signature et cachet</div>`}
+        ${hideSignature ? '' : `<div class="footer-sign">Dr. ${escapePrintingHtml(doctorName)} - Signature et cachet</div>`}
       </div>
       <div class="footer-divider"></div>
       <div class="footer-contact">
-        <div class="contact-phone">📞 ${escapeHTML(cabinetPhone)}</div>
-        <div class="contact-address">📍 ${escapeHTML(cabinetAddress)}</div>
+        <div class="contact-phone">📞 ${escapePrintingHtml(cabinetPhone)}</div>
+        <div class="contact-address">📍 ${escapePrintingHtml(cabinetAddress)}</div>
       </div>
     </div>
   `
@@ -423,7 +423,7 @@ function buildPrintableHtml(opts = {}) {
           <div class="page-body-content">
             ${idx === 0 ?`
               <div class="title-section">
-                <h1 class="doc-title">${escapeHTML(title || "CERTIFICAT MÉDICAL")}</h1>
+                <h1 class="doc-title">${escapePrintingHtml(title || "CERTIFICAT MÉDICAL")}</h1>
               </div>
             ` : ''}
             ${pageContent}
@@ -444,7 +444,7 @@ function buildPrintableHtml(opts = {}) {
         ${watermarkHtml}
         <div class="page-body-content">
           <div class="title-section">
-            <h1 class="doc-title">${escapeHTML(title || "CERTIFICAT MÉDICAL")}</h1>
+            <h1 class="doc-title">${escapePrintingHtml(title || "CERTIFICAT MÉDICAL")}</h1>
           </div>
           ${bodyContentHtml || ""}
         </div>
@@ -468,9 +468,9 @@ function generateHtmlDocument(bodyContent, options = {}) {
   const documentType = typeof options === "string" ?options : (options.documentType || "generic")
   const layout = typeof options === "string" ?getPrintLayout("A5") : (options.layout || getPrintLayout("A5"))
   const primaryColor = typeof options === 'string' ?'#1a8c7e' : (options.primaryColor || '#1a8c7e')
-  const primarySoftColor = mixHexColor(primaryColor, '#ffffff', 0.35)
-  const primaryTintColor = mixHexColor(primaryColor, '#ffffff', 0.94)
-  const onPrimaryColor = getReadableTextColor(primaryColor)
+  const primarySoftColor = mixPrintingHexColor(primaryColor, '#ffffff', 0.35)
+  const primaryTintColor = mixPrintingHexColor(primaryColor, '#ffffff', 0.94)
+  const onPrimaryColor = getPrintingReadableTextColor(primaryColor)
   const colorMode = typeof options === 'string' ?'color' : (options.colorMode === 'bw' ? 'bw' : 'color')
   const styleVariant = typeof options === 'string' ?'classic' : resolveDocumentStyleVariant({ documentStyleVariant: options.styleVariant })
   return `<!DOCTYPE html>
@@ -1507,13 +1507,13 @@ function renderPrescriptionModal(prescription, patient) {
   const medHTML = medications.length
     ?medications.map(m => `
         <div class="consultation-section" style="border-left: 4px solid #0d6efd; padding-left: 12px;">
-          <h4 style="margin-bottom: 8px; text-transform: uppercase;">${escapeHTML(m.name || 'Médicament')}</h4>
+          <h4 style="margin-bottom: 8px; text-transform: uppercase;">${escapePrintingHtml(m.name || 'Médicament')}</h4>
           <div class="details-content" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">
-            <div><span class="details-label">Prise</span><div class="details-value">${escapeHTML(m.intake || '-')}</div></div>
-            <div><span class="details-label">Durée</span><div class="details-value">${escapeHTML(m.duration || '-')}</div></div>
-            <div><span class="details-label">Boîtes</span><div class="details-value">${escapeHTML(m.boxes || '-')}</div></div>
+            <div><span class="details-label">Prise</span><div class="details-value">${escapePrintingHtml(m.intake || '-')}</div></div>
+            <div><span class="details-label">Durée</span><div class="details-value">${escapePrintingHtml(m.duration || '-')}</div></div>
+            <div><span class="details-label">Boîtes</span><div class="details-value">${escapePrintingHtml(m.boxes || '-')}</div></div>
           </div>
-          ${m.instructions ?`<p style="margin-top: 8px; font-style: italic;">${formatRichTextHtml(m.instructions, '')}</p>` : ''}
+          ${m.instructions ?`<p style="margin-top: 8px; font-style: italic;">${formatPrintingRichTextHtml(m.instructions, '')}</p>` : ''}
         </div>
       `).join('')
     : '<p style="color: var(--text-light);">Aucun médicament</p>'
@@ -1524,13 +1524,13 @@ function renderPrescriptionModal(prescription, patient) {
     container.innerHTML = `
       <div class="info-box">
         <h3 style="color: var(--primary-color); margin-bottom: 16px;">Ordonnance du ${date.toLocaleDateString('fr-FR')}</h3>
-        <p style="margin:0; color: var(--text-light);">${escapeHTML(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
+        <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
       </div>
       ${medHTML}
       ${prescription.notes ?`
         <div class="consultation-section">
           <h4>Instructions générales</h4>
-          <p style="white-space: pre-wrap; line-height: 1.6;">${formatRichTextHtml(prescription.notes, '')}</p>
+          <p style="white-space: pre-wrap; line-height: 1.6;">${formatPrintingRichTextHtml(prescription.notes, '')}</p>
         </div>
       ` : ''}
     `
@@ -1611,8 +1611,8 @@ async function printPrescriptionDetails(prescriptionId) {
       .filter((med) => med.name || med.dosage || med.intake || med.duration || med.boxes || med.instructions)
 
     const rawDate = prescription.prescriptionDate || prescription.date || new Date().toISOString()
-    const formattedDate = formatDocumentDateLabel(rawDate)
-    const generalNotes = formatRichTextHtml(prescription.notes || '', '')
+    const formattedDate = formatPrintingDocumentDateLabel(rawDate)
+    const generalNotes = formatPrintingRichTextHtml(prescription.notes || '', '')
 
     // Règle demandée: 8 médicaments par page autant que possible.
     const medsCount = medications.length
@@ -1654,12 +1654,12 @@ async function printPrescriptionDetails(prescriptionId) {
       cursor = endIdx
 
       const medsHtml = pageMeds.map((med, idx) => {
-        const safeName = escapeHTML(med.name || 'Médicament')
-        const safeDosage = escapeHTML(med.dosage || '')
-        const safeDuration = escapeHTML(med.duration || '')
-        const safeFrequency = escapeHTML(med.intake || '')
-        const safeNotes = escapeHTML(med.instructions || '')
-        const safeQty = escapeHTML(med.boxes || '-')
+        const safeName = escapePrintingHtml(med.name || 'Médicament')
+        const safeDosage = escapePrintingHtml(med.dosage || '')
+        const safeDuration = escapePrintingHtml(med.duration || '')
+        const safeFrequency = escapePrintingHtml(med.intake || '')
+        const safeNotes = escapePrintingHtml(med.instructions || '')
+        const safeQty = escapePrintingHtml(med.boxes || '-')
         const medColor = generateMedicationColor(docPrimaryColor, startIdx + idx, docColorMode)
 
         const posologyParts = [
@@ -1756,11 +1756,11 @@ function renderSickLeaveModal(sickLeave, patient) {
     container.innerHTML = `
       <div class="info-box">
         <h3 style="color: var(--primary-color); margin-bottom: 8px;">Certificat médical</h3>
-        <p style="margin:0; color: var(--text-light);">${escapeHTML(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
+        <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
       </div>
       <div class="consultation-section">
         <h4>Période</h4>
-        <p>Du ${startDateObj ?startDateObj.toLocaleDateString('fr-FR') : '-'} au ${endDateObj ?endDateObj.toLocaleDateString('fr-FR') : '-'} (${escapeHTML(String(daysLabel))})</p>
+        <p>Du ${startDateObj ?startDateObj.toLocaleDateString('fr-FR') : '-'} au ${endDateObj ?endDateObj.toLocaleDateString('fr-FR') : '-'} (${escapePrintingHtml(String(daysLabel))})</p>
       </div>
       <div class="consultation-section">
         <h4>Sorties</h4>
@@ -1768,9 +1768,9 @@ function renderSickLeaveModal(sickLeave, patient) {
       </div>
       <div class="consultation-section">
         <h4>Texte du certificat</h4>
-        <p>${formatRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos médical prescrit.', '')}</p>
+        <p>${formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos médical prescrit.', '')}</p>
       </div>
-      ${sickLeave.notes ?`<div class="consultation-section"><h4>Notes complémentaires</h4><p>${formatRichTextHtml(sickLeave.notes, '')}</p></div>` : ''}
+      ${sickLeave.notes ?`<div class="consultation-section"><h4>Notes complémentaires</h4><p>${formatPrintingRichTextHtml(sickLeave.notes, '')}</p></div>` : ''}
       <div class="consultation-section">
         <h4>Créé le</h4>
         <p>${createdDateObj.toLocaleDateString('fr-FR')}</p>
@@ -1843,8 +1843,8 @@ async function printSickLeaveDetails(sickLeaveId) {
     const daysLabel = typeof formatRestDaysWithWords === 'function'
       ?formatRestDaysWithWords(daysCount)
       : `${daysCount} jour${daysCount > 1 ?'s' : ''}`
-    const diagnosis = formatRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos medical prescrit.')
-    const notesText = formatRichTextHtml((sickLeave.notes || '').trim(), '')
+    const diagnosis = formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos medical prescrit.')
+    const notesText = formatPrintingRichTextHtml((sickLeave.notes || '').trim(), '')
     const outingsLabel = sickLeave.allowedOutings ?'Autorisees' : 'Non autorisees'
 
     const pageContent = `
@@ -1853,7 +1853,7 @@ async function printSickLeaveDetails(sickLeaveId) {
         <div class="period-grid">
           <div class="period-item"><span class="period-label">Debut:</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
           <div class="period-item"><span class="period-label">Fin:</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
-          <div class="period-item"><span class="period-label">Duree:</span> <span class="period-value">${escapeHTML(String(daysLabel))}</span></div>
+          <div class="period-item"><span class="period-label">Duree:</span> <span class="period-value">${escapePrintingHtml(String(daysLabel))}</span></div>
           <div class="period-item"><span class="period-label">Sorties:</span> <span class="period-value">${outingsLabel}</span></div>
         </div>
       </div>
@@ -1872,7 +1872,7 @@ async function printSickLeaveDetails(sickLeaveId) {
     await openA5PrintDocument({
       title: 'CERTIFICAT MEDICAL',
       subtitle: 'Certificat medical',
-      dateLabel: formatDocumentDateLabel(createdDateObj),
+      dateLabel: formatPrintingDocumentDateLabel(createdDateObj),
       patient,
       bodyContentHtml: pageContent,
       documentType: 'certificate',
@@ -2091,11 +2091,11 @@ function buildSpecialtyReportSections({ specialtyKey, specialtyMeta, consultatio
 
 async function renderInvoiceDocument({ patient, invoiceData }) {
   const normalized = normalizeInvoicePrintData(invoiceData || {})
-  const dateLabel = formatDocumentDateLabel(normalized.invoiceDate)
+  const dateLabel = formatPrintingDocumentDateLabel(normalized.invoiceDate)
 
   const baseDetailParts = [
-    normalized.numberOfSessions !== '' ?`${escapeHTML(String(normalized.numberOfSessions))} séance${Number(normalized.numberOfSessions) > 1 ?'s' : ''}` : '',
-    normalized.unitPrice !== '' ?`${escapeHTML(String(normalized.unitPrice))} DZD / unité` : ''
+    normalized.numberOfSessions !== '' ?`${escapePrintingHtml(String(normalized.numberOfSessions))} séance${Number(normalized.numberOfSessions) > 1 ?'s' : ''}` : '',
+    normalized.unitPrice !== '' ?`${escapePrintingHtml(String(normalized.unitPrice))} DZD / unité` : ''
   ].filter(Boolean)
   const invoiceRows = []
   const hasBaseRow = Boolean(
@@ -2109,9 +2109,9 @@ async function renderInvoiceDocument({ patient, invoiceData }) {
     const hasBaseAmount = normalized.baseTotal || normalized.numberOfSessions !== '' || normalized.unitPrice !== ''
     invoiceRows.push(`
       <tr>
-        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapeHTML(normalized.mainLabel || 'Consultation')}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapePrintingHtml(normalized.mainLabel || 'Consultation')}</td>
         <td style="padding:2.2mm; border-bottom:1px solid #000;">${baseDetailParts.join(' • ') || '-'}</td>
-        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasBaseAmount ?escapeHTML(formatPrintCurrency(normalized.baseTotal)) : '-'}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasBaseAmount ?escapePrintingHtml(formatPrintCurrency(normalized.baseTotal)) : '-'}</td>
       </tr>
     `)
   }
@@ -2121,9 +2121,9 @@ async function renderInvoiceDocument({ patient, invoiceData }) {
     const amount = hasAmount ?Number(item.amount) : null
     invoiceRows.push(`
       <tr>
-        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapeHTML(item.label || 'Ligne supplémentaire')}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapePrintingHtml(item.label || 'Ligne supplémentaire')}</td>
         <td style="padding:2.2mm; border-bottom:1px solid #000;">Montant</td>
-        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasAmount ?escapeHTML(formatPrintCurrency(amount)) : '-'}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasAmount ?escapePrintingHtml(formatPrintCurrency(amount)) : '-'}</td>
       </tr>
     `)
   })
@@ -2155,13 +2155,13 @@ async function renderInvoiceDocument({ patient, invoiceData }) {
     <div style="margin-bottom: 4mm;">
       <div style="display:flex; justify-content:space-between; align-items:baseline; font-size: 11.2pt; font-weight: 700;">
         <span>Montant total</span>
-        <span>${escapeHTML(formatPrintCurrency(normalized.grandTotal))}</span>
+        <span>${escapePrintingHtml(formatPrintCurrency(normalized.grandTotal))}</span>
       </div>
     </div>
     ${normalized.notes ?`
       <div class="content-box">
         <h3>Notes</h3>
-        <div class="content-text">${formatRichTextHtml(normalized.notes, '')}</div>
+        <div class="content-text">${formatPrintingRichTextHtml(normalized.notes, '')}</div>
       </div>
     ` : ''}
   `
@@ -2184,35 +2184,35 @@ async function renderInvoiceDocument({ patient, invoiceData }) {
 function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consultation, specialtyMeta }) {
   const settings = typeof cachedSettings !== 'undefined' ?cachedSettings : {}
   const rapportLayout = getPrintLayout("A5")
-  const cabinetName = escapeHTML((settings.cabinetName || 'Cabinet medical').toUpperCase())
+  const cabinetName = escapePrintingHtml((settings.cabinetName || 'Cabinet medical').toUpperCase())
   const cleanDoctorName = normalizeDoctorDisplayName(settings.doctorName || '') || 'Docteur'
-  const doctorName = escapeHTML(cleanDoctorName.toUpperCase())
-  const doctorSpecialty = escapeHTML(
+  const doctorName = escapePrintingHtml(cleanDoctorName.toUpperCase())
+  const doctorSpecialty = escapePrintingHtml(
     typeof getPracticeDoctorSpecialtyText === 'function'
       ?getPracticeDoctorSpecialtyText(settings, specialtyMeta?.key)
       : (settings.doctorSpecialty || '')
   )
-  const doctorRPPS = escapeHTML(settings.doctorRPPS || '')
-  const cabinetPhone = escapeHTML(settings.cabinetPhone || '')
-  const cabinetAddress = escapeHTML(settings.cabinetAddress || '')
-  const cabinetCity = escapeHTML(extractCityFromAddress(settings.cabinetAddress || ''))
+  const doctorRPPS = escapePrintingHtml(settings.doctorRPPS || '')
+  const cabinetPhone = escapePrintingHtml(settings.cabinetPhone || '')
+  const cabinetAddress = escapePrintingHtml(settings.cabinetAddress || '')
+  const cabinetCity = escapePrintingHtml(extractCityFromAddress(settings.cabinetAddress || ''))
   const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : ''
   const patientFullName = `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || 'Patient'
-  const safePatientFullName = escapeHTML(patientFullName)
+  const safePatientFullName = escapePrintingHtml(patientFullName)
   const ageLabel = computeAge(patient?.dateOfBirth)
-  const ageText = escapeHTML(ageLabel === '-' ?'-' : `${ageLabel} ans`)
+  const ageText = escapePrintingHtml(ageLabel === '-' ?'-' : `${ageLabel} ans`)
   const defaultReportTitle = specialtyMeta?.report?.printTitle || 'COMPTE RENDU MPR'
   const reportTitleSource = shouldUseMotifAsReportTitle({ motif: rapportData?.motif, consultation })
     ?String(rapportData?.motif || '').trim()
     : (String(rapportData?.documentTitle || '').trim() || defaultReportTitle)
-  const reportTitle = escapeHTML((reportTitleSource || defaultReportTitle).toUpperCase())
-  const reportSubtitle = escapeHTML(
+  const reportTitle = escapePrintingHtml((reportTitleSource || defaultReportTitle).toUpperCase())
+  const reportSubtitle = escapePrintingHtml(
     specialtyMeta?.report?.printSubtitle
     || specialtyMeta?.report?.typeLabel
     || 'Medecine Physique et Readaptation'
   )
   const consultationRaw = consultation?.consultationType || consultation?.type || ''
-  const consultationLabel = escapeHTML(
+  const consultationLabel = escapePrintingHtml(
     (typeof getConsultationActLabel === 'function' ?getConsultationActLabel(consultationRaw) : consultationRaw)
     || specialtyMeta?.report?.printSubtitle
     || 'Consultation MPR'
@@ -2220,7 +2220,7 @@ function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consulta
   const referringDoctorSource = consultation?.referringDoctor || consultation?.treatingDoctor || consultation?.doctorName || ''
   const referringDoctorName = normalizeDoctorDisplayName(referringDoctorSource)
   const hasReferringDoctor = Boolean(referringDoctorName) && referringDoctorName.toLowerCase() !== cleanDoctorName.toLowerCase()
-  const referringDoctor = hasReferringDoctor ?escapeHTML(`Dr ${referringDoctorName}`) : ''
+  const referringDoctor = hasReferringDoctor ?escapePrintingHtml(`Dr ${referringDoctorName}`) : ''
   const sections = buildSpecialtyReportSections({
     specialtyKey: 'mpr',
     specialtyMeta,
@@ -2237,19 +2237,19 @@ function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consulta
   const sectionsHtml = sections.length
     ?sections.map((section) => `
         <div class="report-section">
-          <div class="report-section-title">${escapeHTML(section.title.toUpperCase())}</div>
-          <div class="report-section-body">${formatRichTextHtml(section.content, '')}</div>
+          <div class="report-section-title">${escapePrintingHtml(section.title.toUpperCase())}</div>
+          <div class="report-section-body">${formatPrintingRichTextHtml(section.content, '')}</div>
         </div>
       `).join('')
     : `
       <div class="report-section">
         <div class="report-section-title">OBSERVATIONS</div>
-        <div class="report-section-body">${formatRichTextHtml(rapportData?.motif || 'Compte rendu MPR', '')}</div>
+        <div class="report-section-body">${formatPrintingRichTextHtml(rapportData?.motif || 'Compte rendu MPR', '')}</div>
       </div>
     `
   const logoHtml = logoDataUrl ?`
     <div class="report-logo">
-      <img src="${escapeHTML(logoDataUrl)}" alt="Logo du cabinet">
+      <img src="${escapePrintingHtml(logoDataUrl)}" alt="Logo du cabinet">
     </div>
   ` : ''
 
@@ -2421,7 +2421,7 @@ function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consulta
             ${doctorSpecialty ?`<div class="report-specialty">${doctorSpecialty}</div>` : ''}
             <div class="report-rpps-row">
               ${doctorRPPS ?`<span><strong>N&deg; d'ordre :</strong> ${doctorRPPS}</span>` : ''}
-              <span><strong>Date :</strong> ${cabinetCity ?`${cabinetCity}, ` : ''}${escapeHTML(dateLabel)}</span>
+              <span><strong>Date :</strong> ${cabinetCity ?`${cabinetCity}, ` : ''}${escapePrintingHtml(dateLabel)}</span>
             </div>
           </div>
           ${logoHtml}
@@ -2456,7 +2456,7 @@ function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consulta
         ${sectionsHtml}
 
         <div class="report-signature">
-          <div>${cabinetCity ?`${cabinetCity}, le ` : 'Le '}${escapeHTML(dateLabel)}</div>
+          <div>${cabinetCity ?`${cabinetCity}, le ` : 'Le '}${escapePrintingHtml(dateLabel)}</div>
           <div class="report-signature-doctor">Dr ${doctorName}</div>
         </div>
 
@@ -2476,30 +2476,30 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
 
   const settings = typeof cachedSettings !== 'undefined' ?cachedSettings : {}
   const rapportLayout = getPrintLayout("A5")
-  const cabinetName = escapeHTML((settings.cabinetName || 'Cabinet Médical').toUpperCase())
+  const cabinetName = escapePrintingHtml((settings.cabinetName || 'Cabinet Médical').toUpperCase())
   const cleanDoctorName = normalizeDoctorDisplayName(settings.doctorName || '') || 'Docteur'
-  const doctorName = escapeHTML(cleanDoctorName.toUpperCase())
-  const doctorSpecialty = escapeHTML(
+  const doctorName = escapePrintingHtml(cleanDoctorName.toUpperCase())
+  const doctorSpecialty = escapePrintingHtml(
     typeof getPracticeDoctorSpecialtyText === 'function'
       ?getPracticeDoctorSpecialtyText(settings, specialtyMeta?.key)
       : (settings.doctorSpecialty || '')
   )
-  const doctorRPPS = escapeHTML(settings.doctorRPPS || '')
-  const cabinetPhone = escapeHTML(settings.cabinetPhone || '')
-  const cabinetAddress = escapeHTML(settings.cabinetAddress || '')
-  const cabinetCity = escapeHTML(extractCityFromAddress(settings.cabinetAddress || ''))
+  const doctorRPPS = escapePrintingHtml(settings.doctorRPPS || '')
+  const cabinetPhone = escapePrintingHtml(settings.cabinetPhone || '')
+  const cabinetAddress = escapePrintingHtml(settings.cabinetAddress || '')
+  const cabinetCity = escapePrintingHtml(extractCityFromAddress(settings.cabinetAddress || ''))
   const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : ''
   const patientFullName = `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim() || 'Patient'
-  const safePatientFullName = escapeHTML(patientFullName)
+  const safePatientFullName = escapePrintingHtml(patientFullName)
   const ageLabel = computeAge(patient?.dateOfBirth)
   const ageText = ageLabel === '-' ?'' : ` ${ageLabel} ans`
   const defaultReportTitle = specialtyMeta?.report?.printTitle || 'Rapport médical'
   const reportTitleSource = shouldUseMotifAsReportTitle({ motif: rapportData?.motif, consultation })
     ?String(rapportData?.motif || '').trim()
     : (String(rapportData?.documentTitle || '').trim() || defaultReportTitle)
-  const reportTitle = escapeHTML((reportTitleSource || defaultReportTitle).toUpperCase())
+  const reportTitle = escapePrintingHtml((reportTitleSource || defaultReportTitle).toUpperCase())
   const consultationRaw = consultation?.consultationType || consultation?.type || ''
-  const consultationLabel = escapeHTML(
+  const consultationLabel = escapePrintingHtml(
     (typeof getConsultationActLabel === 'function' ?getConsultationActLabel(consultationRaw) : consultationRaw)
     || specialtyMeta?.report?.printSubtitle
     || 'Rapport médical'
@@ -2507,8 +2507,8 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
   const referringDoctorSource = consultation?.referringDoctor || consultation?.treatingDoctor || consultation?.doctorName || settings.doctorName || ''
   const referringDoctorName = normalizeDoctorDisplayName(referringDoctorSource)
   const referringDoctor = referringDoctorName
-    ?escapeHTML(`Dr ${referringDoctorName}`)
-    : escapeHTML('Médecin traitant')
+    ?escapePrintingHtml(`Dr ${referringDoctorName}`)
+    : escapePrintingHtml('Médecin traitant')
 
   const sections = buildSpecialtyReportSections({
     specialtyKey: specialtyMeta?.key || rapportData?.specialtyKey || 'general',
@@ -2527,20 +2527,20 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
   const sectionsHtml = sections.length
     ?sections.map((section) => `
         <div class="report-section">
-          <div class="report-section-title">${escapeHTML(section.title.toUpperCase())}:</div>
-          <div class="report-section-body">${formatRichTextHtml(section.content, '')}</div>
+          <div class="report-section-title">${escapePrintingHtml(section.title.toUpperCase())}:</div>
+          <div class="report-section-body">${formatPrintingRichTextHtml(section.content, '')}</div>
         </div>
       `).join('')
     : `
       <div class="report-section">
         <div class="report-section-title">RAPPORT:</div>
-        <div class="report-section-body">${formatRichTextHtml(rapportData?.motif || specialtyMeta?.report?.printSubtitle || 'Rapport médical', '')}</div>
+        <div class="report-section-body">${formatPrintingRichTextHtml(rapportData?.motif || specialtyMeta?.report?.printSubtitle || 'Rapport médical', '')}</div>
       </div>
     `
 
   const logoHtml = logoDataUrl ?`
     <div class="report-logo">
-      <img src="${escapeHTML(logoDataUrl)}" alt="Logo du cabinet">
+      <img src="${escapePrintingHtml(logoDataUrl)}" alt="Logo du cabinet">
     </div>
   ` : ''
 
@@ -2679,8 +2679,8 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
         </div>
 
         <div class="report-meta-row">
-          <div><strong>Patient :</strong> ${safePatientFullName}${escapeHTML(ageText)}</div>
-          <div>${cabinetCity ?`${cabinetCity} le ` : ''}${escapeHTML(dateLabel)}</div>
+          <div><strong>Patient :</strong> ${safePatientFullName}${escapePrintingHtml(ageText)}</div>
+          <div>${cabinetCity ?`${cabinetCity} le ` : ''}${escapePrintingHtml(dateLabel)}</div>
         </div>
         <div class="report-meta-row">
           <div><strong>Consultation :</strong> ${consultationLabel}</div>
@@ -2707,7 +2707,7 @@ async function renderRapportDocument({ patient, rapportData, dateHint, consultat
   const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
     ?getPracticeSpecialtyMeta(rapportData?.specialtyKey || rapportData?.specialtyLabel)
     : { report: { typeLabel: 'Rapport medical', defaultMotif: 'Rapport medical', objectTitle: 'Objet du rapport', contextTitle: 'Contexte clinique', findingsTitle: 'Constatations cliniques', careTitle: 'Prise en charge', conclusionTitle: 'Conclusion et recommandations', printTitle: 'COMPTE RENDU', printSubtitle: 'Rapport de consultation' } };
-  const dateLabel = formatDocumentDateLabel(rapportData?.date || rapportData?.emittedAt || dateHint || new Date())
+  const dateLabel = formatPrintingDocumentDateLabel(rapportData?.date || rapportData?.emittedAt || dateHint || new Date())
   const sections = buildSpecialtyReportSections({
     specialtyKey: specialtyMeta?.key || rapportData?.specialtyKey || 'general',
     specialtyMeta,
@@ -2732,8 +2732,8 @@ async function renderRapportDocument({ patient, rapportData, dateHint, consultat
       </style>
       ${sections.map((section) => `
         <div class="rapport-compact-section">
-          <div class="rapport-compact-title">${escapeHTML(section.title)}</div>
-          <div class="rapport-compact-text">${formatRichTextHtml(section.content, '')}</div>
+          <div class="rapport-compact-title">${escapePrintingHtml(section.title)}</div>
+          <div class="rapport-compact-text">${formatPrintingRichTextHtml(section.content, '')}</div>
         </div>
       `).join('')}
     </div>
@@ -2768,7 +2768,7 @@ async function printConsultationDetails(consultationId) {
     if (!patResult.success) throw new Error('Patient introuvable')
     const patient = patResult.data
 
-    const dateLabel = formatDocumentDateLabel(consultation.consultationDate || consultation.date || consultation.createdAt)
+    const dateLabel = formatPrintingDocumentDateLabel(consultation.consultationDate || consultation.date || consultation.createdAt)
 
     const sections = []
 
@@ -2776,7 +2776,7 @@ async function printConsultationDetails(consultationId) {
       sections.push(`
         <div class="content-box">
           <h3>Motif</h3>
-          <div class="content-text">${formatRichTextHtml(consultation.reason, '')}</div>
+          <div class="content-text">${formatPrintingRichTextHtml(consultation.reason, '')}</div>
         </div>
       `)
     }
@@ -2793,7 +2793,7 @@ async function printConsultationDetails(consultationId) {
         <div class="content-box">
           <h3>Signes Vitaux</h3>
           <div class="info-row">
-            ${vitalParts.map(v => `<div class="info-item">${escapeHTML(v)}</div>`).join('')}
+            ${vitalParts.map(v => `<div class="info-item">${escapePrintingHtml(v)}</div>`).join('')}
           </div>
         </div>
       `)
@@ -2803,7 +2803,7 @@ async function printConsultationDetails(consultationId) {
       sections.push(`
         <div class="content-box">
           <h3>Examen Clinique</h3>
-          <div class="content-text">${formatRichTextHtml(consultation.clinicalExamination, '')}</div>
+          <div class="content-text">${formatPrintingRichTextHtml(consultation.clinicalExamination, '')}</div>
         </div>
       `)
     }
@@ -2812,7 +2812,7 @@ async function printConsultationDetails(consultationId) {
       sections.push(`
         <div class="content-box">
           <h3>Diagnostic</h3>
-          <div class="content-text">${formatRichTextHtml(consultation.diagnosis, '')}</div>
+          <div class="content-text">${formatPrintingRichTextHtml(consultation.diagnosis, '')}</div>
         </div>
       `)
     }
@@ -2821,7 +2821,7 @@ async function printConsultationDetails(consultationId) {
       sections.push(`
         <div class="content-box">
           <h3>Traitement</h3>
-          <div class="content-text">${formatRichTextHtml(consultation.treatment, '')}</div>
+          <div class="content-text">${formatPrintingRichTextHtml(consultation.treatment, '')}</div>
         </div>
       `)
     }
@@ -2830,7 +2830,7 @@ async function printConsultationDetails(consultationId) {
       sections.push(`
         <div class="content-box">
           <h3>Notes</h3>
-          <div class="content-text">${formatRichTextHtml(consultation.notes, '')}</div>
+          <div class="content-text">${formatPrintingRichTextHtml(consultation.notes, '')}</div>
         </div>
       `)
     }
@@ -2883,6 +2883,6 @@ sharedPrintScope.printConsultationDetails = printConsultationDetails
 sharedPrintScope.renderInvoiceDocument = renderInvoiceDocument
 sharedPrintScope.renderRapportDocument = renderRapportDocument
 sharedPrintScope.computeAge = computeAge
-sharedPrintScope.formatDocumentDateLabel = formatDocumentDateLabel
-sharedPrintScope.formatRichTextHtml = formatRichTextHtml
-sharedPrintScope.escapeHTML = escapeHTML
+sharedPrintScope.formatPrintingDocumentDateLabel = formatPrintingDocumentDateLabel
+sharedPrintScope.formatPrintingRichTextHtml = formatPrintingRichTextHtml
+sharedPrintScope.escapePrintingHtml = escapePrintingHtml

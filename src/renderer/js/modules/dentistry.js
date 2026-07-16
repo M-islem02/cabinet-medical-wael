@@ -1,3 +1,5 @@
+import { registerLegacyGlobals, unregisterLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
+
 // ========== DENTISTRY MODULE ==========
 // Professional dental chart with realistic curved mouth diagram
 // Medical imaging integration (Radio, Scanner, Echo)
@@ -1405,3 +1407,51 @@ selectDentalPatient = async function(patientId) {
   }
   return originalSelectDentalPatient(patientId);
 };
+
+registerLegacyGlobals('dentistry', {
+  applyDentalLanguageToUI,
+  changeDentalHistoryPage,
+  changeToothStatus,
+  closeDentalDetail,
+  closeDentalTreatmentModal,
+  deleteDentalPlan,
+  deleteDentalTreatment,
+  deleteDentalXray,
+  importDentalImage,
+  initDentistry,
+  loadDentalPatientHistoryCards,
+  loadDentalPatientList,
+  loadDentalPlans,
+  loadDentalTeeth,
+  loadDentalTreatments,
+  openDentalHistoryModalTooth,
+  openDentalHistoryNote,
+  openDentalPatientDossier,
+  openDentalPatientForm,
+  openDentalPatientHistoryDayWindow,
+  openDentalPlanModal,
+  openImageViewer,
+  openTreatmentModal,
+  payDentalTreatmentFromChart,
+  refreshDentalPatientList,
+  saveDentalPlan,
+  saveDentalTreatment,
+  saveToothNotes,
+  selectDentalPatient,
+  selectDentalTooth,
+  setDentalHistoryDateFilter,
+  setDentalLanguage,
+  showCurrentDentalSchema,
+  showToothDetail,
+  switchDentalTab,
+  updateDentalStats,
+  updatePatientDentalStats,
+  viewDentalGallery,
+  viewToothHistory
+});
+
+export function destroyDentistryLegacy() {
+  dentalRealtimeWs?.close?.();
+  dentalRealtimeWs = null;
+  unregisterLegacyGlobals('dentistry');
+}

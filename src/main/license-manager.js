@@ -3,10 +3,9 @@
  * Gère une clé d'essai 7 jours et une clé illimitée.
  */
 
-import { queryOne, run, query } from './database-unified.js';
+import { queryOne, run, query, withTransaction } from './database-unified.js';
 import crypto from 'crypto';
 import moment from 'moment';
-import os from 'os';
 
 const LICENSE_SECRET = 'MEDPRO-SECURE-PEPPER-2026-X89';
 
@@ -61,19 +60,6 @@ function getLicenseExpirationMoment(expirationDate) {
   }
 
   return moment(raw);
-}
-
-/**
- * Génère un ID de machine unique basé sur le matériel
- */
-export function generateMachineId() {
-  const networkInterfaces = os.networkInterfaces();
-  const allAddresses = Object.values(networkInterfaces).flat();
-  const macAddress = allAddresses.find(iface => iface.mac && iface.mac !== '00:00:00:00:00:00')?.mac || 'unknown';
-  const hostname = os.hostname();
-  
-  const combined = `${hostname}:${macAddress}`;
-  return crypto.createHash('sha256').update(combined).digest('hex').substring(0, 32);
 }
 
 function getLicenseTypeFromKey(licenseKey) {
@@ -198,14 +184,9 @@ export async function validateLicense(licenseKey) {
       };
     }
     
-    const machineMismatch = !!(license.machineId && license.machineId !== generateMachineId());
-    if (machineMismatch) {
-      return {
-        valid: false,
-        reason: 'Licence déjà activée sur une autre machine',
-        license: license
-      };
-    }
+    // Network workstations share one cabinet database. The license belongs to
+    // that cabinet/database, not to one workstation. Ignore machineId values
+    // written by older versions so existing activations keep working.
     
     // Calculer les jours restants (null si pas d'expiration)
     const daysRemaining = expirationDate ? Math.max(0, expirationDate.diff(now, 'days')) : null;
@@ -284,15 +265,21 @@ export async function activateLicense(licenseKey) {
         ? now.clone().add(1, 'year').format('YYYY-MM-DD HH:mm:ss')
       : null;
 
-    await run(
-      "UPDATE licenses SET activated = 0, status = CASE WHEN expirationDate IS NOT NULL AND expirationDate < ? THEN 'expired' ELSE 'inactive' END WHERE activated = 1",
-      [activationDate]
-    );
+    await withTransaction(async () => {
+      await run(
+        "UPDATE licenses SET activated = 0, status = CASE WHEN expirationDate IS NOT NULL AND expirationDate < ? THEN 'expired' ELSE 'inactive' END WHERE activated = 1",
+        [activationDate]
+      );
 
-    await run(
-      "UPDATE licenses SET activated = 1, activationDate = ?, expirationDate = ?, status = 'activated', machineId = ? WHERE `key` = ?",
-      [activationDate, expirationDate, generateMachineId(), normalizedKey]
-    );
+      const activationResult = await run(
+        "UPDATE licenses SET activated = 1, activationDate = ?, expirationDate = ?, status = 'activated', machineId = NULL WHERE `key` = ?",
+        [activationDate, expirationDate, normalizedKey]
+      );
+
+      if (!activationResult?.changes) {
+        throw new Error('La clé de licence a disparu pendant l’activation');
+      }
+    });
     
     return {
       success: true,

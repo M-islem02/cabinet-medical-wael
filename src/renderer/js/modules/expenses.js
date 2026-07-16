@@ -94,11 +94,11 @@ function displayExpenses() {
     
     tbody.innerHTML = filtered.map(expense => `
         <tr>
-            <td>${formatDate(expense.date)}</td>
+            <td>${formatExpenseDate(expense.date)}</td>
             <td>${expense.category_icon || ''} ${expense.category_name || 'Non catégorisé'}</td>
             <td>${expense.description || '-'}</td>
             <td>${expense.vendor || '-'}</td>
-            <td style="font-weight: bold; color: #ef4444;">${formatCurrency(expense.amount)}</td>
+            <td style="font-weight: bold; color: #ef4444;">${formatExpenseCurrency(expense.amount)}</td>
             <td>
                 <button class="btn btn-sm btn-info" onclick="editExpense(${expense.id})" title="Modifier">✏️</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteExpense(${expense.id})" title="Supprimer">🗑️</button>
@@ -118,10 +118,10 @@ async function loadExpenseStats() {
         const topCategoryEl = document.getElementById('expense-top-category');
         const totalYearEl = document.getElementById('expense-total-year');
         
-        if (totalMonthEl) totalMonthEl.textContent = formatCurrency(stats.totalMonth || 0);
-        if (avgDayEl) avgDayEl.textContent = formatCurrency(stats.avgPerDay || 0);
+        if (totalMonthEl) totalMonthEl.textContent = formatExpenseCurrency(stats.totalMonth || 0);
+        if (avgDayEl) avgDayEl.textContent = formatExpenseCurrency(stats.avgPerDay || 0);
         if (topCategoryEl) topCategoryEl.textContent = stats.topCategory || '-';
-        if (totalYearEl) totalYearEl.textContent = formatCurrency(stats.totalYear || 0);
+        if (totalYearEl) totalYearEl.textContent = formatExpenseCurrency(stats.totalYear || 0);
         
     } catch (error) {
         console.error('Error loading expense stats:', error);
@@ -284,7 +284,7 @@ async function exportExpenses() {
 }
 
 // Format currency
-function formatCurrency(amount) {
+function formatExpenseCurrency(amount) {
     return new Intl.NumberFormat('fr-DZ', {
         style: 'decimal',
         minimumFractionDigits: 2
@@ -292,7 +292,7 @@ function formatCurrency(amount) {
 }
 
 // Format date
-function formatDate(dateStr) {
+function formatExpenseDate(dateStr) {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
     return date.toLocaleDateString('fr-FR');

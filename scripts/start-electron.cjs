@@ -18,7 +18,7 @@ function startElectron() {
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
 
-  child = spawn(electronBinary, ['.'], {
+  child = spawn(electronBinary, ['.', ...process.argv.slice(2)], {
     cwd: process.cwd(),
     env,
     stdio: 'inherit'

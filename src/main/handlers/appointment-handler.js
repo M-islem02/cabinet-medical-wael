@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { sendAppointmentCreatedSMS } from './sms-handler.js';
@@ -131,39 +131,47 @@ export function handleAppointmentEvents() {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const appointmentDateTime = `${appointmentData.date} ${appointmentData.time}`;
+      const creation = await withTransaction(async () => {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-slot:${appointmentDateTime}`]);
+        const existingAppointment = await queryOne(
+          `SELECT id FROM appointments
+           WHERE appointmentDateTime = ? AND status != 'cancelled'
+           FOR UPDATE`,
+          [appointmentDateTime]
+        );
 
-      const existingAppointment = await queryOne(
-        `SELECT id FROM appointments
-         WHERE appointmentDateTime = ? AND status != 'cancelled'`,
-        [appointmentDateTime]
-      );
+        if (existingAppointment && !appointmentData.forceCreate) {
+          return { conflict: true };
+        }
 
-      if (existingAppointment && !appointmentData.forceCreate) {
+        await run(
+          `INSERT INTO appointments
+           (id, patientId, appointmentDateTime, appointmentType, reason, status, notes, bookingSource, bookingCode, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            appointmentData.patientId,
+            appointmentDateTime,
+            appointmentData.type || 'Consultation',
+            toNullIfEmpty(appointmentData.reason),
+            appointmentData.status || 'scheduled',
+            toNullIfEmpty(appointmentData.notes),
+            appointmentData.source || 'manual',
+            appointmentData.bookingCode || null,
+            now,
+            now
+          ]
+        );
+        return { conflict: false };
+      });
+
+      if (creation.conflict) {
         return {
           success: false,
           error: 'Un rendez-vous existe deja a cette date et heure',
           conflictType: 'duplicate'
         };
       }
-
-      await run(
-        `INSERT INTO appointments
-         (id, patientId, appointmentDateTime, appointmentType, reason, status, notes, bookingSource, bookingCode, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          appointmentData.patientId,
-          appointmentDateTime,
-          appointmentData.type || 'Consultation',
-          toNullIfEmpty(appointmentData.reason),
-          appointmentData.status || 'scheduled',
-          toNullIfEmpty(appointmentData.notes),
-          appointmentData.source || 'manual',
-          appointmentData.bookingCode || null,
-          now,
-          now
-        ]
-      );
 
       const createdAppointment = await getAppointmentDetailsById(id);
       let smsResult = { success: false, skipped: true, reason: 'Rendez-vous cree sans details complementaires' };

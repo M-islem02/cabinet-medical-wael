@@ -283,8 +283,7 @@ function renderWaitingRoom() {
   if (waitingRoomData.length === 0) {
     container.innerHTML = `
       <div class="waiting-empty">
-        <span class="waiting-empty-icon">🩺</span>
-        <p style="margin-top: 15px;">Aucun patient en salle d'attente</p>
+        <p>Aucun patient en salle d'attente</p>
       </div>
     `;
     return;

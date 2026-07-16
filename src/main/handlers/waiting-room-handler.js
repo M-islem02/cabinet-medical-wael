@@ -4,7 +4,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { parseEnabledSpecialties } from '../specialty-assets.js';
@@ -64,6 +64,14 @@ export function handleWaitingRoomEvents() {
       }
 
       const today = new Date().toISOString().split('T')[0];
+      const result = await withTransaction(async () => {
+      const sortedDoctorIds = [...targetDoctorIds].sort();
+      for (const doctorId of sortedDoctorIds) {
+        await queryOne(
+          'SELECT pg_advisory_xact_lock(hashtext(?))',
+          [`waiting-room:${today}:${data.patientId}:${doctorId}`]
+        );
+      }
 
       // Check if patient is already in waiting room today (not completed)
       const existing = await queryOne(`
@@ -79,23 +87,32 @@ export function handleWaitingRoomEvents() {
       }
 
       const insertedIds = [];
-      for (const doctorId of targetDoctorIds) {
+      const realtimeEvents = [];
+      for (const doctorId of sortedDoctorIds) {
         const id = uuidv4();
         await run(`
           INSERT INTO waiting_room (id, patientId, arrivalTime, reason, notes, createdBy, assignedTo, status)
           VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting')
         `, [id, data.patientId, data.arrivalTime, toNullIfEmpty(data.reason), toNullIfEmpty(data.notes), toNullIfEmpty(data.createdBy), toNullIfEmpty(doctorId)]);
         insertedIds.push(id);
-        broadcastRealtimeEvent({
+        realtimeEvents.push({
           type: 'waiting-room:new',
           id,
           patientId: data.patientId,
           assignedTo: doctorId,
           title: 'Nouveau patient en salle d’attente',
-          message: data.reason || 'Patient ajouté à la salle d’attente'
-        }, { userId: doctorId });
+          message: data.reason || 'Patient ajouté à la salle d’attente',
+          targetUserId: doctorId
+        });
       }
-      return { success: true, id: insertedIds[0], ids: insertedIds };
+      return { success: true, id: insertedIds[0], ids: insertedIds, realtimeEvents };
+      });
+      for (const realtimeEvent of result.realtimeEvents || []) {
+        const { targetUserId, ...payload } = realtimeEvent;
+        broadcastRealtimeEvent(payload, { userId: targetUserId });
+      }
+      const { realtimeEvents, ...response } = result;
+      return response;
     } catch (error) {
       console.error('Error adding to waiting room:', error);
       throw error;
@@ -140,7 +157,10 @@ export function handleWaitingRoomEvents() {
   // Update waiting room status
   ipcMain.handle('waiting-room:update-status', async (event, id, status) => {
     try {
+      return await withTransaction(async () => {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
+      const existing = await queryOne('SELECT id FROM waiting_room WHERE id = ? FOR UPDATE', [id]);
+      if (!existing) return { success: false, error: 'Entrée de salle d’attente introuvable' };
 
       if (status === 'in-consultation') {
         await run(`UPDATE waiting_room SET status = ?, calledAt = ? WHERE id = ?`, [status, now, id]);
@@ -151,6 +171,7 @@ export function handleWaitingRoomEvents() {
       }
 
       return { success: true };
+      });
     } catch (error) {
       console.error('Error updating waiting room status:', error);
       throw error;
@@ -269,6 +290,8 @@ export function handleWaitingRoomEvents() {
     try {
       const lockKey = `${data.patientId || ''}:${data.kineId || ''}`;
       return await withKineSessionLock(lockKey, async () => {
+        return withTransaction(async () => {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`kine-session:${lockKey}`]);
         const { v4: createUuid } = await import('uuid');
         const id = createUuid();
 
@@ -308,6 +331,7 @@ export function handleWaitingRoomEvents() {
         console.log(`Kine session created: ${id}, session #${sessionNumber}, price: ${price} DZD`);
 
         return { success: true, id, sessionNumber, price };
+        });
       });
     } catch (error) {
       console.error('Error creating kine session:', error);
@@ -620,6 +644,9 @@ export function handleWaitingRoomEvents() {
   // Doctor creates a payment request for assistant to collect
   ipcMain.handle('payment-request:create', async (event, data) => {
     try {
+      return await withTransaction(async () => {
+      const requestLockKey = `${data.consultationId || ''}:${data.patientId || ''}:${Number(data.amount || 0)}`;
+      await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`payment-request:${requestLockKey}`]);
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const patientName = data.patientName || 'Patient';
@@ -683,6 +710,7 @@ export function handleWaitingRoomEvents() {
         }
       }, { role: 'assistant' });
       return { success: true, id };
+      });
     } catch (error) {
       console.error('Error creating payment request:', error);
       return { success: false, error: error.message };

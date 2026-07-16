@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -112,11 +112,13 @@ function applyPaymentVisibility(payment) {
 export function handlePaymentEvents() {
   ipcMain.handle('payment:create', async (event, paymentData) => {
     try {
+      return await withTransaction(async () => {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const consultationId = toNullIfEmpty(paymentData.consultationId);
 
       if (consultationId) {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`payment:${consultationId}`]);
         const existing = await queryOne(
           'SELECT id FROM payments WHERE consultationId = ? ORDER BY createdAt DESC LIMIT 1',
           [consultationId]
@@ -145,6 +147,7 @@ export function handlePaymentEvents() {
       );
 
       return { success: true, id };
+      });
     } catch (error) {
       console.error('Erreur lors de la creation du paiement:', error);
       return { success: false, error: error.message };
@@ -416,6 +419,7 @@ export function handlePaymentEvents() {
       if (isAssistantUser()) {
         return { success: false, error: 'Modification non autorisee' };
       }
+      return await withTransaction(async () => {
 
       const scope = getPaymentAccessScope('payments', 'patients');
       if (scope.clause) {
@@ -449,6 +453,7 @@ export function handlePaymentEvents() {
       );
 
       return { success: true };
+      });
     } catch (error) {
       console.error('Erreur lors de la mise a jour du paiement:', error);
       return { success: false, error: error.message };
@@ -460,6 +465,7 @@ export function handlePaymentEvents() {
       if (isAssistantUser()) {
         return { success: false, error: 'Suppression non autorisee' };
       }
+      return await withTransaction(async () => {
 
       const scope = getPaymentAccessScope('payments', 'patients');
       if (scope.clause) {
@@ -477,6 +483,7 @@ export function handlePaymentEvents() {
 
       await run('DELETE FROM payments WHERE id = ?', [paymentId]);
       return { success: true };
+      });
     } catch (error) {
       console.error('Erreur lors de la suppression du paiement:', error);
       return { success: false, error: error.message };

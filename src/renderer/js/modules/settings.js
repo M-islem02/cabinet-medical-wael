@@ -344,7 +344,7 @@ async function loadPublicBookingShareData() {
     const result = await window.api.publicBooking.getStatus();
     const shareData = result.data || null;
     if (!shareData) {
-      if (statusEl) statusEl.textContent = 'Portail RDV indisponible';
+      if (statusEl) statusEl.textContent = 'Portail patient indisponible';
       if (localUrlEl) localUrlEl.value = '';
       if (publicUrlEl) publicUrlEl.value = '';
       if (qrImg) qrImg.style.display = 'none';
@@ -353,15 +353,15 @@ async function loadPublicBookingShareData() {
     }
     if (statusEl) {
       if (!result.success) {
-        statusEl.textContent = `Erreur portail RDV: ${result.error || shareData.lastError || 'indisponible'}`;
+        statusEl.textContent = `Erreur portail patient: ${result.error || shareData.lastError || 'indisponible'}`;
       } else if (!shareData.enabled) {
-        statusEl.textContent = 'Portail RDV désactivé';
+        statusEl.textContent = 'Portail patient désactivé';
       } else if (shareData.running) {
         statusEl.textContent = `Portail actif sur le port ${shareData.port}`;
       } else {
         statusEl.textContent = shareData.lastError
-          ? `Erreur portail RDV: ${shareData.lastError}`
-          : 'Portail RDV en attente';
+          ? `Erreur portail patient: ${shareData.lastError}`
+          : 'Portail patient en attente';
       }
     }
 
@@ -378,8 +378,47 @@ async function loadPublicBookingShareData() {
     }
   } catch (error) {
     console.error('Error loading public booking share data:', error);
-    if (statusEl) statusEl.textContent = 'Erreur chargement portail RDV';
+    if (statusEl) statusEl.textContent = 'Erreur chargement portail patient';
   }
+}
+
+async function copyPublicBookingLink() {
+  const link = document.getElementById('public-booking-public-url-display')?.value
+    || document.getElementById('public-booking-local-url')?.value
+    || '';
+  if (!link) {
+    showNotification('Activez et enregistrez d’abord le portail patient', 'warning');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(link);
+    showNotification('Lien du portail copié', 'success');
+  } catch (error) {
+    console.error('Unable to copy public portal link:', error);
+    showNotification('Copie du lien impossible', 'error');
+  }
+}
+
+function printPublicBookingQr() {
+  const qrDataUrl = document.getElementById('public-booking-qr-image')?.src || '';
+  if (!qrDataUrl.startsWith('data:image/')) {
+    showNotification('Activez et enregistrez d’abord le portail patient', 'warning');
+    return;
+  }
+
+  const printWindow = window.open('', '_blank', 'width=620,height=760');
+  if (!printWindow) {
+    showNotification('Fenêtre d’impression bloquée', 'error');
+    return;
+  }
+  printWindow.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>QR accueil patient</title>
+    <style>body{font-family:Segoe UI,sans-serif;text-align:center;padding:48px;color:#0f172a}img{width:360px;height:360px}h1{font-size:28px;margin:0 0 12px}p{font-size:18px;line-height:1.5;color:#475569}</style>
+    </head><body><h1>Scannez pour signaler votre arrivée</h1><p>Avec ou sans rendez-vous, rejoignez la file d’attente depuis votre téléphone.</p><img src="${qrDataUrl}" alt="QR code"><p>Connectez-vous au Wi-Fi du cabinet avant de scanner.</p></body></html>`);
+  printWindow.document.close();
+  printWindow.addEventListener('load', () => {
+    printWindow.focus();
+    printWindow.print();
+  }, { once: true });
 }
 
 async function loadSettings() {
@@ -1327,6 +1366,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.refreshDeviceOptions = refreshDeviceOptions;
 window.loadPublicBookingShareData = loadPublicBookingShareData;
+window.copyPublicBookingLink = copyPublicBookingLink;
+window.printPublicBookingQr = printPublicBookingQr;
 window.handleCabinetLogoChange = handleCabinetLogoChange;
 window.clearCabinetLogo = clearCabinetLogo;
 window.saveSettings = savePracticeSettings;

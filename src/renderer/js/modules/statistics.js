@@ -6,7 +6,7 @@ const statisticsState = {
   cacheTtlMs: 0
 };
 
-function escapeHtml(value) {
+function escapeStatisticsHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -25,7 +25,7 @@ function renderStatisticsList(containerId, items, badgeColor, emptyLabel) {
   if (!container) return;
 
   if (!Array.isArray(items) || items.length === 0) {
-    container.innerHTML = `<div class="statistics-list-empty">${escapeHtml(emptyLabel)}</div>`;
+    container.innerHTML = `<div class="statistics-list-empty">${escapeStatisticsHtml(emptyLabel)}</div>`;
     return;
   }
 
@@ -33,7 +33,7 @@ function renderStatisticsList(containerId, items, badgeColor, emptyLabel) {
     <div class="statistics-list-item" style="padding: 10px 0;">
       <div class="statistics-list-main">
         <span class="statistics-list-rank">${index + 1}</span>
-        <span class="statistics-list-label" style="font-size: 13px; font-weight: 600; color: #1e293b;">${escapeHtml(item.name || 'Élément')}</span>
+        <span class="statistics-list-label" style="font-size: 13px; font-weight: 600; color: #1e293b;">${escapeStatisticsHtml(item.name || 'Élément')}</span>
       </div>
       <span class="statistics-list-badge" style="background: ${badgeColor}; font-size: 11px; padding: 4px 10px;">${Number(item.count || 0)}</span>
     </div>
@@ -71,7 +71,7 @@ async function loadStatistics(force = false) {
     const endDate = document.getElementById('stats-end-date')?.value || '';
 
     // Fetch advanced stats from backend
-    const res = await window.api.invoke('statistics:getAdvancedOverview', { period, startDate, endDate });
+    const res = await window.api.statistics.getAdvancedOverview({ period, startDate, endDate });
 
     if (!res?.success) {
       throw new Error(res?.error || 'Impossible de charger les statistiques');
@@ -130,7 +130,7 @@ async function loadStatistics(force = false) {
               const marginColor = item.margin >= 0 ? '#059669' : '#dc2626';
               return `
                 <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-                  <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${escapeHtml(item.period)}</td>
+                  <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${escapeStatisticsHtml(item.period)}</td>
                   <td style="padding: 10px 12px; text-align: right; color: #059669; font-weight: 600;">${formatRevenueAmount(item.revenue)}</td>
                   <td style="padding: 10px 12px; text-align: right; color: #dc2626;">${formatRevenueAmount(item.expenses)}</td>
                   <td style="padding: 10px 12px; text-align: right; color: ${marginColor}; font-weight: 700;">${formatRevenueAmount(item.margin)}</td>
@@ -182,7 +182,7 @@ async function loadStatistics(force = false) {
                     <span style="font-size: 16px;">${a.icon}</span>
                     <div style="font-size: 13px;">
                       <span style="font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${a.badge}</span>
-                      <strong>${escapeHtml(a.name)}</strong> — ${escapeHtml(a.message)}
+                      <strong>${escapeStatisticsHtml(a.name)}</strong> — ${escapeStatisticsHtml(a.message)}
                     </div>
                   </div>
                 </div>
@@ -227,7 +227,7 @@ async function loadStatistics(force = false) {
       } else {
         if (leftListTitleEl) leftListTitleEl.textContent = 'Mes Patients les plus vus (Top 10)';
         // Call top lists to get patients count
-        const topListsResult = await window.api.invoke('statistics:getTopLists');
+        const topListsResult = await window.api.statistics.getTopLists();
         const topLists = topListsResult?.success ? (topListsResult.data || {}) : {};
         renderStatisticsList(
           'stats-consultations-list',
