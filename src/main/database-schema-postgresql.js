@@ -54,6 +54,8 @@ function buildIndexStatements() {
     'CREATE INDEX IF NOT EXISTS idx_consultations_patient_date ON consultations(patientId, consultationDate DESC)',
     'CREATE INDEX IF NOT EXISTS idx_patients_primary_doctor ON patients(primaryDoctorId)',
     'CREATE INDEX IF NOT EXISTS idx_patients_created_by_user ON patients(createdByUserId)',
+    'CREATE INDEX IF NOT EXISTS idx_patient_medecins_patient ON patient_medecins(patientId)',
+    'CREATE INDEX IF NOT EXISTS idx_patient_medecins_medecin ON patient_medecins(medecinId)',
     'CREATE INDEX IF NOT EXISTS idx_consultations_doctor ON consultations(doctorId)',
     'CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_date ON prescriptions(patientId, prescriptionDate DESC)',
     'CREATE INDEX IF NOT EXISTS idx_sick_leaves_patient_start ON sick_leaves(patientId, startDate DESC)',
@@ -69,6 +71,7 @@ function buildIndexStatements() {
 
 function buildCompatibilityStatements() {
   return [
+    'ALTER TABLE package_config ADD COLUMN IF NOT EXISTS cabinetType VARCHAR(20)',
     'ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS treatmentType VARCHAR(100)',
     "ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS specialty VARCHAR(100) DEFAULT 'dentistry'",
     'ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS totalCost NUMERIC(10,2) DEFAULT 0',
