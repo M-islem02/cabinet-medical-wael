@@ -16234,6 +16234,253 @@ td button {
   margin-bottom: 14px;
 }
 
+.patients-scope-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e4ebf2;
+}
+
+.patients-scope-bar[hidden] {
+  display: none;
+}
+
+.patients-view-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #eef4f8;
+}
+
+.patients-view-tab {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: transparent;
+  color: #536579;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.patients-view-tab.active {
+  background: #fff;
+  color: var(--primary-color);
+  box-shadow: 0 1px 4px rgba(30, 50, 70, 0.12);
+}
+
+.patients-doctor-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #536579;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.patients-doctor-scope[hidden] {
+  display: none;
+}
+
+.patients-doctor-scope .form-control {
+  min-width: 220px;
+  height: 40px;
+}
+
+.medical-overview {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5ea;
+  border-left: 4px solid #0f766e;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.medical-overview-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.medical-overview-heading > span {
+  color: #182230;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.medical-overview-heading > small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.medical-overview-grid {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr 1.25fr 1.25fr;
+  gap: 8px;
+}
+
+.medical-overview-item {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f7f9fb;
+}
+
+.medical-overview-item > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.medical-overview-item > strong {
+  display: block;
+  color: #182230;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.medical-overview-item.medical-overview-alert {
+  background: #fff1f2;
+}
+
+.medical-overview-item.medical-overview-alert > span,
+.medical-overview-item.medical-overview-alert > strong {
+  color: #b42318;
+}
+
+.medical-overview-loading {
+  color: #667085;
+  font-size: 12px;
+}
+
+#modal-consultation .consultation-medical-overview {
+  margin-bottom: 2px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+#modal-consultation-finish {
+  width: min(560px, calc(100vw - 32px));
+  max-width: 560px;
+  height: min(520px, calc(100vh - 28px));
+  max-height: calc(100vh - 28px);
+}
+
+.consultation-finish-dialog {
+  width: 100%;
+  max-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.consultation-finish-dialog .modal-header {
+  align-items: flex-start;
+}
+
+.consultation-finish-dialog .modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.consultation-finish-subtitle {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 12.5px;
+}
+
+.consultation-finish-body {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px !important;
+  overflow-y: auto;
+}
+
+.consultation-finish-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 8px 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.consultation-finish-check:has(input:checked) {
+  border-color: #99d5c9;
+  background: #f0fdf9;
+}
+
+.consultation-finish-check input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #0f766e;
+}
+
+.consultation-finish-check span,
+.consultation-finish-check strong,
+.consultation-finish-check small {
+  display: block;
+}
+
+.consultation-finish-check strong {
+  color: #182230;
+  font-size: 13.5px;
+}
+
+.consultation-finish-check small {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.consultation-finish-footer {
+  flex: 0 0 auto;
+  justify-content: space-between !important;
+  gap: 12px;
+  padding: 12px 16px !important;
+}
+
+#consultation-finish-progress {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#consultation-finish-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 1100px) {
+  .medical-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .medical-overview-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .medical-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 #patient-details .card,
 #patient-details .details-card,
 #patient-details .patient-collapsible-card,

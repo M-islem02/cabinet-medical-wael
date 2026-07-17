@@ -3,9 +3,12 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { determinePatientWorkflow } from '../patient-workflow.js';
+
+const assistantPatientScopes = new Map();
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -63,7 +66,8 @@ function normalizePatientListRequest(payload = null) {
         paginated: false,
         searchTerm: '',
         page: 1,
-        pageSize: 15
+        pageSize: 15,
+        doctorId: ''
       };
   }
 
@@ -71,7 +75,8 @@ function normalizePatientListRequest(payload = null) {
     paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.searchTerm !== undefined,
     searchTerm: String(payload.searchTerm || '').trim(),
     page: toPositiveInt(payload.page, 1),
-    pageSize: Math.min(100, toPositiveInt(payload.pageSize, 15))
+    pageSize: Math.min(100, toPositiveInt(payload.pageSize, 15)),
+    doctorId: String(payload.doctorId || '').trim()
   };
 }
 
@@ -80,14 +85,16 @@ function normalizePatientByIdRequest(payload) {
     return {
       patientId: payload.id || payload.patientId || '',
       includeConsultations: payload.includeConsultations === true,
-      consultationLimit: Math.min(50, toPositiveInt(payload.consultationLimit, 5))
+      consultationLimit: Math.min(50, toPositiveInt(payload.consultationLimit, 5)),
+      doctorId: String(payload.doctorId || '').trim()
     };
   }
 
   return {
     patientId: payload,
     includeConsultations: false,
-    consultationLimit: 5
+    consultationLimit: 5,
+    doctorId: ''
   };
 }
 
@@ -95,13 +102,15 @@ function normalizePatientSearchRequest(payload) {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     return {
       searchTerm: String(payload.searchTerm || payload.term || '').trim(),
-      limit: Math.min(100, toPositiveInt(payload.limit, 50))
+      limit: Math.min(100, toPositiveInt(payload.limit, 50)),
+      doctorId: String(payload.doctorId || '').trim()
     };
   }
 
   return {
     searchTerm: String(payload || '').trim(),
-    limit: 50
+    limit: 50,
+    doctorId: ''
   };
 }
 
@@ -118,26 +127,146 @@ function getCurrentUserContext() {
   const isAdmin = !!global.currentUser?.isAdmin;
   const isSuperAdmin = !!global.currentUser?.isSuperAdmin;
   const isPractitioner = role === 'doctor' || role === 'dentist';
-  // A doctor-admin (isPractitioner && isAdmin) sees the whole cabinet — same scope as assistant.
-  // A normal practitioner (isPractitioner && !isAdmin) is scoped to their own patients.
   return {
     userId: global.currentUser?.id || null,
     role,
     isAdmin,
     isSuperAdmin,
     isPractitioner,
-    isAssistant: role === 'assistant',
-    isDoctorAdmin: isPractitioner && isAdmin
+    isAssistant: role === 'assistant'
   };
 }
 
+async function getActivePractitioners() {
+  return query(
+    `SELECT id, fullName, username, role, specialty
+     FROM users
+     WHERE role IN ('doctor', 'dentist')
+       AND COALESCE(isActive, TRUE) = TRUE
+       AND COALESCE(isSuperAdmin, FALSE) = FALSE
+     ORDER BY COALESCE(fullName, username), username`
+  );
+}
+
+async function getPatientWorkflowConfiguration(practitioners) {
+  const [packageConfig, assistantCountRow] = await Promise.all([
+    queryOne('SELECT maxDoctors, maxAssistants FROM package_config LIMIT 1'),
+    queryOne(
+      `SELECT COUNT(*) AS count
+       FROM users
+       WHERE role = 'assistant'
+         AND COALESCE(isActive, TRUE) = TRUE
+         AND COALESCE(isSuperAdmin, FALSE) = FALSE`
+    )
+  ]);
+  return determinePatientWorkflow({
+    configuredDoctors: packageConfig?.maxDoctors,
+    configuredAssistants: packageConfig?.maxAssistants,
+    activeDoctors: practitioners.length,
+    activeAssistants: assistantCountRow?.count
+  });
+}
+
+async function resolvePatientScope(userContext, requestedDoctorId = '') {
+  const practitioners = await getActivePractitioners();
+  const workflow = await getPatientWorkflowConfiguration(practitioners);
+  const singlePractitioner = practitioners.length === 1 ? practitioners[0] : null;
+  let doctorId = '';
+
+  if (userContext.isPractitioner) {
+    doctorId = userContext.userId || '';
+  } else if (userContext.isAssistant) {
+    doctorId = requestedDoctorId
+      || assistantPatientScopes.get(userContext.userId)
+      || singlePractitioner?.id
+      || practitioners[0]?.id
+      || '';
+  }
+
+  if (doctorId && !practitioners.some((doctor) => doctor.id === doctorId)) {
+    throw new Error('Médecin sélectionné introuvable ou inactif');
+  }
+
+  if (userContext.isAssistant && userContext.userId && doctorId) {
+    assistantPatientScopes.set(userContext.userId, doctorId);
+    global.activePatientDoctorId = doctorId;
+  }
+
+  // With one doctor, preserve the simple historical workflow: all existing
+  // patients are automatically assigned and no selector is needed.
+  if (singlePractitioner && !workflow.cabinetMode) {
+    await run(
+      `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+       SELECT p.id, ?, ? FROM patients p
+       ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+      [singlePractitioner.id, userContext.userId || singlePractitioner.id]
+    );
+    doctorId = singlePractitioner.id;
+  }
+
+  return {
+    practitioners,
+    practitionerCount: practitioners.length,
+    multiPractitioner: workflow.cabinetMode,
+    cabinetMode: workflow.cabinetMode,
+    workflowMode: workflow.workflowMode,
+    configuredDoctors: workflow.configuredDoctors,
+    configuredAssistants: workflow.configuredAssistants,
+    activeAssistants: workflow.activeAssistants,
+    assistantDoctorSelectorEnabled: workflow.assistantDoctorSelectorEnabled,
+    doctorId
+  };
+}
+
+async function patientIsAssigned(patientId, practitionerId) {
+  if (!patientId || !practitionerId) return false;
+  const assignment = await queryOne(
+    'SELECT patientId FROM patient_practitioners WHERE patientId = ? AND practitionerId = ?',
+    [patientId, practitionerId]
+  );
+  return !!assignment;
+}
+
 export function handlePatientEvents() {
+  ipcMain.handle('patient:getScope', async (event, payload = {}) => {
+    try {
+      const userContext = getCurrentUserContext();
+      if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
+      const scope = await resolvePatientScope(userContext, payload?.doctorId);
+      return {
+        success: true,
+        data: {
+          practitioners: scope.practitioners,
+          practitionerCount: scope.practitionerCount,
+          multiPractitioner: scope.multiPractitioner,
+          cabinetMode: scope.cabinetMode,
+          workflowMode: scope.workflowMode,
+          configuredDoctors: scope.configuredDoctors,
+          configuredAssistants: scope.configuredAssistants,
+          activeAssistants: scope.activeAssistants,
+          assistantDoctorSelectorEnabled: scope.assistantDoctorSelectorEnabled,
+          selectedDoctorId: scope.doctorId,
+          role: userContext.role
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // Count patients (lightweight - avoids fetching all rows on large datasets)
-  ipcMain.handle('patient:getCount', async () => {
+  ipcMain.handle('patient:getCount', async (event, payload = {}) => {
     try {
       const userContext = getCurrentUserContext();
       const whereParts = [];
       const params = [];
+
+      if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
+      const scope = await resolvePatientScope(userContext, payload?.doctorId);
+      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
+        whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
+        params.push(scope.doctorId);
+      }
 
       const whereClause = whereParts.length ? ` WHERE ${whereParts.join(' AND ')}` : '';
       const row = await queryOne(`SELECT COUNT(*) as count FROM patients${whereClause}`, params);
@@ -191,12 +320,13 @@ export function handlePatientEvents() {
         }
       }
 
-      await run(
-        `INSERT INTO patients 
+      await withTransaction(async () => {
+        await run(
+          `INSERT INTO patients
          (id, firstName, lastName, primaryDoctorId, createdByUserId, dateOfBirth, gender, socialSecurityNumber, email, phone, 
           address, city, zipCode, bloodType, allergies, medicalHistory, emergencyContact, emergencyPhone, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+          [
           id,
           toNullIfEmpty(patientData.firstName),
           toNullIfEmpty(patientData.lastName),
@@ -216,9 +346,19 @@ export function handlePatientEvents() {
           toNullIfEmpty(patientData.emergencyContact),
           toNullIfEmpty(patientData.emergencyPhone),
           now,
-          now
-        ]
-      );
+            now
+          ]
+        );
+
+        if (primaryDoctorId) {
+          await run(
+            `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+             VALUES (?, ?, ?)
+             ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+            [id, primaryDoctorId, createdByUserId]
+          );
+        }
+      });
 
       return { success: true, id: id };
     } catch (error) {
@@ -238,6 +378,12 @@ export function handlePatientEvents() {
       // Superadmin cannot access clinical data
       if (userContext.isSuperAdmin) {
         return { success: false, error: 'Accès refusé: le super administrateur n\'a pas accès aux dossiers cliniques' };
+      }
+
+      const scope = await resolvePatientScope(userContext, request.doctorId);
+      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
+        whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
+        params.push(scope.doctorId);
       }
 
       if (request.searchTerm) {
@@ -272,6 +418,10 @@ export function handlePatientEvents() {
       return {
         success: true,
         data: responseRows,
+        scope: {
+          multiPractitioner: scope.multiPractitioner,
+          selectedDoctorId: scope.doctorId
+        },
         pagination: {
           ...pagination,
           page: currentPage
@@ -300,7 +450,17 @@ export function handlePatientEvents() {
         return { success: false, error: 'Accès refusé' };
       }
 
-      // Doctors and assistants can view cabinet-wide patient dossiers.
+      if (userContext.isPractitioner) {
+        const scope = await resolvePatientScope(userContext);
+        if (!(await patientIsAssigned(request.patientId, scope.doctorId))) {
+          return { success: false, error: 'Accès refusé: ce patient ne fait pas partie de votre liste' };
+        }
+      } else if (userContext.isAssistant) {
+        const scope = await resolvePatientScope(userContext, request.doctorId);
+        if (!(await patientIsAssigned(request.patientId, scope.doctorId))) {
+          return { success: false, error: 'Accès refusé: patient absent de la liste du médecin sélectionné' };
+        }
+      }
 
       if (isCurrentUserDirector()) {
         return { success: true, data: sanitizePatientForDirector(patient) };
@@ -311,18 +471,141 @@ export function handlePatientEvents() {
         return { success: true, data: patient };
       }
 
+      const consultationWhereParts = ['patientId = ?'];
+      const consultationParams = [request.patientId];
+      if (!userContext.isAdmin && userContext.isPractitioner && userContext.userId) {
+        consultationWhereParts.push('doctorId = ?');
+        consultationParams.push(userContext.userId);
+      }
+      consultationParams.push(request.consultationLimit);
+
       const consultations = await query(
         `SELECT id, consultationDate as date, reason, diagnosis
          FROM consultations
-         WHERE patientId = ?
+         WHERE ${consultationWhereParts.join(' AND ')}
          ORDER BY consultationDate DESC
          LIMIT ?`,
-        [request.patientId, request.consultationLimit]
+        consultationParams
       );
 
       return { success: true, data: { ...patient, consultations } };
     } catch (error) {
       console.error('❌ Erreur lors de la récupération du patient:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Cabinet-wide identity directory. It deliberately excludes clinical fields.
+  ipcMain.handle('patient:getDirectory', async (event, payload = {}) => {
+    try {
+      const request = normalizePatientListRequest(payload);
+      const userContext = getCurrentUserContext();
+      if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
+      const scope = await resolvePatientScope(userContext, request.doctorId);
+      if (!scope.cabinetMode) {
+        return { success: false, error: 'Le répertoire global est réservé aux cabinets avec plusieurs médecins' };
+      }
+      const params = [];
+      let searchClause = '';
+      if (request.searchTerm) {
+        const pattern = `%${request.searchTerm}%`;
+        searchClause = `WHERE (p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.phone ILIKE ? OR p.email ILIKE ?)`;
+        params.push(pattern, pattern, pattern, pattern);
+      }
+
+      const totalRow = await queryOne(`SELECT COUNT(*) AS total FROM patients p ${searchClause}`, params);
+      const pagination = buildPaginationMeta(totalRow?.total || 0, request.page, request.pageSize);
+      const currentPage = Math.min(pagination.page, pagination.totalPages);
+      const offset = (currentPage - 1) * pagination.pageSize;
+      const rows = await query(
+        `SELECT p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone,
+                COALESCE(STRING_AGG(DISTINCT COALESCE(u.fullName, u.username), ', '), '') AS assignedDoctors,
+                COALESCE(BOOL_OR(pp.practitionerId = ?), FALSE) AS isAssigned
+         FROM patients p
+         LEFT JOIN patient_practitioners pp ON pp.patientId = p.id
+         LEFT JOIN users u ON u.id = pp.practitionerId
+         ${searchClause}
+         GROUP BY p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone
+         ORDER BY p.lastName, p.firstName
+         LIMIT ? OFFSET ?`,
+        [scope.doctorId || null, ...params, pagination.pageSize, offset]
+      );
+
+      return {
+        success: true,
+        data: rows,
+        pagination: { ...pagination, page: currentPage },
+        scope: { selectedDoctorId: scope.doctorId, multiPractitioner: scope.multiPractitioner }
+      };
+    } catch (error) {
+      console.error('Erreur lors du chargement du répertoire patient:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patient:attach', async (event, payload = {}) => {
+    try {
+      const userContext = getCurrentUserContext();
+      if (userContext.isSuperAdmin || (!userContext.isPractitioner && !userContext.isAssistant)) {
+        return { success: false, error: 'Accès refusé' };
+      }
+      const patientId = String(payload.patientId || '').trim();
+      if (!patientId || !(await queryOne('SELECT id FROM patients WHERE id = ?', [patientId]))) {
+        return { success: false, error: 'Patient introuvable' };
+      }
+      const scope = await resolvePatientScope(userContext, payload.doctorId);
+      if (!scope.doctorId) return { success: false, error: 'Aucun médecin sélectionné' };
+      if (!scope.cabinetMode) {
+        return { success: false, error: 'Le rattachement multiple est réservé au mode cabinet' };
+      }
+
+      await withTransaction(async () => {
+        await run(
+          `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+           VALUES (?, ?, ?)
+           ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+          [patientId, scope.doctorId, userContext.userId]
+        );
+        await run(
+          'UPDATE patients SET primaryDoctorId = COALESCE(primaryDoctorId, ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+          [scope.doctorId, patientId]
+        );
+      });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patient:detach', async (event, payload = {}) => {
+    try {
+      const userContext = getCurrentUserContext();
+      if (userContext.isSuperAdmin || (!userContext.isPractitioner && !userContext.isAssistant)) {
+        return { success: false, error: 'Accès refusé' };
+      }
+      const patientId = String(payload.patientId || '').trim();
+      const scope = await resolvePatientScope(userContext, payload.doctorId);
+      if (!patientId || !scope.doctorId) return { success: false, error: 'Patient ou médecin manquant' };
+      if (!scope.multiPractitioner) {
+        return { success: false, error: 'Le mode cabinet simple ne nécessite pas de séparation des patients' };
+      }
+
+      await withTransaction(async () => {
+        await run('DELETE FROM patient_practitioners WHERE patientId = ? AND practitionerId = ?', [patientId, scope.doctorId]);
+        const replacement = await queryOne(
+          'SELECT practitionerId FROM patient_practitioners WHERE patientId = ? ORDER BY assignedAt LIMIT 1',
+          [patientId]
+        );
+        await run(
+          `UPDATE patients
+           SET primaryDoctorId = CASE WHEN primaryDoctorId = ? THEN ? ELSE primaryDoctorId END,
+               updatedAt = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [scope.doctorId, replacement?.practitionerId || null, patientId]
+        );
+      });
+      return { success: true };
+    } catch (error) {
       return { success: false, error: error.message };
     }
   });
@@ -344,6 +627,11 @@ export function handlePatientEvents() {
 
       const whereParts = ['(firstName ILIKE ? OR lastName ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)'];
       const params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern];
+      const scope = await resolvePatientScope(userContext, request.doctorId);
+      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
+        whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
+        params.push(scope.doctorId);
+      }
 
       const patients = await query(
         `SELECT * FROM patients
@@ -377,11 +665,15 @@ export function handlePatientEvents() {
         return { success: false, error: 'Accès refusé' };
       }
 
-      // Normal practitioner scoped to own patients only
-      if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
-        const existing = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [patientId]);
-        if (!existing || (existing.primaryDoctorId && existing.primaryDoctorId !== userContext.userId)) {
+      if (userContext.isPractitioner) {
+        const scope = await resolvePatientScope(userContext);
+        if (!(await patientIsAssigned(patientId, scope.doctorId))) {
           return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
+        }
+      } else if (userContext.isAssistant) {
+        const scope = await resolvePatientScope(userContext, patientData.scopeDoctorId);
+        if (!(await patientIsAssigned(patientId, scope.doctorId))) {
+          return { success: false, error: 'Accès refusé: patient absent de la liste du médecin sélectionné' };
         }
       }
 
@@ -434,12 +726,13 @@ export function handlePatientEvents() {
         return { success: false, error: 'Accès refusé' };
       }
 
-      // Normal practitioner scoped to own patients only
-      if (userContext.isPractitioner && !userContext.isDoctorAdmin && userContext.userId) {
-        const existing = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [patientId]);
-        if (!existing || (existing.primaryDoctorId && existing.primaryDoctorId !== userContext.userId)) {
-          return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
-        }
+      const scope = await resolvePatientScope(userContext);
+      if (scope.multiPractitioner) {
+        return { success: false, error: 'Retirez le patient de votre liste au lieu de supprimer son dossier global' };
+      }
+      if ((userContext.isPractitioner || userContext.isAssistant)
+          && !(await patientIsAssigned(patientId, scope.doctorId))) {
+        return { success: false, error: 'Accès refusé: patient non rattaché au médecin sélectionné' };
       }
 
       await run('DELETE FROM patients WHERE id = ?', [patientId]);

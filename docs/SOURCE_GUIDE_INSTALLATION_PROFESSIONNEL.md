@@ -311,6 +311,37 @@ En production, utiliser un installeur signé. Si Smart App Control ou SmartScree
 - Tester les permissions.
 - Éviter les comptes partagés.
 
+#### Organisation des patients selon la structure
+
+Le nombre maximal de médecins configuré dans le package détermine le mode de travail. Le comportement doit être vérifié avant la remise au client.
+
+**Médecin seul, sans assistant**
+
+- Une seule liste de patients est affichée.
+- Le médecin crée, consulte et modifie directement ses patients.
+- Aucun sélecteur de médecin et aucun répertoire global ne sont affichés.
+- Les patients historiques sont automatiquement rattachés à l’unique médecin.
+
+**Un médecin avec un ou plusieurs assistants**
+
+- Le médecin et les assistants utilisent la même liste de patients.
+- L’assistant n’a pas à sélectionner le médecin puisqu’il n’en existe qu’un.
+- Aucun répertoire global et aucune séparation supplémentaire ne sont affichés.
+- L’assistant peut gérer les informations administratives selon ses permissions, sans obtenir les droits médicaux du médecin.
+
+**Cabinet avec plusieurs médecins et assistants**
+
+- Chaque médecin ouvre par défaut **Mes patients** et ne voit que les dossiers qui lui sont rattachés.
+- L’assistant choisit une seule fois le médecin pour lequel il travaille ; la liste, la recherche et les modifications suivent ce choix.
+- Le **Répertoire global** est disponible uniquement dans ce mode cabinet.
+- Le répertoire global montre uniquement les informations d’identité nécessaires à la recherche, pas le contenu clinique.
+- Un patient déjà présent est ajouté à la liste d’un autre médecin sans recréer son identité.
+- Un même patient peut être rattaché à plusieurs médecins, mais chaque médecin conserve son propre historique de consultations.
+- L’action **Retirer de ma liste** enlève seulement le rattachement au médecin courant ; elle ne supprime pas le dossier global.
+- La désactivation temporaire d’un médecin ne doit pas transférer automatiquement ses patients aux autres médecins.
+
+Le répertoire global et le rattachement multiple doivent être bloqués côté interface et côté application lorsque la configuration autorise un seul médecin.
+
 ### 9.4 Cabinet
 
 Configurer :
@@ -430,6 +461,11 @@ Une sauvegarde jamais restaurée n’est pas une sauvegarde prouvée.
 | Donnée visible sur deux postes | ☐ Conforme | |
 | Licence reconnue partout | ☐ Conforme | |
 | Comptes et permissions | ☐ Conforme | |
+| Médecin seul : liste simple sans répertoire global | ☐ Conforme | |
+| Médecin + assistant : liste commune sans double sélection | ☐ Conforme | |
+| Cabinet : séparation de chaque médecin | ☐ Conforme | |
+| Cabinet : répertoire global et rattachement sans doublon | ☐ Conforme | |
+| Retrait d’une liste sans suppression du dossier global | ☐ Conforme | |
 | Impression A4 | ☐ Conforme | |
 | Impression thermique | ☐ Conforme | |
 | Numérisation scanner | ☐ Conforme | |

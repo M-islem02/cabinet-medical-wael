@@ -7,7 +7,6 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
-import { parseEnabledSpecialties } from '../specialty-assets.js';
 import { broadcastRealtimeEvent } from '../realtime-server.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
@@ -44,24 +43,33 @@ export function handleWaitingRoomEvents() {
   // Add patient to waiting room (with duplicate prevention)
   ipcMain.handle('waiting-room:add', async (event, data) => {
     try {
-      let targetDoctorIds = data?.assignedTo ? [data.assignedTo] : [];
-      if (!targetDoctorIds.length) {
-        const packageConfig = await queryOne('SELECT * FROM package_config LIMIT 1');
-        const enabledSpecialties = parseEnabledSpecialties(packageConfig?.enabledSpecialties, packageConfig);
-        if (enabledSpecialties.length <= 1) {
-          const doctors = await query(
-            `SELECT id FROM users
-             WHERE isActive = 1 AND isSuperAdmin = 0 AND role = 'doctor'
-               AND (specialty IS NULL OR specialty = '' OR specialty = ? OR ? = 'general')`,
-            [enabledSpecialties[0] || 'general', enabledSpecialties[0] || 'general']
-          );
-          targetDoctorIds = (doctors || []).map((doctor) => doctor.id).filter(Boolean);
-        }
+      const currentUser = global.currentUser || null;
+      const isCurrentPractitioner = !!(
+        currentUser?.id
+        && ['doctor', 'dentist'].includes(String(currentUser.role || '').trim())
+      );
+      const doctors = await query(
+        `SELECT id FROM users
+         WHERE isActive = 1 AND isSuperAdmin = 0 AND role IN ('doctor', 'dentist')
+         ORDER BY fullName, username`
+      );
+      const activeDoctorIds = (doctors || []).map((doctor) => String(doctor.id)).filter(Boolean);
+      const requestedDoctorId = String(data?.assignedTo || '').trim();
+      let selectedDoctorId = '';
+
+      if (isCurrentPractitioner) {
+        selectedDoctorId = String(currentUser.id);
+      } else if (requestedDoctorId && activeDoctorIds.includes(requestedDoctorId)) {
+        selectedDoctorId = requestedDoctorId;
+      } else if (!requestedDoctorId && activeDoctorIds.length === 1) {
+        selectedDoctorId = activeDoctorIds[0];
       }
 
-      if (!targetDoctorIds.length) {
+      if (!selectedDoctorId) {
         return { success: false, error: 'Veuillez choisir le médecin/praticien responsable' };
       }
+
+      const targetDoctorIds = [selectedDoctorId];
 
       const today = new Date().toISOString().split('T')[0];
       const result = await withTransaction(async () => {
@@ -127,7 +135,6 @@ export function handleWaitingRoomEvents() {
       const isRestrictedPractitioner = !!(
         currentUser?.id
         && PRACTITIONER_ROLES.has(String(currentUser.role || '').trim())
-        && !currentUser?.isAdmin
       );
 
       const params = [today];
@@ -159,7 +166,17 @@ export function handleWaitingRoomEvents() {
     try {
       return await withTransaction(async () => {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      const existing = await queryOne('SELECT id FROM waiting_room WHERE id = ? FOR UPDATE', [id]);
+      const currentUser = global.currentUser || null;
+      const restrictedDoctorId = currentUser?.id
+        && PRACTITIONER_ROLES.has(String(currentUser.role || '').trim())
+        ? String(currentUser.id)
+        : '';
+      const existing = await queryOne(
+        `SELECT id FROM waiting_room
+         WHERE id = ?${restrictedDoctorId ? ' AND assignedTo = ?' : ''}
+         FOR UPDATE`,
+        restrictedDoctorId ? [id, restrictedDoctorId] : [id]
+      );
       if (!existing) return { success: false, error: 'Entrée de salle d’attente introuvable' };
 
       if (status === 'in-consultation') {
@@ -181,7 +198,15 @@ export function handleWaitingRoomEvents() {
   // Delete from waiting room
   ipcMain.handle('waiting-room:delete', async (event, id) => {
     try {
-      await run('DELETE FROM waiting_room WHERE id = ?', [id]);
+      const currentUser = global.currentUser || null;
+      const restrictedDoctorId = currentUser?.id
+        && PRACTITIONER_ROLES.has(String(currentUser.role || '').trim())
+        ? String(currentUser.id)
+        : '';
+      await run(
+        `DELETE FROM waiting_room WHERE id = ?${restrictedDoctorId ? ' AND assignedTo = ?' : ''}`,
+        restrictedDoctorId ? [id, restrictedDoctorId] : [id]
+      );
       return { success: true };
     } catch (error) {
       console.error('Error deleting from waiting room:', error);

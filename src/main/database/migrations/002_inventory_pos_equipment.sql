@@ -192,3 +192,4 @@ ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS purchaseOrderId VARCHAR
 
 ALTER TABLE plan_equipment_usage ADD COLUMN IF NOT EXISTS equipmentId VARCHAR(36);
 ALTER TABLE plan_equipment_usage ALTER COLUMN inventoryId DROP NOT NULL;
+

@@ -1055,3 +1055,6 @@ CREATE INDEX IF NOT EXISTS idx_functional_evaluations_patient_date ON functional
 CREATE INDEX IF NOT EXISTS idx_rehabilitation_plans_patient_date ON rehabilitation_plans(patientId, startDate DESC);
 
 CREATE INDEX IF NOT EXISTS idx_rehabilitation_sessions_plan_date ON rehabilitation_sessions(rehabilitationPlanId, sessionDate DESC);
+
+
+

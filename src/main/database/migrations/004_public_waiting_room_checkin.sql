@@ -11,3 +11,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_room_public_tracking_token
 CREATE INDEX IF NOT EXISTS idx_waiting_room_public_queue
   ON waiting_room(arrivalTime, status, priority)
   WHERE publicTicketCode IS NOT NULL;
+

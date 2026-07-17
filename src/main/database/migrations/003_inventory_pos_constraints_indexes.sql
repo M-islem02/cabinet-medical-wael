@@ -205,3 +205,4 @@ CREATE INDEX IF NOT EXISTS idx_inventory_movements_pos_sale ON inventory_movemen
 CREATE INDEX IF NOT EXISTS idx_inventory_movements_purchase_order ON inventory_movements(purchaseOrderId);
 
 CREATE INDEX IF NOT EXISTS idx_plan_equipment_usage_equipment ON plan_equipment_usage(equipmentId);
+

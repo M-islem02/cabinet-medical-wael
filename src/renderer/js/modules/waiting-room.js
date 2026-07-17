@@ -155,19 +155,21 @@ async function loadWaitingDoctorOptions() {
       return;
     }
 
-    const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
-      ? getEnabledPracticeSpecialties(window._packageConfig)
-      : ['general'];
-    if (currentUserRole === 'assistant' && enabledSpecialties.length <= 1) {
-      doctorSelect.innerHTML = '<option value="">Tous les médecins actifs</option>';
-      doctorSelect.value = '';
+    if (doctors.length === 1) {
+      const onlyDoctor = doctors[0];
+      doctorSelect.innerHTML = `<option value="${onlyDoctor.id}">${onlyDoctor.fullName || onlyDoctor.username || 'Médecin'}</option>`;
+      doctorSelect.value = onlyDoctor.id;
       doctorSelect.disabled = true;
       return;
     }
 
-    doctorSelect.innerHTML = doctors
+    doctorSelect.innerHTML = '<option value="">-- Choisir un médecin --</option>' + doctors
       .map((user) => `<option value="${user.id}">${user.fullName || user.username || 'Médecin'}</option>`)
       .join('');
+    const activeDoctorId = String(window.activePatientDoctorId || '');
+    if (doctors.some((doctor) => String(doctor.id) === activeDoctorId)) {
+      doctorSelect.value = activeDoctorId;
+    }
   } catch (error) {
     console.error('Error loading doctors list for waiting room:', error);
     doctorSelect.innerHTML = '<option value="">Erreur chargement médecins</option>';
@@ -191,10 +193,7 @@ async function addToWaitingRoom(event) {
     return;
   }
 
-  const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
-    ? getEnabledPracticeSpecialties(window._packageConfig)
-    : ['general'];
-  if (!assignedTo && !(currentUserRole === 'assistant' && enabledSpecialties.length <= 1)) {
+  if (!assignedTo) {
     showNotification('Veuillez sélectionner le médecin responsable', 'error');
     return;
   }
@@ -484,7 +483,7 @@ async function notifyDoctor(waitingId) {
       message: `${item.lastName} ${item.firstName} est prêt pour la consultation`,
       relatedType: 'waiting-room',
       relatedId: waitingId,
-      userId: null // Will be sent to all doctors
+      userId: item.assignedTo || null
     });
     
     // Show visual notification
@@ -511,7 +510,7 @@ async function notifyDoctorIn2Min(waitingId) {
       message: `${item.lastName} ${item.firstName} entrera dans 2 minutes`,
       relatedType: 'waiting-room',
       relatedId: waitingId,
-      userId: null // Will be sent to all doctors
+      userId: item.assignedTo || null
     });
     
     // Show visual notification
@@ -531,10 +530,23 @@ async function notifyDoctorIn2Min(waitingId) {
  */
 async function startConsultation(waitingId) {
   try {
-    await window.api.waitingRoom.updateStatus(waitingId, 'in-consultation');
-    
     const item = waitingRoomData.find(w => w.id === waitingId);
-    if (item) {
+    if (!item?.patientId) {
+      showNotification('Patient introuvable dans la salle d’attente', 'error');
+      return;
+    }
+
+    const patient = typeof showPatientDetails === 'function'
+      ? await showPatientDetails(item.patientId)
+      : null;
+    if (!patient) return;
+
+    const statusResult = await window.api.waitingRoom.updateStatus(waitingId, 'in-consultation');
+    if (statusResult?.success === false) {
+      throw new Error(statusResult.error || 'Impossible de démarrer la consultation');
+    }
+
+    try {
       // Notify assistant that consultation started
       await window.api.notification.create({
         type: 'consultation-started',
@@ -544,45 +556,23 @@ async function startConsultation(waitingId) {
         relatedId: waitingId,
         userId: null
       });
-      
-      loadWaitingRoom();
-      showNotification('Consultation démarrée - Redirection vers le dossier patient', 'success');
-      
-      // Navigate to patient details
-      if (item.patientId) {
-        // Set global patient ID
-        if (typeof window !== 'undefined') {
-          window.currentPatientId = item.patientId;
-        }
-        
-        // Navigate to patients section
-        if (typeof navigateToSection === 'function') {
-          navigateToSection('patients');
-        } else {
-          // Fallback: manually navigate
-          document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-          const patientsSection = document.getElementById('patients');
-          if (patientsSection) patientsSection.classList.add('active');
-          const patientsNav = document.querySelector('.nav-item[data-section="patients"]');
-          if (patientsNav) patientsNav.classList.add('active');
-        }
-        
-        // Then show patient details
-        setTimeout(() => {
-          if (typeof showPatientDetails === 'function') {
-            showPatientDetails(item.patientId);
-          }
-        }, 100);
-      }
-    } else {
-      loadWaitingRoom();
-      showNotification('Consultation démarrée', 'success');
+    } catch (notificationError) {
+      console.warn('Consultation started but notification failed:', notificationError);
     }
-    
+
+    await loadWaitingRoom();
+    await openNewConsultationModal();
+
+    const consultationForm = document.getElementById('consultation-form');
+    if (consultationForm) consultationForm.dataset.waitingRoomId = waitingId;
+
+    const reasonInput = document.getElementById('consultation-reason');
+    if (reasonInput && item.reason) reasonInput.value = item.reason;
+    reasonInput?.focus();
+    showNotification('Consultation démarrée', 'success');
   } catch (error) {
     console.error('Error starting consultation:', error);
-    showNotification('Erreur', 'error');
+    showNotification(error.message || 'Erreur lors du démarrage de la consultation', 'error');
   }
 }
 

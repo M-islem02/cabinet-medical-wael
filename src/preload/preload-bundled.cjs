@@ -207,7 +207,11 @@ contextBridge.exposeInMainWorld('api', {
   patient: {
     create: (data) => ipcRenderer.invoke('patient:create', data),
     getAll: (payload) => ipcRenderer.invoke('patient:getAll', payload),
-    getCount: () => ipcRenderer.invoke('patient:getCount'),
+    getCount: (payload) => ipcRenderer.invoke('patient:getCount', payload),
+    getScope: (payload) => ipcRenderer.invoke('patient:getScope', payload),
+    getDirectory: (payload) => ipcRenderer.invoke('patient:getDirectory', payload),
+    attach: (payload) => ipcRenderer.invoke('patient:attach', payload),
+    detach: (payload) => ipcRenderer.invoke('patient:detach', payload),
     getById: (id) => ipcRenderer.invoke('patient:getById', id),
     search: (term) => ipcRenderer.invoke('patient:search', term),
     update: (id, data) => ipcRenderer.invoke('patient:update', id, data),

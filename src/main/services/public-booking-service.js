@@ -8,6 +8,7 @@ import { ipcMain } from 'electron';
 import { query, queryOne, run, withTransaction } from '../database-unified.js';
 import { sendAppointmentCreatedSMS } from '../handlers/sms-handler.js';
 import { broadcastRealtimeEvent } from '../realtime-server.js';
+import { resolvePublicPractitioner } from './public-practitioner-selection.js';
 
 let bookingServer = null;
 let bookingServerState = {
@@ -254,7 +255,7 @@ function createSlotList(bookedTimes = []) {
   return slots;
 }
 
-async function getSlotsForDate(dateValue) {
+async function getSlotsForDate(dateValue, requestedPractitionerId = '') {
   const date = String(dateValue || '').slice(0, 10);
   if (!date) {
     return { slots: createSlotList([]) };
@@ -263,12 +264,23 @@ async function getSlotsForDate(dateValue) {
   const startOfDay = moment(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
   const endOfDay = moment(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
+  const practitioners = await getPublicPractitioners();
+  const { selectedPractitioner, selectionRequired } = resolvePublicPractitioner(
+    practitioners,
+    requestedPractitionerId
+  );
+  if (selectionRequired) {
+    return { slots: [], practitionerRequired: true };
+  }
+
   const rows = await query(
     `SELECT appointmentDateTime
      FROM appointments
-     WHERE appointmentDateTime BETWEEN ? AND ? AND status != 'cancelled'
+     WHERE appointmentDateTime BETWEEN ? AND ?
+       AND status != 'cancelled'
+       AND assignedTo IS NOT DISTINCT FROM ?
      ORDER BY appointmentDateTime ASC`,
-    [startOfDay, endOfDay]
+    [startOfDay, endOfDay, selectedPractitioner?.id || null]
   );
 
   const bookedTimes = (rows || []).map((row) => {
@@ -351,19 +363,36 @@ async function createAppointmentFromPublicBooking(payload) {
   const time = String(payload.time || '').slice(0, 5);
   const type = String(payload.type || 'Consultation').trim() || 'Consultation';
   const reason = String(payload.reason || '').trim();
+  const requestedPractitionerId = String(payload.practitionerId || '').trim();
 
   if (!fullName || !phone || !date || !time || !reason) {
     return { success: false, error: 'Merci de remplir les champs obligatoires.' };
   }
 
+  const practitioners = await getPublicPractitioners();
+  const { selectedPractitioner } = resolvePublicPractitioner(practitioners, requestedPractitionerId);
+  if (!selectedPractitioner) {
+    return {
+      success: false,
+      error: practitioners.length > 1
+        ? 'Merci de choisir un médecin.'
+        : 'Aucun médecin disponible pour ce rendez-vous.'
+    };
+  }
+
   const appointmentDateTime = `${date} ${time}`;
   const created = await withTransaction(async () => {
-    await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-slot:${appointmentDateTime}`]);
+    await queryOne(
+      'SELECT pg_advisory_xact_lock(hashtext(?))',
+      [`public-slot:${selectedPractitioner.id}:${appointmentDateTime}`]
+    );
     const conflict = await queryOne(
       `SELECT id FROM appointments
-       WHERE appointmentDateTime = ? AND status != 'cancelled'
+       WHERE appointmentDateTime = ?
+         AND assignedTo = ?
+         AND status != 'cancelled'
        FOR UPDATE`,
-      [appointmentDateTime]
+      [appointmentDateTime, selectedPractitioner.id]
     );
 
     if (conflict) {
@@ -373,18 +402,29 @@ async function createAppointmentFromPublicBooking(payload) {
     const patientLockKey = normalizePhone(phone) || String(email || '').trim().toLowerCase();
     await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-patient:${patientLockKey}`]);
     const patientId = await findOrCreatePatientFromBooking({ fullName, phone, email });
+    await run(
+      `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+       VALUES (?, ?, ?)
+       ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+      [patientId, selectedPractitioner.id, selectedPractitioner.id]
+    );
+    await run(
+      'UPDATE patients SET primaryDoctorId = COALESCE(primaryDoctorId, ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+      [selectedPractitioner.id, patientId]
+    );
     const appointmentId = uuidv4();
     const now = moment().format('YYYY-MM-DD HH:mm:ss');
     const bookingCode = generateBookingCode();
 
     await run(
       `INSERT INTO appointments (
-        id, patientId, appointmentDateTime, appointmentType, reason, status, notes,
+        id, patientId, assignedTo, appointmentDateTime, appointmentType, reason, status, notes,
         bookingSource, bookingCode, createdAt, updatedAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         appointmentId,
         patientId,
+        selectedPractitioner.id,
         appointmentDateTime,
         type,
         reason,
@@ -425,6 +465,8 @@ async function createAppointmentFromPublicBooking(payload) {
       date,
       time,
       type,
+      practitionerId: selectedPractitioner.id,
+      practitionerName: selectedPractitioner.name,
       smsResult
     }
   };
@@ -436,7 +478,7 @@ async function getPublicPractitioners() {
      FROM users
      WHERE isActive = 1
        AND isSuperAdmin = 0
-       AND role IN ('doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse')
+       AND role IN ('doctor', 'dentist')
      ORDER BY fullName ASC`
   );
   return (rows || []).map((row) => ({
@@ -446,11 +488,11 @@ async function getPublicPractitioners() {
   }));
 }
 
-async function getPublicQueue(trackingToken = '') {
+async function getPublicQueue(trackingToken = '', requestedPractitionerId = '') {
   const today = moment().format('YYYY-MM-DD');
-  const rows = await query(
+  const allRows = await query(
     `SELECT w.id, w.publicTicketCode, w.publicTrackingToken, w.status,
-            w.priority, w.arrivalTime, w.declaredAppointment, w.appointmentId
+            w.priority, w.arrivalTime, w.declaredAppointment, w.appointmentId, w.assignedTo
      FROM waiting_room w
      WHERE DATE(w.arrivalTime) = ?
        AND w.status IN ('waiting', 'in-consultation')
@@ -458,6 +500,14 @@ async function getPublicQueue(trackingToken = '') {
               w.priority DESC, w.arrivalTime ASC`,
     [today]
   );
+
+  const ownRow = trackingToken
+    ? (allRows || []).find((row) => row.publicTrackingToken === trackingToken)
+    : null;
+  const practitionerId = ownRow?.assignedTo || String(requestedPractitionerId || '').trim();
+  const rows = practitionerId
+    ? (allRows || []).filter((row) => row.assignedTo === practitionerId)
+    : (allRows || []);
 
   let waitingPosition = 0;
   const queue = (rows || []).map((row) => {
@@ -470,9 +520,6 @@ async function getPublicQueue(trackingToken = '') {
     };
   });
 
-  const ownRow = trackingToken
-    ? (rows || []).find((row) => row.publicTrackingToken === trackingToken)
-    : null;
   const ownQueueEntry = ownRow
     ? queue[(rows || []).findIndex((row) => row.id === ownRow.id)]
     : null;
@@ -509,14 +556,16 @@ async function createPublicWaitingCheckIn(payload) {
 
   const today = moment().format('YYYY-MM-DD');
   const practitioners = await getPublicPractitioners();
-  const selectedPractitioner = requestedPractitionerId
-    ? practitioners.find((practitioner) => practitioner.id === requestedPractitionerId)
-    : (practitioners.length === 1 ? practitioners[0] : null);
+  const practitionerSelection = resolvePublicPractitioner(practitioners, requestedPractitionerId);
+  const { selectedPractitioner } = practitionerSelection;
 
-  if (requestedPractitionerId && !selectedPractitioner) {
+  if (!practitionerSelection.hasPractitioners) {
+    return { success: false, error: 'Aucun médecin disponible pour cette arrivée.' };
+  }
+  if (practitionerSelection.requestedPractitionerUnavailable) {
     return { success: false, error: 'Le praticien sélectionné est indisponible.' };
   }
-  if (practitioners.length > 1 && !selectedPractitioner) {
+  if (practitionerSelection.selectionRequired) {
     return { success: false, error: 'Merci de choisir le praticien concerné.' };
   }
 
@@ -525,6 +574,18 @@ async function createPublicWaitingCheckIn(payload) {
     await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-arrival:${today}:${normalizedPhone}`]);
 
     const patientId = await findOrCreatePatientFromBooking({ fullName, phone, email: '' });
+    if (selectedPractitioner) {
+      await run(
+        `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+         VALUES (?, ?, ?)
+         ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+        [patientId, selectedPractitioner.id, selectedPractitioner.id]
+      );
+      await run(
+        'UPDATE patients SET primaryDoctorId = COALESCE(primaryDoctorId, ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+        [selectedPractitioner.id, patientId]
+      );
+    }
     const existing = await queryOne(
       `SELECT id, appointmentId, publicTicketCode, publicTrackingToken
        FROM waiting_room
@@ -974,8 +1035,8 @@ function renderPortalHtml(shareData) {
               <label class="choice-card"><input type="radio" name="hasAppointment" value="false" required> Non, sans RDV</label>
             </div>
           </div>
-          <div class="field-full" id="checkin-practitioner-field" style="display:none;">
-            <label for="checkin-practitioner">Praticien concerné *</label>
+          <div class="field-full" id="checkin-practitioner-field">
+            <label for="checkin-practitioner">Médecin *</label>
             <select id="checkin-practitioner"></select>
           </div>
           <div class="field-full">
@@ -1012,6 +1073,10 @@ function renderPortalHtml(shareData) {
           <div class="field">
             <label for="booking-phone">Téléphone *</label>
             <input id="booking-phone" name="phone" required autocomplete="tel" inputmode="tel">
+          </div>
+          <div class="field-full" id="booking-practitioner-field">
+            <label for="booking-practitioner">Médecin *</label>
+            <select id="booking-practitioner" name="practitionerId"></select>
           </div>
           <div class="field">
             <label for="booking-email">Email</label>
@@ -1058,6 +1123,8 @@ function renderPortalHtml(shareData) {
     const checkinFeedback = document.getElementById('checkin-feedback');
     const practitionerField = document.getElementById('checkin-practitioner-field');
     const practitionerSelect = document.getElementById('checkin-practitioner');
+    const bookingPractitionerField = document.getElementById('booking-practitioner-field');
+    const bookingPractitionerSelect = document.getElementById('booking-practitioner');
     const queueList = document.getElementById('public-queue-list');
     const ownStatus = document.getElementById('own-status');
     const trackingStorageKey = 'medcareso-waiting-tracking-' + token;
@@ -1097,21 +1164,26 @@ function renderPortalHtml(shareData) {
       });
 
       const practitioners = result.data.practitioners || [];
-      practitionerSelect.replaceChildren();
-      if (practitioners.length > 1) {
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = 'Choisir un praticien';
-        practitionerSelect.appendChild(placeholder);
-      }
-      practitioners.forEach(function(practitioner) {
-        const option = document.createElement('option');
-        option.value = practitioner.id;
-        option.textContent = practitioner.name + (practitioner.specialty ? ' • ' + practitioner.specialty : '');
-        practitionerSelect.appendChild(option);
+      [practitionerSelect, bookingPractitionerSelect].forEach(function(select) {
+        select.replaceChildren();
+        if (practitioners.length !== 1) {
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = practitioners.length ? 'Choisir un médecin' : 'Aucun médecin disponible';
+          select.appendChild(placeholder);
+        }
+        practitioners.forEach(function(practitioner) {
+          const option = document.createElement('option');
+          option.value = practitioner.id;
+          option.textContent = practitioner.name + (practitioner.specialty ? ' • ' + practitioner.specialty : '');
+          select.appendChild(option);
+        });
+        select.required = practitioners.length > 1;
+        select.disabled = practitioners.length <= 1;
+        if (practitioners.length === 1) select.value = practitioners[0].id;
       });
-      practitionerField.style.display = practitioners.length > 1 ? 'flex' : 'none';
-      practitionerSelect.required = practitioners.length > 1;
+      practitionerField.style.display = 'flex';
+      bookingPractitionerField.style.display = 'flex';
     }
 
     function statusLabel(status) {
@@ -1165,7 +1237,11 @@ function renderPortalHtml(shareData) {
     async function loadQueue() {
       try {
         const tracking = localStorage.getItem(trackingStorageKey) || '';
-        const response = await fetch('/api/rdv/' + token + '/queue?tracking=' + encodeURIComponent(tracking), { cache: 'no-store' });
+        const response = await fetch(
+          '/api/rdv/' + token + '/queue?tracking=' + encodeURIComponent(tracking)
+          + '&practitioner=' + encodeURIComponent(practitionerSelect.value || ''),
+          { cache: 'no-store' }
+        );
         const result = await response.json();
         if (result.success) renderQueue(result.data || {});
       } catch (_) {
@@ -1227,7 +1303,15 @@ function renderPortalHtml(shareData) {
 
     async function loadSlots(dateValue) {
       if (!dateValue) return;
-      const response = await fetch('/api/rdv/' + token + '/slots?date=' + encodeURIComponent(dateValue));
+      if (!bookingPractitionerSelect.value) {
+        slotsContainer.innerHTML = '<span class="hint">Choisissez d’abord un médecin.</span>';
+        timeInput.value = '';
+        return;
+      }
+      const response = await fetch(
+        '/api/rdv/' + token + '/slots?date=' + encodeURIComponent(dateValue)
+        + '&practitioner=' + encodeURIComponent(bookingPractitionerSelect.value)
+      );
       const result = await response.json();
       if (!result.success) {
         showFeedback('error', result.error || 'Impossible de charger les créneaux.');
@@ -1251,6 +1335,12 @@ function renderPortalHtml(shareData) {
       loadSlots(dateInput.value);
     });
 
+    bookingPractitionerSelect.addEventListener('change', function() {
+      loadSlots(dateInput.value);
+    });
+
+    practitionerSelect.addEventListener('change', loadQueue);
+
     form.addEventListener('submit', async function(event) {
       event.preventDefault();
 
@@ -1263,6 +1353,7 @@ function renderPortalHtml(shareData) {
         fullName: document.getElementById('booking-fullname').value,
         phone: document.getElementById('booking-phone').value,
         email: document.getElementById('booking-email').value,
+        practitionerId: bookingPractitionerSelect.value,
         type: document.getElementById('booking-type').value,
         date: document.getElementById('booking-date').value,
         time: document.getElementById('booking-time').value,
@@ -1283,7 +1374,11 @@ function renderPortalHtml(shareData) {
       }
 
       const booking = result.data || {};
-      showFeedback('success', 'Rendez-vous confirmé pour le ' + booking.date + ' à ' + booking.time + ' • Référence ' + booking.bookingCode);
+      showFeedback(
+        'success',
+        'Rendez-vous confirmé avec ' + (booking.practitionerName || 'le médecin')
+          + ' pour le ' + booking.date + ' à ' + booking.time + ' • Référence ' + booking.bookingCode
+      );
       form.reset();
       const today = new Date();
       const localIso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split('T')[0];
@@ -1297,9 +1392,8 @@ function renderPortalHtml(shareData) {
       dateInput.min = localIso;
       dateInput.value = localIso;
       loadConfig().then(function() {
-        return loadSlots(localIso);
+        return Promise.all([loadSlots(localIso), loadQueue()]);
       });
-      loadQueue();
       setInterval(loadQueue, 3000);
     }());
   </script>
@@ -1361,7 +1455,10 @@ async function requestHandler(req, res) {
       }
 
       if (pathParts[3] === 'queue' && req.method === 'GET') {
-        const result = await getPublicQueue(String(url.searchParams.get('tracking') || ''));
+        const result = await getPublicQueue(
+          String(url.searchParams.get('tracking') || ''),
+          String(url.searchParams.get('practitioner') || '')
+        );
         sendJson(res, 200, { success: true, data: result });
         return;
       }
@@ -1374,7 +1471,10 @@ async function requestHandler(req, res) {
       }
 
       if (pathParts[3] === 'slots' && req.method === 'GET') {
-        const result = await getSlotsForDate(url.searchParams.get('date'));
+        const result = await getSlotsForDate(
+          url.searchParams.get('date'),
+          url.searchParams.get('practitioner')
+        );
         sendJson(res, 200, { success: true, data: result });
         return;
       }

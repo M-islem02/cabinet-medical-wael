@@ -144,7 +144,15 @@ function getScopedUserContext() {
 }
 
 function getScopedPatientFilter(userContext, patientAlias = 'patients') {
-  // Patients are cabinet-wide for doctor-admin, normal doctors and assistants.
+  const practitionerId = userContext.isPractitioner
+    ? userContext.userId
+    : (userContext.isAssistant ? global.activePatientDoctorId : null);
+  if (practitionerId) {
+    return {
+      clause: `EXISTS (SELECT 1 FROM patient_practitioners pp_scope WHERE pp_scope.patientId = ${patientAlias}.id AND pp_scope.practitionerId = ?)`,
+      params: [practitionerId]
+    };
+  }
   return { clause: '', params: [] };
 }
 

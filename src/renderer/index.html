@@ -948,6 +948,18 @@
                 <!-- Patients Section -->
                 <section id="patients" class="section">
                     <div class="patients-container">
+                        <div id="patients-scope-bar" class="patients-scope-bar" hidden>
+                            <div class="patients-view-tabs" role="tablist" aria-label="Vue des patients">
+                                <button type="button" id="patients-my-list-tab" class="patients-view-tab active"
+                                    onclick="switchPatientsView('mine')">Mes patients</button>
+                                <button type="button" id="patients-directory-tab" class="patients-view-tab"
+                                    onclick="switchPatientsView('directory')">Répertoire global</button>
+                            </div>
+                            <label id="patients-doctor-scope-wrap" class="patients-doctor-scope" hidden>
+                                <span>Médecin</span>
+                                <select id="patients-doctor-scope" class="form-control" onchange="changePatientsDoctorScope(this.value)"></select>
+                            </label>
+                        </div>
                         <div class="patients-toolbar">
                             <div class="patients-search-wrap">
                                 <span class="patients-search-icon" aria-hidden="true"></span>
@@ -1237,6 +1249,10 @@
                             <button class="btn btn-primary" onclick="openNewConsultationModal()">Nouvelle
                                 consultation</button>
                         </div>
+                    </div>
+
+                    <div id="patient-medical-overview" class="medical-overview" aria-live="polite">
+                        <div class="medical-overview-loading">Chargement du r&eacute;sum&eacute; m&eacute;dical...</div>
                     </div>
 
                     <div class="patient-details-grid patient-details-overview">
@@ -3699,6 +3715,9 @@
             <form id="consultation-form" class="modal-body">
                 <input type="hidden" id="consultation-patientId">
 
+                <div id="consultation-patient-summary" class="medical-overview consultation-medical-overview"
+                    aria-label="R&eacute;sum&eacute; m&eacute;dical du patient"></div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Date</label>
@@ -3963,6 +3982,47 @@
                         Ajouter Ordonnance</button>
                     <button type="button" id="consultation-save-btn" class="btn btn-primary"
                         onclick="document.getElementById('consultation-form').dispatchEvent(new Event('submit', {cancelable: true}))">Enregistrer</button>
+                    <button type="button" id="consultation-finish-btn" class="btn btn-success"
+                        onclick="openConsultationFinishChecklist()">Terminer la consultation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-consultation-finish" class="modal">
+        <div class="modal-content consultation-finish-dialog">
+            <div class="modal-header">
+                <div>
+                    <h2>Terminer la consultation</h2>
+                    <p class="consultation-finish-subtitle">V&eacute;rifiez ces points avant de cl&ocirc;turer.</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('modal-consultation-finish')">&times;</button>
+            </div>
+            <div class="modal-body consultation-finish-body">
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Dossier clinique relu</strong><small>Motif, examen, diagnostic et conduite &agrave; tenir.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Ordonnance et documents</strong><small>Remis au patient ou non n&eacute;cessaires.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Suivi expliqu&eacute;</strong><small>Examens et prochain rendez-vous d&eacute;finis si n&eacute;cessaire.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Paiement orient&eacute;</strong><small>Transmis &agrave; l'accueil, encaiss&eacute; ou non applicable.</small></span>
+                </label>
+            </div>
+            <div class="modal-footer consultation-finish-footer">
+                <span id="consultation-finish-progress">0/4 v&eacute;rifi&eacute;s</span>
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('modal-consultation-finish')">Retour</button>
+                    <button type="button" id="consultation-finish-confirm" class="btn btn-success" disabled
+                        onclick="finishConsultationWithChecklist()">Enregistrer et terminer</button>
                 </div>
             </div>
         </div>
