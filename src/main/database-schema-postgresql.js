@@ -88,7 +88,170 @@ function buildCompatibilityStatements() {
     'ALTER TABLE dental_treatments ADD COLUMN IF NOT EXISTS dentistId VARCHAR(36)',
     'ALTER TABLE dental_treatments ADD COLUMN IF NOT EXISTS planId VARCHAR(36)',
     'ALTER TABLE dental_treatments ADD COLUMN IF NOT EXISTS doctorId VARCHAR(36)',
-    'UPDATE dental_treatments SET isPaid = COALESCE(isPaid, paid > 0)'
+    'UPDATE dental_treatments SET isPaid = COALESCE(isPaid, paid > 0)',
+
+    'ALTER TABLE inventory ADD COLUMN IF NOT EXISTS supplierId VARCHAR(36)',
+    'ALTER TABLE inventory ADD COLUMN IF NOT EXISTS photoPath VARCHAR(500)',
+    'ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS lotId VARCHAR(36)',
+    'ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS posSaleId VARCHAR(36)',
+    'ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS purchaseOrderId VARCHAR(36)',
+    'ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP',
+    'ALTER TABLE plan_equipment_usage ADD COLUMN IF NOT EXISTS equipmentId VARCHAR(36)',
+    'ALTER TABLE plan_equipment_usage ALTER COLUMN inventoryId DROP NOT NULL',
+
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contactName VARCHAR(255)',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS phone VARCHAR(100)',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS email VARCHAR(255)',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS address TEXT',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS specialty VARCHAR(120)',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS notes TEXT',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS isActive BOOLEAN DEFAULT TRUE',
+    'ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS supplierId VARCHAR(36)',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS lotNumber VARCHAR(120)',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS purchaseDate DATE',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS expirationDate DATE',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS initialQuantity INTEGER DEFAULT 0',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS remainingQuantity INTEGER DEFAULT 0',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS unitPrice NUMERIC(10,2) DEFAULT 0',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS notes TEXT',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS isActive BOOLEAN DEFAULT TRUE',
+    'ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP',
+    'ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS invoiceNumber VARCHAR(120)',
+    'ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS invoiceAmount NUMERIC(10,2)',
+    'ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP',
+    'ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS receivedQuantity INTEGER DEFAULT 0',
+    'ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS notes TEXT',
+    'ALTER TABLE pos_sales ADD COLUMN IF NOT EXISTS discountAmount NUMERIC(10,2) DEFAULT 0',
+    'ALTER TABLE pos_sales ADD COLUMN IF NOT EXISTS discountPercent NUMERIC(5,2) DEFAULT 0',
+    'ALTER TABLE pos_sales ADD COLUMN IF NOT EXISTS paymentId VARCHAR(36)',
+    'ALTER TABLE pos_sale_items ADD COLUMN IF NOT EXISTS lotId VARCHAR(36)',
+    'ALTER TABLE pos_sale_items ADD COLUMN IF NOT EXISTS purchasePrice NUMERIC(10,2) DEFAULT 0',
+    'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS specificFields TEXT',
+    'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS updatedAt TIMESTAMP',
+    'ALTER TABLE equipment_maintenance ADD COLUMN IF NOT EXISTS supplierId VARCHAR(36)'
+  ];
+}
+
+function buildInventoryModuleStatements() {
+  return [
+    `CREATE TABLE IF NOT EXISTS suppliers (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      contactName VARCHAR(255),
+      phone VARCHAR(100),
+      email VARCHAR(255),
+      address TEXT,
+      specialty VARCHAR(120),
+      notes TEXT,
+      isActive BOOLEAN DEFAULT TRUE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_lots (
+      id VARCHAR(36) PRIMARY KEY,
+      inventoryId VARCHAR(36) NOT NULL,
+      supplierId VARCHAR(36),
+      lotNumber VARCHAR(120),
+      purchaseDate DATE,
+      expirationDate DATE,
+      initialQuantity INTEGER DEFAULT 0,
+      remainingQuantity INTEGER DEFAULT 0,
+      unitPrice NUMERIC(10,2) DEFAULT 0,
+      notes TEXT,
+      isActive BOOLEAN DEFAULT TRUE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS purchase_orders (
+      id VARCHAR(36) PRIMARY KEY,
+      supplierId VARCHAR(36),
+      orderDate DATE,
+      expectedDeliveryDate DATE,
+      status VARCHAR(50) DEFAULT 'draft',
+      totalAmount NUMERIC(10,2) DEFAULT 0,
+      invoiceNumber VARCHAR(120),
+      invoiceAmount NUMERIC(10,2),
+      notes TEXT,
+      createdBy VARCHAR(36),
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS purchase_order_items (
+      id VARCHAR(36) PRIMARY KEY,
+      purchaseOrderId VARCHAR(36) NOT NULL,
+      inventoryId VARCHAR(36) NOT NULL,
+      orderedQuantity INTEGER DEFAULT 0,
+      receivedQuantity INTEGER DEFAULT 0,
+      unitPrice NUMERIC(10,2) DEFAULT 0,
+      notes TEXT
+    )`,
+    `CREATE TABLE IF NOT EXISTS pos_sales (
+      id VARCHAR(36) PRIMARY KEY,
+      patientId VARCHAR(36),
+      customerName VARCHAR(255),
+      saleDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      totalAmount NUMERIC(10,2) DEFAULT 0,
+      discountAmount NUMERIC(10,2) DEFAULT 0,
+      discountPercent NUMERIC(5,2) DEFAULT 0,
+      finalAmount NUMERIC(10,2) DEFAULT 0,
+      paymentMethod VARCHAR(80),
+      paymentId VARCHAR(36),
+      notes TEXT,
+      createdBy VARCHAR(36),
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS pos_sale_items (
+      id VARCHAR(36) PRIMARY KEY,
+      posSaleId VARCHAR(36) NOT NULL,
+      inventoryId VARCHAR(36) NOT NULL,
+      lotId VARCHAR(36),
+      quantity INTEGER DEFAULT 0,
+      unitPrice NUMERIC(10,2) DEFAULT 0,
+      purchasePrice NUMERIC(10,2) DEFAULT 0,
+      totalPrice NUMERIC(10,2) DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS act_consumables (
+      id VARCHAR(36) PRIMARY KEY,
+      actType VARCHAR(255) NOT NULL,
+      inventoryId VARCHAR(36) NOT NULL,
+      quantity NUMERIC(10,2) DEFAULT 1,
+      specialty VARCHAR(100) DEFAULT 'dentistry',
+      isActive BOOLEAN DEFAULT TRUE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS equipment (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(120) DEFAULT 'general',
+      brand VARCHAR(255),
+      model VARCHAR(255),
+      serialNumber VARCHAR(255),
+      purchaseDate DATE,
+      warrantyEnd DATE,
+      assignedRoom VARCHAR(255),
+      assignedDoctorId VARCHAR(36),
+      status VARCHAR(80) DEFAULT 'available',
+      lastMaintenanceDate DATE,
+      nextMaintenanceDate DATE,
+      notes TEXT,
+      specificFields TEXT,
+      isActive BOOLEAN DEFAULT TRUE,
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS equipment_maintenance (
+      id VARCHAR(36) PRIMARY KEY,
+      equipmentId VARCHAR(36) NOT NULL,
+      maintenanceDate DATE,
+      maintenanceType VARCHAR(120),
+      cost NUMERIC(10,2) DEFAULT 0,
+      technician VARCHAR(255),
+      supplierId VARCHAR(36),
+      notes TEXT,
+      performedBy VARCHAR(36),
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
   ];
 }
 
@@ -101,6 +264,7 @@ export function getPostgreSqlSchemaStatements() {
 
   return [
     ...createStatements,
+    ...buildInventoryModuleStatements(),
     ...buildCompatibilityStatements(),
     ...buildIndexStatements()
   ];

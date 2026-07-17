@@ -143,6 +143,20 @@ async function createTargetTable(pgPool, table, columns) {
   }
 
   await pgPool.query(`CREATE TABLE IF NOT EXISTS ${q(table)} (${columnDefs.join(', ')})`);
+
+  const existingColumnsResult = await pgPool.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = current_schema() AND table_name = $1`,
+    [String(table).toLowerCase()]
+  );
+  const existingColumns = new Set(existingColumnsResult.rows.map((row) => row.column_name));
+
+  for (const column of columns) {
+    const normalizedName = String(column.name).toLowerCase();
+    if (existingColumns.has(normalizedName)) continue;
+    await pgPool.query(`ALTER TABLE ${q(table)} ADD COLUMN ${q(column.name)} ${column.pgType}`);
+    existingColumns.add(normalizedName);
+  }
 }
 
 async function copyRows(pgPool, table, columns, rows) {

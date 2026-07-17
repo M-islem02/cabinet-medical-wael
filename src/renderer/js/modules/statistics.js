@@ -46,7 +46,17 @@ function handleStatsPeriodChange() {
   if (customDatesDiv) {
     customDatesDiv.style.display = period === 'custom' ? 'flex' : 'none';
   }
-  loadStatistics(true);
+  if (period !== 'custom') {
+    loadStatistics(true);
+  }
+}
+
+function handleStatsCustomDateChange() {
+  const startDate = document.getElementById('stats-start-date')?.value || '';
+  const endDate = document.getElementById('stats-end-date')?.value || '';
+  if (startDate && endDate) {
+    loadStatistics(true);
+  }
 }
 
 async function loadStatistics(force = false) {
@@ -70,8 +80,18 @@ async function loadStatistics(force = false) {
     const startDate = document.getElementById('stats-start-date')?.value || '';
     const endDate = document.getElementById('stats-end-date')?.value || '';
 
+    if (period === 'custom' && (!startDate || !endDate)) {
+      showNotification('Sélectionnez les deux dates de la période', 'warning');
+      return;
+    }
+
+    if (period === 'custom' && startDate > endDate) {
+      showNotification('La date de début doit précéder la date de fin', 'warning');
+      return;
+    }
+
     // Fetch advanced stats from backend
-    const res = await window.api.invoke('statistics:getAdvancedOverview', { period, startDate, endDate });
+    const res = await window.api.statistics.getAdvancedOverview({ period, startDate, endDate });
 
     if (!res?.success) {
       throw new Error(res?.error || 'Impossible de charger les statistiques');
@@ -227,7 +247,7 @@ async function loadStatistics(force = false) {
       } else {
         if (leftListTitleEl) leftListTitleEl.textContent = 'Mes Patients les plus vus (Top 10)';
         // Call top lists to get patients count
-        const topListsResult = await window.api.invoke('statistics:getTopLists');
+        const topListsResult = await window.api.statistics.getTopLists({ startDate, endDate });
         const topLists = topListsResult?.success ? (topListsResult.data || {}) : {};
         renderStatisticsList(
           'stats-consultations-list',
@@ -240,7 +260,7 @@ async function loadStatistics(force = false) {
       // Render Right List (Dental Treatments Acts count)
       renderStatisticsList(
         'stats-acts-list',
-        clinicals.actsBreakdown.map(i => ({ name: i.label, count: i.count })),
+        (clinicals.actsBreakdown || []).map(i => ({ name: i.label, count: i.count })),
         'linear-gradient(135deg, var(--success-color), #28a745)',
         'Aucun acte médical enregistré sur cette période'
       );
@@ -263,3 +283,4 @@ async function loadStatistics(force = false) {
 // Make functions globally available
 window.loadStatistics = loadStatistics;
 window.handleStatsPeriodChange = handleStatsPeriodChange;
+window.handleStatsCustomDateChange = handleStatsCustomDateChange;

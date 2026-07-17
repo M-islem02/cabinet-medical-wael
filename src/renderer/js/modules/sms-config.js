@@ -2,7 +2,7 @@
 // UI for configuring SMS reminders via GSM modem or API
 
 let currentSMSMode = 'modem';
-const DEFAULT_CABINET_PHONE = '0542893268';
+const DEFAULT_SMS_CABINET_PHONE = '0542893268';
 const DEFAULT_REMINDER_TEMPLATE = 'Rappel: Votre RDV au cabinet {cabinet} est prevu le {date} a {heure}. Merci de confirmer.';
 const DEFAULT_APPOINTMENT_TEMPLATE = 'Bonjour {patient}, votre RDV au cabinet {cabinet} est enregistre pour le {date} a {heure} ({type}). Contact: {phone}.';
 
@@ -21,7 +21,7 @@ async function getPreferredCabinetPhone() {
     console.warn('Unable to pre-load settings for SMS screen:', error);
   }
 
-  return (cachedSettings?.cabinetPhone || DEFAULT_CABINET_PHONE).trim();
+  return (cachedSettings?.cabinetPhone || DEFAULT_SMS_CABINET_PHONE).trim();
 }
 
 async function loadSMSConfigUI() {

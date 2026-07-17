@@ -61,6 +61,14 @@ export function handleWaitingRoomEvents() {
         }
       }
 
+      // Final fallback: any active doctor (singulier mode or multi-specialty single doctor)
+      if (!targetDoctorIds.length) {
+        const doctors = await query(
+          `SELECT id FROM users WHERE isActive = 1 AND isSuperAdmin = 0 AND role IN ('doctor', 'dentist')`
+        );
+        targetDoctorIds = (doctors || []).map((doctor) => doctor.id).filter(Boolean);
+      }
+
       if (!targetDoctorIds.length) {
         return { success: false, error: 'Veuillez choisir le médecin/praticien responsable' };
       }

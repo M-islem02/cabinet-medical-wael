@@ -62,6 +62,7 @@ import {
 } from './realtime-server.js';
 import { getResponsiveWindowBounds, applyWindowPresentation } from './window-utils.js';
 import fs from 'fs';
+import moment from 'moment';
 
 function normalizeTerminalText(value) {
   let text = String(value ?? '');
@@ -973,11 +974,30 @@ function setupIPCHandlers() {
   ipcMain.handle('statistics:getAdvancedOverview', async (event, filters = {}) => {
     try {
       const userContext = getScopedUserContext();
+
+      if (userContext.isAssistant || (!userContext.isPractitioner && !userContext.isSuperAdmin)) {
+        return { success: false, error: 'Accès non autorisé aux statistiques' };
+      }
       
       // Resolve start and end dates
       let startDate = filters.startDate || '';
       let endDate = filters.endDate || '';
-      const period = filters.period || 'month'; // 'day' | 'month' | 'year'
+      const period = filters.period || 'month';
+
+      if (!['day', 'month', 'year', 'custom'].includes(period)) {
+        return { success: false, error: 'Période statistique invalide' };
+      }
+
+      if (period === 'custom') {
+        const parsedStart = moment(startDate, 'YYYY-MM-DD', true);
+        const parsedEnd = moment(endDate, 'YYYY-MM-DD', true);
+        if (!parsedStart.isValid() || !parsedEnd.isValid()) {
+          return { success: false, error: 'Sélectionnez une date de début et une date de fin valides' };
+        }
+        if (parsedStart.isAfter(parsedEnd, 'day')) {
+          return { success: false, error: 'La date de début doit précéder la date de fin' };
+        }
+      }
       
       // Default dates if none provided
       if (!startDate) {
@@ -1257,7 +1277,7 @@ function setupIPCHandlers() {
            FROM consultations c
            JOIN users u ON u.id = c.doctorId
            WHERE c.consultationDate BETWEEN ? AND ?
-           GROUP BY c.doctorId
+           GROUP BY c.doctorId, u.fullName, u.username
            ORDER BY count DESC
            LIMIT 10`,
           [startDate, endDate]
@@ -1425,33 +1445,55 @@ function setupIPCHandlers() {
     }
   });
 
-  ipcMain.handle('statistics:getTopLists', async () => {
+  ipcMain.handle('statistics:getTopLists', async (event, filters = {}) => {
     try {
       const userContext = getScopedUserContext();
       const consultationScope = getScopedConsultationFilter(userContext, 'c', 'patients');
       const prescriptionScope = getScopedPrescriptionFilter(userContext, 'pr', 'p', 'c');
+
+      const start = moment(filters.startDate, 'YYYY-MM-DD', true);
+      const end = moment(filters.endDate, 'YYYY-MM-DD', true);
+      const hasDateRange = start.isValid() && end.isValid() && !start.isAfter(end, 'day');
+      const consultationConditions = [];
+      const consultationParams = [];
+      const prescriptionConditions = ["pr.medications IS NOT NULL", "pr.medications <> ''"];
+      const prescriptionParams = [];
+
+      if (consultationScope.clause) {
+        consultationConditions.push(consultationScope.clause);
+        consultationParams.push(...consultationScope.params);
+      }
+      if (prescriptionScope.clause) {
+        prescriptionConditions.push(prescriptionScope.clause);
+        prescriptionParams.push(...prescriptionScope.params);
+      }
+      if (hasDateRange) {
+        consultationConditions.push('c.consultationDate BETWEEN ? AND ?');
+        consultationParams.push(start.startOf('day').format('YYYY-MM-DD HH:mm:ss'), end.endOf('day').format('YYYY-MM-DD HH:mm:ss'));
+        prescriptionConditions.push('COALESCE(pr.prescriptionDate, pr.createdAt) BETWEEN ? AND ?');
+        prescriptionParams.push(start.startOf('day').format('YYYY-MM-DD HH:mm:ss'), end.endOf('day').format('YYYY-MM-DD HH:mm:ss'));
+      }
 
       const [topConsultations, prescriptionRows] = await Promise.all([
         query(
           `SELECT patients.firstName, patients.lastName, COUNT(*) as count
            FROM consultations c
            LEFT JOIN patients ON patients.id = c.patientId
-           ${consultationScope.clause ? `WHERE ${consultationScope.clause}` : ''}
+            ${consultationConditions.length ? `WHERE ${consultationConditions.join(' AND ')}` : ''}
            GROUP BY c.patientId, patients.firstName, patients.lastName
            ORDER BY count DESC
            LIMIT 10`,
-          consultationScope.params
+          consultationParams
         ),
         query(
           `SELECT pr.medications
            FROM prescriptions pr
            LEFT JOIN patients p ON p.id = pr.patientId
            LEFT JOIN consultations c ON c.id = pr.consultationId
-           WHERE pr.medications IS NOT NULL AND pr.medications <> ''
-             ${prescriptionScope.clause ? `AND ${prescriptionScope.clause}` : ''}
+           WHERE ${prescriptionConditions.join(' AND ')}
            ORDER BY COALESCE(pr.prescriptionDate, pr.createdAt) DESC
            LIMIT 5000`,
-          prescriptionScope.params
+          prescriptionParams
         )
       ]);
 

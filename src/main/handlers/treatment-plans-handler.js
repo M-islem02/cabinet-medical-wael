@@ -318,6 +318,9 @@ export function handleTreatmentPlanEvents() {
     try {
       const plan = await queryOne(`SELECT patientId, status FROM treatment_plans WHERE id = ?`, [id]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
+      if (plan.status === 'archived') {
+        return { success: false, error: 'Un plan archivé doit être désarchivé avant modification.' };
+      }
       const context = getUserFinancialContext();
       if (plan.status === 'completed' && !(data._adminOverride || context.isSuperAdmin || context.isDoctorAdmin)) {
         return { success: false, error: 'Plan terminé — modification réservée aux admins' };
@@ -378,10 +381,35 @@ export function handleTreatmentPlanEvents() {
     }
   });
 
+  ipcMain.handle('plans:unarchive', async (event, id) => {
+    try {
+      const plan = await queryOne(`SELECT patientId, status FROM treatment_plans WHERE id = ?`, [id]);
+      if (!plan) return { success: false, error: 'Plan introuvable' };
+      if (plan.status !== 'archived') return { success: false, error: 'Ce plan n’est pas archivé.' };
+
+      const activeCheck = await assertSingleActivePlan(plan.patientId, id);
+      if (!activeCheck.success) return activeCheck;
+
+      await run(
+        `UPDATE treatment_plans SET status = 'active', updatedAt = ? WHERE id = ?`,
+        [moment().format('YYYY-MM-DD HH:mm:ss'), id]
+      );
+      broadcastRealtimeEvent({ type: 'plan:updated', planId: id });
+      return { success: true };
+    } catch (err) {
+      console.error('Error unarchiving plan:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   // ── DELETE (bloqué si données liées) ─────────────────────────────────────
   ipcMain.handle('plans:delete', async (event, id) => {
     try {
-      const plan = await queryOne(`SELECT totalPaid FROM treatment_plans WHERE id = ?`, [id]);
+      const plan = await queryOne(`SELECT totalPaid, status FROM treatment_plans WHERE id = ?`, [id]);
+
+      if (plan?.status === 'archived') {
+        return { success: false, error: 'Un plan archivé ne peut pas être supprimé.' };
+      }
 
       if (Number(plan?.totalPaid || 0) > 0) {
         return {
