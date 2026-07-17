@@ -148,10 +148,10 @@ function renderAttachmentsPagination() {
   container.style.display = 'flex';
   container.innerHTML = `
     <div class="patients-pagination-info">Affichage ${start}-${end} sur ${total} éléments</div>
-    <div class="patients-pagination-actions">
-      <button class="btn btn-small btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeAttachmentsPage(-1)">Précédent</button>
-      <span class="patients-pagination-info">Page ${currentPage} / ${totalPages}</span>
-      <button class="btn btn-small btn-secondary" ${currentPage >= totalPages ? 'disabled' : ''} onclick="changeAttachmentsPage(1)">Suivant</button>
+    <div class="patients-pagination-actions pagination-controls">
+      <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeAttachmentsPage(-1)">‹</button>
+      <span class="patients-pagination-info">${currentPage}/${totalPages}</span>
+      <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${currentPage >= totalPages ? 'disabled' : ''} onclick="changeAttachmentsPage(1)">›</button>
     </div>
   `;
 }

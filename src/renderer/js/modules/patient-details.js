@@ -67,10 +67,10 @@ function buildPatientRecordPaginationRow(sectionKey, colspan) {
       <td colspan="${colspan}">
         <div class="patients-pagination" style="display:flex;">
           <div class="patients-pagination-info">Affichage ${start}-${end} sur ${pagination.total}</div>
-          <div class="patients-pagination-actions">
-            <button class="btn btn-small btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="changePatientRecordPage('${sectionKey}', -1)">Precedent</button>
-            <span class="patients-pagination-info">Page ${currentPage} / ${pagination.totalPages}</span>
-            <button class="btn btn-small btn-secondary" ${currentPage >= pagination.totalPages ? 'disabled' : ''} onclick="changePatientRecordPage('${sectionKey}', 1)">Suivant</button>
+          <div class="patients-pagination-actions pagination-controls">
+            <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${currentPage <= 1 ? 'disabled' : ''} onclick="changePatientRecordPage('${sectionKey}', -1)">‹</button>
+            <span class="patients-pagination-info">${currentPage}/${pagination.totalPages}</span>
+            <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${currentPage >= pagination.totalPages ? 'disabled' : ''} onclick="changePatientRecordPage('${sectionKey}', 1)">›</button>
           </div>
         </div>
       </td>
@@ -2115,10 +2115,10 @@ function renderPatientPrescriptions() {
         <td>${escapeHTML(`${medCount} médicament${medCount > 1 ? 's' : ''}`)}</td>
         <td>
           <div class="table-actions" style="display:flex; flex-wrap:wrap; gap:6px;">
-            <button class="btn btn-tiny btn-secondary" title="Voir" onclick="viewPrescription('${p.id}')">👁️</button>
-            <button class="btn btn-tiny btn-primary" title="Imprimer" onclick="printPrescriptionDetails('${p.id}')">🖨️</button>
-            <button class="btn btn-tiny btn-info" title="Modifier" onclick="editPrescription('${p.id}')">✏️</button>
-            <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deletePrescription('${p.id}')">🗑️</button>
+            <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Voir" onclick="viewPrescription('${p.id}')">👁️</button>
+            <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPrescriptionDetails('${p.id}')">🖨️</button>
+            <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="editPrescription('${p.id}')">✏️</button>
+            <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePrescription('${p.id}')">🗑️</button>
           </div>
         </td>
       </tr>
@@ -2325,10 +2325,10 @@ function renderPatientSickLeaves() {
         <td class="multiline-cell" title="${tooltipText}">${displayDiagnosis}</td>
         <td>
           <div class="table-actions" style="display:flex; flex-wrap:nowrap; gap:6px; align-items:center;">
-            <button type="button" class="btn btn-tiny btn-secondary" data-sickleave-action="view" data-id="${safeIdAttr}" title="Voir le certificat" onclick="handleSickLeaveRowAction('view', ${inlineIdArg})">👁️</button>
-            <button type="button" class="btn btn-tiny btn-primary" data-sickleave-action="print" data-id="${safeIdAttr}" title="Imprimer" onclick="handleSickLeaveRowAction('print', ${inlineIdArg})">🖨️</button>
-            <button type="button" class="btn btn-tiny btn-info" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier" onclick="handleSickLeaveRowAction('edit', ${inlineIdArg})">✏️</button>
-            <button type="button" class="btn btn-tiny btn-danger" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer" onclick="handleSickLeaveRowAction('delete', ${inlineIdArg})">🗑️</button>
+            <button type="button" class="btn btn-tiny btn-secondary consultation-action-chip-icon" data-sickleave-action="view" data-id="${safeIdAttr}" title="Voir le certificat" onclick="handleSickLeaveRowAction('view', ${inlineIdArg})">👁️</button>
+            <button type="button" class="btn btn-tiny btn-primary consultation-action-chip-icon" data-sickleave-action="print" data-id="${safeIdAttr}" title="Imprimer" onclick="handleSickLeaveRowAction('print', ${inlineIdArg})">🖨️</button>
+            <button type="button" class="btn btn-tiny btn-info consultation-action-chip-icon" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier" onclick="handleSickLeaveRowAction('edit', ${inlineIdArg})">✏️</button>
+            <button type="button" class="btn btn-tiny btn-danger consultation-action-chip-icon" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer" onclick="handleSickLeaveRowAction('delete', ${inlineIdArg})">🗑️</button>
           </div>
         </td>
       </tr>

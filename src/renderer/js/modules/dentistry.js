@@ -897,9 +897,10 @@ function renderDentalPatientHistoryCards() {
       '<b>' + (dentalPatientHistoryPage + 1) + '/' + totalPages + '</b>' +
     '</div>' +
     '<div class="dental-history-card-list">' + cards + '</div>' +
-    '<div class="dental-history-cards-pager">' +
-      '<button type="button" onclick="changeDentalHistoryPage(-1)" ' + (dentalPatientHistoryPage <= 0 ? 'disabled' : '') + '>Préc.</button>' +
-      '<button type="button" onclick="changeDentalHistoryPage(1)" ' + (dentalPatientHistoryPage >= totalPages - 1 ? 'disabled' : '') + '>Suiv.</button>' +
+    '<div class="dental-history-cards-pager pagination-controls">' +
+      '<button type="button" class="btn btn-secondary" aria-label="Page précédente" onclick="changeDentalHistoryPage(-1)" ' + (dentalPatientHistoryPage <= 0 ? 'disabled' : '') + '>‹</button>' +
+      '<span>' + (dentalPatientHistoryPage + 1) + '/' + totalPages + '</span>' +
+      '<button type="button" class="btn btn-secondary" aria-label="Page suivante" onclick="changeDentalHistoryPage(1)" ' + (dentalPatientHistoryPage >= totalPages - 1 ? 'disabled' : '') + '>›</button>' +
     '</div>';
 }
 

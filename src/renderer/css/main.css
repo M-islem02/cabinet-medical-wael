@@ -1100,6 +1100,792 @@
   }
 }
 
+/* ==================================================
+   READABILITY AND VISUAL HIERARCHY REFINEMENT
+   ================================================== */
+
+body {
+  font-size: 14px;
+}
+
+.nav-item .label,
+.table td {
+  font-size: 14px !important;
+}
+
+.table th {
+  font-size: 12px !important;
+}
+
+/* Keep module actions and key indicators in one professional command bar. */
+#inventory.active,
+#equipment.active {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  align-items: stretch;
+  column-gap: 0;
+}
+
+#inventory > .inventory-stats-grid,
+#equipment > .inventory-stats-grid {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  flex-wrap: nowrap !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  margin: 0 !important;
+  padding: 10px 18px !important;
+  border-right: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  gap: 0 !important;
+}
+
+#inventory > .module-tabs-shell,
+#equipment > .module-tabs-shell {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 10px !important;
+}
+
+#inventory > .inventory-tab-content,
+#equipment > .equipment-tab-content {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+#inventory .inventory-stat-card,
+#equipment .inventory-stat-card {
+  flex: 1 1 0 !important;
+  min-width: 130px !important;
+}
+
+#inventory .inventory-stat-card > div,
+#equipment .inventory-stat-card > div {
+  width: 100%;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+}
+
+#inventory .inventory-stat-card p[style*="uppercase"],
+#equipment .inventory-stat-card p[style*="uppercase"] {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #526273 !important;
+}
+
+#inventory .inventory-stats-grid #stat-total-items,
+#inventory .inventory-stats-grid #stat-low-stock,
+#inventory .inventory-stats-grid #stat-stock-value,
+#inventory .inventory-stats-grid #inventory-expiring,
+#equipment .inventory-stats-grid #equip-stat-total,
+#equipment .inventory-stats-grid #equip-stat-upcoming,
+#equipment .inventory-stats-grid #equip-stat-inmai,
+#equipment .inventory-stats-grid #equip-stat-avail {
+  font-size: 20px !important;
+  line-height: 1.1 !important;
+  color: #152536 !important;
+}
+
+#inventory .inventory-stat-card-warning #stat-low-stock,
+#equipment .inventory-stat-card-warning #equip-stat-upcoming {
+  color: #b86b00 !important;
+}
+
+#equipment .inventory-stat-card-danger #equip-stat-inmai {
+  color: #c73535 !important;
+}
+
+#inventory .inventory-stat-card:not(:last-child)::after,
+#equipment .inventory-stat-card:not(:last-child)::after {
+  content: '' !important;
+  width: 1px;
+  height: 34px;
+  margin: 0 18px !important;
+  background: #dde4ea;
+}
+
+#inventory-tab-articles > .card > .card-header,
+#equipment-tab-list > .card > .card-header {
+  flex-wrap: nowrap !important;
+}
+
+#inventory-tab-articles > .card > .card-header > div,
+#equipment-tab-list > .card > .card-header > div {
+  width: auto !important;
+  margin-left: auto;
+  flex-wrap: nowrap !important;
+}
+
+#inventory-category-filter,
+#equipment-filter-category {
+  width: 190px !important;
+  min-width: 190px !important;
+}
+
+#equipment-filter-status {
+  width: 170px !important;
+  min-width: 170px !important;
+}
+
+#inventory-search,
+#equipment-search {
+  width: 220px !important;
+}
+
+#inventory .table td,
+#equipment .table td,
+#payments .table td,
+#patient-details .table td {
+  font-size: 14px !important;
+}
+
+/* Statistics: stronger hierarchy without oversized dashboard blocks. */
+#statistics > .statistics-header {
+  min-height: 44px;
+}
+
+#statistics #stats-financial-container {
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+#statistics #stats-financial-container .statistics-card {
+  position: relative;
+  min-height: 154px !important;
+  padding: 18px 18px 16px !important;
+  overflow: hidden;
+  border: 1px solid #dfe6ec !important;
+  border-right: 1px solid #dfe6ec !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+}
+
+#statistics #stats-financial-container .statistics-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #168b7f;
+}
+
+#statistics #stats-financial-container .statistics-card:nth-child(2)::before {
+  background: #d55b5b;
+}
+
+#statistics #stats-financial-container .statistics-card:nth-child(3)::before {
+  background: #2f7db2;
+}
+
+#statistics #stats-financial-container .statistics-card:nth-child(4)::before {
+  background: #c78923;
+}
+
+#statistics #stats-financial-container .card-header h3 {
+  font-size: 13px !important;
+  letter-spacing: .055em !important;
+  color: #445465 !important;
+}
+
+#statistics #stats-financial-container .card-stat {
+  margin: 7px 0 9px !important;
+  font-size: 27px !important;
+  line-height: 1.1;
+  letter-spacing: -.025em;
+}
+
+#statistics #stats-financial-container .statistics-card > div:last-child,
+#statistics #stats-financial-container .statistics-card > p {
+  font-size: 13px !important;
+  line-height: 1.45;
+}
+
+#statistics #stats-doctor-daily-container {
+  min-height: 76px;
+  padding: 14px 16px !important;
+  border-left: 4px solid #168b7f !important;
+}
+
+#statistics #stats-doctor-daily-container .card-stat {
+  font-size: 23px !important;
+}
+
+#statistics .stats-operational-widget,
+#statistics #stats-clinical-container {
+  min-height: 90px;
+}
+
+#statistics .stats-operational-widget .card-stat,
+#statistics #stats-clinical-container .card-stat,
+#statistics #stat-adv-patients-seen,
+#statistics #stat-adv-plans-rate,
+#statistics #stat-adv-chairs-occupancy,
+#statistics #stat-adv-equip-occupancy {
+  font-size: 22px !important;
+}
+
+#statistics .statistics-section-card,
+#statistics .statistics-list-card {
+  border-radius: 9px !important;
+}
+
+#statistics .statistics-list-title,
+#statistics .statistics-section-title,
+#statistics .card-header h3 {
+  font-size: 14px !important;
+}
+
+#statistics .statistics-list-label,
+#statistics .statistics-list-empty {
+  font-size: 14px !important;
+}
+
+#statistics .statistics-list-rank {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+@media (max-width: 1450px) {
+  #inventory .inventory-stat-card:not(:last-child)::after,
+  #equipment .inventory-stat-card:not(:last-child)::after {
+    margin: 0 10px !important;
+  }
+
+  #inventory .inventory-stat-card p[style*="uppercase"],
+  #equipment .inventory-stat-card p[style*="uppercase"] {
+    font-size: 13px !important;
+  }
+
+  #inventory .inventory-stats-grid #stat-total-items,
+  #inventory .inventory-stats-grid #stat-low-stock,
+  #inventory .inventory-stats-grid #stat-stock-value,
+  #inventory .inventory-stats-grid #inventory-expiring,
+  #equipment .inventory-stats-grid #equip-stat-total,
+  #equipment .inventory-stats-grid #equip-stat-upcoming,
+  #equipment .inventory-stats-grid #equip-stat-inmai,
+  #equipment .inventory-stats-grid #equip-stat-avail {
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  #inventory.active,
+  #equipment.active {
+    display: block;
+  }
+
+  #inventory > .inventory-stats-grid,
+  #equipment > .inventory-stats-grid {
+    flex-wrap: wrap !important;
+    border-right: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+  }
+
+  #inventory > .section-header,
+  #equipment > .section-header {
+    margin-top: 8px !important;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  #statistics #stats-financial-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  #statistics #stats-financial-container {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ==================================================
+   UNIFIED MODULE WORKSPACES - MATCH TREATMENT PLANS
+   ================================================== */
+
+#payments.module-workspace,
+#inventory.module-workspace,
+#equipment.module-workspace {
+  padding: 16px;
+  background: #fff !important;
+  border: 1px solid #dce4eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+}
+
+#payments.module-workspace.active {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#payments.module-workspace > .stats-row,
+#inventory.module-workspace > .inventory-stats-grid,
+#equipment.module-workspace > .inventory-stats-grid {
+  background: #f8fafc !important;
+}
+
+#payments.module-workspace > .stats-row {
+  min-height: 64px;
+  margin: 0 !important;
+  padding: 10px 14px !important;
+  border-color: #e1e7ed !important;
+}
+
+#payments.module-workspace > .stats-row .card-stat {
+  font-size: 19px !important;
+}
+
+#payments.module-workspace > .stats-row .card-header h3 {
+  font-size: 13px !important;
+}
+
+#payments.module-workspace > #payment-requests-section {
+  margin: 0 !important;
+}
+
+.module-workspace .module-content-card {
+  margin: 0;
+  overflow: hidden;
+  border-color: #dce4eb !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+.module-workspace .module-command-bar {
+  min-height: 58px;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px !important;
+  background: #fff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.module-workspace .module-command-bar h3 {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 14px !important;
+  color: #203247 !important;
+  text-transform: none;
+}
+
+.module-workspace .module-command-bar > div {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.module-workspace .module-command-bar .form-control {
+  min-height: 42px;
+  border-color: #cfdbe7 !important;
+  background: #fff;
+}
+
+.module-workspace .module-command-bar .module-search {
+  width: min(100%, 420px) !important;
+  min-width: 220px;
+}
+
+.module-workspace .module-filter-category {
+  width: 280px !important;
+  min-width: 280px !important;
+  height: 44px !important;
+  flex: 0 0 280px;
+}
+
+.module-workspace .module-filter-status {
+  width: 190px !important;
+  min-width: 190px !important;
+  height: 44px !important;
+  flex: 0 0 190px;
+}
+
+.module-workspace .module-search-wide {
+  width: 360px !important;
+  min-width: 300px !important;
+  height: 44px !important;
+  max-width: 460px;
+  flex: 1 1 360px;
+}
+
+.module-workspace .module-search-wrap {
+  width: 360px;
+  max-width: 460px;
+  flex: 1 1 360px !important;
+}
+
+.module-workspace .module-search-wrap .module-search-wide {
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+.module-workspace .module-filter-row {
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+.module-workspace .module-date-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.module-workspace .module-date-filter .form-control {
+  width: 170px !important;
+  min-width: 170px !important;
+  height: 44px;
+}
+
+.module-workspace .module-filter-toggle {
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid #cfdbe7 !important;
+  border-radius: 6px !important;
+  white-space: nowrap;
+}
+
+.module-workspace .plans-refresh-btn,
+.module-workspace .plans-new-btn {
+  width: auto !important;
+  flex: 0 0 auto;
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 15px !important;
+  white-space: nowrap;
+}
+
+#payments .payments-filter-row {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px !important;
+  min-width: 0;
+}
+
+#payments .module-command-bar #payment-filter-method {
+  width: 220px !important;
+  min-width: 220px !important;
+  flex: 0 0 220px;
+}
+
+#payments .payments-filter-btn,
+.module-workspace .module-command-bar .btn {
+  height: 44px;
+  min-height: 44px !important;
+  padding: 0 16px !important;
+  border-radius: 10px !important;
+  white-space: nowrap;
+}
+
+#payments-pending-badge.hidden,
+#payment-requests-badge.hidden {
+  display: none !important;
+}
+
+.module-workspace .module-tabs-shell {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 48px;
+  margin-bottom: 10px !important;
+  padding: 0 16px !important;
+  background: #fff !important;
+  border: 1px solid #dce4eb !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.module-workspace .module-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.module-workspace .module-tabs-shell {
+  margin-top: 10px !important;
+}
+
+.module-workspace .table {
+  margin: 0;
+}
+
+.module-workspace .table thead th {
+  height: 40px;
+  background: #f7f9fb !important;
+}
+
+.module-workspace .table tbody tr {
+  background: #fff;
+}
+
+.module-workspace .table tbody tr:hover {
+  background: #f5faf9 !important;
+}
+
+#inventory.module-workspace.active,
+#equipment.module-workspace.active {
+  column-gap: 0;
+}
+
+#inventory.module-workspace > .inventory-stats-grid,
+#equipment.module-workspace > .inventory-stats-grid {
+  border-color: #dce4eb !important;
+}
+
+#inventory.module-workspace > .section-header,
+#equipment.module-workspace > .section-header {
+  border-color: #dce4eb;
+  background: #f8fafc;
+}
+
+#inventory.module-workspace > .module-tabs-shell,
+#equipment.module-workspace > .module-tabs-shell {
+  margin-top: 10px !important;
+}
+
+#inventory.module-workspace .inventory-tab-content,
+#equipment.module-workspace .equipment-tab-content {
+  margin: 0;
+}
+
+#payments .empty-row td,
+#inventory .empty-row td,
+#equipment .text-center[colspan] {
+  height: 124px;
+  color: #66788a;
+  background: #f8fafc;
+}
+
+.module-workspace td.module-empty-cell {
+  display: table-cell !important;
+  width: auto !important;
+  height: 180px;
+  padding: 18px !important;
+  text-align: center !important;
+  vertical-align: middle;
+  background: #f8fafc;
+}
+
+.module-empty-state {
+  width: 100%;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #66788a;
+}
+
+.module-empty-state-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e5f3f2;
+  color: #087f78;
+  font-size: 21px;
+}
+
+.module-empty-state strong {
+  color: #26394c;
+  font-size: 15px;
+}
+
+.module-empty-state p {
+  margin: 0 0 4px;
+  color: #738396;
+  font-size: 13px;
+}
+
+/* One table language for payments, inventory and equipment. */
+.module-workspace .module-data-table {
+  width: 100%;
+  margin: 0 !important;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  background: #fff;
+}
+
+.module-workspace .module-data-table thead th {
+  height: 42px;
+  padding: 10px 12px !important;
+  vertical-align: middle;
+  background: #f5f7f9 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid #dfe5eb !important;
+  color: #687587 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: .045em !important;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.module-workspace .module-data-table thead th:first-child {
+  border-top-left-radius: 16px;
+}
+
+.module-workspace .module-data-table thead th:last-child {
+  border-top-right-radius: 16px;
+}
+
+.module-workspace .module-data-table tbody td {
+  min-height: 52px;
+  padding: 10px 12px !important;
+  vertical-align: middle;
+  border-bottom: 1px solid #e3e8ed !important;
+  background: #fff;
+  color: #1e293b;
+  font-size: 14px !important;
+  line-height: 1.45;
+}
+
+.module-workspace .module-data-table tbody tr:not(.empty-row) {
+  height: 56px;
+}
+
+.module-workspace .module-data-table tbody tr:hover td {
+  background: #f3f8f7 !important;
+}
+
+.module-workspace .module-data-table tbody tr:last-child td {
+  border-bottom-color: transparent !important;
+}
+
+#inventory .module-data-table .inventory-row strong,
+#inventory .module-data-table td span[style*="font-size: 18px"] {
+  font-size: 14px !important;
+}
+
+#inventory .module-data-table .inventory-actions,
+#equipment .module-data-table td:last-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+#inventory .module-data-table .inventory-action-btn,
+#equipment .module-data-table .inventory-action-btn {
+  min-height: 28px;
+  padding: 4px 8px !important;
+  border-radius: 5px !important;
+  background: #fff !important;
+  border: 1px solid #d7dfe7 !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+#inventory .module-data-table .inventory-action-btn:hover,
+#equipment .module-data-table .inventory-action-btn:hover {
+  color: #087f78 !important;
+  border-color: #82bcb7 !important;
+  background: #f2faf9 !important;
+}
+
+#inventory .module-data-table .inventory-action-btn-delete {
+  color: #dc2626 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+#inventory-tab-articles > .card > div:nth-child(2),
+#equipment-tab-list > .card > div:nth-child(2) {
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+/* Keep the fixed shell, but make the content column the explicit scroll owner. */
+.main-content {
+  min-height: 0;
+}
+
+.content-area {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#statistics.section.active {
+  min-height: max-content;
+  padding-bottom: 40px;
+  overflow: visible;
+}
+
+#statistics #stats-alerts-card {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1250px) {
+  .module-workspace .module-command-bar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .module-workspace .module-command-bar > div {
+    flex-wrap: wrap !important;
+    justify-content: flex-start;
+  }
+
+  #inventory.module-workspace,
+  #equipment.module-workspace {
+    display: block;
+  }
+
+  #inventory.module-workspace > .section-header,
+  #equipment.module-workspace > .section-header {
+    height: auto !important;
+    min-height: 54px;
+    padding: 8px 10px;
+    border: 1px solid #dce4eb;
+    border-radius: 7px;
+  }
+}
+
+@media (max-width: 760px) {
+  #payments.module-workspace,
+  #inventory.module-workspace,
+  #equipment.module-workspace {
+    padding: 10px;
+  }
+
+  .module-workspace .module-command-bar .form-control,
+  .module-workspace .module-command-bar .module-search {
+    width: 100% !important;
+    min-width: 0;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -1148,7 +1934,12 @@ body.modal-open .app-container {
 }
 
 .role-hidden {
-    display: none !important;
+  display: none !important;
+}
+
+html:not(.superadmin-session) #settings .settings-page-tab[data-settings-tab="database"],
+html:not(.superadmin-session) #settings [data-settings-page~="database"] {
+  display: none !important;
 }
 
 .specialty-bases-panel {
@@ -3503,6 +4294,69 @@ textarea.form-control {
   overflow: visible;
   box-shadow: var(--shadow);
   padding: 16px;
+}
+
+.patients-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.patients-search-wrap {
+  position: relative;
+  width: min(100%, 680px);
+  flex: 1 1 680px;
+}
+
+.patients-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #8090a3;
+  border-radius: 50%;
+  transform: translateY(-58%);
+  pointer-events: none;
+}
+
+.patients-search-icon::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 2px;
+  right: -5px;
+  bottom: -3px;
+  border-radius: 2px;
+  background: #8090a3;
+  transform: rotate(45deg);
+}
+
+#patients-search {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 44px;
+  border: 1px solid #cfdbe7;
+  border-radius: 10px;
+  background: #fff;
+  color: #203247;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+#patients-search:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.patients-add-btn {
+  min-height: 44px;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+  white-space: nowrap;
 }
 
 .patients-container .table {
@@ -7861,32 +8715,23 @@ body.assistant-mode #payment-requests-section {
 }
 
 .waiting-stat-card {
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow: var(--shadow);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+  border-radius: var(--radius);
+  padding: var(--spacing-lg);
 }
 
 .waiting-stat-card .card-stat {
   font-size: 44px;
 }
 
-.waiting-stat-card-queue {
-  background: linear-gradient(135deg, #fff7dd 0%, #fffef5 100%);
-}
-
 .waiting-stat-card-queue .card-stat {
   color: #c27a00;
 }
 
-.waiting-stat-card-live {
-  background: linear-gradient(135deg, #e8f2ff 0%, #f7fbff 100%);
-}
-
 .waiting-stat-card-live .card-stat {
   color: #145da0;
-}
-
-.waiting-stat-card-done {
-  background: linear-gradient(135deg, #eaf9f0 0%, #f9fefb 100%);
 }
 
 .waiting-stat-card-done .card-stat {
@@ -7895,7 +8740,8 @@ body.assistant-mode #payment-requests-section {
 
 .waiting-board-card {
   overflow: hidden;
-  border: 1px solid rgba(20, 93, 160, 0.12);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
 }
 
 .waiting-board-header {
@@ -7905,6 +8751,15 @@ body.assistant-mode #payment-requests-section {
   gap: 14px;
   padding: 22px 24px 16px;
   border-bottom: 1px solid rgba(20, 93, 160, 0.08);
+}
+
+.waiting-board-header h3 {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0;
 }
 
 .waiting-list-container {
@@ -13997,6 +14852,17 @@ td button {
 }
 
 @media (max-width: 760px) {
+  .patients-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .patients-search-wrap,
+  .patients-add-btn {
+    width: 100%;
+    max-width: none;
+  }
+
   #modal-add-prescription .modal-content {
     height: calc(100dvh - 18px) !important;
     max-height: calc(100dvh - 18px) !important;
@@ -15729,8 +16595,8 @@ td button {
   white-space: nowrap;
 }
 
-#patient-details .table .btn,
-#patient-details .table button {
+#patient-details .table .btn.consultation-action-chip-icon,
+#patient-details .table button.consultation-action-chip-icon {
   width: 34px;
   min-width: 34px;
   height: 34px;
@@ -15740,9 +16606,34 @@ td button {
 }
 
 #patient-details .consultation-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  white-space: nowrap;
+}
+
+#patient-details .consultation-action-chip {
+  min-width: 80px;
+  height: 30px;
+  min-height: 30px;
+  padding: 4px 12px !important;
+  font-size: 12px !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+}
+
+#patient-details .consultation-action-chip.btn-danger {
+  background: var(--color-danger-bg) !important;
+  color: var(--color-danger) !important;
+  border: 1px solid rgba(220, 38, 38, 0.2) !important;
+}
+
+#patient-details .consultation-action-chip.btn-danger:hover {
+  background: #fecaca !important;
 }
 
 #patient-details .consultation-action-chip-icon {
@@ -16173,4 +17064,809 @@ body,
 .empty-message::before {
   font-size: 32px !important;
   margin-bottom: 12px !important;
+}
+
+/* ==================================================
+   MEDCARESO COMPACT CLINICAL WORKSPACE
+   ================================================== */
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.sidebar {
+  width: 224px;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  min-height: 104px;
+  padding: 20px 16px;
+  background: #f7fafc;
+}
+
+.app-brand-logo {
+  width: min(132px, 90%);
+  filter: none;
+}
+
+.nav-menu {
+  padding: 10px 8px;
+  overflow-y: auto;
+}
+
+.nav-item {
+  gap: 10px;
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 8px 12px;
+  border-left-width: 3px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.nav-item:hover {
+  transform: none;
+  background: #f0f6f8;
+}
+
+.nav-item.active,
+.nav-item.active:hover {
+  color: #087f78;
+  background: #e5f3f2;
+  border-left-color: #087f78;
+  box-shadow: none;
+}
+
+.nav-item.active::before {
+  display: none;
+}
+
+.nav-item .icon {
+  min-width: 28px;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.nav-item .label {
+  font-size: 13px;
+}
+
+.sidebar-footer {
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.user-info {
+  gap: 8px;
+  padding: 7px;
+  border-radius: 6px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  box-shadow: none;
+}
+
+.sidebar-footer .btn-block {
+  margin-top: 6px !important;
+  padding: 7px !important;
+  font-size: 12px !important;
+}
+
+.topbar {
+  min-height: 66px;
+  padding: 12px 24px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.topbar h2 {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.sidebar-toggle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #f7fafc;
+  box-shadow: none;
+}
+
+.topbar-actions {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.zoom-control-btn,
+.zoom-reset-btn {
+  height: 30px;
+  border-radius: 6px;
+}
+
+.content-area {
+  padding: 18px 24px 24px;
+}
+
+.section {
+  animation: none;
+}
+
+.section-header {
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.section-header h2 {
+  font-size: 20px;
+}
+
+.section-eyebrow,
+#patient-details .patient-details-subtitle {
+  display: none !important;
+}
+
+.btn {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background: #087f78 !important;
+  border-color: #087f78 !important;
+}
+
+.form-control,
+select,
+input[type="date"],
+input[type="text"],
+input[type="search"] {
+  min-height: 36px;
+  border-radius: 6px !important;
+  border-width: 1px !important;
+}
+
+/* Waiting room */
+#waiting-room .waiting-room-shell {
+  padding: 0;
+}
+
+#waiting-room .waiting-board-card {
+  min-height: calc(100vh - 112px);
+  display: flex;
+  flex-direction: column;
+}
+
+#waiting-room .waiting-board-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 16px;
+  background: #fff;
+}
+
+#waiting-room .waiting-board-header h3 {
+  flex: 0 0 auto;
+  color: #172b3a;
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#waiting-room .waiting-room-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+}
+
+#waiting-room .waiting-stat-card {
+  display: inline-flex !important;
+  align-items: baseline !important;
+  gap: 7px !important;
+  padding: 0 16px !important;
+  border: 0 !important;
+  border-left: 1px solid #e5e7eb !important;
+  border-radius: 0 !important;
+  color: #64748b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#waiting-room .waiting-stat-card strong {
+  font-size: 17px;
+  color: #172b3a;
+}
+
+#waiting-room .waiting-refresh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+#waiting-room .waiting-list-container {
+  flex: 1;
+  min-height: 300px;
+  padding: 16px;
+}
+
+#waiting-room .waiting-empty {
+  min-height: 220px;
+  border: 0;
+  background: #f8fafb;
+}
+
+#waiting-room .waiting-empty-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e5f3f2;
+  color: #087f78;
+  font-size: 22px;
+  font-weight: 400;
+}
+
+#waiting-room .waiting-empty p {
+  margin: 10px 0 0 !important;
+}
+
+/* Agenda */
+#appointments-calendar .calendar-shell {
+  padding: 0;
+}
+
+#appointments-calendar .calendar-layout {
+  gap: 10px;
+  min-height: 0;
+}
+
+#appointments-calendar .calendar-left-panel {
+  grid-template-columns: minmax(180px, .7fr) minmax(270px, 1fr) minmax(260px, 1.4fr);
+  gap: 8px;
+}
+
+#appointments-calendar .calendar-panel-card {
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: none;
+}
+
+#appointments-calendar .calendar-primary-action {
+  min-height: 38px;
+  font-size: 13px;
+}
+
+#appointments-calendar .calendar-panel-caption,
+#appointments-calendar .calendar-views-card .section-header-small,
+#appointments-calendar .team-section .section-header-small {
+  display: none;
+}
+
+#appointments-calendar .view-btn {
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+#appointments-calendar .categories-section {
+  padding: 8px 12px;
+}
+
+#appointments-calendar .categories-section .section-header-small {
+  min-width: 112px;
+  margin: 0;
+}
+
+#appointments-calendar .categories-section,
+#appointments-calendar .categories-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#appointments-calendar .category-item,
+#appointments-calendar .team-member {
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+#appointments-calendar .calendar-main {
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+#appointments-calendar .calendar-insights-row {
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 8px;
+  padding: 8px;
+}
+
+#appointments-calendar .calendar-top-card {
+  padding: 7px 10px;
+}
+
+#appointments-calendar .calendar-search-label {
+  display: none;
+}
+
+#appointments-calendar #calendar-patient-search {
+  min-height: 34px;
+}
+
+#appointments-calendar .calendar-header-bar {
+  min-height: 50px;
+  padding: 6px 12px;
+}
+
+#appointments-calendar .calendar-nav {
+  gap: 8px;
+}
+
+#appointments-calendar .calendar-nav h2 {
+  min-width: 230px;
+  font-size: 19px;
+}
+
+#appointments-calendar .calendar-nav .btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  font-size: 13px !important;
+}
+
+#appointments-calendar .calendar-view-tabs {
+  display: none;
+}
+
+#appointments-calendar .calendar-day-corner,
+#appointments-calendar .day-header-cell {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+#appointments-calendar .calendar-grid-container {
+  height: calc(100vh - 380px);
+  min-height: 390px;
+}
+
+/* Patient record */
+#patient-details > .section-header {
+  margin-bottom: 10px;
+}
+
+#patient-details .patient-details-title-row h2 {
+  font-size: 20px;
+}
+
+#patient-details .patient-details-overview {
+  gap: 12px;
+}
+
+#patient-details .patient-collapsible-card,
+#patient-details #patient-documents-card,
+#patient-details .tabs-container {
+  border-radius: 6px !important;
+}
+
+#patient-details .patient-card-summary {
+  padding: 10px 14px;
+}
+
+#patient-details .patient-card-toggle {
+  font-size: 0;
+}
+
+#patient-details .patient-card-toggle::after {
+  content: 'Replier';
+  font-size: 11px;
+  color: #64748b;
+}
+
+#patient-details .patient-card-body {
+  padding: 10px 14px 14px;
+}
+
+#patient-details #patient-documents-card {
+  margin-top: 12px !important;
+}
+
+#patient-details #patient-documents-card .card-header {
+  padding: 9px 14px;
+}
+
+#patient-details .tabs-container {
+  margin-top: 12px !important;
+}
+
+#patient-details .tabs-header {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+#patient-details .tabs-header .tab-btn {
+  padding: 8px 11px;
+  border-radius: 0;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+#patient-details .patient-records-filter-bar {
+  padding: 8px 12px;
+}
+
+#patient-details .details-info-value,
+#patient-details .info-value,
+#patient-details [class*="patient-info"] {
+  overflow-wrap: anywhere;
+}
+
+/* Imaging workspace */
+#medical-imaging .imaging-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+#medical-imaging .imaging-hero {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+#medical-imaging .imaging-toolbar {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+#medical-imaging .imaging-toolbar .form-group {
+  margin: 0;
+}
+
+#medical-imaging .imaging-toolbar label {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+#medical-imaging .imaging-hero-actions {
+  height: 100%;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+}
+
+#medical-imaging .imaging-layout {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 10px;
+}
+
+#medical-imaging .imaging-list-card,
+#medical-imaging .imaging-viewer-card {
+  padding: 12px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+#medical-imaging .imaging-records-list {
+  max-height: calc(100vh - 210px);
+  margin-top: 8px;
+}
+
+#medical-imaging .imaging-preview-panel,
+#medical-imaging .imaging-preview-placeholder {
+  min-height: calc(100vh - 220px);
+}
+
+#medical-imaging .imaging-preview-placeholder {
+  border: 0;
+  border-radius: 5px;
+  background: #f7f9fb;
+}
+
+/* Payments */
+#payments > .section-header {
+  min-height: 34px;
+  margin-bottom: 8px;
+}
+
+#payments > .stats-row {
+  margin-bottom: 10px !important;
+}
+
+#payments > .card > .card-header {
+  gap: 12px;
+  padding: 10px 14px !important;
+  flex-wrap: wrap;
+}
+
+#payments > .card > .card-header > div {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 8px !important;
+}
+
+#payments > .card > .card-header select,
+#payments > .card > .card-header input {
+  min-height: 34px;
+}
+
+#payments > .card {
+  overflow: hidden;
+}
+
+#payments-pending-badge,
+#payment-requests-badge {
+  position: static !important;
+  display: inline-flex;
+  width: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+}
+
+#payments .table {
+  table-layout: fixed;
+}
+
+#payments .table td {
+  overflow-wrap: anywhere;
+}
+
+/* Inventory and equipment */
+#inventory > .section-header,
+#equipment > .section-header {
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+#inventory .inventory-stats-grid,
+#equipment .inventory-stats-grid {
+  margin-bottom: 8px !important;
+}
+
+#inventory .module-tabs-shell,
+#equipment .module-tabs-shell {
+  margin-bottom: 8px !important;
+  overflow-x: auto;
+}
+
+#inventory .module-tabs-inline,
+#equipment .module-tabs-inline {
+  min-width: max-content;
+}
+
+#equipment-tab-add #equipment-add-form-container {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px !important;
+  text-align: center;
+}
+
+#equipment-tab-add #equipment-add-form-container h3,
+#equipment-tab-add #equipment-add-form-container p {
+  margin: 0;
+}
+
+#equipment-tab-add #equipment-add-form-container p {
+  color: #64748b;
+}
+
+#inventory .inventory-tab-content > .card,
+#equipment .equipment-tab-content > .card {
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+#inventory .inventory-tab-content > .card > .card-header,
+#equipment .equipment-tab-content > .card > .card-header {
+  min-height: 52px;
+  padding: 8px 12px !important;
+  background: #fff !important;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+#inventory .inventory-tab-content > .card > .card-header h3,
+#equipment .equipment-tab-content > .card > .card-header h3 {
+  font-size: 14px !important;
+}
+
+#inventory .inventory-tab-content > .card > .card-header > div,
+#equipment .equipment-tab-content > .card > .card-header > div {
+  display: flex !important;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px !important;
+}
+
+#inventory .inventory-panel-empty {
+  min-height: 150px;
+  justify-content: center;
+}
+
+#inventory-tab-articles > .card > div:nth-child(2),
+#equipment-tab-list > .card > div:nth-child(2) {
+  max-height: calc(100vh - 315px);
+  overflow: auto !important;
+}
+
+#inventory-tab-articles .table thead,
+#equipment-tab-list .table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+#inventory .empty-row td,
+#equipment .text-center {
+  padding: 28px 16px !important;
+}
+
+/* Statistics */
+#statistics > .statistics-header {
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+#statistics .statistics-grid,
+#statistics #stats-doctor-daily-container {
+  gap: 12px !important;
+  padding: 12px !important;
+  margin-bottom: 10px !important;
+}
+
+#statistics .statistics-card {
+  min-height: 0 !important;
+}
+
+#statistics .statistics-card .card-stat {
+  font-size: 20px !important;
+}
+
+@media (max-width: 1366px) {
+  #payments .module-command-bar,
+  #payments .payments-filter-row {
+    flex-wrap: wrap;
+  }
+
+  #inventory .inventory-tab-content > .card > .card-header,
+  #equipment .equipment-tab-content > .card > .card-header,
+  #inventory .inventory-tab-content > .card > .card-header > div,
+  #equipment .equipment-tab-content > .card > .card-header > div {
+    flex-wrap: wrap;
+  }
+
+  .sidebar {
+    width: 204px;
+  }
+
+  .content-area {
+    padding: 14px 16px 18px;
+  }
+
+  #appointments-calendar .calendar-left-panel {
+    grid-template-columns: 180px 260px minmax(240px, 1fr);
+  }
+
+  #appointments-calendar .calendar-grid-container {
+    height: calc(100vh - 360px);
+    min-height: 330px;
+  }
+
+  #medical-imaging .imaging-hero {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  #medical-imaging .imaging-toolbar {
+    grid-column: 1 / -1;
+  }
+
+  #medical-imaging .imaging-hero-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 1050px) {
+  .module-workspace .module-filter-category,
+  .module-workspace .module-filter-status,
+  .module-workspace .module-search-wide,
+  .module-workspace .module-search-wrap {
+    width: 100% !important;
+    min-width: 200px !important;
+    max-width: none;
+    flex: 1 1 240px;
+  }
+
+  .module-workspace .module-filter-row {
+    flex-wrap: wrap;
+  }
+
+  #waiting-room .waiting-board-header,
+  #appointments-calendar .calendar-left-panel,
+  #medical-imaging .imaging-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #waiting-room .waiting-room-stats {
+    flex-wrap: wrap;
+  }
+
+  #waiting-room .waiting-refresh-actions {
+    margin-left: 0;
+  }
+
+  #appointments-calendar .categories-section {
+    flex-direction: row;
+  }
+
+  #patient-details .patient-details-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .topbar h2 {
+    font-size: 18px;
+  }
+
+  .topbar-actions {
+    display: none;
+  }
+
+  .content-area {
+    padding: 10px;
+  }
+
+  #medical-imaging .imaging-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  #medical-imaging .imaging-hero-actions,
+  #waiting-room .waiting-refresh-actions {
+    flex-wrap: wrap;
+  }
 }

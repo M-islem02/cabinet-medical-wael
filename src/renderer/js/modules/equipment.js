@@ -6,10 +6,12 @@
 let equipmentData = [];
 let equipmentCategories = [];
 let equipmentAlerts = { overdue: [], upcoming: [], inMaintenance: [] };
-let equipmentCurrentTab = 'list';
+let equipmentTabState = { activeTab: 'list' };
 let equipmentSelectedId = null;
 let canManageEquipment = false;
 let canSeeEquipmentCosts = false;
+const EQUIPMENT_PAGE_SIZE = 12;
+let equipmentPagination = { page: 1, pageSize: EQUIPMENT_PAGE_SIZE, total: 0, totalPages: 1 };
 
 function checkEquipmentPerms() {
     const isSuperAdmin = typeof currentUserIsSuperAdmin !== 'undefined' ? currentUserIsSuperAdmin : false;
@@ -66,11 +68,15 @@ async function refreshEquipment() {
 }
 
 function switchEquipmentTab(tabName) {
-    equipmentCurrentTab = tabName;
-    document.querySelectorAll('.equipment-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    const validTabs = ['list', 'detail', 'alerts', 'add'];
+    if (!validTabs.includes(tabName)) return;
+    equipmentTabState.activeTab = tabName;
+    document.querySelectorAll('#equipment .module-tabs-inline [data-tab]').forEach(btn => {
+        const isActive = btn.dataset.tab === tabName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
     });
-    document.querySelectorAll('.equipment-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('#equipment .equipment-tab-content').forEach(c => c.style.display = 'none');
     const target = document.getElementById('equipment-tab-' + tabName);
     if (target) target.style.display = 'block';
 
@@ -83,7 +89,7 @@ function switchEquipmentTab(tabName) {
     if (tabName === 'add') renderEquipmentAddForm();
 }
 
-async function loadEquipmentList() {
+async function loadEquipmentList(page = 1) {
     const tbody = document.getElementById('equipment-list-tbody');
     if (!tbody) return;
     try {
@@ -92,6 +98,13 @@ async function loadEquipmentList() {
         const search = document.getElementById('equipment-search')?.value.trim() || '';
         const result = await window.api.equipment.getAll({ category, status, search });
         equipmentData = result.success ? result.data : [];
+        const totalPages = Math.max(1, Math.ceil(equipmentData.length / EQUIPMENT_PAGE_SIZE));
+        equipmentPagination = {
+            page: Math.min(Math.max(1, Number(page) || 1), totalPages),
+            pageSize: EQUIPMENT_PAGE_SIZE,
+            total: equipmentData.length,
+            totalPages
+        };
         displayEquipmentList();
     } catch (e) { console.error('Error loading equipment list:', e); }
 }
@@ -100,10 +113,20 @@ function displayEquipmentList() {
     const tbody = document.getElementById('equipment-list-tbody');
     if (!tbody) return;
     if (!equipmentData.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 40px;">Aucun équipement</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="module-empty-cell">
+            <div class="module-empty-state">
+                <span class="module-empty-state-icon" aria-hidden="true">+</span>
+                <strong>Aucun équipement enregistré</strong>
+                <p>Ajoutez le premier appareil du cabinet ou modifiez les filtres.</p>
+                ${canManageEquipment ? '<button class="btn btn-primary btn-sm" onclick="openEquipmentModal()">+ Ajouter un équipement</button>' : ''}
+            </div>
+        </td></tr>`;
+        renderEquipmentPagination();
         return;
     }
-    tbody.innerHTML = equipmentData.map(e => {
+    const startIndex = (equipmentPagination.page - 1) * equipmentPagination.pageSize;
+    const pageRows = equipmentData.slice(startIndex, startIndex + equipmentPagination.pageSize);
+    tbody.innerHTML = pageRows.map(e => {
         const sc = EQUIPMENT_STATUS_COLORS[e.status] || EQUIPMENT_STATUS_COLORS.available;
         const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category;
         return `
@@ -121,6 +144,28 @@ function displayEquipmentList() {
             </td>
         </tr>`;
     }).join('');
+    renderEquipmentPagination();
+}
+
+function renderEquipmentPagination() {
+    const container = document.getElementById('equipment-pagination');
+    if (!container) return;
+    const { page, pageSize, total, totalPages } = equipmentPagination;
+    container.style.display = 'inline-flex';
+    container.innerHTML = `
+        <span>${page}/${totalPages}</span>
+        <button class="btn btn-secondary pagination-btn" title="Page précédente" aria-label="Page précédente" ${page <= 1 ? 'disabled' : ''} onclick="changeEquipmentPage(-1)">‹</button>
+        <button class="btn btn-secondary pagination-btn" title="Page suivante" aria-label="Page suivante" ${page >= totalPages ? 'disabled' : ''} onclick="changeEquipmentPage(1)">›</button>`;
+}
+
+function changeEquipmentPage(direction) {
+    const nextPage = Math.min(
+        Math.max(1, equipmentPagination.page + Number(direction || 0)),
+        equipmentPagination.totalPages
+    );
+    if (nextPage === equipmentPagination.page) return;
+    equipmentPagination.page = nextPage;
+    displayEquipmentList();
 }
 
 async function showEquipmentDetail(id) {
@@ -237,7 +282,7 @@ async function updateEquipmentStats() {
     } catch (e) { }
 }
 
-async function filterEquipment() { await loadEquipmentList(); }
+async function filterEquipment() { await loadEquipmentList(1); }
 
 function openEquipmentModal(id = null) {
     const title = document.getElementById('equipment-modal-title');
@@ -334,9 +379,9 @@ function renderEquipmentAddForm() {
     const container = document.getElementById('equipment-add-form-container');
     if (!container) return;
     container.innerHTML = `
-        <h3 style="margin:0 0 16px 0">➕ Ajouter un équipement</h3>
-        <p style="color:#64748b;margin-bottom:16px">Cliquez sur le bouton ci-dessous pour ouvrir le formulaire.</p>
-        <button class="btn btn-primary" onclick="openEquipmentModal()">➕ Nouvel Équipement</button>
+        <h3>Ajouter un équipement</h3>
+        <p>Cliquez sur le bouton ci-dessous pour ouvrir le formulaire.</p>
+        <button class="btn btn-primary" onclick="openEquipmentModal()">+ Nouvel équipement</button>
     `;
 }
 
@@ -426,6 +471,7 @@ window.initEquipment = initEquipment;
 window.switchEquipmentTab = switchEquipmentTab;
 window.refreshEquipment = refreshEquipment;
 window.filterEquipment = filterEquipment;
+window.changeEquipmentPage = changeEquipmentPage;
 window.openEquipmentModal = openEquipmentModal;
 window.editEquipment = editEquipment;
 window.saveEquipment = saveEquipment;

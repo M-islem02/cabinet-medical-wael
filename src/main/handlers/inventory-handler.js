@@ -62,6 +62,15 @@ function normalizeInventoryRequest(filters = {}) {
   };
 }
 
+async function tableExists(tableName) {
+  try {
+    const row = await queryOne('SELECT to_regclass(?) IS NOT NULL as exists', [tableName]);
+    return row?.exists === true;
+  } catch (_) {
+    return false;
+  }
+}
+
 export function handleInventoryEvents() {
   // ========== INVENTAIRE ==========
 
@@ -130,9 +139,14 @@ export function handleInventoryEvents() {
   ipcMain.handle('inventory:getAll', async (event, filters = {}) => {
     try {
       const request = normalizeInventoryRequest(filters);
-      let sql = `SELECT i.*, s.name as supplierName
+      const hasSuppliers = await tableExists('suppliers');
+      let sql = hasSuppliers
+        ? `SELECT i.*, s.name as supplierName
                  FROM inventory i
                  LEFT JOIN suppliers s ON s.id = i.supplierId
+                 WHERE 1=1`
+        : `SELECT i.*, i.supplier as supplierName
+                 FROM inventory i
                  WHERE 1=1`;
       const params = [];
 
@@ -148,8 +162,11 @@ export function handleInventoryEvents() {
       }
       if (request.search) {
         const searchPattern = `%${request.search}%`;
-        sql += ' AND (i.name ILIKE ? OR i.category ILIKE ? OR i.supplier ILIKE ? OR i.location ILIKE ? OR s.name ILIKE ?)';
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+        sql += hasSuppliers
+          ? ' AND (i.name ILIKE ? OR i.category ILIKE ? OR i.supplier ILIKE ? OR i.location ILIKE ? OR s.name ILIKE ?)'
+          : ' AND (i.name ILIKE ? OR i.category ILIKE ? OR i.supplier ILIKE ? OR i.location ILIKE ?)';
+        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        if (hasSuppliers) params.push(searchPattern);
       }
       if (filters && filters.isActive !== undefined) {
         sql += ' AND i.isActive = ?';
@@ -165,7 +182,10 @@ export function handleInventoryEvents() {
         return { success: true, data: items };
       }
 
-      const totalRow = await queryOne(sql.replace('SELECT i.*, s.name as supplierName', 'SELECT COUNT(*) as total'), params);
+      const countSql = hasSuppliers
+        ? sql.replace('SELECT i.*, s.name as supplierName', 'SELECT COUNT(*) as total')
+        : sql.replace('SELECT i.*, i.supplier as supplierName', 'SELECT COUNT(*) as total');
+      const totalRow = await queryOne(countSql, params);
       const pagination = buildPaginationMeta(totalRow?.total || 0, request.page, request.pageSize);
       const currentPage = Math.min(pagination.page, pagination.totalPages);
       const offset = (currentPage - 1) * pagination.pageSize;

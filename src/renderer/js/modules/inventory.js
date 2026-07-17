@@ -7,7 +7,7 @@ import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
 // Articles, Fournisseurs, Lots FEFO, Commandes, Historique, Point de Vente
 // =============================================
 
-const INVENTORY_PAGE_SIZE = 20;
+const INVENTORY_PAGE_SIZE = 12;
 
 let inventoryData = [];
 let inventoryInitialized = false;
@@ -19,7 +19,7 @@ let purchaseHistoryData = [];
 let purchaseOrdersData = [];
 let posCart = [];
 let posSalesData = [];
-let currentInventoryTab = 'articles';
+let inventoryTabState = { activeTab: 'articles' };
 let posSearchDebounce = null;
 let canSeeInventoryPrices = false;
 let canManageSuppliersFlag = false;
@@ -60,12 +60,12 @@ function checkInventoryPermissions() {
 
 function refreshInventoryModule() {
     loadInventoryStats();
-    if (currentInventoryTab === 'articles') loadInventory();
-    if (currentInventoryTab === 'suppliers') loadSuppliers();
-    if (currentInventoryTab === 'lots') loadLots();
-    if (currentInventoryTab === 'history') loadPurchaseHistory();
-    if (currentInventoryTab === 'orders') loadPurchaseOrders();
-    if (currentInventoryTab === 'pos') loadPOSData();
+    if (inventoryTabState.activeTab === 'articles') loadInventory();
+    if (inventoryTabState.activeTab === 'suppliers') loadSuppliers();
+    if (inventoryTabState.activeTab === 'lots') loadLots();
+    if (inventoryTabState.activeTab === 'history') loadPurchaseHistory();
+    if (inventoryTabState.activeTab === 'orders') loadPurchaseOrders();
+    if (inventoryTabState.activeTab === 'pos') loadPOSData();
 }
 
 async function initInventory() {
@@ -74,6 +74,7 @@ async function initInventory() {
         await loadInventoryCategories();
         await loadSupplierSelects();
         await loadPatientSelectForPOS();
+        resetInventoryFilters(false);
         setupInventoryEventListeners();
         inventoryInitialized = true;
     }
@@ -136,15 +137,19 @@ async function loadPatientSelectForPOS() {
 }
 
 function switchInventoryTab(tabName) {
-    currentInventoryTab = tabName;
-    document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    const validTabs = ['articles', 'suppliers', 'lots', 'history', 'orders', 'pos'];
+    if (!validTabs.includes(tabName)) return;
+    inventoryTabState.activeTab = tabName;
+    document.querySelectorAll('#inventory .module-tabs-inline [data-tab]').forEach(btn => {
+        const isActive = btn.dataset.tab === tabName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
     });
-    document.querySelectorAll('.inventory-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('#inventory .inventory-tab-content').forEach(c => c.style.display = 'none');
     const target = document.getElementById('inventory-tab-' + tabName);
     if (target) target.style.display = 'block';
 
-    document.querySelectorAll('.inventory-action-btn-tab').forEach(btn => {
+    document.querySelectorAll('#inventory .inventory-action-btn-tab').forEach(btn => {
         btn.style.display = btn.dataset.action === tabName ? 'inline-flex' : 'none';
     });
 
@@ -155,7 +160,7 @@ function switchInventoryTab(tabName) {
     if (tabName === 'orders') loadPurchaseOrders();
     if (tabName === 'pos') loadPOSData();
 
-    document.querySelectorAll('.inventory-price-col').forEach(el => {
+    document.querySelectorAll('#inventory .inventory-price-col').forEach(el => {
         el.style.display = canSeeInventoryPrices ? '' : 'none';
     });
 }
@@ -234,10 +239,16 @@ function displayInventory() {
     if (!tbody) return;
     const rows = Array.isArray(inventoryData) ? inventoryData : [];
     if (rows.length === 0) {
+        const hasActiveFilters = Boolean(inventoryFilters.category || inventoryFilters.lowStock || inventoryFilters.search);
         tbody.innerHTML = `
-            <tr><td colspan="8" class="text-center" style="padding: 28px;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                    <p style="color: #666; margin: 0;">Aucun article trouvé</p>
+            <tr><td colspan="8" class="module-empty-cell">
+                <div class="module-empty-state">
+                    <span class="module-empty-state-icon" aria-hidden="true">+</span>
+                    <strong>Aucun article trouvé</strong>
+                    <p>${hasActiveFilters ? 'Aucun article ne correspond aux filtres sélectionnés.' : 'Ajoutez le premier article à votre inventaire.'}</p>
+                    ${hasActiveFilters
+                        ? '<button class="btn btn-secondary btn-sm" onclick="resetInventoryFilters()">Réinitialiser les filtres</button>'
+                        : '<button class="btn btn-primary btn-sm" onclick="openInventoryModal()">+ Ajouter un article</button>'}
                 </div>
             </td></tr>`;
         renderInventoryPagination();
@@ -294,6 +305,17 @@ async function filterInventory() {
     inventoryFilters.category = categoryFilter ? categoryFilter.value : '';
     inventoryFilters.lowStock = lowStockCheckbox ? lowStockCheckbox.checked : false;
     await loadInventory(1);
+}
+
+function resetInventoryFilters(reload = true) {
+    inventoryFilters = { category: '', lowStock: false, expiring: false, search: '' };
+    const categoryFilter = document.getElementById('inventory-category-filter');
+    const searchInput = document.getElementById('inventory-search');
+    const lowStockCheckbox = document.getElementById('inventory-low-only');
+    if (categoryFilter) categoryFilter.value = '';
+    if (searchInput) searchInput.value = '';
+    if (lowStockCheckbox) lowStockCheckbox.checked = false;
+    if (reload && inventoryTabState.activeTab === 'articles') loadInventory(1);
 }
 
 function openInventoryModal(id = null) {
@@ -413,6 +435,15 @@ async function adjustStock(event) {
 
 // ─── SUPPLIERS ────────────────────────────────────────────────────────────────
 
+function buildInventoryEmptyRow(colspan, title, description) {
+    return `<tr><td colspan="${colspan}" class="module-empty-cell">
+        <div class="module-empty-state">
+            <strong>${title}</strong>
+            <p>${description}</p>
+        </div>
+    </td></tr>`;
+}
+
 async function loadSuppliers() {
     try {
         const search = document.getElementById('supplier-search')?.value.trim() || '';
@@ -428,7 +459,7 @@ function displaySuppliers() {
     const tbody = document.getElementById('suppliers-tbody');
     if (!tbody) return;
     if (!suppliersData.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding: 40px;">Aucun fournisseur</td></tr>`;
+        tbody.innerHTML = buildInventoryEmptyRow(5, 'Aucun fournisseur', 'Ajoutez un fournisseur pour commencer.');
         return;
     }
     tbody.innerHTML = suppliersData.map(s => {
@@ -576,7 +607,7 @@ function displayLots() {
     const tbody = document.getElementById('lots-tbody');
     if (!tbody) return;
     if (!lotsData.length) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 40px;">Aucun lot</td></tr>`;
+        tbody.innerHTML = buildInventoryEmptyRow(8, 'Aucun lot', 'Ajoutez un lot ou modifiez les filtres.');
         return;
     }
     const today = new Date().toISOString().slice(0, 10);
@@ -668,7 +699,7 @@ async function saveInventoryLot(event) {
         showNotification('Lot enregistré', 'success');
         await loadLots();
         await loadInventoryStats();
-        if (currentInventoryTab === 'articles') await loadInventory();
+        if (inventoryTabState.activeTab === 'articles') await loadInventory();
     } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
@@ -709,7 +740,7 @@ function displayPurchaseHistory() {
     const tbody = document.getElementById('purchase-history-tbody');
     if (!tbody) return;
     if (!purchaseHistoryData.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding: 40px;">Aucun historique</td></tr>`;
+        tbody.innerHTML = buildInventoryEmptyRow(7, 'Aucun historique', 'Aucun achat ne correspond à cette période.');
         return;
     }
     tbody.innerHTML = purchaseHistoryData.map(p => `
@@ -760,7 +791,7 @@ function displayPurchaseOrders() {
     const container = document.getElementById('orders-list');
     if (!container) return;
     if (!purchaseOrdersData.length) {
-        container.innerHTML = '<div style="text-align:center; padding: 40px; color: #94a3b8;">Aucune commande</div>';
+        container.innerHTML = '<div class="module-empty-state inventory-panel-empty"><strong>Aucune commande</strong><p>Créez une commande pour commencer.</p></div>';
         return;
     }
     const statusLabels = { draft: 'Brouillon', partial: 'Partiel', received: 'Reçu' };
@@ -976,7 +1007,7 @@ function renderPOSCart() {
     const tbody = document.getElementById('pos-cart-tbody');
     if (!tbody) return;
     if (!posCart.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding: 40px; color: #94a3b8;">Panier vide</td></tr>`;
+        tbody.innerHTML = buildInventoryEmptyRow(5, 'Panier vide', 'Recherchez un article pour l’ajouter à la vente.');
     } else {
         tbody.innerHTML = posCart.map((item, idx) => `
             <tr>
@@ -1030,8 +1061,8 @@ async function submitPOSSale() {
         renderPOSCart();
         await loadPOSSales();
         await loadInventoryStats();
-        if (currentInventoryTab === 'articles') await loadInventory();
-        if (currentInventoryTab === 'lots') await loadLots();
+        if (inventoryTabState.activeTab === 'articles') await loadInventory();
+        if (inventoryTabState.activeTab === 'lots') await loadLots();
     } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
@@ -1048,7 +1079,7 @@ function displayPOSSales() {
     const tbody = document.getElementById('pos-sales-tbody');
     if (!tbody) return;
     if (!posSalesData.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding: 30px; color: #94a3b8;">Aucune vente</td></tr>`;
+        tbody.innerHTML = buildInventoryEmptyRow(5, 'Aucune vente', 'Aucune vente enregistrée aujourd’hui.');
         return;
     }
     tbody.innerHTML = posSalesData.map(s => {
@@ -1188,6 +1219,7 @@ registerLegacyGlobals('inventory', {
     recalculatePOS,
     refreshInventoryModule,
     removePOSCartItem,
+    resetInventoryFilters,
     saveInventoryItem,
     saveInventoryLot,
     savePurchaseOrder,

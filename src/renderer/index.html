@@ -136,7 +136,6 @@
                         title="Ouvrir / fermer la navigation">&#9776;</button>
                     <div>
                         <h2 id="page-title">Tableau de Bord</h2>
-                        <p class="topbar-caption">Organisation professionnelle du cabinet</p>
                     </div>
                 </div>
                 <div class="topbar-actions" aria-label="Zoom de l'interface">
@@ -236,56 +235,36 @@
 
                 <!-- ===================== WAITING ROOM SECTION ===================== -->
                 <section id="waiting-room" class="section">
-                    <div class="section-header waiting-room-header compact-actions-header">
-                        <div class="section-header-actions">
-                            <!-- Only assistant can add patients -->
-                            <button class="btn btn-primary assistant-only" onclick="openAddToWaitingRoomModal()">
-                                Ajouter un patient
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="feature-shell waiting-room-shell">
-                        <!-- Waiting Room Stats -->
-                        <div class="stats-row waiting-room-stats">
-                            <div class="card waiting-stat-card waiting-stat-card-queue">
-                                <div class="card-header">
-                                    <h3>En Attente</h3>
-                                    <span class="icon">⏳</span>
-                                </div>
-                                <div class="card-stat" id="stat-waiting">0</div>
-                                <p class="card-footer">Patients en attente</p>
-                            </div>
-                            <div class="card waiting-stat-card waiting-stat-card-live">
-                                <div class="card-header">
-                                    <h3>En Consultation</h3>
-                                    <span class="icon">👨‍⚕️</span>
-                                </div>
-                                <div class="card-stat" id="stat-in-consultation">0</div>
-                                <p class="card-footer">Avec le médecin</p>
-                            </div>
-                            <div class="card waiting-stat-card waiting-stat-card-done">
-                                <div class="card-header">
-                                    <h3>Terminés</h3>
-                                    <span class="icon">✅</span>
-                                </div>
-                                <div class="card-stat" id="stat-completed-today">0</div>
-                                <p class="card-footer">Consultations terminées</p>
-                            </div>
-                        </div>
-
-                        <!-- Waiting Room List -->
                         <div class="card waiting-board-card">
                             <div class="card-header waiting-board-header">
                                 <h3>File d'attente</h3>
+                                <div class="waiting-room-stats" aria-label="État de la file d'attente">
+                                    <div class="waiting-stat-card waiting-stat-card-queue">
+                                        <span>En attente</span>
+                                        <strong id="stat-waiting">0</strong>
+                                    </div>
+                                    <div class="waiting-stat-card waiting-stat-card-live">
+                                        <span>En consultation</span>
+                                        <strong id="stat-in-consultation">0</strong>
+                                    </div>
+                                    <div class="waiting-stat-card waiting-stat-card-done">
+                                        <span>Terminés</span>
+                                        <strong id="stat-completed-today">0</strong>
+                                    </div>
+                                </div>
                                 <div class="waiting-refresh-actions">
                                     <span id="waiting-room-last-refresh" class="waiting-last-refresh">Auto</span>
                                     <button class="btn btn-secondary btn-small" onclick="refreshWaitingRoom()">Actualiser</button>
+                                    <button class="btn btn-primary assistant-only" onclick="openAddToWaitingRoomModal()">
+                                        + Ajouter un patient
+                                    </button>
                                 </div>
                             </div>
                             <div id="waiting-room-list" class="waiting-room-list waiting-list-container">
                                 <!-- Populated by JS -->
                                 <div class="waiting-empty">
+                                    <span class="waiting-empty-icon" aria-hidden="true">+</span>
                                     <p>Aucun patient en salle d'attente</p>
                                 </div>
                             </div>
@@ -645,9 +624,9 @@
                 <section id="treatment-plans" class="section doctor-only">
                     <div class="plans-workspace">
                         <div class="plans-filter-bar">
-                            <div class="plans-tabs-inline">
-                                <button class="feature-tab-btn active" id="plans-tab-active" onclick="switchPlansTab('active')">Actifs & Terminés</button>
-                                <button class="feature-tab-btn" id="plans-tab-archived" onclick="switchPlansTab('archived')">Archivés</button>
+                            <div class="module-tabs-inline" role="tablist" aria-label="État des plans de traitement">
+                                <button class="feature-tab-btn active" id="plans-tab-active" data-tab="active" role="tab" aria-selected="true" onclick="switchPlansTab('active')">Actifs & Terminés</button>
+                                <button class="feature-tab-btn" id="plans-tab-archived" data-tab="archived" role="tab" aria-selected="false" onclick="switchPlansTab('archived')">Archivés</button>
                             </div>
                             <input type="text" id="plans-search-input" class="form-control" placeholder="Rechercher un patient..." oninput="debouncePlanSearch()">
                             <select id="plans-filter-status" class="form-control" onchange="filterTreatmentPlans()">
@@ -658,7 +637,7 @@
                             </select>
                             <button class="btn btn-secondary plans-refresh-btn" onclick="loadTreatmentPlans()">⟳ Actualiser</button>
                             <button class="btn btn-primary plans-new-btn" onclick="openCreatePlanModal()" id="btn-create-plan">+ Nouveau Plan</button>
-                            <div class="plans-pagination" id="plans-pagination">
+                            <div class="plans-pagination pagination-controls" id="plans-pagination">
                                 <span id="plans-page-label">1/1</span>
                                 <button type="button" class="btn btn-secondary btn-small" onclick="changePlansPage(-1)">‹</button>
                                 <button type="button" class="btn btn-secondary btn-small" onclick="changePlansPage(1)">›</button>
@@ -968,15 +947,15 @@
 
                 <!-- Patients Section -->
                 <section id="patients" class="section">
-                    <div class="section-header compact-actions-header">
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-primary" onclick="showPatientForm()">Ajouter un patient</button>
-                        </div>
-                    </div>
-
                     <div class="patients-container">
-                        <div class="search-box-section">
-                            <input type="text" id="patients-search" placeholder="Rechercher par nom, numéro SS...">
+                        <div class="patients-toolbar">
+                            <div class="patients-search-wrap">
+                                <span class="patients-search-icon" aria-hidden="true"></span>
+                                <input type="search" id="patients-search" class="form-control"
+                                    placeholder="Rechercher par nom, prénom, téléphone ou numéro SS..."
+                                    aria-label="Rechercher un patient">
+                            </div>
+                            <button class="btn btn-primary patients-add-btn" onclick="showPatientForm()">+ Ajouter un patient</button>
                         </div>
 
                         <table id="patients-table" class="table patients-records-table">
@@ -1003,10 +982,12 @@
 
                 <section id="medical-imaging" class="section">
                     <div class="imaging-shell">
-                        <div class="imaging-actions-bar">
+                        <div class="imaging-hero">
                             <div class="imaging-hero-actions">
-                                <button type="button" class="btn btn-secondary" onclick="pickMedicalImagingFolder()">Charger un dossier DICOM</button>
-                                <button type="button" class="btn btn-primary" onclick="pickMedicalImagingFiles()">Importer des fichiers</button>
+                                <button type="button" class="btn btn-secondary" onclick="pickMedicalImagingFolder()">
+                                    Charger un dossier DICOM</button>
+                                <button type="button" class="btn btn-primary" onclick="pickMedicalImagingFiles()">
+                                    Importer des fichiers</button>
                             </div>
                         </div>
 
@@ -1143,12 +1124,6 @@
                             </aside>
 
                             <div class="calendar-main">
-                                <div class="calendar-toolbar-strip">
-                                    <div class="calendar-toolbar-badge">Grille horaire du cabinet</div>
-                                    <div class="calendar-toolbar-note">Vue claire pour planifier, déplacer et retrouver
-                                        les rendez-vous rapidement.</div>
-                                </div>
-
                                 <div class="calendar-insights-row">
                                     <div class="calendar-panel-card search-patients-box calendar-top-card">
                                         <label for="calendar-patient-search" class="calendar-search-label">Recherche
@@ -1257,7 +1232,7 @@
                         </div>
                         <div class="header-actions">
                             <button class="btn btn-warning doctor-only"
-                                onclick="openPaymentRequestModal(currentPatientId)" style="margin-right: 10px;">💰
+                                onclick="openPaymentRequestModal(currentPatientId)" style="margin-right: 10px;">
                                 Demander un paiement</button>
                             <button class="btn btn-primary" onclick="openNewConsultationModal()">Nouvelle
                                 consultation</button>
@@ -1354,7 +1329,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div id="patient-records-pagination" class="patients-pagination"
+                        <div id="patient-consultations-pagination" class="patients-pagination"
                             style="display:none; padding: 16px 20px 20px;"></div>
 
                         <div id="tab-prescriptions" class="tab-content">
@@ -1562,10 +1537,7 @@
                 </section>
 
                 <!-- Payments Section -->
-                <section id="payments" class="section">
-                    <div class="section-header compact-actions-header">
-                        <button class="btn btn-secondary" onclick="loadPayments()">Actualiser</button>
-                    </div>
+                <section id="payments" class="section module-workspace">
 
                     <!-- Payment Requests for Doctor & Assistant -->
                     <div id="payment-requests-section" class="card" style="margin-bottom: 20px; display: none;">
@@ -1617,13 +1589,13 @@
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header"
-                            style="display: flex; justify-content: flex-end; align-items: center;">
-                            <span id="payments-pending-badge" class="badge hidden"
-                                    style="background:#f59e0b; color:#fff; margin-left:8px;">0</span>
-                            <div style="display: flex; gap: 10px;">
-                                <select id="payment-filter-method"
+                    <div class="card module-content-card">
+                        <div class="card-header module-command-bar"
+                            style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Liste des Paiements <span id="payments-pending-badge" class="badge hidden"
+                                    style="background:#f59e0b; color:#fff; margin-left:8px;">0</span></h3>
+                            <div class="payments-filter-row">
+                                <select id="payment-filter-method" class="form-control module-filter-category"
                                     style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Toutes les méthodes</option>
                                     <option value="Espèces">Espèces</option>
@@ -1631,16 +1603,16 @@
                                     <option value="Chèque">Chèque</option>
                                     <option value="Virement">Virement</option>
                                 </select>
-                                <input type="date" id="payment-filter-start"
-                                    style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <input type="date" id="payment-filter-end"
-                                    style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <button class="btn btn-secondary" onclick="filterPayments()">Filtrer</button>
-                                <button class="btn btn-primary" onclick="resetPaymentFilters()">Réinitialiser</button>
+                                <label class="module-date-filter"><span>Du</span><input type="date" id="payment-filter-start" class="form-control"></label>
+                                <label class="module-date-filter"><span>Au</span><input type="date" id="payment-filter-end" class="form-control"></label>
+                                <button class="btn btn-secondary plans-refresh-btn" onclick="loadPayments()">Actualiser</button>
+                                <button class="btn btn-primary payments-filter-btn" onclick="filterPayments()">Filtrer</button>
+                                <button class="btn btn-secondary payments-filter-btn" onclick="resetPaymentFilters()">Réinitialiser</button>
+                                <div id="payments-pagination" class="pagination-controls"></div>
                             </div>
                         </div>
 
-                        <table class="table">
+                        <table class="table module-data-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
@@ -1659,8 +1631,6 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <div id="payments-pagination" class="patients-pagination"
-                            style="display:none; padding: 16px 20px 20px;"></div>
                     </div>
                 </section>
 
@@ -1740,27 +1710,7 @@
                 </section>
 
                 <!-- Inventory Section -->
-                <section id="inventory" class="section">
-                    <div class="section-header">
-                        <div class="inventory-header-actions">
-                            <button class="btn btn-secondary" onclick="refreshInventoryModule()">
-                                Actualiser
-                            </button>
-                            <button class="btn btn-primary inventory-action-btn-tab" data-action="articles" onclick="openInventoryModal()">
-                                Ajouter un article
-                            </button>
-                            <button class="btn btn-primary inventory-action-btn-tab" data-action="suppliers" onclick="openSupplierModal()" style="display:none">
-                                Ajouter un fournisseur
-                            </button>
-                            <button class="btn btn-primary inventory-action-btn-tab" data-action="lots" onclick="openInventoryLotModal()" style="display:none">
-                                Ajouter un lot
-                            </button>
-                            <button class="btn btn-primary inventory-action-btn-tab" data-action="orders" onclick="openPurchaseOrderModal()" style="display:none">
-                                Ajouter une commande
-                            </button>
-                        </div>
-                    </div>
-
+                <section id="inventory" class="section module-workspace">
                     <!-- Stats Cards -->
                     <div class="inventory-stats-grid inventory-overview-grid">
                         <div class="inventory-stat-card">
@@ -1782,52 +1732,59 @@
                     </div>
 
                     <!-- Tabs Navigation -->
-                    <div class="card feature-tabs-shell" style="margin-bottom: 16px;">
-                        <div class="feature-tabs-wrap">
-                            <div class="feature-main-tabs inventory-main-tabs">
-                                <button class="feature-tab-btn inventory-tab-btn active" data-tab="articles" onclick="switchInventoryTab('articles')">
+                    <div class="module-tabs-shell">
+                            <div class="module-tabs-inline" role="tablist" aria-label="Sections de la gestion du stock">
+                                <button class="feature-tab-btn inventory-tab-btn active" data-tab="articles" role="tab" aria-selected="true" onclick="switchInventoryTab('articles')">
                                     Articles
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="suppliers" onclick="switchInventoryTab('suppliers')">
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="suppliers" role="tab" aria-selected="false" onclick="switchInventoryTab('suppliers')">
                                     Fournisseurs
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="lots" onclick="switchInventoryTab('lots')">
-                                    Lots
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="lots" role="tab" aria-selected="false" onclick="switchInventoryTab('lots')">
+                                    Lots & Expiration
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="history" onclick="switchInventoryTab('history')">
-                                    Achats
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="history" role="tab" aria-selected="false" onclick="switchInventoryTab('history')">
+                                    Historique d'achats
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="orders" onclick="switchInventoryTab('orders')">
-                                    Commandes
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="orders" role="tab" aria-selected="false" onclick="switchInventoryTab('orders')">
+                                    Bons de commande
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="pos" onclick="switchInventoryTab('pos')">
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="pos" role="tab" aria-selected="false" onclick="switchInventoryTab('pos')">
                                     Point de vente
                                 </button>
                             </div>
-                        </div>
+                            <div class="module-tabs-actions">
+                                <button class="btn btn-secondary plans-refresh-btn" onclick="refreshInventoryModule()">Actualiser</button>
+                                <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="articles" onclick="openInventoryModal()">+ Nouvel article</button>
+                                <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="suppliers" onclick="openSupplierModal()" style="display:none">+ Nouveau fournisseur</button>
+                                <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="lots" onclick="openInventoryLotModal()" style="display:none">+ Nouveau lot</button>
+                                <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="orders" onclick="openPurchaseOrderModal()" style="display:none">+ Nouvelle commande</button>
+                            </div>
                     </div>
 
                     <!-- TAB: Articles -->
                     <div id="inventory-tab-articles" class="inventory-tab-content" style="display: block;">
-                        <div class="card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-                            <div class="card-header" style="display: flex; justify-content: flex-end; align-items: center; padding: 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                                <div style="display: flex; gap: 15px; align-items: center;">
-                                    <select id="inventory-category-filter" class="form-control" onchange="filterInventory()" style="min-width:160px">
+                        <div class="card module-content-card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+                            <div class="card-header module-command-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Liste des articles</h3>
+                                <div class="module-filter-row" style="display: flex; gap: 15px; align-items: center;">
+                                    <select id="inventory-category-filter" class="form-control module-filter-category" onchange="filterInventory()" style="min-width:160px">
                                         <option value="">Toutes catégories</option>
                                     </select>
-                                    <div style="position: relative;">
+                                    <div class="module-search-wrap" style="position: relative;">
                                         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;">🔍</span>
-                                        <input type="text" id="inventory-search" placeholder="Rechercher..." oninput="filterInventory()"
+                                        <input type="text" id="inventory-search" class="form-control module-search module-search-wide" placeholder="Rechercher..."
                                             style="padding: 10px 12px 10px 38px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px; font-size: 14px;">
                                     </div>
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; color: #475569; white-space: nowrap;">
-                                        <input type="checkbox" id="inventory-low-only" onchange="filterInventory()" style="width: 18px; height: 18px; accent-color: #f5576c;">
+                                    <label class="module-filter-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; color: #475569;">
+                                        <input type="checkbox" id="inventory-low-only" style="width: 18px; height: 18px; accent-color: #f5576c;">
                                         Stock bas
                                     </label>
+                                    <div id="inventory-pagination" class="pagination-controls"></div>
                                 </div>
                             </div>
                             <div style="overflow-x: auto;">
-                                <table class="table" style="margin: 0;">
+                                <table class="table module-data-table" style="margin: 0;">
                                     <thead>
                                         <tr style="background: #f1f5f9;">
                                             <th style="padding: 14px 16px; font-weight: 600; color: #475569; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">Article</th>
@@ -1851,7 +1808,6 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <div id="inventory-main-pagination" class="patients-pagination" style="display:none; padding: 16px 20px 20px;"></div>
                         </div>
                     </div>
 
@@ -1860,11 +1816,11 @@
                         <div class="card">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">🏢 Fournisseurs</h3>
-                                <input type="text" id="supplier-search" placeholder="Rechercher un fournisseur..." oninput="filterSuppliers()"
+                                <input type="text" id="supplier-search" class="form-control module-search module-search-wide" placeholder="Rechercher un fournisseur..." oninput="filterSuppliers()"
                                     style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 260px; font-size: 14px;">
                             </div>
                             <div style="overflow-x: auto;">
-                                <table class="table" style="margin: 0;">
+                                <table class="table module-data-table" style="margin: 0;">
                                     <thead>
                                         <tr style="background: #f1f5f9;">
                                             <th style="padding: 14px 16px; font-weight: 600; color: #475569; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">Fournisseur</th>
@@ -1887,13 +1843,13 @@
                         <div class="card">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">📋 Lots & Traçabilité (FEFO)</h3>
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <select id="lots-article-filter" class="form-control" onchange="filterLots()" style="min-width:180px"><option value="">Tous les articles</option></select>
-                                    <input type="text" id="lots-search" placeholder="Rechercher lot..." oninput="filterLots()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
+                                <div class="module-filter-row" style="display: flex; gap: 12px; align-items: center;">
+                                    <select id="lots-article-filter" class="form-control module-filter-category" onchange="filterLots()" style="min-width:180px"><option value="">Tous les articles</option></select>
+                                    <input type="text" id="lots-search" class="form-control module-search module-search-wide" placeholder="Rechercher lot..." oninput="filterLots()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
                                 </div>
                             </div>
                             <div style="overflow-x: auto;">
-                                <table class="table" style="margin: 0;">
+                                <table class="table module-data-table" style="margin: 0;">
                                     <thead>
                                         <tr style="background: #f1f5f9;">
                                             <th style="padding: 14px 16px; font-weight: 600; color: #475569; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px;">Article</th>
@@ -1919,11 +1875,11 @@
                         <div class="card">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">🧾 Historique d'achats</h3>
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <select id="history-supplier-filter" class="form-control" onchange="filterPurchaseHistory()" style="min-width:160px"><option value="">Tous fournisseurs</option></select>
-                                    <select id="history-category-filter" class="form-control" onchange="filterPurchaseHistory()" style="min-width:160px"><option value="">Toutes catégories</option></select>
-                                    <input type="date" id="history-start" class="form-control" onchange="filterPurchaseHistory()">
-                                    <input type="date" id="history-end" class="form-control" onchange="filterPurchaseHistory()">
+                                <div class="module-filter-row" style="display: flex; gap: 12px; align-items: center;">
+                                    <select id="history-supplier-filter" class="form-control module-filter-category" onchange="filterPurchaseHistory()" style="min-width:160px"><option value="">Tous fournisseurs</option></select>
+                                    <select id="history-category-filter" class="form-control module-filter-category" onchange="filterPurchaseHistory()" style="min-width:160px"><option value="">Toutes catégories</option></select>
+                                    <label class="module-date-filter"><span>Du</span><input type="date" id="history-start" class="form-control" onchange="filterPurchaseHistory()"></label>
+                                    <label class="module-date-filter"><span>Au</span><input type="date" id="history-end" class="form-control" onchange="filterPurchaseHistory()"></label>
                                 </div>
                             </div>
                             <div style="overflow-x: auto;">
@@ -1956,14 +1912,14 @@
                         <div class="card">
                             <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">📄 Bons de commande</h3>
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <select id="orders-status-filter" class="form-control" onchange="filterPurchaseOrders()" style="min-width:140px">
+                                <div class="module-filter-row" style="display: flex; gap: 12px; align-items: center;">
+                                    <select id="orders-status-filter" class="form-control module-filter-status" onchange="filterPurchaseOrders()" style="min-width:140px">
                                         <option value="">Tous statuts</option>
                                         <option value="draft">Brouillon</option>
                                         <option value="partial">Partiel</option>
                                         <option value="received">Reçu</option>
                                     </select>
-                                    <input type="text" id="orders-search" placeholder="Rechercher..." oninput="filterPurchaseOrders()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
+                                    <input type="text" id="orders-search" class="form-control module-search module-search-wide" placeholder="Rechercher..." oninput="filterPurchaseOrders()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
                                 </div>
                             </div>
                             <div id="orders-list" style="padding: 20px;">
@@ -2073,14 +2029,7 @@
                 </section>
 
                 <!-- ===================== EQUIPMENT SECTION ===================== -->
-                <section id="equipment" class="section">
-                    <div class="section-header compact-actions-header">
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-secondary" onclick="refreshEquipment()">Actualiser</button>
-                            <button class="btn btn-primary" onclick="openEquipmentModal()" id="equipment-add-btn">Ajouter un équipement</button>
-                        </div>
-                    </div>
-
+                <section id="equipment" class="section module-workspace">
                     <!-- Stats Cards -->
                     <div class="inventory-stats-grid inventory-overview-grid">
                         <div class="inventory-stat-card">
@@ -2102,36 +2051,41 @@
                     </div>
 
                     <!-- Tabs -->
-                    <div class="card feature-tabs-shell" style="margin-bottom: 16px;">
-                        <div class="feature-tabs-wrap">
-                            <div class="feature-main-tabs equipment-main-tabs">
-                                <button class="feature-tab-btn equipment-tab-btn active" data-tab="list" onclick="switchEquipmentTab('list')">Liste</button>
-                                <button class="feature-tab-btn equipment-tab-btn" data-tab="detail" onclick="switchEquipmentTab('detail')">Fiche</button>
-                                <button class="feature-tab-btn equipment-tab-btn" data-tab="alerts" onclick="switchEquipmentTab('alerts')">Maintenance</button>
+                    <div class="module-tabs-shell">
+                            <div class="module-tabs-inline" role="tablist" aria-label="Sections des équipements">
+                                <button class="feature-tab-btn equipment-tab-btn active" data-tab="list" role="tab" aria-selected="true" onclick="switchEquipmentTab('list')">Liste des équipements</button>
+                                <button class="feature-tab-btn equipment-tab-btn" data-tab="detail" role="tab" aria-selected="false" onclick="switchEquipmentTab('detail')">Fiche équipement</button>
+                                <button class="feature-tab-btn equipment-tab-btn" data-tab="alerts" role="tab" aria-selected="false" onclick="switchEquipmentTab('alerts')">Alertes maintenance</button>
+                                <button class="feature-tab-btn equipment-tab-btn" data-tab="add" role="tab" aria-selected="false" onclick="switchEquipmentTab('add')">Ajouter un équipement</button>
                             </div>
-                        </div>
+                            <div class="module-tabs-actions">
+                                <button class="btn btn-secondary plans-refresh-btn" onclick="refreshEquipment()">Actualiser</button>
+                                <button class="btn btn-primary plans-new-btn" onclick="openEquipmentModal()" id="equipment-add-btn">+ Ajouter un équipement</button>
+                            </div>
                     </div>
 
                     <!-- TAB: List -->
                     <div id="equipment-tab-list" class="equipment-tab-content" style="display: block;">
-                        <div class="card">
-                            <div class="card-header" style="display: flex; justify-content: flex-end; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-                                <div style="display: flex; gap: 12px; align-items: center;">
-                                    <select id="equipment-filter-category" class="form-control" onchange="filterEquipment()" style="min-width: 160px;">
+                        <div class="card module-content-card">
+                            <div class="card-header module-command-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Liste des équipements</h3>
+                                <div class="module-filter-row" style="display: flex; gap: 12px; align-items: center;">
+                                    <select id="equipment-filter-category" class="form-control module-filter-category" onchange="filterEquipment()" style="min-width: 160px;">
                                         <option value="">Toutes catégories</option>
                                     </select>
-                                    <select id="equipment-filter-status" class="form-control" onchange="filterEquipment()" style="min-width: 140px;">
+                                    <select id="equipment-filter-status" class="form-control module-filter-status" onchange="filterEquipment()" style="min-width: 140px;">
                                         <option value="">Tous statuts</option>
                                         <option value="available">Disponible</option>
                                         <option value="in_use">En cours d'utilisation</option>
                                         <option value="maintenance">En maintenance</option>
                                         <option value="out_of_service">Hors service</option>
                                     </select>
-                                    <input type="text" id="equipment-search" placeholder="Rechercher..." oninput="filterEquipment()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
+                                    <input type="text" id="equipment-search" class="form-control module-search module-search-wide" placeholder="Rechercher..." oninput="filterEquipment()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
+                                    <div id="equipment-pagination" class="pagination-controls"></div>
                                 </div>
                             </div>
                             <div style="overflow-x: auto;">
-                                <table class="table" style="margin: 0;">
+                                <table class="table module-data-table" style="margin: 0;">
                                     <thead>
                                         <tr style="background: #f1f5f9;">
                                             <th style="padding: 14px 16px;">Nom</th>
@@ -2144,7 +2098,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="equipment-list-tbody">
-                                        <tr><td colspan="7" class="text-center" style="padding: 40px;">Chargement...</td></tr>
+                                        <tr><td colspan="7" class="module-empty-cell"><div class="module-empty-state">Chargement...</div></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -2181,7 +2135,10 @@
 
                 <!-- Statistics Section -->
                 <section id="statistics" class="section">
-                    <div class="section-header statistics-header compact-actions-header" style="flex-wrap: wrap; gap: 16px;">
+                    <div class="section-header statistics-header" style="flex-wrap: wrap; gap: 16px;">
+                        <div class="section-heading-block">
+                            <h2 id="statistics-section-title" class="sr-only">Statistiques</h2>
+                        </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <select id="stats-period-select" class="form-control" style="min-width: 140px; min-height: 38px;" onchange="handleStatsPeriodChange()">
@@ -2192,9 +2149,9 @@
                                 </select>
                             </div>
                             <div id="stats-custom-dates" style="display: none; gap: 8px; align-items: center;">
-                                <input type="date" id="stats-start-date" class="form-control" style="width: 135px; min-height: 38px;">
+                                <input type="date" id="stats-start-date" class="form-control" style="width: 135px; min-height: 38px;" onchange="handleStatsCustomDateChange()">
                                 <span style="color: #64748b; font-size: 13px;">au</span>
-                                <input type="date" id="stats-end-date" class="form-control" style="width: 135px; min-height: 38px;">
+                                <input type="date" id="stats-end-date" class="form-control" style="width: 135px; min-height: 38px;" onchange="handleStatsCustomDateChange()">
                             </div>
                             <button class="btn btn-secondary statistics-refresh-btn" style="min-height: 38px;" onclick="loadStatistics(true)">Actualiser</button>
                         </div>

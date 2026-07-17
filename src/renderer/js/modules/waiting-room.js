@@ -106,7 +106,7 @@ async function openAddToWaitingRoomModal() {
           placeholder: 'Tapez la premiere lettre du patient...',
           emptyMessage: 'Tapez la premiere lettre du patient',
           loadingMessage: 'Recherche des patients...',
-          noResultsMessage: 'Aucun patient commence par cette recherche'
+          noResultsMessage: 'Aucun patient trouvé. Ajoutez-le d’abord dans la section Patients.'
         }
       );
     }
@@ -317,10 +317,10 @@ function renderWaitingRoom() {
       sectionHtml += `
         <div class="list-pagination">
           <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + WAITING_ROOM_PAGE_SIZE, items.length)} / ${items.length}</div>
-          <div class="list-pagination-actions">
-            <button class="btn btn-small btn-secondary" ${waitingRoomPages[key] <= 1 ? 'disabled' : ''} onclick="changeWaitingRoomPage('${key}', -1)">◀</button>
+          <div class="list-pagination-actions pagination-controls">
+            <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${waitingRoomPages[key] <= 1 ? 'disabled' : ''} onclick="changeWaitingRoomPage('${key}', -1)">‹</button>
             <span class="list-pagination-info">${waitingRoomPages[key]}/${totalPages}</span>
-            <button class="btn btn-small btn-secondary" ${waitingRoomPages[key] >= totalPages ? 'disabled' : ''} onclick="changeWaitingRoomPage('${key}', 1)">▶</button>
+            <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${waitingRoomPages[key] >= totalPages ? 'disabled' : ''} onclick="changeWaitingRoomPage('${key}', 1)">›</button>
           </div>
         </div>
       `;

@@ -318,9 +318,12 @@ export function handleUserEvents() {
           `SELECT id, username, fullName, phone, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt, lastLogin
            FROM users
            WHERE isSuperAdmin = 0
-             AND isAdmin = 0
-             AND role IN ('doctor', 'dentist', 'assistant')
-           ORDER BY createdAt DESC`
+              AND (
+                id = ?
+                OR (isAdmin = 0 AND role IN ('doctor', 'dentist', 'assistant'))
+              )
+            ORDER BY createdAt DESC`,
+          [effectiveRequesterId]
         );
       } else {
         users = await query(

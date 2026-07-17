@@ -180,7 +180,7 @@ async function loadUsersList() {
       return;
     }
 
-    const users = result.data || [];
+    const users = (result.data || []).filter(user => isCurrentUserSuperAdmin() || !user.isSuperAdmin);
     
     if (users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999; font-size: 16px;">Aucun utilisateur</td></tr>';
@@ -188,9 +188,10 @@ async function loadUsersList() {
     }
 
     tbody.innerHTML = users.map(user => {
+      const isOwnAccount = user.id === (currentUserId || localStorage.getItem('currentUserId'));
       const canManageUser = isCurrentUserSuperAdmin()
         ? !user.isSuperAdmin
-        : (!user.isSuperAdmin && !user.isAdmin);
+        : (!user.isSuperAdmin && !user.isAdmin && !isOwnAccount);
 
       return `
       <tr style="border-bottom: 1px solid #dee2e6; ${!user.isActive ? 'background: #fee;' : ''}">
@@ -220,7 +221,7 @@ async function loadUsersList() {
                 <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')" style="padding: 8px 12px; font-size: 14px;">
                   🗑️ Supprimer
                 </button>
-              ` : '<span style="color: #999; font-size: 14px;">Protégé</span>'}
+              ` : `<span style="color: #64748b; font-size: 14px;">${isOwnAccount ? 'Mon compte' : 'Protégé'}</span>`}
             </div>
           ` : '<span style="color: #999; font-size: 14px;">—</span>'}
         </td>

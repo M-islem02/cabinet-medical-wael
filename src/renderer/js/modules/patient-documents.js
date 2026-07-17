@@ -61,10 +61,10 @@ function buildPatientDocumentPaginationRow(sectionKey, colspan) {
       <td colspan="${colspan}">
         <div class="patients-pagination" style="display:flex;">
           <div class="patients-pagination-info">Affichage ${start}-${end} sur ${pagination.total}</div>
-          <div class="patients-pagination-actions">
-            <button class="btn btn-small btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="changePatientDocumentPage('${sectionKey}', -1)">Precedent</button>
-            <span class="patients-pagination-info">Page ${currentPage} / ${pagination.totalPages}</span>
-            <button class="btn btn-small btn-secondary" ${currentPage >= pagination.totalPages ? 'disabled' : ''} onclick="changePatientDocumentPage('${sectionKey}', 1)">Suivant</button>
+          <div class="patients-pagination-actions pagination-controls">
+            <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${currentPage <= 1 ? 'disabled' : ''} onclick="changePatientDocumentPage('${sectionKey}', -1)">‹</button>
+            <span class="patients-pagination-info">${currentPage}/${pagination.totalPages}</span>
+            <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${currentPage >= pagination.totalPages ? 'disabled' : ''} onclick="changePatientDocumentPage('${sectionKey}', 1)">›</button>
           </div>
         </div>
       </td>
@@ -149,9 +149,9 @@ async function loadPatientFactures(patientId, options = {}) {
           <td>${escapeHTML(montant)}</td>
           <td>
             <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary" title="Modifier" onclick="editPatientFacture('${f.id}')">✏️</button>
-              <button class="btn btn-tiny btn-primary" title="Imprimer" onclick="printPatientFacture('${f.id}')">🖨️</button>
-              <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deletePatientDocument('${f.id}', 'facture')">🗑️</button>
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Modifier" onclick="editPatientFacture('${f.id}')">✏️</button>
+              <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPatientFacture('${f.id}')">🖨️</button>
+              <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePatientDocument('${f.id}', 'facture')">🗑️</button>
             </div>
           </td>
         </tr>
@@ -309,10 +309,10 @@ async function loadPatientRapports(patientId, options = {}) {
           <td>${escapeHTML(title)}</td>
           <td>
             <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary" title="Voir" data-rapport-action="view" data-document-id="${r.id}">👁️</button>
-              <button class="btn btn-tiny btn-info" title="Modifier" data-rapport-action="edit" data-document-id="${r.id}">✏️</button>
-              <button class="btn btn-tiny btn-primary" title="Imprimer" data-rapport-action="print" data-document-id="${r.id}">🖨️</button>
-              <button class="btn btn-tiny btn-danger" title="Supprimer" data-rapport-action="delete" data-document-id="${r.id}">🗑️</button>
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Voir" data-rapport-action="view" data-document-id="${r.id}">👁️</button>
+              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" data-rapport-action="edit" data-document-id="${r.id}">✏️</button>
+              <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" data-rapport-action="print" data-document-id="${r.id}">🖨️</button>
+              <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" data-rapport-action="delete" data-document-id="${r.id}">🗑️</button>
             </div>
           </td>
         </tr>
