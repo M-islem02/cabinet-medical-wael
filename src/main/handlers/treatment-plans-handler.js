@@ -90,7 +90,7 @@ function getUserFinancialContext() {
 
 function canSeeAllPlanFinancials() {
   const context = getUserFinancialContext();
-  return context.isSuperAdmin || context.isDoctorAdmin;
+  return context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner;
 }
 
 function applyPlanFinancialVisibility(plan) {
@@ -534,7 +534,7 @@ export function handleTreatmentPlanEvents() {
       if (!planId || !sessionId) return { success: false, error: 'planId et sessionId requis' };
 
       const context = getUserFinancialContext();
-      if (!(context.isSuperAdmin || context.isDoctorAdmin)) {
+      if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
         return { success: false, error: 'Modification des encaissements réservée aux administrateurs.' };
       }
 
