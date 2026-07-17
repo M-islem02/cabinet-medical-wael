@@ -44,7 +44,9 @@ export function handleWaitingRoomEvents() {
   // Add patient to waiting room (with duplicate prevention)
   ipcMain.handle('waiting-room:add', async (event, data) => {
     try {
-      let targetDoctorIds = data?.assignedTo ? [data.assignedTo] : [];
+      let targetDoctorIds = Array.isArray(data?.assignedTo)
+        ? data.assignedTo.filter(Boolean)
+        : (data?.assignedTo ? [data.assignedTo] : []);
       if (!targetDoctorIds.length) {
         const packageConfig = await queryOne('SELECT * FROM package_config LIMIT 1');
         const enabledSpecialties = parseEnabledSpecialties(packageConfig?.enabledSpecialties, packageConfig);

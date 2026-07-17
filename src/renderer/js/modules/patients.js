@@ -2,6 +2,22 @@
 const PATIENTS_PAGE_SIZE = 15;
 let patientsFilteredData = [];
 let patientsSearchTerm = '';
+let patientsMedecinFilter = '';
+
+async function initPatientsMedecinFilter() {
+  const select = document.getElementById('patients-medecin-filter');
+  const doctorColumn = document.querySelector('#patients-table .patients-medecin-column');
+  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
+  if (doctorColumn) doctorColumn.style.display = isMultiple ? '' : 'none';
+  if (!select) return;
+  select.style.display = isMultiple ? '' : 'none';
+  if (!isMultiple || select.dataset.loaded) return;
+  const result = await window.api.user.getAll({ requestingUserId: currentUserId });
+  const doctors = (result.success ? result.data : []).filter(user => user.role === 'doctor' || user.role === 'dentist');
+  select.innerHTML = '<option value="">Tous les médecins</option>' + doctors.map(user => `<option value="${user.id}">${user.fullName || user.username}</option>`).join('');
+  select.addEventListener('change', () => { patientsMedecinFilter = select.value; loadPatients(1); });
+  select.dataset.loaded = '1';
+}
 let patientsPagination = {
   page: 1,
   pageSize: PATIENTS_PAGE_SIZE,
@@ -133,8 +149,10 @@ async function changePatientsPage(direction) {
 
 async function loadPatients(page = 1) {
   try {
+    await initPatientsMedecinFilter();
     const result = await window.api.patient.getAll({
       searchTerm: patientsSearchTerm,
+      medecinId: patientsMedecinFilter,
       page,
       pageSize: PATIENTS_PAGE_SIZE,
       paginated: true
@@ -163,6 +181,7 @@ async function searchPatients(term = '') {
 }
 
 window.changePatientsPage = changePatientsPage;
+window.initPatientsMedecinFilter = initPatientsMedecinFilter;
 
 const PATIENT_PHOTO_STORAGE_PREFIX = 'medcare:patient-photo:';
 const PATIENT_DRAFT_PHOTO_KEY = `${PATIENT_PHOTO_STORAGE_PREFIX}draft`;

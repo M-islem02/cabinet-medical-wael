@@ -94,6 +94,21 @@ CREATE TABLE IF NOT EXISTS patients (
 
 -- statement-break
 
+CREATE TABLE IF NOT EXISTS patient_medecins (
+      id VARCHAR(36) PRIMARY KEY,
+      patientId VARCHAR(36) NOT NULL,
+      medecinId VARCHAR(36) NOT NULL,
+      isPrimary BOOLEAN DEFAULT FALSE,
+      assignedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      assignedBy VARCHAR(36),
+      UNIQUE(patientId, medecinId),
+      FOREIGN KEY(patientId) REFERENCES patients(id) ON DELETE CASCADE,
+      FOREIGN KEY(medecinId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(assignedBy) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+
+-- statement-break
+
 CREATE TABLE IF NOT EXISTS consultations (
       id VARCHAR(36) PRIMARY KEY,
       patientId VARCHAR(36) NOT NULL,
@@ -589,6 +604,7 @@ CREATE TABLE IF NOT EXISTS package_config (
       featureCardiology BOOLEAN DEFAULT FALSE,
       featureMedicalImaging BOOLEAN DEFAULT TRUE,
       activeSpecialty VARCHAR(40) DEFAULT 'general',
+      cabinetType VARCHAR(20),
       enabledSpecialties TEXT,
       featureDebts BOOLEAN DEFAULT TRUE,
       featureCalendar BOOLEAN DEFAULT TRUE,

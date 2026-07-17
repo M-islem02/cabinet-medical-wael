@@ -57,7 +57,10 @@ contextBridge.exposeInMainWorld('api', {
     getById: (id) => ipcRenderer.invoke('patient:getById', id),
     search: (term) => ipcRenderer.invoke('patient:search', term),
     update: (id, data) => ipcRenderer.invoke('patient:update', id, data),
-    delete: (id) => ipcRenderer.invoke('patient:delete', id)
+    delete: (id) => ipcRenderer.invoke('patient:delete', id),
+    getMedecins: (patientId) => ipcRenderer.invoke('patient:getMedecins', patientId),
+    assignMedecin: (payload) => ipcRenderer.invoke('patient:assignMedecin', payload),
+    unassignMedecin: (payload) => ipcRenderer.invoke('patient:unassignMedecin', payload)
   },
 
   // API Consultations
@@ -461,6 +464,7 @@ contextBridge.exposeInMainWorld('api', {
     getById: (id) => ipcRenderer.invoke('plans:getById', id),
     update: (id, data) => ipcRenderer.invoke('plans:update', id, data),
     archive: (id) => ipcRenderer.invoke('plans:archive', id),
+    unarchive: (id) => ipcRenderer.invoke('plans:unarchive', id),
     delete: (id) => ipcRenderer.invoke('plans:delete', id),
     addPaymentSession: (data) => ipcRenderer.invoke('plans:addPaymentSession', data),
     updateSessionPayment: (data) => ipcRenderer.invoke('plans:updateSessionPayment', data),
@@ -596,8 +600,9 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   statistics: {
+    getAdvancedOverview: (filters) => ipcRenderer.invoke('statistics:getAdvancedOverview', filters),
     getOverview: () => ipcRenderer.invoke('statistics:getOverview'),
-    getTopLists: () => ipcRenderer.invoke('statistics:getTopLists'),
+    getTopLists: (filters) => ipcRenderer.invoke('statistics:getTopLists', filters),
     getDoctorsLeaderboard: () => ipcRenderer.invoke('statistics:getDoctorsLeaderboard')
   },
 

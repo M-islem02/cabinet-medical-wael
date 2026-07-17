@@ -4,7 +4,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { queryOne, run } from '../database-unified.js';
+import { query, queryOne, run } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import {
@@ -139,15 +139,56 @@ function sanitizePackageConfig(rawConfig = {}) {
     ? requestedSpecialty
     : (safeEnabledSpecialties[0] || 'general');
 
+  const rawCabinetType = String(rawConfig.cabinetType || '').toLowerCase();
+  const cabinetType = rawCabinetType === 'singulier' || rawCabinetType === 'single'
+    ? 'single'
+    : (rawCabinetType === 'multiple' || rawCabinetType === 'multi' ? 'multiple' : null);
+
   return {
     ...rawConfig,
     enabledSpecialties: safeEnabledSpecialties,
     activeSpecialty,
+    cabinetType,
     featureRehabilitation: safeEnabledSpecialties.includes('mpr'),
     featureKineStaff: safeEnabledSpecialties.includes('mpr'),
     featureCardiology: safeEnabledSpecialties.includes('cardiology'),
     featureDentistry: safeEnabledSpecialties.includes('dentistry')
   };
+}
+
+function deriveCabinetTypeFromSpecialties(enabledSpecialties = []) {
+  const count = Array.isArray(enabledSpecialties) ? enabledSpecialties.length : 0;
+  return count > 1 ? 'multiple' : 'single';
+}
+
+async function migrateForCabinetTypeChange(oldType, newType) {
+  try {
+    if (oldType === newType) return;
+    if (newType === 'multiple' && oldType === 'single') {
+      const patients = await query(
+        'SELECT id, primaryDoctorId FROM patients WHERE primaryDoctorId IS NOT NULL AND primaryDoctorId <> ?',
+        ['']
+      );
+      for (const p of patients) {
+        await run(
+          'INSERT INTO patient_medecins (id, patientId, medecinId, isPrimary) VALUES (?, ?, ?, TRUE) ON CONFLICT (patientId, medecinId) DO NOTHING',
+          [uuidv4(), p.id, p.primaryDoctorId]
+        );
+      }
+      console.log(`[cabinetType] single→multiple : ${patients.length} assignations patient_medecins créées depuis primaryDoctorId`);
+    } else if (newType === 'single' && oldType === 'multiple') {
+      const firstAssignments = await query(
+        `SELECT DISTINCT ON (patientId) patientId, medecinId
+         FROM patient_medecins ORDER BY patientId, assignedAt ASC`
+      );
+      for (const a of firstAssignments) {
+        await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ? AND (primaryDoctorId IS NULL OR primaryDoctorId = ?)', [a.medecinId, a.patientId, '']);
+      }
+      console.log(`[cabinetType] multiple→single : ${firstAssignments.length} primaryDoctorId consolidés (table patient_medecins conservée)`);
+    }
+  } catch (e) {
+    console.error('[cabinetType] migration error:', e.message);
+  }
 }
 
 function calculateTotalFromConfig(config) {
@@ -178,6 +219,11 @@ export function handlePackageEvents() {
       const config = await queryOne('SELECT * FROM package_config LIMIT 1');
       if (config) {
         config.enabledSpecialties = JSON.stringify(parseEnabledSpecialties(config.enabledSpecialties, config));
+        if (!config.cabinetType) {
+          const derived = deriveCabinetTypeFromSpecialties(parseEnabledSpecialties(config.enabledSpecialties, config));
+          await run('UPDATE package_config SET cabinetType = ? WHERE id = ?', [derived, config.id]);
+          config.cabinetType = derived;
+        }
       }
       return { success: true, data: config };
     } catch (error) {
@@ -241,10 +287,18 @@ export function handlePackageEvents() {
         ? normalizedConfig.totalPrice
         : calculateTotalFromConfig(normalizedConfig);
 
+      const finalCabinetType = normalizedConfig.cabinetType || deriveCabinetTypeFromSpecialties(normalizedConfig.enabledSpecialties || []);
+
+      if (existing) {
+        const prevConfig = await queryOne('SELECT cabinetType FROM package_config WHERE id = ?', [existing.id]);
+        await migrateForCabinetTypeChange(prevConfig?.cabinetType || null, finalCabinetType);
+      }
+
       const commonEntries = [
         ['clientName', normalizedConfig.clientName],
         ['packageType', normalizedConfig.packageType || 'basic'],
         ['activeSpecialty', normalizedConfig.activeSpecialty || 'general'],
+        ['cabinetType', finalCabinetType],
         ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['general'])],
         ['maxDoctors', normalizedConfig.maxDoctors || 1],
         ['maxAssistants', normalizedConfig.maxAssistants || 0],

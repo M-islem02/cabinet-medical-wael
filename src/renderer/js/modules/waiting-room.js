@@ -129,13 +129,26 @@ async function openAddToWaitingRoomModal() {
 
 async function loadWaitingDoctorOptions() {
   const doctorSelect = document.getElementById('waiting-doctor-select');
+  const doctorGroup = document.getElementById('waiting-doctor-group');
+  const doctorCheckboxes = document.getElementById('waiting-doctor-checkboxes');
   if (!doctorSelect) return;
+
+  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
+  if (!isMultiple) {
+    if (doctorGroup) doctorGroup.style.display = 'none';
+    return;
+  }
+  if (doctorGroup) doctorGroup.style.display = '';
 
   const isPractitioner = currentUserRole === 'doctor' || currentUserRole === 'dentist';
   if (isPractitioner) {
     doctorSelect.innerHTML = `<option value="${currentUserId}">Moi (${currentUsername || 'Praticien'})</option>`;
     doctorSelect.value = currentUserId;
     doctorSelect.disabled = true;
+    if (doctorCheckboxes) {
+      doctorCheckboxes.style.display = 'block';
+      doctorCheckboxes.innerHTML = `<label><input type="checkbox" value="${currentUserId}" checked> Moi (${currentUsername || 'Praticien'})</label>`;
+    }
     return;
   }
 
@@ -155,19 +168,13 @@ async function loadWaitingDoctorOptions() {
       return;
     }
 
-    const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
-      ? getEnabledPracticeSpecialties(window._packageConfig)
-      : ['general'];
-    if (currentUserRole === 'assistant' && enabledSpecialties.length <= 1) {
-      doctorSelect.innerHTML = '<option value="">Tous les médecins actifs</option>';
-      doctorSelect.value = '';
-      doctorSelect.disabled = true;
-      return;
-    }
-
     doctorSelect.innerHTML = doctors
       .map((user) => `<option value="${user.id}">${user.fullName || user.username || 'Médecin'}</option>`)
       .join('');
+    if (doctorCheckboxes) {
+      doctorCheckboxes.style.display = 'grid';
+      doctorCheckboxes.innerHTML = doctors.map((user) => `<label><input type="checkbox" value="${user.id}"> ${user.fullName || user.username || 'Médecin'}</label>`).join('');
+    }
   } catch (error) {
     console.error('Error loading doctors list for waiting room:', error);
     doctorSelect.innerHTML = '<option value="">Erreur chargement médecins</option>';
@@ -181,7 +188,10 @@ async function addToWaitingRoom(event) {
   event.preventDefault();
   
   const patientId = document.getElementById('waiting-patient-select').value;
-  const assignedTo = document.getElementById('waiting-doctor-select')?.value;
+  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
+  const assignedTo = isMultiple
+    ? [...document.querySelectorAll('#waiting-doctor-checkboxes input:checked')].map((input) => input.value)
+    : null;
   const arrivalTime = document.getElementById('waiting-arrival-time').value;
   const reason = document.getElementById('waiting-reason').value;
   const notes = document.getElementById('waiting-notes').value;
@@ -191,11 +201,8 @@ async function addToWaitingRoom(event) {
     return;
   }
 
-  const enabledSpecialties = typeof getEnabledPracticeSpecialties === 'function'
-    ? getEnabledPracticeSpecialties(window._packageConfig)
-    : ['general'];
-  if (!assignedTo && !(currentUserRole === 'assistant' && enabledSpecialties.length <= 1)) {
-    showNotification('Veuillez sélectionner le médecin responsable', 'error');
+  if (isMultiple && !assignedTo.length) {
+    showNotification('Veuillez sélectionner au moins un médecin', 'error');
     return;
   }
   

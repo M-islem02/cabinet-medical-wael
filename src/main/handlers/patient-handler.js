@@ -6,6 +6,7 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { checkPermission } from '../services/rbac-service.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -70,6 +71,7 @@ function normalizePatientListRequest(payload = null) {
   return {
     paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.searchTerm !== undefined,
     searchTerm: String(payload.searchTerm || '').trim(),
+    medecinId: String(payload.medecinId || payload.doctorId || '').trim(),
     page: toPositiveInt(payload.page, 1),
     pageSize: Math.min(100, toPositiveInt(payload.pageSize, 15))
   };
@@ -161,6 +163,17 @@ export function handlePatientEvents() {
         return { success: false, error: 'Accès refusé' };
       }
 
+      const packageConfig = await queryOne('SELECT cabinetType FROM package_config LIMIT 1');
+      if (packageConfig?.cabinetType === 'multiple' && userContext.isPractitioner && userContext.userId) {
+        const assignment = await queryOne(
+          'SELECT id FROM patient_medecins WHERE patientId = ? AND medecinId = ?',
+          [request.patientId, userContext.userId]
+        );
+        if (!assignment && patient.primaryDoctorId !== userContext.userId) {
+          return { success: false, error: 'Accès refusé à ce dossier patient' };
+        }
+      }
+
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       
@@ -240,28 +253,45 @@ export function handlePatientEvents() {
         return { success: false, error: 'Accès refusé: le super administrateur n\'a pas accès aux dossiers cliniques' };
       }
 
+      const packageConfig = await queryOne('SELECT cabinetType FROM package_config LIMIT 1');
+      const isMultipleCabinet = packageConfig?.cabinetType === 'multiple';
+      if (isMultipleCabinet && userContext.isPractitioner && userContext.userId) {
+        whereParts.push('(p.id IN (SELECT patientId FROM patient_medecins WHERE medecinId = ?) OR p.primaryDoctorId = ?)');
+        params.push(userContext.userId, userContext.userId);
+      }
+
       if (request.searchTerm) {
         const searchPattern = `%${request.searchTerm}%`;
-        whereParts.push('(firstName ILIKE ? OR lastName ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)');
+        whereParts.push('(p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.email ILIKE ? OR p.phone ILIKE ? OR p.socialSecurityNumber ILIKE ?)');
         params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
       }
 
+      if (request.medecinId) {
+        whereParts.push('(p.id IN (SELECT patientId FROM patient_medecins WHERE medecinId = ?) OR p.primaryDoctorId = ?)');
+        params.push(request.medecinId, request.medecinId);
+      }
+
       const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+      const patientSelect = `SELECT p.*, COALESCE((
+        SELECT string_agg(COALESCE(NULLIF(u.fullName, ''), u.username), ', ')
+        FROM patient_medecins pm JOIN users u ON u.id = pm.medecinId
+        WHERE pm.patientId = p.id
+      ), '') AS assignedMedecinsLabel`;
 
       if (!request.paginated) {
-        const patients = await query(`SELECT * FROM patients ${whereClause} ORDER BY lastName, firstName`, params);
+        const patients = await query(`${patientSelect} FROM patients p ${whereClause} ORDER BY p.lastName, p.firstName`, params);
         if (isCurrentUserDirector()) {
           return { success: true, data: (patients || []).map(sanitizePatientForDirector) };
         }
         return { success: true, data: patients };
       }
 
-      const totalRow = await queryOne(`SELECT COUNT(*) as total FROM patients ${whereClause}`, params);
+      const totalRow = await queryOne(`SELECT COUNT(*) as total FROM patients p ${whereClause}`, params);
       const pagination = buildPaginationMeta(totalRow?.total || 0, request.page, request.pageSize);
       const currentPage = Math.min(pagination.page, pagination.totalPages);
       const offset = (currentPage - 1) * pagination.pageSize;
       const patients = await query(
-        `SELECT * FROM patients ${whereClause} ORDER BY lastName, firstName LIMIT ? OFFSET ?`,
+        `${patientSelect} FROM patients p ${whereClause} ORDER BY p.lastName, p.firstName LIMIT ? OFFSET ?`,
         [...params, pagination.pageSize, offset]
       );
 
@@ -306,9 +336,19 @@ export function handlePatientEvents() {
         return { success: true, data: sanitizePatientForDirector(patient) };
       }
 
+      const assignedMedecins = await query(
+        `SELECT u.id, u.username, u.fullName as name, u.role, u.specialty, pm.isPrimary, pm.assignedAt
+         FROM patient_medecins pm
+         LEFT JOIN users u ON u.id = pm.medecinId
+         WHERE pm.patientId = ?
+         ORDER BY pm.isPrimary DESC, pm.assignedAt ASC`,
+        [request.patientId]
+      );
+      const patientWithMedecins = { ...patient, assignedMedecins };
+
       // Récupérer aussi l'historique de consultations
       if (!request.includeConsultations) {
-        return { success: true, data: patient };
+        return { success: true, data: patientWithMedecins };
       }
 
       const consultations = await query(
@@ -320,7 +360,7 @@ export function handlePatientEvents() {
         [request.patientId, request.consultationLimit]
       );
 
-      return { success: true, data: { ...patient, consultations } };
+      return { success: true, data: { ...patientWithMedecins, consultations } };
     } catch (error) {
       console.error('❌ Erreur lors de la récupération du patient:', error);
       return { success: false, error: error.message };
@@ -446,6 +486,86 @@ export function handlePatientEvents() {
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur lors de la suppression du patient:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ─── Patient ↔ Médecin (many-to-many) ─────────────────────────────────────
+
+  ipcMain.handle('patient:getMedecins', async (event, patientId) => {
+    try {
+      const medecins = await query(
+        `SELECT u.id, u.username, u.fullName as name, u.role, u.specialty, pm.isPrimary, pm.assignedAt
+         FROM patient_medecins pm
+         LEFT JOIN users u ON u.id = pm.medecinId
+         WHERE pm.patientId = ?
+         ORDER BY pm.isPrimary DESC, pm.assignedAt ASC`,
+        [patientId]
+      );
+      return { success: true, data: medecins };
+    } catch (error) {
+      console.error('❌ Erreur getMedecins:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patient:assignMedecin', async (event, payload) => {
+    try {
+      if (!checkPermission(global.currentUser, 'patients:write-assigned') && !checkPermission(global.currentUser, 'patients:write')) {
+        return { success: false, error: 'Accès refusé' };
+      }
+      const patientId = payload?.patientId;
+      const medecinId = payload?.medecinId;
+      const isPrimary = payload?.isPrimary === true;
+      const assignedBy = global.currentUser?.id || null;
+      if (!patientId || !medecinId) {
+        return { success: false, error: 'patientId et medecinId requis' };
+      }
+      const existing = await queryOne(
+        'SELECT id FROM patient_medecins WHERE patientId = ? AND medecinId = ?',
+        [patientId, medecinId]
+      );
+      if (existing) {
+        await run('UPDATE patient_medecins SET isPrimary = ? WHERE id = ?', [isPrimary, existing.id]);
+      } else {
+        const id = uuidv4();
+        await run(
+          'INSERT INTO patient_medecins (id, patientId, medecinId, isPrimary, assignedBy) VALUES (?, ?, ?, ?, ?)',
+          [id, patientId, medecinId, isPrimary, assignedBy]
+        );
+      }
+      if (isPrimary) {
+        await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ?', [medecinId, patientId]);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur assignMedecin:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('patient:unassignMedecin', async (event, payload) => {
+    try {
+      if (!checkPermission(global.currentUser, 'patients:write-assigned') && !checkPermission(global.currentUser, 'patients:write')) {
+        return { success: false, error: 'Accès refusé' };
+      }
+      const patientId = payload?.patientId;
+      const medecinId = payload?.medecinId;
+      if (!patientId || !medecinId) {
+        return { success: false, error: 'patientId et medecinId requis' };
+      }
+      await run('DELETE FROM patient_medecins WHERE patientId = ? AND medecinId = ?', [patientId, medecinId]);
+      const current = await queryOne('SELECT primaryDoctorId FROM patients WHERE id = ?', [patientId]);
+      if (current?.primaryDoctorId === medecinId) {
+        const next = await queryOne(
+          'SELECT medecinId FROM patient_medecins WHERE patientId = ? ORDER BY isPrimary DESC, assignedAt ASC LIMIT 1',
+          [patientId]
+        );
+        await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ?', [next?.medecinId || null, patientId]);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur unassignMedecin:', error);
       return { success: false, error: error.message };
     }
   });
