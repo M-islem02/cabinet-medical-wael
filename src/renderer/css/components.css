@@ -504,15 +504,21 @@ table td,
   width: 100%;
 }
 
-.plans-tabs-inline {
+.module-tabs-inline {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 32px;
   flex: 0 0 auto;
   min-height: 44px;
 }
 
-.plans-tabs-inline .feature-tab-btn {
+@media (max-width: 1100px) {
+  .module-tabs-inline {
+    gap: 24px;
+  }
+}
+
+.module-tabs-inline .feature-tab-btn {
   border: 0 !important;
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
@@ -526,7 +532,7 @@ table td,
   white-space: nowrap;
 }
 
-.plans-tabs-inline .feature-tab-btn.active {
+.module-tabs-inline .feature-tab-btn.active {
   color: var(--color-accent) !important;
   border-bottom-color: var(--color-accent) !important;
 }
@@ -560,24 +566,53 @@ table td,
   white-space: nowrap;
 }
 
-.plans-pagination {
+/* Shared pagination component used by every module. */
+.pagination-controls {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  color: var(--color-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 600;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
-.plans-pagination .btn {
-  width: 34px;
-  min-height: 34px;
-  padding: 0;
-  border-radius: 10px;
-  background: #ffffff;
-  border-color: #d9e2ee;
+.pagination-controls .btn {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border: 1px solid #d9e2ee !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.pagination-controls .btn:hover:not(:disabled) {
+  border-color: var(--color-accent) !important;
+  color: var(--color-accent) !important;
+  background: #f0fdfa !important;
+}
+
+.pagination-controls .btn:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.pagination-controls > span,
+.pagination-controls > .patients-pagination-info,
+.pagination-controls > .list-pagination-info {
+  min-width: 32px;
+  text-align: center;
 }
 
 #treatment-plans-list {
@@ -596,8 +631,8 @@ table td,
     grid-template-columns: 1fr 1fr;
   }
 
-  .plans-tabs-inline,
-  .plans-pagination {
+  .module-tabs-inline,
+  #treatment-plans .pagination-controls {
     grid-column: 1 / -1;
   }
 
@@ -616,12 +651,12 @@ table td,
     padding: 14px;
   }
 
-  .plans-tabs-inline,
-  .plans-pagination {
+  .module-tabs-inline,
+  #treatment-plans .pagination-controls {
     grid-column: auto;
   }
 
-  .plans-tabs-inline {
+  .module-tabs-inline {
     overflow-x: auto;
   }
 
@@ -629,7 +664,7 @@ table td,
     grid-template-columns: 1fr;
   }
 
-  .plans-pagination {
+  #treatment-plans .pagination-controls {
     margin-left: 0;
     justify-content: flex-start;
   }

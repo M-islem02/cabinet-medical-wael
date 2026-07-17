@@ -81,10 +81,10 @@ function renderPatientsPagination() {
   container.style.display = 'flex';
   container.innerHTML = `
     <div class="patients-pagination-info">Affichage ${start}-${end} sur ${total} patients</div>
-    <div class="patients-pagination-actions">
-      <button class="btn btn-small btn-secondary" ${patientsCurrentPage <= 1 ? 'disabled' : ''} onclick="changePatientsPage(-1)">◀ Précédent</button>
-      <span class="patients-pagination-info">Page ${patientsCurrentPage} / ${totalPages}</span>
-      <button class="btn btn-small btn-secondary" ${patientsCurrentPage >= totalPages ? 'disabled' : ''} onclick="changePatientsPage(1)">Suivant ▶</button>
+    <div class="patients-pagination-actions pagination-controls">
+      <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${patientsCurrentPage <= 1 ? 'disabled' : ''} onclick="changePatientsPage(-1)">‹</button>
+      <span class="patients-pagination-info">${patientsCurrentPage}/${totalPages}</span>
+      <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${patientsCurrentPage >= totalPages ? 'disabled' : ''} onclick="changePatientsPage(1)">›</button>
     </div>
   `;
 }

@@ -424,10 +424,10 @@ function updateTodayAppointmentsList(searchTerm = '') {
     ? `
       <div class="list-pagination">
         <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + TODAY_APPOINTMENTS_PAGE_SIZE, todayAppointments.length)} / ${todayAppointments.length}</div>
-        <div class="list-pagination-actions">
-          <button class="btn btn-small btn-secondary" ${todayAppointmentsPage <= 1 ? 'disabled' : ''} onclick="changeTodayAppointmentsPage(-1)">◀</button>
+        <div class="list-pagination-actions pagination-controls">
+          <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${todayAppointmentsPage <= 1 ? 'disabled' : ''} onclick="changeTodayAppointmentsPage(-1)">‹</button>
           <span class="list-pagination-info">${todayAppointmentsPage}/${totalPages}</span>
-          <button class="btn btn-small btn-secondary" ${todayAppointmentsPage >= totalPages ? 'disabled' : ''} onclick="changeTodayAppointmentsPage(1)">▶</button>
+          <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${todayAppointmentsPage >= totalPages ? 'disabled' : ''} onclick="changeTodayAppointmentsPage(1)">›</button>
         </div>
       </div>
     `

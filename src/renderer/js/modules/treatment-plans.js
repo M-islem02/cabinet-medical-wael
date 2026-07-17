@@ -1,6 +1,6 @@
 // ========== MODULE PLANS DE TRAITEMENT ==========
 let treatmentPlansWs = null;
-let treatmentPlansState = { plans: [], filteredPlans: [], filterPatient: '', filterStatus: '', page: 1, pageSize: 9 };
+let treatmentPlansState = { plans: [], filteredPlans: [], filterPatient: '', filterStatus: '', activeTab: 'active', page: 1, pageSize: 9 };
 
 const PLAN_STATUS_META = {
   active: { label: 'Actif', color: '#22c55e', bg: '#dcfce7' },
@@ -75,7 +75,7 @@ async function loadTreatmentPlans() {
     const filters = {};
     const searchInput = document.getElementById('plans-search-input');
     const statusSel = document.getElementById('plans-filter-status');
-    const currentTab = document.querySelector('#treatment-plans .feature-tab-btn.active')?.id === 'plans-tab-archived' ? 'archived' : 'active';
+    const currentTab = treatmentPlansState.activeTab;
     
     if (searchInput?.value?.trim()) filters.search = searchInput.value.trim();
     
@@ -160,9 +160,10 @@ function renderPlanCard(plan) {
   const specialty = SPECIALTY_LABELS[plan.specialty] || 'Généraliste';
   const date = plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('fr-FR') : '—';
   const treatmentLabel = plan.treatmentType && plan.treatmentType !== 'null' ? esc(plan.treatmentType) : 'Non spécifié';
+  const isArchived = plan.status === 'archived';
 
   return `
-    <div class="plan-card" style="padding:20px;border-left:4px solid ${meta.color};cursor:pointer;transition:transform 0.18s;background:#fff;border-radius:8px;display:flex;flex-direction:column;gap:14px" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'" onclick="openEditPlanModal('${plan.id}')">
+    <div class="plan-card" style="padding:20px;border-left:4px solid ${meta.color};cursor:${isArchived ? 'default' : 'pointer'};transition:transform 0.18s;background:#fff;border-radius:8px;display:flex;flex-direction:column;gap:14px" ${isArchived ? '' : `onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'" onclick="openEditPlanModal('${plan.id}')"`}>
 
       <!-- HEADER: patient name + badges -->
       <div>
@@ -190,11 +191,13 @@ function renderPlanCard(plan) {
               <span style="font-size:13px;color:#6b7280">Payé&nbsp;: <strong style="color:#16a34a;font-size:14px">${paid.toLocaleString()} DA</strong></span>
               <span style="font-size:13px;color:#6b7280">Total&nbsp;: <strong style="color:#475569;font-size:14px">${cost.toLocaleString()} DA</strong></span>
             </div>
-            <span style="font-size:15px;font-weight:700;color:${meta.color}">${pct}%</span>
+            ${isArchived ? '' : `<span class="plan-progress-percent" style="font-size:15px;font-weight:700;color:${meta.color}">${pct}%</span>`}
           </div>
-          <div style="background:#e2e8f0;border-radius:6px;height:9px;overflow:hidden">
-            <div style="height:100%;border-radius:6px;width:${pct}%;background:linear-gradient(90deg,${meta.color},${meta.color}bb);transition:width .5s ease"></div>
-          </div>
+          ${isArchived ? '' : `
+            <div class="plan-progress-track" style="background:#e2e8f0;border-radius:6px;height:9px;overflow:hidden">
+              <div style="height:100%;border-radius:6px;width:${pct}%;background:linear-gradient(90deg,${meta.color},${meta.color}bb);transition:width .5s ease"></div>
+            </div>
+          `}
           ${balance > 0 ? `<div style="margin-top:7px;font-size:13px;color:#f97316;font-weight:600">Solde restant : ${balance.toLocaleString()} DA</div>` : '<div style="margin-top:7px;font-size:13px;color:#16a34a;font-weight:600">✓ Intégralement payé</div>'}
         </div>
       ` : `
@@ -205,13 +208,16 @@ function renderPlanCard(plan) {
 
       <!-- ACTIONS ROW -->
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px" onclick="event.stopPropagation()">
-        ${plan.status === 'active' && canSeeFullFinancials ? `
-          <button onclick="openPlanPaymentActionsModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">💳 Payer</button>
-        ` : ''}
-        <button onclick="openEditPlanModal('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fff;border-color:#d1d5db;color:#374151">Modifier</button>
-        ${canSeeFullFinancials ? `<button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">🖨️ Imprimer</button>` : ''}
-        ${plan.status === 'active' ? `<button onclick="archivePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">🗄️ Archiver</button>` : ''}
-        <button onclick="deletePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fef2f2;border-color:#fecaca;color:#ef4444">🗑️ Supprimer</button>
+        ${isArchived ? `
+          <button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>
+          <button onclick="unarchivePlan('${plan.id}')" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Désarchiver</button>
+        ` : `
+          ${plan.status === 'active' && canSeeFullFinancials ? `<button onclick="openPlanPaymentActionsModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Payer</button>` : ''}
+          <button onclick="openEditPlanModal('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fff;border-color:#d1d5db;color:#374151">Modifier</button>
+          ${canSeeFullFinancials ? `<button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>` : ''}
+          ${plan.status === 'active' ? `<button onclick="archivePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Archiver</button>` : ''}
+          <button onclick="deletePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fef2f2;border-color:#fecaca;color:#ef4444">Supprimer</button>
+        `}
       </div>
     </div>
   `;
@@ -596,7 +602,7 @@ async function openEditPlanModal(planId) {
           <h4 style="margin:0;font-size:14px;font-weight:700;text-transform:uppercase;color:#374151">Tarifs des séances</h4>
           <span id="ep-sessions-count-label" style="font-size:12px;color:#6b7280">${Number(plan.sessionsCount || sessions.length || 1)} séance(s) · encaissement séparé</span>
         </div>
-        <div style="border:1px solid #e5e7eb;border-radius:8px;overflow:auto;max-height:360px;background:#fff">
+        <div style="border:1px solid #e5e7eb;border-radius:8px;overflow-x:auto;overflow-y:visible;background:#fff">
           <table style="width:100%;border-collapse:collapse;min-width:860px">
             <thead>
               <tr style="background:#f8fafc">
@@ -1087,6 +1093,21 @@ async function archivePlan(planId) {
   } catch (e) { showNotification('Erreur', 'error'); }
 }
 
+async function unarchivePlan(planId) {
+  if (!confirm('Désarchiver ce plan et le rendre actif ?')) return;
+  try {
+    const result = await window.api.plans.unarchive(planId);
+    if (result.success) {
+      showNotification('Plan désarchivé', 'success');
+      loadTreatmentPlans();
+    } else {
+      showNotification('Erreur: ' + result.error, 'error');
+    }
+  } catch (e) {
+    showNotification('Erreur lors du désarchivage', 'error');
+  }
+}
+
 // ─── Print ────────────────────────────────────────────────────────────────────
 async function printPlanDocument(planId) {
   try {
@@ -1098,13 +1119,31 @@ async function printPlanDocument(planId) {
     const balance = Number(plan.totalCost || 0) - Number(plan.totalPaid || 0);
     const pct = plan.totalCost > 0 ? Math.min(100, Math.round((plan.totalPaid / plan.totalCost) * 100)) : 100;
 
-    const sessionRows = sessions.map((s, i) => `
+    let settings = {};
+    try {
+      const settingsResult = await window.api?.settings?.get?.();
+      if (settingsResult?.success) settings = settingsResult.data || {};
+    } catch (_) {}
+
+    const cabinetName = String(settings.cabinetName || 'MedCareSO').trim();
+    const cabinetPhone = String(settings.cabinetPhone || '').trim();
+    const cabinetEmail = String(settings.cabinetEmail || '').trim();
+    const cabinetAddress = String(settings.cabinetAddress || '').trim();
+    const doctorName = String(settings.doctorName || plan.createdBy || '').trim();
+    const logoDataUrl = String(settings.cabinetLogoDataUrl || '').trim();
+    const todayLabel = new Date().toLocaleDateString('fr-FR');
+    const planReference = `PLAN-${String(plan.id || Date.now()).replace(/[^a-zA-Z0-9]/g, '').slice(-10).toUpperCase()}`;
+
+    const sessionRows = sessions.map((s, i) => {
+      const isPaid = s.status === 'paid' || Number(s.paidAmount || 0) > 0;
+      return `
       <tr>
         <td>${s.sessionNumber || i + 1}</td>
         <td>${formatDisplayDate(s.paidDate || s.scheduledDate)}</td>
         <td class="amount">${Number(s.expectedAmount || s.paidAmount || 0).toLocaleString()} DA</td>
-        <td class="center">${s.status === 'paid' ? 'Payée' : 'En attente'}</td>
-      </tr>`).join('');
+        <td class="center">${isPaid ? 'Payée' : 'En attente'}</td>
+      </tr>`;
+    }).join('');
 
     const printContent = `
       <html>
@@ -1112,79 +1151,122 @@ async function printPlanDocument(planId) {
         <meta charset="UTF-8">
         <title>Plan de Traitement — ${patientName}</title>
         <style>
-          @page { size: A5 portrait; margin: 10mm; }
+          @page { size: A5 portrait; margin: 0; }
           * { box-sizing: border-box; margin: 0; padding: 0; }
           html, body { width: 148mm; min-height: 210mm; background: #fff; }
-          body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.35; color: #000; padding: 0; }
-          .header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 6mm; margin-bottom: 6mm; }
-          .header h1 { font-size: 15pt; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
-          .header .date { font-size: 9.5pt; margin-top: 2mm; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-bottom: 5mm; }
-          .info-box { border: 1px solid #000; padding: 3mm; min-height: 22mm; }
-          .info-box .label { font-size: 8.5pt; text-transform: uppercase; font-weight: 700; margin-bottom: 2mm; }
-          .info-box .value { font-size: 11pt; font-weight: 700; }
-          .info-box .sub { font-size: 9pt; margin-top: 1mm; }
-          .note { border: 1px solid #000; padding: 3mm; margin-bottom: 5mm; font-size: 9.5pt; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; font-size: 9.5pt; }
-          th, td { border: 1px solid #000; padding: 2mm; vertical-align: top; }
-          th { text-align: left; font-weight: 700; }
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 8.6pt; line-height: 1.32; color: #000; }
+          .sheet { width: 148mm; min-height: 210mm; padding: 8mm 7mm 6mm; display: flex; flex-direction: column; background: #fff; }
+          .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; padding-bottom: 4mm; border-bottom: 1.5px solid #000; }
+          .brand { display: grid; grid-template-columns: auto 1fr; gap: 3mm; align-items: start; max-width: 78mm; }
+          .logo { width: 18mm; height: 14mm; object-fit: contain; }
+          .brand-name { font-size: 11pt; font-weight: 800; line-height: 1.05; }
+          .brand-line { font-size: 7.2pt; margin-top: 0.6mm; color: #111; }
+          .document-meta { text-align: right; min-width: 39mm; }
+          .document-title { font-size: 16pt; font-weight: 800; letter-spacing: 0.03em; }
+          .document-date { font-size: 7.2pt; margin-top: 1mm; }
+          .barcode { width: 28mm; height: 6mm; margin: 2.5mm 0 1mm auto; background: repeating-linear-gradient(90deg, #000 0 0.45mm, transparent 0.45mm 0.85mm, #000 0.85mm 1.15mm, transparent 1.15mm 1.8mm); }
+          .reference { font-size: 7pt; font-weight: 700; letter-spacing: 0.04em; }
+          .patient-box { margin-top: 3.8mm; border: 1px solid #000; padding: 2mm 2.4mm; }
+          .section-label { font-size: 7.1pt; font-weight: 800; text-transform: uppercase; margin-bottom: 1mm; }
+          .patient-name { font-size: 9.5pt; font-weight: 800; }
+          .details-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 3mm; margin-top: 3mm; }
+          .detail-box { border: 1px solid #000; min-height: 18mm; padding: 2.2mm 2.6mm; }
+          .detail-value { font-size: 9pt; font-weight: 800; margin-bottom: 1.2mm; }
+          .detail-line { font-size: 7.7pt; margin-top: 0.8mm; }
+          .note { border: 1px solid #000; padding: 2.2mm 2.6mm; margin-top: 3mm; font-size: 7.9pt; }
+          table { width: 100%; border-collapse: collapse; margin-top: 3.8mm; font-size: 7.8pt; table-layout: fixed; }
+          th, td { border: 1px solid #000; padding: 1.55mm 2mm; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
+          th { text-align: left; font-weight: 800; background: #f1f1f1; }
+          th:nth-child(1), td:nth-child(1) { width: 13%; text-align: center; }
+          th:nth-child(2), td:nth-child(2) { width: 31%; }
+          th:nth-child(3), td:nth-child(3) { width: 28%; }
+          th:nth-child(4), td:nth-child(4) { width: 28%; }
           .amount { text-align: right; white-space: nowrap; }
           .center { text-align: center; }
-          .totals { margin-left: auto; width: 62%; border: 1px solid #000; margin-top: 3mm; }
-          .totals .row { display: flex; justify-content: space-between; padding: 2mm 3mm; font-size: 10pt; border-bottom: 1px solid #000; }
-          .totals .row:last-child { border-bottom: 0; font-weight: 700; }
-          .footer { margin-top: 10mm; border-top: 1px solid #000; padding-top: 4mm; display: flex; justify-content: space-between; font-size: 8.5pt; }
-          .sign-box { text-align: center; }
-          .sign-box .line { width: 42mm; border-bottom: 1px solid #000; margin: 16mm auto 2mm; }
+          .spacer { flex: 1; min-height: 10mm; }
+          .totals { width: 48mm; margin-left: auto; font-size: 7.8pt; }
+          .totals .row { display: flex; justify-content: space-between; gap: 5mm; padding: 1.2mm 1.5mm; border-bottom: 1px solid #000; }
+          .totals .row:first-child { border-top: 1px solid #000; }
+          .totals .row strong { font-size: 8.4pt; }
+          .signatures { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 19mm; font-size: 7.2pt; }
+          .signature { width: 46mm; text-align: center; border-top: 1px solid #000; padding-top: 1.8mm; }
+          .footer-note { margin-top: 2.5mm; border-top: 1px solid #bdbdbd; padding-top: 1.6mm; text-align: center; font-size: 6.8pt; color: #333; }
           @media print {
             html, body { width: 148mm; min-height: 210mm; }
-            body { -webkit-print-color-adjust: economy; print-color-adjust: economy; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>PLAN DE TRAITEMENT</h1>
-          <div class="date">${new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-        </div>
+        <main class="sheet">
+          <header class="top">
+            <div class="brand">
+              ${logoDataUrl ? `<img class="logo" src="${esc(logoDataUrl)}" alt="">` : ''}
+              <div>
+                <div class="brand-name">${esc(cabinetName)}</div>
+                ${doctorName ? `<div class="brand-line">Dr ${esc(doctorName)}</div>` : ''}
+                ${cabinetPhone ? `<div class="brand-line">Tél: ${esc(cabinetPhone)}</div>` : ''}
+                ${cabinetEmail ? `<div class="brand-line">${esc(cabinetEmail)}</div>` : ''}
+                ${cabinetAddress ? `<div class="brand-line">${esc(cabinetAddress)}</div>` : ''}
+              </div>
+            </div>
+            <div class="document-meta">
+              <div class="document-title">PLAN</div>
+              <div class="document-date">${todayLabel}</div>
+              <div class="barcode"></div>
+              <div class="reference">${planReference}</div>
+            </div>
+          </header>
 
-        <div class="info-grid">
-          <div class="info-box">
-            <div class="label">Patient</div>
-            <div class="value">${patientName}</div>
-            <div class="sub">Praticien: ${esc(plan.createdBy || '—')}</div>
-          </div>
-          <div class="info-box">
-            <div class="label">Plan</div>
-            <div class="value">${esc(plan.title || '—')}</div>
-            <div class="sub">${SPECIALTY_LABELS[plan.specialty] || plan.specialty || '-'} - ${sessions.length} séance(s) - Avancement ${pct}%</div>
-          </div>
-        </div>
+          <section class="patient-box">
+            <div class="section-label">Patient</div>
+            <div class="patient-name">${esc(patientName)}</div>
+          </section>
 
-        ${plan.description ? `<div class="note"><strong>Note:</strong> ${esc(plan.description)}</div>` : ''}
+          <section class="details-grid">
+            <div class="detail-box">
+              <div class="section-label">Plan de traitement</div>
+              <div class="detail-value">${esc(plan.title || '—')}</div>
+              <div class="detail-line">Spécialité: ${esc(SPECIALTY_LABELS[plan.specialty] || plan.specialty || '—')}</div>
+              <div class="detail-line">Séances: ${sessions.length || Number(plan.sessionsCount || 0) || 0}</div>
+            </div>
+            <div class="detail-box">
+              <div class="section-label">Suivi</div>
+              <div class="detail-value">Avancement ${pct}%</div>
+              <div class="detail-line">Date de création: ${formatDisplayDate(plan.createdAt || plan.startDate)}</div>
+              <div class="detail-line">Référence: ${planReference}</div>
+            </div>
+          </section>
 
-        <table>
-          <thead>
-            <tr>
-              <th>N°</th>
-              <th>Date</th>
-              <th class="amount">Montant</th>
-              <th class="center">Statut</th>
-            </tr>
-          </thead>
-          <tbody>${sessionRows || '<tr><td colspan="4" class="center">Aucune séance enregistrée</td></tr>'}</tbody>
-        </table>
+          ${plan.description ? `<div class="note"><strong>Note:</strong> ${esc(plan.description)}</div>` : ''}
 
-        <div class="totals">
-          <div class="row"><span>Coût total</span><span>${Number(plan.totalCost || 0).toLocaleString()} DA</span></div>
-          <div class="row"><span>Total payé</span><span>${Number(plan.totalPaid || 0).toLocaleString()} DA</span></div>
-          <div class="row"><span>Solde restant</span><span>${balance.toLocaleString()} DA</span></div>
-        </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th class="amount">Montant</th>
+                <th class="center">Statut</th>
+              </tr>
+            </thead>
+            <tbody>${sessionRows || '<tr><td colspan="4" class="center">Aucune séance enregistrée</td></tr>'}</tbody>
+          </table>
 
-        <div class="footer">
-          <div>Imprimé le ${new Date().toLocaleDateString('fr-FR')}</div>
-          <div class="sign-box"><div class="line"></div>Signature du praticien</div>
-        </div>
+          <div class="spacer"></div>
+
+          <section class="totals">
+            <div class="row"><span>Coût total</span><span>${Number(plan.totalCost || 0).toLocaleString()} DA</span></div>
+            <div class="row"><span>Total payé</span><span>${Number(plan.totalPaid || 0).toLocaleString()} DA</span></div>
+            <div class="row"><strong>Solde restant</strong><strong>${balance.toLocaleString()} DA</strong></div>
+          </section>
+
+          <section class="signatures">
+            <div class="signature">Signature du patient</div>
+            <div class="signature">Cachet & signature</div>
+          </section>
+
+          <div class="footer-note">Merci de votre confiance.</div>
+        </main>
       </body>
       </html>`;
 
@@ -1198,23 +1280,29 @@ async function printPlanDocument(planId) {
     }
 
     previewModal.innerHTML = `
-      <div style="background:#fff;border:1px solid #d1d5db;border-radius:4px;box-shadow:0 18px 48px rgba(0,0,0,0.28);width:min(96vw,760px);height:min(94vh,920px);display:flex;flex-direction:column;overflow:hidden">
-        <div style="padding:12px 16px;border-bottom:1px solid #d1d5db;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="background:#fff;border:1px solid #dbe3ea;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,0.30);width:min(96vw,1500px);height:min(93vh,980px);display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:18px 22px;border-bottom:1px solid #dbe3ea;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
           <div>
-            <div style="font-size:16px;font-weight:700;color:#111827">Aperçu du document</div>
-            <div style="font-size:12px;color:#4b5563;margin-top:2px">Format A5 - Plan de traitement</div>
+            <div style="font-size:18px;font-weight:800;color:#111827">Impression</div>
+            <div style="font-size:12px;color:#64748b;margin-top:4px">Plan de traitement - aperçu A5</div>
           </div>
-          <button onclick="document.getElementById('plan-print-preview-modal').style.display='none'" style="background:#fff;border:1px solid #d1d5db;font-size:16px;cursor:pointer;color:#111827;padding:4px 9px;border-radius:3px">×</button>
+          <button onclick="document.getElementById('plan-print-preview-modal').style.display='none'" style="background:#fff;border:0;font-size:28px;line-height:1;cursor:pointer;color:#94a3b8;width:34px;height:34px;border-radius:8px">×</button>
         </div>
-        <div style="flex:1;overflow:auto;padding:18px;background:#f3f4f6">
-          <div style="width:148mm;min-height:210mm;background:#fff;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,0.16);border:1px solid #d1d5db">
-            <iframe id="plan-preview-iframe" style="width:148mm;height:210mm;border:none;display:block" srcdoc=""></iframe>
+        <div style="padding:12px 20px;border-bottom:1px solid #e5edf3;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-shrink:0;background:#fbfdff">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="display:inline-flex;align-items:center;min-height:32px;padding:0 16px;border-radius:16px;border:1px solid #b9cbd8;background:#4b8d96;color:#fff;font-size:12px;font-weight:800">Plan A5</span>
+            <span style="display:inline-flex;align-items:center;min-height:32px;padding:0 14px;border-radius:16px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-size:12px;font-weight:700">Séances</span>
+            <span style="display:inline-flex;align-items:center;min-height:32px;padding:0 14px;border-radius:16px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-size:12px;font-weight:700">Résumé</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <button id="plan-preview-pdf-btn" style="padding:8px 16px;border:1px solid #c9d6e2;border-radius:16px;background:#fff;color:#334155;font-size:13px;cursor:pointer;font-weight:800">Enregistrer en PDF</button>
+            <button id="plan-preview-print-btn" style="padding:8px 18px;border:1px solid #2f7f86;border-radius:16px;background:#3f8d94;color:#fff;font-size:13px;cursor:pointer;font-weight:800">Imprimer</button>
           </div>
         </div>
-        <div style="padding:12px 16px;border-top:1px solid #d1d5db;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;background:#fff">
-          <button onclick="document.getElementById('plan-print-preview-modal').style.display='none'" style="padding:8px 16px;border:1px solid #9ca3af;border-radius:3px;background:#fff;color:#111827;font-size:13px;cursor:pointer;font-weight:600">Annuler</button>
-          <button id="plan-preview-pdf-btn" style="padding:8px 16px;border:1px solid #111827;border-radius:3px;background:#fff;color:#111827;font-size:13px;cursor:pointer;font-weight:700">Enregistrer PDF</button>
-          <button id="plan-preview-print-btn" style="padding:8px 18px;border:1px solid #111827;border-radius:3px;background:#111827;color:#fff;font-size:13px;cursor:pointer;font-weight:700">Imprimer</button>
+        <div style="flex:1;overflow:auto;padding:28px;background:#d9d9d9">
+          <div style="width:148mm;min-height:210mm;background:#fff;margin:0 auto;box-shadow:0 14px 32px rgba(15,23,42,0.22)">
+            <iframe id="plan-preview-iframe" style="width:148mm;height:210mm;border:none;display:block;background:#fff" srcdoc=""></iframe>
+          </div>
         </div>
       </div>`;
 
@@ -1306,8 +1394,13 @@ function debouncePlanSearch() {
 }
 
 function switchPlansTab(tab) {
-  document.querySelectorAll('#treatment-plans .feature-tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById('plans-tab-' + tab)?.classList.add('active');
+  if (!['active', 'archived'].includes(tab)) return;
+  treatmentPlansState.activeTab = tab;
+  document.querySelectorAll('#treatment-plans .module-tabs-inline [data-tab]').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+  });
   document.getElementById('plans-filter-status').value = '';
   treatmentPlansState.page = 1;
   loadTreatmentPlans();

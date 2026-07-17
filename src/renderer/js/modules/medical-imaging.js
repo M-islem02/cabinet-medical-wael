@@ -210,10 +210,10 @@ function renderMedicalImagingRecords() {
     ? `
       <div class="list-pagination">
         <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + IMAGING_RECORDS_PAGE_SIZE, records.length)} / ${records.length}</div>
-        <div class="list-pagination-actions">
-          <button class="btn btn-small btn-secondary" ${medicalImagingState.recordsPage <= 1 ? 'disabled' : ''} onclick="changeMedicalImagingRecordsPage(-1)">◀</button>
+        <div class="list-pagination-actions pagination-controls">
+          <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${medicalImagingState.recordsPage <= 1 ? 'disabled' : ''} onclick="changeMedicalImagingRecordsPage(-1)">‹</button>
           <span class="list-pagination-info">${medicalImagingState.recordsPage}/${totalPages}</span>
-          <button class="btn btn-small btn-secondary" ${medicalImagingState.recordsPage >= totalPages ? 'disabled' : ''} onclick="changeMedicalImagingRecordsPage(1)">▶</button>
+          <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${medicalImagingState.recordsPage >= totalPages ? 'disabled' : ''} onclick="changeMedicalImagingRecordsPage(1)">›</button>
         </div>
       </div>
     `

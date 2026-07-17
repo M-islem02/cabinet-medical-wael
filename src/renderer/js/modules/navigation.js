@@ -237,10 +237,10 @@ function renderDashboardTodayAppointmentsModal() {
     <div class="list-pagination-info">
       ${startIndex + 1}-${Math.min(startIndex + DASHBOARD_TODAY_APPOINTMENTS_PAGE_SIZE, filteredAppointments.length)} / ${filteredAppointments.length}
     </div>
-    <div class="list-pagination-actions">
-      <button class="btn btn-small btn-secondary" ${dashboardTodayAppointmentsState.page <= 1 ? 'disabled' : ''} onclick="changeDashboardTodayAppointmentsPage(-1)">Précédent</button>
+    <div class="list-pagination-actions pagination-controls">
+      <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${dashboardTodayAppointmentsState.page <= 1 ? 'disabled' : ''} onclick="changeDashboardTodayAppointmentsPage(-1)">‹</button>
       <span class="list-pagination-info">${dashboardTodayAppointmentsState.page}/${totalPages}</span>
-      <button class="btn btn-small btn-secondary" ${dashboardTodayAppointmentsState.page >= totalPages ? 'disabled' : ''} onclick="changeDashboardTodayAppointmentsPage(1)">Suivant</button>
+      <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${dashboardTodayAppointmentsState.page >= totalPages ? 'disabled' : ''} onclick="changeDashboardTodayAppointmentsPage(1)">›</button>
     </div>
   `;
 }

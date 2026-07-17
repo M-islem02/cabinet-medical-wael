@@ -561,10 +561,10 @@ function renderBilansList(evaluations) {
     ? `
       <div class="list-pagination">
         <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + REHAB_BILANS_PAGE_SIZE, evaluations.length)} / ${evaluations.length}</div>
-        <div class="list-pagination-actions">
-          <button class="btn btn-small btn-secondary" ${rehabBilansPage <= 1 ? 'disabled' : ''} onclick="changeRehabBilansPage(-1)">◀</button>
+        <div class="list-pagination-actions pagination-controls">
+          <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${rehabBilansPage <= 1 ? 'disabled' : ''} onclick="changeRehabBilansPage(-1)">‹</button>
           <span class="list-pagination-info">${rehabBilansPage}/${totalPages}</span>
-          <button class="btn btn-small btn-secondary" ${rehabBilansPage >= totalPages ? 'disabled' : ''} onclick="changeRehabBilansPage(1)">▶</button>
+          <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${rehabBilansPage >= totalPages ? 'disabled' : ''} onclick="changeRehabBilansPage(1)">›</button>
         </div>
       </div>
     `
@@ -2203,10 +2203,10 @@ function renderPlansList(plans) {
     ? `
       <div class="list-pagination">
         <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + REHAB_PLANS_PAGE_SIZE, normalizedPlans.length)} / ${normalizedPlans.length}</div>
-        <div class="list-pagination-actions">
-          <button class="btn btn-small btn-secondary" ${rehabPlansPage <= 1 ? 'disabled' : ''} onclick="changeRehabPlansPage(-1)">◀</button>
+        <div class="list-pagination-actions pagination-controls">
+          <button class="btn btn-small btn-secondary" aria-label="Page précédente" ${rehabPlansPage <= 1 ? 'disabled' : ''} onclick="changeRehabPlansPage(-1)">‹</button>
           <span class="list-pagination-info">${rehabPlansPage}/${totalPages}</span>
-          <button class="btn btn-small btn-secondary" ${rehabPlansPage >= totalPages ? 'disabled' : ''} onclick="changeRehabPlansPage(1)">▶</button>
+          <button class="btn btn-small btn-secondary" aria-label="Page suivante" ${rehabPlansPage >= totalPages ? 'disabled' : ''} onclick="changeRehabPlansPage(1)">›</button>
         </div>
       </div>
     `

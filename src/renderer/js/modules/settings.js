@@ -21,23 +21,17 @@ function ensureSettingsAdminCardsVisibility() {
   const licenseInfoCard = document.getElementById('license-info-card');
   const dbConfigCard = document.getElementById('db-config-card');
 
-  if (userManagementCard && (isSuperAdminUser || isDoctorAdminUser)) {
-    userManagementCard.classList.remove('role-hidden', 'hidden');
-    userManagementCard.style.display = '';
-    userManagementCard.removeAttribute('aria-hidden');
-  }
+  const setCardVisibility = (card, visible) => {
+    if (!card) return;
+    card.classList.toggle('role-hidden', !visible);
+    card.classList.toggle('hidden', !visible);
+    card.style.display = visible ? '' : 'none';
+    card.setAttribute('aria-hidden', String(!visible));
+  };
 
-  if (licenseInfoCard && isSuperAdminUser) {
-    licenseInfoCard.classList.remove('role-hidden', 'hidden');
-    licenseInfoCard.style.display = '';
-    licenseInfoCard.removeAttribute('aria-hidden');
-  }
-
-  if (dbConfigCard && isSuperAdminUser) {
-    dbConfigCard.classList.remove('role-hidden', 'hidden');
-    dbConfigCard.style.display = '';
-    dbConfigCard.removeAttribute('aria-hidden');
-  }
+  setCardVisibility(userManagementCard, isSuperAdminUser || isDoctorAdminUser);
+  setCardVisibility(licenseInfoCard, isSuperAdminUser);
+  setCardVisibility(dbConfigCard, isSuperAdminUser);
 }
 
 function switchSettingsPage(page = 'general') {

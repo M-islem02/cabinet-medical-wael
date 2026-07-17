@@ -586,6 +586,7 @@ function updateAdminUI() {
   const addUserBtn = document.getElementById('btn-add-user');
   const licenseAdminCard = document.getElementById('license-admin-card');
   const licenseInfoCard = document.getElementById('license-info-card');
+  const dbConfigCard = document.getElementById('db-config-card');
   const practiceInfoCard = document.getElementById('practice-info-card');
   const adminSetupCard = document.getElementById('admin-setup-card');
   const devicesSettingsCard = document.getElementById('devices-settings-card');
@@ -640,6 +641,10 @@ function updateAdminUI() {
     } else {
       setRoleVisibility(licenseAdminCard, false);
     }
+  }
+
+  if (dbConfigCard) {
+    setRoleVisibility(dbConfigCard, isSuperAdminUser);
   }
   
   if (addUserBtn) {

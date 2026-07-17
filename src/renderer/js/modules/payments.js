@@ -36,7 +36,7 @@ const PAYMENT_SERVICE_CATALOG = [
   { value: 'other', label: 'Autre acte', defaultAmount: 0 }
 ];
 
-const PAYMENTS_PAGE_SIZE = 8;
+const PAYMENTS_PAGE_SIZE = 12;
 const paymentListState = {
   page: 1,
   pageSize: PAYMENTS_PAGE_SIZE,
@@ -94,47 +94,17 @@ function renderPaymentsPagination() {
     if (!sectionCard) return;
     container = document.createElement('div');
     container.id = 'payments-pagination';
-    container.className = 'patients-pagination';
-    container.style.display = 'none';
-    container.style.padding = '16px 20px 20px';
+    container.className = 'pagination-controls';
     sectionCard.appendChild(container);
   }
 
   if (!container) return;
 
-  if ((paymentListState.total || 0) <= paymentListState.pageSize) {
-    container.style.display = 'none';
-    container.innerHTML = '';
-    return;
-  }
-
-  const start = paymentListState.total > 0
-    ? ((paymentListState.page - 1) * paymentListState.pageSize) + 1
-    : 0;
-  const end = paymentListState.total > 0
-    ? Math.min(paymentListState.page * paymentListState.pageSize, paymentListState.total)
-    : 0;
-  const firstPage = Math.max(1, paymentListState.page - 2);
-  const lastPage = Math.min(paymentListState.totalPages, paymentListState.page + 2);
-  const pageButtons = [];
-
-  for (let page = firstPage; page <= lastPage; page += 1) {
-    pageButtons.push(`
-      <button class="btn btn-small ${page === paymentListState.page ? 'btn-primary' : 'btn-secondary'}" ${page === paymentListState.page ? 'disabled' : ''} onclick="goToPaymentsPage(${page})">${page}</button>
-    `);
-  }
-
-  container.style.display = 'flex';
+  container.style.display = 'inline-flex';
   container.innerHTML = `
-    <div class="patients-pagination-info">Affichage ${start}-${end} sur ${paymentListState.total} paiements</div>
-    <div class="patients-pagination-actions">
-      <button class="btn btn-small btn-secondary" ${paymentListState.page <= 1 ? 'disabled' : ''} onclick="goToPaymentsPage(1)">Debut</button>
-      <button class="btn btn-small btn-secondary" ${paymentListState.page <= 1 ? 'disabled' : ''} onclick="changePaymentsPage(-1)">Precedent</button>
-      ${pageButtons.join('')}
-      <span class="patients-pagination-info">Page ${paymentListState.page} / ${paymentListState.totalPages}</span>
-      <button class="btn btn-small btn-secondary" ${paymentListState.page >= paymentListState.totalPages ? 'disabled' : ''} onclick="changePaymentsPage(1)">Suivant</button>
-      <button class="btn btn-small btn-secondary" ${paymentListState.page >= paymentListState.totalPages ? 'disabled' : ''} onclick="goToPaymentsPage(${paymentListState.totalPages})">Fin</button>
-    </div>
+    <span>${paymentListState.page}/${paymentListState.totalPages}</span>
+    <button class="btn btn-secondary" title="Page précédente" aria-label="Page précédente" ${paymentListState.page <= 1 ? 'disabled' : ''} onclick="changePaymentsPage(-1)">‹</button>
+    <button class="btn btn-secondary" title="Page suivante" aria-label="Page suivante" ${paymentListState.page >= paymentListState.totalPages ? 'disabled' : ''} onclick="changePaymentsPage(1)">›</button>
   `;
 }
 
