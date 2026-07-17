@@ -322,11 +322,11 @@ export function handleTreatmentPlanEvents() {
         return { success: false, error: 'Un plan archivé doit être désarchivé avant modification.' };
       }
       const context = getUserFinancialContext();
-      if (plan.status === 'completed' && !(data._adminOverride || context.isSuperAdmin || context.isDoctorAdmin)) {
+      if (plan.status === 'completed' && !(data._adminOverride || context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
         return { success: false, error: 'Plan terminé — modification réservée aux admins' };
       }
       if (data.status && data.status !== plan.status) {
-        if (plan.status === 'completed' && data.status !== 'completed' && !(context.isSuperAdmin || context.isDoctorAdmin || data._adminOverride)) {
+        if (plan.status === 'completed' && data.status !== 'completed' && !(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner || data._adminOverride)) {
           return { success: false, error: 'Réouverture réservée à un administrateur.' };
         }
         if (!validateStatusTransition(plan.status, data.status) && !data._adminOverride) {
@@ -534,8 +534,8 @@ export function handleTreatmentPlanEvents() {
       if (!planId || !sessionId) return { success: false, error: 'planId et sessionId requis' };
 
       const context = getUserFinancialContext();
-      if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
-        return { success: false, error: 'Modification des encaissements réservée aux administrateurs.' };
+      if (!context.userId) {
+        return { success: false, error: 'Authentification requise.' };
       }
 
       const session = await queryOne(
@@ -611,7 +611,7 @@ export function handleTreatmentPlanEvents() {
       if (!plan) return { success: false, error: 'Plan introuvable' };
 
       const context = getUserFinancialContext();
-      if (!(context.isSuperAdmin || context.isDoctorAdmin)) {
+      if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
         return { success: false, error: 'Modification des tarifs réservée aux administrateurs.' };
       }
 
@@ -697,7 +697,7 @@ export function handleTreatmentPlanEvents() {
   ipcMain.handle('plans:getPendingBalances', async () => {
     try {
       const context = getUserFinancialContext();
-      if (!(context.isSuperAdmin || context.isDoctorAdmin)) {
+      if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
         return { success: false, error: 'Accès réservé aux administrateurs.' };
       }
       const plans = await query(
