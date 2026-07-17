@@ -215,7 +215,10 @@ contextBridge.exposeInMainWorld('api', {
     getById: (id) => ipcRenderer.invoke('patient:getById', id),
     search: (term) => ipcRenderer.invoke('patient:search', term),
     update: (id, data) => ipcRenderer.invoke('patient:update', id, data),
-    delete: (id) => ipcRenderer.invoke('patient:delete', id)
+    delete: (id) => ipcRenderer.invoke('patient:delete', id),
+    getMedecins: (patientId) => ipcRenderer.invoke('patient:getMedecins', patientId),
+    assignMedecin: (payload) => ipcRenderer.invoke('patient:assignMedecin', payload),
+    unassignMedecin: (payload) => ipcRenderer.invoke('patient:unassignMedecin', payload)
   },
 
   // API Consultations

@@ -1229,5 +1229,5 @@ registerLegacyGlobals('inventory', {
     switchInventoryTab,
     updatePOSCartPrice,
     updatePOSCartQty,
-    viewSupplier
+  viewSupplier
 });

@@ -47,8 +47,8 @@ function getEquipmentContext() {
     isDoctorAdmin: !!global.currentUser?.isAdmin && !global.currentUser?.isSuperAdmin,
     isPractitioner: role === 'doctor' || role === 'dentist',
     isAssistant: role === 'assistant',
-    canManage: !!global.currentUser?.isSuperAdmin || !!global.currentUser?.isAdmin,
-    canSeeCosts: !!global.currentUser?.isSuperAdmin || !!global.currentUser?.isAdmin
+    canManage: !!global.currentUser?.isSuperAdmin || !!global.currentUser?.isAdmin || role === 'doctor' || role === 'dentist',
+    canSeeCosts: !!global.currentUser?.isSuperAdmin || !!global.currentUser?.isAdmin || role === 'doctor' || role === 'dentist'
   };
 }
 

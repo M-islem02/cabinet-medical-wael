@@ -43,6 +43,7 @@ const PKG_PACKAGES = {
 let selectedPackageType = 'standard';
 let selectedPackageSpecialty = 'general';
 let selectedPackageSpecialties = ['general'];
+let selectedCabinetType = 'multiple';
 let loadedSpecialtyBasesCache = [];
 
 const PKG_SPECIALTY_LABELS = {
@@ -51,6 +52,74 @@ const PKG_SPECIALTY_LABELS = {
     cardiology: 'Cardiologue',
     dentistry: 'Dentiste'
 };
+
+const PKG_CABINET_TYPE_RADIO_NAME = 'pkg-cabinet-type';
+
+function applyCabinetTypeChoice(type) {
+    selectedCabinetType = type === 'single' ? 'single' : 'multiple';
+    const card = document.getElementById('pkg-cabinet-type-card');
+    if (card) card.classList.toggle('is-single', selectedCabinetType === 'single');
+    const radios = document.querySelectorAll(`input[name="${PKG_CABINET_TYPE_RADIO_NAME}"]`);
+    radios.forEach((r) => { r.checked = r.value === selectedCabinetType; });
+    enforceCabinetTypeSpecialtyMode();
+    if (typeof updatePackageSummary === 'function') updatePackageSummary();
+}
+
+function enforceCabinetTypeSpecialtyMode() {
+    const specialtyCheckboxes = [
+        'pkg-check-specialty-general',
+        'pkg-check-rehabilitation',
+        'pkg-check-cardiology',
+        'pkg-check-dentistry'
+    ];
+    if (selectedCabinetType === 'single') {
+        specialtyCheckboxes.forEach((id) => {
+            const cb = document.getElementById(id);
+            if (cb) cb.type = 'radio';
+        });
+        const checked = specialtyCheckboxes
+            .map((id) => document.getElementById(id))
+            .filter((cb) => cb?.checked);
+        if (checked.length > 1) {
+            checked.slice(1).forEach((cb) => { cb.checked = false; cb.closest('.pkg-option-row')?.classList.remove('selected'); });
+        }
+        if (!checked.length) {
+            const general = document.getElementById('pkg-check-specialty-general');
+            if (general) { general.checked = true; general.closest('.pkg-option-row')?.classList.add('selected'); }
+        }
+    } else {
+        specialtyCheckboxes.forEach((id) => {
+            const cb = document.getElementById(id);
+            if (cb) cb.type = 'checkbox';
+        });
+    }
+}
+
+function initCabinetTypeRadioHandlers() {
+    const radios = document.querySelectorAll(`input[name="${PKG_CABINET_TYPE_RADIO_NAME}"]`);
+    radios.forEach((radio) => {
+        radio.addEventListener('change', () => {
+            if (radio.checked) applyCabinetTypeChoice(radio.value);
+        });
+    });
+    const specialtyIds = ['pkg-check-specialty-general', 'pkg-check-rehabilitation', 'pkg-check-cardiology', 'pkg-check-dentistry'];
+    specialtyIds.forEach((id) => {
+        const cb = document.getElementById(id);
+        if (!cb) return;
+        cb.addEventListener('change', () => {
+            if (selectedCabinetType !== 'single') return;
+            if (cb.checked) {
+                specialtyIds.filter((other) => other !== id).forEach((other) => {
+                    const o = document.getElementById(other);
+                    if (o) { o.checked = false; o.closest('.pkg-option-row')?.classList.remove('selected'); }
+                });
+                cb.closest('.pkg-option-row')?.classList.add('selected');
+            } else {
+                cb.closest('.pkg-option-row')?.classList.remove('selected');
+            }
+        });
+    });
+}
 
 async function applySavedPackageConfigState() {
     try {
@@ -167,6 +236,8 @@ function initializePackageConfig() {
     
     // Load existing config
     loadExistingPackageConfig();
+    initCabinetTypeRadioHandlers();
+    applyCabinetTypeChoice(selectedCabinetType);
     
     // Package card selection
     document.querySelectorAll('.package-card-inline').forEach(card => {
@@ -243,6 +314,7 @@ async function loadExistingPackageConfig() {
         const result = await window.api.package.getConfig();
         if (result.success && result.data && result.data.clientName !== 'Client Non Configuré') {
             const config = result.data;
+            applyCabinetTypeChoice(config.cabinetType || (parseEnabledSpecialtiesFromConfig(config).length > 1 ? 'multiple' : 'single'));
             document.getElementById('pkg-clientName').value = config.clientName || '';
             
             if (config.packageType) {
@@ -349,6 +421,7 @@ function formatPrice(price) {
 function updatePackageSummary() {
     const summaryEl = document.getElementById('pkg-summary-items');
     let html = '';
+    html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #dee2e6"><span>🏢 Type de Cabinet</span><strong>${selectedCabinetType === 'single' ? 'Singulier' : 'Multiple'}</strong></div>`;
     
     // Doctors
     const qtyDoctors = parseInt(document.getElementById('pkg-qty-doctor').value) || 1;
@@ -445,6 +518,7 @@ async function savePackageConfig() {
         featureCardiology: cardiologyEnabled,
         featureMedicalImaging: medicalImagingEnabled,
         activeSpecialty: safeActiveSpecialty,
+        cabinetType: selectedCabinetType,
         enabledSpecialties,
         featureMultiPC: false,
         featureAiReports: false,
@@ -482,6 +556,7 @@ async function skipPackageConfig() {
         featureCardiology: false,
         featureMedicalImaging: true,
         activeSpecialty: 'general',
+        cabinetType: 'single',
         enabledSpecialties: ['general'],
         featureMultiPC: false,
         featureAiReports: false,

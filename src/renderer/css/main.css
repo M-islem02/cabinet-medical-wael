@@ -4527,6 +4527,40 @@ body.admin-mode .sidebar .logo {
   padding: 24px;
 }
 
+.pkg-cabinet-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pkg-cabinet-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid #d9e2ee;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.pkg-cabinet-type-option:has(input:checked) {
+  border-color: #0f766e;
+  background: #f0fdfa;
+}
+
+.pkg-cabinet-type-option input { margin-top: 3px; accent-color: #0f766e; }
+
+.patient-assigned-medecins { padding: 0 18px 18px; }
+.patient-assigned-medecins h4 { margin: 0 0 10px; font-size: 14px; }
+.patient-medecin-checklist { display:grid; gap:8px; }
+.patient-medecin-checklist label { display:flex; align-items:center; gap:8px; font-size:13px; }
+
+@media (max-width: 760px) {
+  .pkg-cabinet-type-options { grid-template-columns: 1fr; }
+}
+
 .settings-card {
   background: var(--white);
   padding: 30px;
@@ -12210,7 +12244,7 @@ body.assistant-mode #payment-requests-section {
 }
 
 #patient-details .patient-summary-layout {
-  grid-template-columns: 132px minmax(0, 1fr);
+  grid-template-columns: 140px minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -16563,17 +16597,17 @@ td button {
 
 #patient-details .patient-summary-layout {
   display: grid !important;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 140px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   padding-top: 14px;
 }
 
 #patient-details .patient-profile-photo-card {
-  width: 78px !important;
-  height: 78px !important;
-  min-width: 78px !important;
-  border-radius: 8px !important;
+  width: 140px !important;
+  height: 140px !important;
+  min-width: 140px !important;
+  border-radius: 18px !important;
   border: 1px solid #dbe3ea !important;
   background: #f8fafc !important;
   box-shadow: none !important;

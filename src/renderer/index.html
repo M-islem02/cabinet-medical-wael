@@ -1269,6 +1269,7 @@
                             <div class="details-content patient-card-body" id="patient-info-content">
                                 <!-- Populated by JS -->
                             </div>
+                            <div id="patient-assigned-medecins" class="patient-assigned-medecins" style="display:none"></div>
                             <input type="file" id="patient-photo-details-input" accept="image/*" style="display: none;">
                         </details>
 
@@ -2368,6 +2369,30 @@
                             </div>
                             <div class="pkg-inline-note">
                                 Postes, modules et spécialité active, sauvegarde immédiate après validation.
+                            </div>
+                        </div>
+
+                        <!-- Étape 1 : Type de Cabinet -->
+                        <div class="settings-card pkg-card-soft pkg-cabinet-type-card" id="pkg-cabinet-type-card">
+                            <h3>🏢 Type de Cabinet</h3>
+                            <p style="color:#64748b;font-size:13px;margin-bottom:14px">
+                                Ce choix conditionne le comportement de toute l'application et ne peut être modifié qu'ici.
+                            </p>
+                            <div class="pkg-cabinet-type-options">
+                                <label class="pkg-cabinet-type-option" id="pkg-cabinet-type-single">
+                                    <input type="radio" name="pkg-cabinet-type" value="single">
+                                    <div class="pkg-cabinet-type-body">
+                                        <div style="font-weight:600;font-size:15px">Singulier</div>
+                                        <div style="font-size:12px;color:#64748b">Une seule spécialité, un seul médecin principal pilote le cabinet.</div>
+                                    </div>
+                                </label>
+                                <label class="pkg-cabinet-type-option" id="pkg-cabinet-type-multiple">
+                                    <input type="radio" name="pkg-cabinet-type" value="multiple">
+                                    <div class="pkg-cabinet-type-body">
+                                        <div style="font-weight:600;font-size:15px">Multiple</div>
+                                        <div style="font-size:12px;color:#64748b">Plusieurs spécialités, plusieurs médecins, patients assignables à un ou plusieurs médecins.</div>
+                                    </div>
+                                </label>
                             </div>
                         </div>
 
@@ -5923,7 +5948,7 @@
                         pattern="([01]?[0-9]|2[0-3]):[0-5][0-9]" placeholder="HH:MM" title="Format 24h: 00:00 - 23:59">
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" id="waiting-doctor-group">
                     <label>Médecin responsable *</label>
                     <select id="waiting-doctor-select" class="form-control" required>
                         <option value="">Sélectionner un médecin</option>

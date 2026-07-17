@@ -183,24 +183,33 @@ function renderPlanCard(plan) {
         </div>
       </div>
 
-      <!-- FINANCIALS -->
-      ${canSeeFullFinancials ? `
+      <!-- PROGRESS BAR (always visible for active & completed) -->
+      ${isArchived ? '' : `
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <div style="display:flex;gap:20px">
-              <span style="font-size:13px;color:#6b7280">Payé&nbsp;: <strong style="color:#16a34a;font-size:14px">${paid.toLocaleString()} DA</strong></span>
-              <span style="font-size:13px;color:#6b7280">Total&nbsp;: <strong style="color:#475569;font-size:14px">${cost.toLocaleString()} DA</strong></span>
+          ${canSeeFullFinancials ? `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="display:flex;gap:20px">
+                <span style="font-size:13px;color:#6b7280">Payé&nbsp;: <strong style="color:#16a34a;font-size:14px">${paid.toLocaleString()} DA</strong></span>
+                <span style="font-size:13px;color:#6b7280">Total&nbsp;: <strong style="color:#475569;font-size:14px">${cost.toLocaleString()} DA</strong></span>
+              </div>
+              <span class="plan-progress-percent" style="font-size:15px;font-weight:700;color:${meta.color}">${pct}%</span>
             </div>
-            ${isArchived ? '' : `<span class="plan-progress-percent" style="font-size:15px;font-weight:700;color:${meta.color}">${pct}%</span>`}
-          </div>
-          ${isArchived ? '' : `
+            <div class="plan-progress-track" style="background:#e2e8f0;border-radius:6px;height:9px;overflow:hidden">
+              <div style="height:100%;border-radius:6px;width:${pct}%;background:linear-gradient(90deg,${meta.color},${meta.color}bb);transition:width .5s ease"></div>
+            </div>
+            ${balance > 0 ? `<div style="margin-top:7px;font-size:13px;color:#f97316;font-weight:600">Solde restant : ${balance.toLocaleString()} DA</div>` : '<div style="margin-top:7px;font-size:13px;color:#16a34a;font-weight:600">✓ Intégralement payé</div>'}
+          ` : `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:13px;color:#6b7280">Progression</span>
+              <span class="plan-progress-percent" style="font-size:14px;font-weight:700;color:${meta.color}">${pct}%</span>
+            </div>
             <div class="plan-progress-track" style="background:#e2e8f0;border-radius:6px;height:9px;overflow:hidden">
               <div style="height:100%;border-radius:6px;width:${pct}%;background:linear-gradient(90deg,${meta.color},${meta.color}bb);transition:width .5s ease"></div>
             </div>
           `}
-          ${balance > 0 ? `<div style="margin-top:7px;font-size:13px;color:#f97316;font-weight:600">Solde restant : ${balance.toLocaleString()} DA</div>` : '<div style="margin-top:7px;font-size:13px;color:#16a34a;font-weight:600">✓ Intégralement payé</div>'}
         </div>
-      ` : `
+      `}
+      ${canSeeFullFinancials ? '' : `
         <div style="font-size:14px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
           Paiements du jour&nbsp;: <strong>${Number(plan.todayPaid || 0).toLocaleString()} DA</strong>
         </div>
@@ -356,7 +365,8 @@ function closeEditPlanModal() {
 }
 
 function canSeeFullPlanFinancials() {
-  return currentUserIsSuperAdmin === true || currentUserIsAdmin === true;
+  const role = typeof currentUserRole !== 'undefined' ? currentUserRole : (localStorage.getItem('currentUserRole') || '');
+  return currentUserIsSuperAdmin === true || currentUserIsAdmin === true || role === 'doctor' || role === 'dentist';
 }
 
 function filterTreatmentPlans() {

@@ -403,6 +403,14 @@ function getEnabledPracticeSpecialties(config = window._packageConfig || null) {
   return specialties;
 }
 
+function getCabinetType(config = window._packageConfig || null) {
+  const raw = String(config?.cabinetType || '').toLowerCase();
+  if (raw === 'singulier' || raw === 'single') return 'single';
+  if (raw === 'multiple' || raw === 'multi') return 'multiple';
+  const enabled = getEnabledPracticeSpecialties(config);
+  return enabled.length > 1 ? 'multiple' : 'single';
+}
+
 function resolveActivePracticeSpecialty(config = window._packageConfig || null) {
   const userSpecialty = normalizePracticeSpecialtyKey(
     currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || ''
@@ -710,6 +718,7 @@ window.getPracticeSpecialtyMeta = getPracticeSpecialtyMeta;
 window.getAvailablePracticeSpecialties = getAvailablePracticeSpecialties;
 window.getEnabledPracticeSpecialties = getEnabledPracticeSpecialties;
 window.resolveActivePracticeSpecialty = resolveActivePracticeSpecialty;
+window.getCabinetType = getCabinetType;
 window.getActivePracticeSpecialtyMeta = getActivePracticeSpecialtyMeta;
 window.getPracticeDoctorSpecialtyText = getPracticeDoctorSpecialtyText;
 window.CONSULTATION_ACT_META = CONSULTATION_ACT_META;

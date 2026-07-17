@@ -32,8 +32,8 @@ function getScopedInventoryContext() {
     isDoctorAdmin: (role === 'doctor' || role === 'dentist') && isAdmin,
     isPractitioner: role === 'doctor' || role === 'dentist',
     isAssistant: role === 'assistant',
-    canSeePurchasePrices: isSuperAdmin || isAdmin,
-    canManageSuppliers: isSuperAdmin || isAdmin,
+    canSeePurchasePrices: isSuperAdmin || isAdmin || role === 'doctor' || role === 'dentist',
+    canManageSuppliers: isSuperAdmin || isAdmin || role === 'doctor' || role === 'dentist',
     canManageLots: isSuperAdmin || isAdmin || role === 'doctor' || role === 'dentist',
     canSell: true
   };

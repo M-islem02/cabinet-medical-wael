@@ -47,14 +47,11 @@ function populateManagedRoleOptions(selectedRole = 'doctor') {
   if (!roleSelect) return;
 
   roleSelect.innerHTML = `
-    ${isCurrentUserSuperAdmin() ? '<option value="doctor_admin">👨‍⚕️ Médecin admin</option>' : ''}
     <option value="doctor">👨‍⚕️ Médecin</option>
     <option value="assistant">🧑‍💼 Assistant(e)</option>
   `;
 
-  roleSelect.value = (selectedRole === 'doctor_admin' && isCurrentUserSuperAdmin())
-    ? 'doctor_admin'
-    : (selectedRole === 'assistant' ? 'assistant' : 'doctor');
+  roleSelect.value = selectedRole === 'assistant' ? 'assistant' : 'doctor';
 }
 
 function populateSpecialtyOptions(selectedSpecialty = '') {

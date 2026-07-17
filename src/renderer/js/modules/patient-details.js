@@ -1193,6 +1193,30 @@ function renderImmediateMedicalSummary(patient) {
   });
 }
 
+async function renderPatientAssignedMedecins(patient) {
+  const container = document.getElementById('patient-assigned-medecins');
+  if (!container) return;
+  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
+  container.style.display = isMultiple ? '' : 'none';
+  if (!isMultiple || !patient?.id) return;
+
+  const usersResult = await window.api.user.getAll({ requestingUserId: currentUserId });
+  const doctors = (usersResult.success ? usersResult.data : []).filter(user => user.role === 'doctor' || user.role === 'dentist');
+  const assigned = new Set((patient.assignedMedecins || []).map(user => user.id));
+  container.innerHTML = `<h4>Médecin(s) assigné(s)</h4><div class="patient-medecin-checklist">${doctors.map(user => `<label><input type="checkbox" value="${user.id}" ${assigned.has(user.id) ? 'checked' : ''}> ${user.name || user.fullName || user.username}</label>`).join('')}</div>`;
+  container.querySelectorAll('input[type="checkbox"]').forEach(input => {
+    input.addEventListener('change', async () => {
+      const result = input.checked
+        ? await window.api.patient.assignMedecin({ patientId: patient.id, medecinId: input.value })
+        : await window.api.patient.unassignMedecin({ patientId: patient.id, medecinId: input.value });
+      if (!result.success) {
+        input.checked = !input.checked;
+        showNotification(result.error || 'Modification impossible', 'error');
+      }
+    });
+  });
+}
+
 async function showPatientDetails(patientId) {
   if (!currentUserIsAdmin && currentUserRole === 'director') {
     showNotification('❌ Accès refusé: le directeur ne peut pas consulter le dossier médical détaillé', 'error');
@@ -1210,6 +1234,7 @@ async function showPatientDetails(patientId) {
       currentPatientId = patientId;
       currentPatientData = patient;
       renderImmediateMedicalSummary(patient);
+      void renderPatientAssignedMedecins(patient);
 
       // Keep summary cards collapsed on first view; content is ready when opened.
       const personalCard = document.getElementById('patient-personal-card');

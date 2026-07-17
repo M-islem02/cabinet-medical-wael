@@ -37,6 +37,29 @@ const DURATION_LICENSES = new Map([
   [FIFTEEN_DAY_LICENSE_KEY, 15]
 ]);
 
+const BUILTIN_LICENSE_LABELS = new Map([
+  [FIVE_DAY_LICENSE_KEY, 'Licence essai 5 jours'],
+  [TRIAL_LICENSE_KEY, 'Licence essai 7 jours'],
+  [FIFTEEN_DAY_LICENSE_KEY, 'Licence essai 15 jours'],
+  [ANNUAL_LICENSE_KEY, 'Licence annuelle'],
+  [UNLIMITED_LICENSE_KEY, 'Licence illimitée'],
+  [LEGACY_MASTER_LICENSE_KEY, 'Licence annuelle historique']
+]);
+
+async function ensureBuiltinLicenseRecord(licenseKey) {
+  const clientName = BUILTIN_LICENSE_LABELS.get(licenseKey);
+  if (!clientName) return;
+
+  const existing = await queryOne('SELECT id FROM licenses WHERE `key` = ?', [licenseKey]);
+  if (existing?.id) return;
+
+  await run(
+    `INSERT INTO licenses (id, \`key\`, clientName, generatedDate, expirationDate, activated, activationDate, machineId, status)
+     VALUES (?, ?, ?, ?, NULL, 0, NULL, NULL, 'pending')`,
+    [crypto.randomUUID(), licenseKey, clientName, moment().format('YYYY-MM-DD HH:mm:ss')]
+  );
+}
+
 async function getDatabaseNowMoment() {
   try {
     const row = await queryOne('SELECT CURRENT_TIMESTAMP AS nowTs');
@@ -221,6 +244,8 @@ export async function activateLicense(licenseKey) {
         reason: 'Clé de licence invalide'
       };
     }
+
+    await ensureBuiltinLicenseRecord(normalizedKey);
     
     const license = await queryOne(
       "SELECT * FROM licenses WHERE `key` = ?",

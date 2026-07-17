@@ -181,13 +181,13 @@ async function loadWaitingDoctorOptions() {
  */
 async function addToWaitingRoom(event) {
   event.preventDefault();
-  
+
   const patientId = document.getElementById('waiting-patient-select').value;
   const assignedTo = document.getElementById('waiting-doctor-select')?.value;
   const arrivalTime = document.getElementById('waiting-arrival-time').value;
   const reason = document.getElementById('waiting-reason').value;
   const notes = document.getElementById('waiting-notes').value;
-  
+
   if (!patientId) {
     showNotification('Veuillez sélectionner un patient', 'error');
     return;
@@ -197,20 +197,20 @@ async function addToWaitingRoom(event) {
     showNotification('Veuillez sélectionner le médecin responsable', 'error');
     return;
   }
-  
+
   try {
     const today = new Date().toISOString().split('T')[0];
     const fullArrivalTime = `${today}T${arrivalTime || '09:00'}:00`;
-    
+
     const result = await window.api.waitingRoom.add({
       patientId,
       assignedTo,
       arrivalTime: fullArrivalTime,
       reason,
       notes,
-      createdBy: currentUserId
+      createdBy: currentUserId || localStorage.getItem('currentUserId')
     });
-    
+
     if (result && result.success === false) {
       showNotification(result.error || 'Ce patient est déjà dans la salle d\'attente', 'error');
       return;

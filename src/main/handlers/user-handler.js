@@ -99,6 +99,8 @@ const SYSTEM_ACCOUNT_DEFAULTS = {
     username: 'superadmin',
     password: 'MedPro@2024!',
     fullName: 'Super Administrateur',
+    role: 'admin',
+    isAdmin: 0,
     isSuperAdmin: 1
   }
 };
@@ -116,12 +118,12 @@ async function repairSystemAccount(username) {
       `UPDATE users
        SET password = ?,
            fullName = COALESCE(NULLIF(fullName, ''), ?),
-           role = 'admin',
-           isAdmin = 0,
-           isSuperAdmin = ?,
+            role = ?,
+            isAdmin = ?,
+            isSuperAdmin = ?,
            isActive = 1
        WHERE username = ?`,
-      [passwordHash, account.fullName, account.isSuperAdmin, account.username]
+      [passwordHash, account.fullName, account.role, account.isAdmin, account.isSuperAdmin, account.username]
     );
     return existing.id;
   }
@@ -129,8 +131,8 @@ async function repairSystemAccount(username) {
   const id = uuidv4();
   await run(
     `INSERT INTO users (id, username, password, fullName, role, isAdmin, isSuperAdmin, isActive, createdAt)
-     VALUES (?, ?, ?, ?, 'admin', 0, ?, 1, ?)`,
-    [id, account.username, passwordHash, account.fullName, account.isSuperAdmin, now]
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [id, account.username, passwordHash, account.fullName, account.role, account.isAdmin, account.isSuperAdmin, now]
   );
 
   return id;
