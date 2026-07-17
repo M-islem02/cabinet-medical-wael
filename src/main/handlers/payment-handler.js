@@ -77,14 +77,6 @@ function getTodayPaymentDateClause(paymentAlias = 'payments') {
 }
 
 function getPaymentAccessScope(paymentAlias = 'payments', patientAlias = 'patients') {
-  const userContext = getPaymentUserContext();
-  if (userContext.isPractitioner && !userContext.isAdmin && userContext.userId) {
-    return {
-      clause: getTodayPaymentDateClause(paymentAlias),
-      params: []
-    };
-  }
-
   return { clause: '', params: [] };
 }
 
