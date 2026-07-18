@@ -533,7 +533,6 @@ function openMainAppForUser(userData) {
   }
 
   global.currentUser = userData;
-  persistLoginSession(userData);
 
   createMainWindow();
 
@@ -632,13 +631,10 @@ async function initializeApp() {
       console.warn('RDV web portal unavailable:', bookingServerResult.error);
     }
     
-    const resumedUser = await tryResumeLoginSession();
-    if (resumedUser) {
-      console.log('Resuming login session for:', resumedUser.username);
-      openMainAppForUser(resumedUser);
-      return;
-    }
-
+    // A new launch always starts at the login screen.  Sessions are kept only
+    // while the application remains open, preventing an old persisted session
+    // from bypassing authentication after the program was closed.
+    clearLoginSession();
     console.log('Login screen displayed');
     createLoginWindow();
     

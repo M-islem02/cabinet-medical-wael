@@ -70,7 +70,7 @@ async function refreshEquipment() {
 }
 
 function switchEquipmentTab(tabName) {
-    const validTabs = ['list', 'detail', 'alerts'];
+    const validTabs = ['list', 'alerts'];
     if (!validTabs.includes(tabName)) return;
     equipmentTabState.activeTab = tabName;
     document.querySelectorAll('#equipment .module-tabs-inline [data-tab]').forEach(btn => {
@@ -86,7 +86,6 @@ function switchEquipmentTab(tabName) {
     if (addBtn) addBtn.style.display = tabName === 'list' ? '' : 'none';
 
     if (tabName === 'list') loadEquipmentList();
-    if (tabName === 'detail') { /* Handled by click on listing */ }
     if (tabName === 'alerts') loadEquipmentAlerts();
 }
 
@@ -138,12 +137,14 @@ function displayEquipmentList() {
             <td style="padding: 14px 16px; color: #64748b;">${e.assignedRoom || '-'}</td>
             <td style="padding: 14px 16px;"><span style="background:${sc.bg};color:${sc.color};padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status] || e.status}</span></td>
             <td style="padding: 14px 16px; color: #64748b;">${e.nextMaintenanceDate ? formatEquipmentDate(e.nextMaintenanceDate) : '-'}</td>
-            <td style="padding: 14px 16px;" onclick="event.stopPropagation()">
+            <td class="equipment-row-actions" onclick="event.stopPropagation()">
+                <button onclick="showEquipmentDetail('${e.id}')" class="inventory-action-btn inventory-action-btn-view">Fiche</button>
                 ${canManageEquipment ? `<button onclick="editEquipment('${e.id}')" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>` : ''}
                 ${canManageEquipment ? `<button onclick="openAddMaintenanceModal('${e.id}')" class="inventory-action-btn inventory-action-btn-stock">Maintenance</button>` : ''}
                 ${e.status === 'maintenance'
                     ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-resolve">Remettre en service</button>`
                     : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-report">Signaler un problème</button>`}
+                ${canManageEquipment ? `<button onclick="deleteEquipment('${e.id}')" class="inventory-action-btn equipment-action-delete">Supprimer</button>` : ''}
             </td>
         </tr>`;
     }).join('');
@@ -156,9 +157,9 @@ function renderEquipmentPagination() {
     const { page, pageSize, total, totalPages } = equipmentPagination;
     container.style.display = 'inline-flex';
     container.innerHTML = `
-        <span>${page}/${totalPages}</span>
-        <button class="btn btn-secondary pagination-btn" title="Page précédente" aria-label="Page précédente" ${page <= 1 ? 'disabled' : ''} onclick="changeEquipmentPage(-1)">‹</button>
-        <button class="btn btn-secondary pagination-btn" title="Page suivante" aria-label="Page suivante" ${page >= totalPages ? 'disabled' : ''} onclick="changeEquipmentPage(1)">›</button>`;
+        <span class="equipment-pagination-count">${total ? `${page} / ${totalPages}` : '0 / 0'}</span>
+        <button class="equipment-pagination-btn" title="Page précédente" aria-label="Page précédente" ${page <= 1 ? 'disabled' : ''} onclick="changeEquipmentPage(-1)">‹</button>
+        <button class="equipment-pagination-btn" title="Page suivante" aria-label="Page suivante" ${page >= totalPages ? 'disabled' : ''} onclick="changeEquipmentPage(1)">›</button>`;
 }
 
 function changeEquipmentPage(direction) {
@@ -173,7 +174,6 @@ function changeEquipmentPage(direction) {
 
 async function showEquipmentDetail(id) {
     equipmentSelectedId = id;
-    switchEquipmentTab('detail');
     try {
         const result = await window.api.equipment.getById(id);
         if (!result.success) return;
@@ -201,41 +201,44 @@ async function showEquipmentDetail(id) {
 
         const container = document.getElementById('equipment-detail-content');
         if (!container) return;
+        const title = document.getElementById('equipment-detail-modal-title');
+        if (title) title.textContent = e.name;
         container.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-            <div>
-                <h3 style="margin:0 0 8px 0;font-size:20px">${e.name}</h3>
-                <p style="color:#64748b;margin:0 0 16px 0">${catLabel}</p>
+        <div class="equipment-detail-layout">
+            <section class="equipment-detail-summary">
+                <p class="equipment-detail-category">${catLabel}</p>
                 <span style="background:${sc.bg};color:${sc.color};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status]}</span>
-                <table style="width:100%;margin-top:16px;font-size:14px">
-                    <tr><td style="padding:6px 0;color:#64748b">Marque:</td><td><strong>${e.brand || '-'}</strong></td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Modèle:</td><td><strong>${e.model || '-'}</strong></td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">N° Série:</td><td><strong>${e.serialNumber || '-'}</strong></td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Salle:</td><td><strong>${e.assignedRoom || '-'}</strong></td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Achat:</td><td>${formatEquipmentDate(e.purchaseDate)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Garantie:</td><td>${formatEquipmentDate(e.warrantyEnd)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Dernière maintenance:</td><td>${formatEquipmentDate(e.lastMaintenanceDate)}</td></tr>
-                    <tr><td style="padding:6px 0;color:#64748b">Prochaine maintenance:</td><td><strong>${formatEquipmentDate(e.nextMaintenanceDate) || 'Non définie'}</strong></td></tr>
+                <table class="equipment-detail-table">
+                    <tr><td>Marque</td><td><strong>${e.brand || '-'}</strong></td></tr>
+                    <tr><td>Modèle</td><td><strong>${e.model || '-'}</strong></td></tr>
+                    <tr><td>N° de série</td><td><strong>${e.serialNumber || '-'}</strong></td></tr>
+                    <tr><td>Salle</td><td><strong>${e.assignedRoom || '-'}</strong></td></tr>
+                    <tr><td>Date d'achat</td><td>${formatEquipmentDate(e.purchaseDate)}</td></tr>
+                    <tr><td>Fin de garantie</td><td>${formatEquipmentDate(e.warrantyEnd)}</td></tr>
+                    <tr><td>Dernière maintenance</td><td>${formatEquipmentDate(e.lastMaintenanceDate)}</td></tr>
+                    <tr><td>Prochaine maintenance</td><td><strong>${formatEquipmentDate(e.nextMaintenanceDate) || 'Non définie'}</strong></td></tr>
                 </table>
                 ${specificHtml}
                 ${e.notes ? `<div style="margin-top:12px;font-size:13px;color:#64748b"><strong>Notes:</strong> ${e.notes.replace(/\n/g, '<br>')}</div>` : ''}
-            </div>
-            <div>
-                <h4 style="margin:0 0 12px 0">Historique de maintenance</h4>
-                <div style="max-height:300px;overflow-y:auto;margin-bottom:24px">${maintenanceHtml}</div>
-                <h4 style="margin:0 0 8px 0">Utilisation dans les plans</h4>
+            </section>
+            <section class="equipment-detail-history">
+                <div class="equipment-detail-section-heading"><h3>Historique de maintenance</h3><span>${(e.maintenance || []).length} intervention(s)</span></div>
+                <div class="equipment-maintenance-history">${maintenanceHtml}</div>
+                <h3 class="equipment-detail-usage-title">Utilisation dans les plans</h3>
                 ${planUsageHtml}
                 ${canManageEquipment ? `<div style="margin-top:20px;display:flex;gap:8px">
                     <button onclick="editEquipment('${e.id}')" class="btn btn-secondary btn-small">Modifier</button>
                     <button onclick="openAddMaintenanceModal('${e.id}')" class="btn btn-primary btn-small">+ Maintenance</button>
+                    <button onclick="deleteEquipment('${e.id}')" class="btn btn-danger btn-small">Supprimer</button>
                 </div>` : ''}
                 <div class="equipment-detail-actions-secondary">
                   ${e.status === 'maintenance'
                     ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Remettre en service</button>`
                     : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Signaler un problème</button>`}
                 </div>
-            </div>
+            </section>
         </div>`;
+        showModal('modal-equipment-detail');
     } catch (e) { console.error('Error loading equipment detail:', e); }
 }
 
@@ -339,7 +342,10 @@ function openEquipmentModal(id = null) {
     showModal('modal-equipment');
 }
 
-function editEquipment(id) { openEquipmentModal(id); }
+function editEquipment(id) {
+    closeModal('modal-equipment-detail');
+    openEquipmentModal(id);
+}
 
 async function saveEquipment(event) {
     event.preventDefault();
@@ -480,11 +486,16 @@ async function clearEquipmentMaintenance(id) {
 }
 
 async function deleteEquipment(id) {
-    if (!confirm('Supprimer cet équipement ?')) return;
+    if (!confirm('Supprimer cet équipement ? Il sera retiré de la liste mais son historique restera conservé.')) return;
     try {
-        await window.api.equipment.delete(id);
+        const result = await window.api.equipment.delete(id);
+        if (!result?.success) throw new Error(result?.error || 'Suppression impossible');
+        closeModal('modal-equipment-detail');
+        equipmentSelectedId = null;
         showNotification('Équipement supprimé', 'success');
         await loadEquipmentList();
+        await loadEquipmentAlerts();
+        await updateEquipmentStats();
     } catch (e) { showNotification('Erreur', 'error'); }
 }
 

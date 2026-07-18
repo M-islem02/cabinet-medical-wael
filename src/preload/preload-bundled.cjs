@@ -80,6 +80,7 @@ const buildPreloadModules = (() => {
       getByPatient: { channel: 'plans:getByPatient', params: [id('patientId')] },
       getById: { channel: 'plans:getById', params: [id('id')] },
       update: { channel: 'plans:update', params: [id('id'), object('data')] },
+      updateStatus: { channel: 'plans:updateStatus', params: [id('id'), enumeration('status', ['active', 'completed', 'cancelled', 'archived'])] },
       archive: { channel: 'plans:archive', params: [id('id')] },
       delete: { channel: 'plans:delete', params: [id('id')] },
       addPaymentSession: { channel: 'plans:addPaymentSession', params: [object('data', ['planId'])] },

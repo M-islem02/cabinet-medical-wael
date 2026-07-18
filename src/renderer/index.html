@@ -212,12 +212,11 @@
                     </div>
 
                     <div class="welcome-box">
-                        <h2>Bienvenue dans MedCareSO</h2>
-                        <p>Votre application de gestion de cabinet m&eacute;dical offline</p>
-                        <p style="margin-top: 20px; color: #999; font-size: 13px;">
-                            &#128161; Pour commencer, acc&eacute;dez &agrave; la section "Patients" pour ajouter vos
-                            premiers patients.
-                        </p>
+                        <div>
+                            <h2>Espace de travail</h2>
+                            <p>Accès rapide à vos patients, rendez-vous et documents du cabinet.</p>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-small" onclick="showSection('patients')">Ouvrir les patients</button>
                     </div>
 
                     <!-- Today's Appointments Section -->
@@ -2102,7 +2101,6 @@
                     <div class="module-tabs-shell">
                             <div class="module-tabs-inline" role="tablist" aria-label="Sections des équipements">
                                 <button class="feature-tab-btn equipment-tab-btn active" data-tab="list" role="tab" aria-selected="true" onclick="switchEquipmentTab('list')">Liste des équipements</button>
-                                <button class="feature-tab-btn equipment-tab-btn" data-tab="detail" role="tab" aria-selected="false" onclick="switchEquipmentTab('detail')">Fiche équipement</button>
                                 <button class="feature-tab-btn equipment-tab-btn" data-tab="alerts" role="tab" aria-selected="false" onclick="switchEquipmentTab('alerts')">Alertes maintenance</button>
                             </div>
                             <div class="module-tabs-actions">
@@ -2152,13 +2150,6 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB: Detail -->
-                    <div id="equipment-tab-detail" class="equipment-tab-content" style="display: none;">
-                        <div id="equipment-detail-content" style="padding: 40px; text-align: center; color: #94a3b8;">
-                            Cliquez sur un équipement de la liste pour voir sa fiche détaillée.
                         </div>
                     </div>
 
@@ -5598,6 +5589,20 @@
                     <button type="submit" class="btn btn-primary">Enregistrer</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Equipment detail and maintenance history -->
+    <div id="modal-equipment-detail" class="modal">
+        <div class="modal-content equipment-detail-modal">
+            <div class="modal-header equipment-detail-modal-header">
+                <div>
+                    <p class="equipment-detail-kicker">Fiche équipement</p>
+                    <h2 id="equipment-detail-modal-title">Équipement</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('modal-equipment-detail')">&times;</button>
+            </div>
+            <div id="equipment-detail-content" class="modal-body equipment-detail-modal-body"></div>
         </div>
     </div>
 
