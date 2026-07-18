@@ -554,9 +554,6 @@ export function handlePatientEvents() {
       const userContext = getCurrentUserContext();
       if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
       const scope = await resolvePatientScope(userContext, request.doctorId);
-      if (!scope.cabinetMode) {
-        return { success: false, error: 'Le répertoire global est réservé aux cabinets avec plusieurs médecins' };
-      }
       const params = [];
       let searchClause = '';
       if (request.searchTerm) {

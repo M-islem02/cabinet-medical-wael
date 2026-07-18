@@ -148,11 +148,22 @@ async function loadSupplierSelects() {
 
 async function loadPatientSelectForPOS() {
     try {
-        const result = await inventoryApi.getPatients();
+        let result = await inventoryApi.getPatientDirectory({ page: 1, pageSize: 100, paginated: true });
+        if (!result?.success) {
+            result = await inventoryApi.getPatients({ page: 1, pageSize: 100, paginated: true });
+        }
         const sel = document.getElementById('pos-patient-select');
-        if (!sel || !result.success) return;
+        if (!sel) return;
+        if (!result?.success) {
+            sel.innerHTML = '<option value="">-- Aucun patient disponible --</option>';
+            showNotification(result?.error || 'Erreur lors du chargement des patients', 'error');
+            return;
+        }
         sel.innerHTML = '<option value="">-- Aucun --</option>' +
             (result.data || []).map(p => `<option value="${p.id}">${p.lastName} ${p.firstName}</option>`).join('');
+        if (typeof currentPatientId !== 'undefined' && currentPatientId && (result.data || []).some((patient) => String(patient.id) === String(currentPatientId))) {
+            sel.value = currentPatientId;
+        }
     } catch (e) { console.error('Error loading POS patient select:', e); }
 }
 
@@ -1310,7 +1321,14 @@ function buildPOSInvoiceHtml(sale, settings = {}) {
     const customer = sale.patientId ? `${sale.lastName || ''} ${sale.firstName || ''}`.trim() : (sale.customerName || 'Client de passage');
     const rows = (sale.items || []).map(item => `<tr><td>${escapeInventoryHtml(item.itemName)}</td><td>${Number(item.quantity || 0)}</td><td>${formatCurrency(item.unitPrice || 0)}</td><td>${formatCurrency(item.totalPrice || 0)}</td></tr>`).join('');
     const logo = settings.cabinetLogoDataUrl ? `<img src="${escapeInventoryHtml(settings.cabinetLogoDataUrl)}" style="width:22mm;height:16mm;object-fit:contain" alt="">` : '';
-    return `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A5 portrait;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;font-size:9pt;margin:0}.head{display:flex;justify-content:space-between;border-bottom:1.5px solid #111;padding-bottom:4mm}.brand{display:flex;gap:3mm}.brand h1{font-size:13pt;margin:0}.muted{color:#555;font-size:8pt;line-height:1.4}.meta{text-align:right}.meta h2{font-size:16pt;margin:0}.client{border:1px solid #aaa;padding:3mm;margin:5mm 0}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:2.2mm;text-align:left}th{background:#f2f2f2}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total{margin:6mm 0 0 auto;width:58mm;border-top:2px solid #111;padding-top:3mm;display:flex;justify-content:space-between;font-size:12pt;font-weight:700}.signature{margin-top:22mm;text-align:right}.signature span{display:inline-block;width:48mm;border-top:1px solid #111;padding-top:2mm;text-align:center}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><header class="head"><div class="brand">${logo}<div><h1>${escapeInventoryHtml(settings.cabinetName || 'MedCareSO')}</h1><div class="muted">${escapeInventoryHtml(settings.cabinetAddress || '')}<br>${escapeInventoryHtml(settings.cabinetPhone || '')} ${escapeInventoryHtml(settings.cabinetEmail || '')}</div></div></div><div class="meta"><h2>FACTURE</h2><div>${escapeInventoryHtml(sale.invoiceNumber || `PROV-${String(sale.id).slice(-6).toUpperCase()}`)}</div><div>${formatDateTime(sale.saleDate)}</div></div></header><section class="client"><strong>Client / Patient</strong><div>${escapeInventoryHtml(customer)}</div></section><table><thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>${Number(sale.discountAmount || 0) || Number(sale.discountPercent || 0) ? `<div class="muted" style="text-align:right;margin-top:3mm">Remise appliquée: ${formatCurrency(Number(sale.totalAmount || 0)-Number(sale.finalAmount || 0))}</div>` : ''}<div class="total"><span>Total général</span><span>${formatCurrency(sale.finalAmount || 0)}</span></div><div class="signature"><span>Signature / Cachet</span></div></body></html>`;
+    const invoiceNumber = sale.invoiceNumber || `PROV-${String(sale.id).slice(-6).toUpperCase()}`;
+    const barcode = settings.documentShowBarcode === 0 || settings.documentShowBarcode === false
+        ? ''
+        : (typeof window.buildDocumentBarcodeHtml === 'function'
+            ? window.buildDocumentBarcodeHtml(invoiceNumber)
+            : `<div class="invoice-reference">${escapeInventoryHtml(invoiceNumber)}</div>`);
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+      @page{size:A5 portrait;margin:0}*{box-sizing:border-box}html,body{width:148mm;height:210mm;margin:0;background:#fff}body{font-family:"Segoe UI",Arial,sans-serif;color:#172033;font-size:8.7pt}.invoice-page{min-height:210mm;padding:9mm;display:flex;flex-direction:column}.head{display:grid;grid-template-columns:1fr 28mm 1fr;align-items:center;gap:3mm;padding-bottom:3.5mm;border-bottom:1.2px solid #172033}.brand h1{font-size:12.5pt;line-height:1.15;margin:0 0 1mm}.logo-center{text-align:center}.logo-center img{width:24mm;height:17mm;object-fit:contain}.muted{color:#42526a;font-size:7.6pt;line-height:1.35}.meta{text-align:right}.meta h2{font-size:15pt;line-height:1;margin:0 0 1mm;letter-spacing:.4px}.meta .invoice-reference{font-size:8pt;font-weight:700}.client{margin:5mm 0 3.5mm;padding:0 0 2.5mm;border-bottom:1px solid #9ba6b5}.client strong{display:block;font-size:7.5pt;text-transform:uppercase;letter-spacing:.45px;margin-bottom:.8mm}.client div{font-weight:600;font-size:9pt}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #cbd3dd;padding:2.1mm 1.5mm;text-align:left}th{font-size:7.3pt;text-transform:uppercase;letter-spacing:.35px;font-weight:700;background:transparent;border-top:1.2px solid #172033;color:#172033}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.invoice-bottom{margin-top:auto;padding-top:5mm}.discount{font-size:8pt;text-align:right;color:#42526a;margin-bottom:2mm}.total{margin-left:auto;width:62mm;border-top:1.5px solid #172033;padding-top:2.5mm;display:flex;justify-content:space-between;gap:5mm;font-size:11.3pt;font-weight:700}.footer-row{display:grid;grid-template-columns:1fr 54mm;gap:6mm;align-items:end;margin-top:8mm}.barcode-slot{min-height:14mm;display:flex;align-items:end}.document-barcode{display:inline-flex;flex-direction:column;align-items:center;gap:.5mm;font-size:6.5pt;letter-spacing:.65px;color:#172033}.document-barcode svg{display:block;width:39mm;height:8mm}.signature{text-align:center;font-size:7.8pt;color:#172033}.signature .line{border-top:1px solid #172033;width:50mm;margin:0 auto 2mm}@media print{html,body{background:#fff}.invoice-page{min-height:210mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><main class="invoice-page"><header class="head"><div class="brand"><h1>${escapeInventoryHtml(settings.cabinetName || 'MedCareSO')}</h1><div class="muted">${escapeInventoryHtml(settings.cabinetAddress || '')}<br>${escapeInventoryHtml(settings.cabinetPhone || '')} ${escapeInventoryHtml(settings.cabinetEmail || '')}</div></div><div class="logo-center">${logo}</div><div class="meta"><h2>FACTURE</h2><div class="invoice-reference">${escapeInventoryHtml(invoiceNumber)}</div><div class="muted">${formatDateTime(sale.saleDate)}</div></div></header><section class="client"><strong>Client / Patient</strong><div>${escapeInventoryHtml(customer)}</div></section><table><thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table><section class="invoice-bottom">${Number(sale.discountAmount || 0) || Number(sale.discountPercent || 0) ? `<div class="discount">Remise appliquée : ${formatCurrency(Number(sale.totalAmount || 0)-Number(sale.finalAmount || 0))}</div>` : ''}<div class="total"><span>Total général</span><span>${formatCurrency(sale.finalAmount || 0)}</span></div><div class="footer-row"><div class="barcode-slot">${barcode}</div><div class="signature"><div class="line"></div>Signature / Cachet</div></div></section></main></body></html>`;
 }
 
 async function viewPOSInvoice(saleId) {
@@ -1321,14 +1339,20 @@ async function viewPOSInvoice(saleId) {
         const settings = settingsResult?.success ? settingsResult.data || {} : {};
         document.getElementById('pos-invoice-preview')?.remove();
         const render = () => buildPOSInvoiceHtml(sale, settings);
-        document.body.insertAdjacentHTML('beforeend', `<div id="pos-invoice-preview" class="inventory-detail-overlay"><div class="inventory-detail-dialog"><div class="inventory-detail-header"><div><span class="inventory-detail-kicker">Aperçu A5</span><h2>Facture de vente</h2></div><button class="close-btn" onclick="document.getElementById('pos-invoice-preview').remove()">&times;</button></div><div class="inventory-detail-body" style="background:#e5e7eb"><iframe id="pos-invoice-frame" style="display:block;width:148mm;height:210mm;max-width:100%;margin:auto;border:0;background:#fff"></iframe></div><div class="inventory-detail-footer"><button class="btn btn-secondary" onclick="document.getElementById('pos-invoice-preview').remove()">Fermer</button><button class="btn btn-primary" onclick="printPOSInvoice('${saleId}')">Imprimer et clôturer</button></div></div></div>`);
+        const returned = sale.status === 'returned';
+        document.body.insertAdjacentHTML('beforeend', `<div id="pos-invoice-preview" class="inventory-detail-overlay"><div class="inventory-detail-dialog pos-invoice-dialog"><div class="inventory-detail-header"><div><span class="inventory-detail-kicker">Aperçu A5</span><h2>Facture de vente${returned ?' — retournée' : ''}</h2></div><button class="close-btn" onclick="document.getElementById('pos-invoice-preview').remove()">&times;</button></div><div class="inventory-detail-body pos-invoice-body"><iframe id="pos-invoice-frame" class="pos-invoice-frame"></iframe></div><div class="inventory-detail-footer"><button class="btn btn-secondary" onclick="document.getElementById('pos-invoice-preview').remove()">Fermer</button><button class="btn btn-primary" onclick="printPOSInvoice('${saleId}')">${returned ?'Imprimer la facture' : 'Imprimer et clôturer'}</button></div></div></div>`);
         document.getElementById('pos-invoice-frame').srcdoc = render();
     } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
 async function printPOSInvoice(saleId) {
     try {
-        const finalized = await inventoryApi.finalizeSale(saleId);
+        const initialSale = await inventoryApi.getSale(saleId);
+        if (!initialSale?.success) throw new Error(initialSale?.error || 'Vente introuvable');
+        const returned = initialSale.data?.status === 'returned';
+        const finalized = returned
+            ? { success: true, invoiceNumber: initialSale.data?.invoiceNumber || `PROV-${String(saleId).slice(-6).toUpperCase()}` }
+            : await inventoryApi.finalizeSale(saleId);
         if (!finalized?.success) throw new Error(finalized?.error || 'Clôture impossible');
         const [saleResult, settingsResult] = await Promise.all([inventoryApi.getSale(saleId), window.api.settings.get()]);
         const html = buildPOSInvoiceHtml(saleResult.data, settingsResult?.data || {});
@@ -1339,24 +1363,82 @@ async function printPOSInvoice(saleId) {
         });
         if (printed?.success === false) throw new Error(printed.error || 'Impression impossible');
         document.getElementById('pos-invoice-preview')?.remove();
-        showNotification('Facture clôturée et envoyée à l’impression', 'success');
+        showNotification(returned ? 'Facture retournée envoyée à l’impression' : 'Facture clôturée et envoyée à l’impression', 'success');
         await loadPOSSales();
     } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
 async function returnPOSSale(saleId) {
-    const reason = prompt('Motif du retour (obligatoire) :');
-    if (reason === null) return;
-    if (!reason.trim()) {
-        showNotification('Le motif du retour est obligatoire', 'warning');
-        return;
-    }
-    if (!confirm('Confirmer le retour complet de cette vente ? Le stock sera restauré.')) return;
     try {
-        const result = await inventoryApi.returnSale(saleId, reason.trim());
-        if (!result.success) throw new Error(result.error || 'Retour impossible');
-        showNotification('Vente retournée et stock restauré', 'success');
-        await loadPOSSales();
+        const saleResult = await inventoryApi.getSale(saleId);
+        if (!saleResult?.success) throw new Error(saleResult?.error || 'Vente introuvable');
+        const sale = saleResult.data;
+        if (sale.status === 'returned') {
+            showNotification('Cette vente a déjà été retournée', 'warning');
+            await loadPOSSales();
+            return;
+        }
+        document.getElementById('pos-return-dialog')?.remove();
+        const customer = sale.patientId
+            ? `${sale.lastName || ''} ${sale.firstName || ''}`.trim()
+            : (sale.customerName || 'Client de passage');
+        const reference = sale.invoiceNumber || `Vente ${String(sale.id || '').slice(-8).toUpperCase()}`;
+        document.body.insertAdjacentHTML('beforeend', `
+          <div id="pos-return-dialog" class="inventory-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="pos-return-title">
+            <div class="inventory-detail-dialog" style="width:min(520px, calc(100vw - 32px));">
+              <div class="inventory-detail-header">
+                <div><span class="inventory-detail-kicker">Retour de vente</span><h2 id="pos-return-title">Restaurer le stock</h2></div>
+                <button type="button" class="close-btn" onclick="document.getElementById('pos-return-dialog').remove()">&times;</button>
+              </div>
+              <div class="inventory-detail-body" style="padding:24px;">
+                <div style="padding:14px 16px; border:1px solid #dbe5ee; border-radius:10px; background:#f8fafc; margin-bottom:18px;">
+                  <div style="font-weight:700; color:#1e293b;">${escapeInventoryHtml(reference)}</div>
+                  <div style="margin-top:5px; color:#64748b;">${escapeInventoryHtml(customer || 'Client de passage')} · ${formatCurrency(sale.finalAmount || 0)}</div>
+                </div>
+                <p style="margin:0 0 14px; color:#475569; line-height:1.5;">Le retour annule cette vente et remet les quantités vendues dans le stock. Cette action ne peut pas être annulée.</p>
+                <label for="pos-return-reason" style="display:block; margin-bottom:7px; font-weight:700; color:#1e293b;">Motif du retour <span style="color:#dc2626;">*</span></label>
+                <textarea id="pos-return-reason" class="form-control" rows="3" placeholder="Ex. erreur de facturation, article retourné…" style="resize:vertical;"></textarea>
+                <div id="pos-return-error" style="display:none; color:#b91c1c; font-size:13px; margin-top:8px;"></div>
+              </div>
+              <div class="inventory-detail-footer">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('pos-return-dialog').remove()">Annuler</button>
+                <button type="button" id="pos-return-confirm" class="btn btn-danger">Confirmer le retour</button>
+              </div>
+            </div>
+          </div>`);
+        const reasonInput = document.getElementById('pos-return-reason');
+        const errorEl = document.getElementById('pos-return-error');
+        const confirmButton = document.getElementById('pos-return-confirm');
+        reasonInput?.focus();
+        confirmButton?.addEventListener('click', async () => {
+            const reason = reasonInput?.value?.trim() || '';
+            if (!reason) {
+                if (errorEl) {
+                    errorEl.textContent = 'Veuillez indiquer le motif du retour.';
+                    errorEl.style.display = 'block';
+                }
+                reasonInput?.focus();
+                return;
+            }
+            confirmButton.disabled = true;
+            confirmButton.textContent = 'Retour en cours…';
+            try {
+                const result = await inventoryApi.returnSale(saleId, reason);
+                if (!result?.success) throw new Error(result?.error || 'Retour impossible');
+                document.getElementById('pos-return-dialog')?.remove();
+                showNotification('Retour enregistré : le stock a été restauré', 'success');
+                await loadPOSSales();
+                if (!isAssistantInventoryUser()) await loadInventoryStats();
+                if (inventoryTabState.activeTab === 'articles') await loadInventory();
+            } catch (error) {
+                if (errorEl) {
+                    errorEl.textContent = error?.message || 'Retour impossible';
+                    errorEl.style.display = 'block';
+                }
+                confirmButton.disabled = false;
+                confirmButton.textContent = 'Confirmer le retour';
+            }
+        });
     } catch (error) {
         showNotification('Erreur: ' + error.message, 'error');
     }

@@ -999,7 +999,7 @@ export function handleInventoryModuleEvents() {
         if (!sale) return { success: false, error: 'Vente introuvable' };
         if (sale.status === 'returned') return { success: false, error: 'Cette vente a déjà été retournée' };
 
-        const soldMovements = await query(
+        let soldMovements = await query(
           `SELECT inventoryId, lotId, SUM(quantity) AS quantity
            FROM inventory_movements
            WHERE posSaleId = ? AND movementType = 'sale'
@@ -1007,15 +1007,35 @@ export function handleInventoryModuleEvents() {
            ORDER BY inventoryId, lotId`,
           [id]
         );
-        if (!soldMovements.length) throw new Error('Mouvements de stock de la vente introuvables');
+        if (!soldMovements.length) {
+          soldMovements = await query(
+            `SELECT inventoryId, lotId, SUM(quantity) AS quantity
+             FROM pos_sale_items
+             WHERE posSaleId = ?
+             GROUP BY inventoryId, lotId
+             ORDER BY inventoryId, lotId`,
+            [id]
+          );
+        }
+        if (!soldMovements.length) throw new Error('Articles de la vente introuvables');
 
         for (const movement of soldMovements) {
           const inventory = await queryOne('SELECT quantity FROM inventory WHERE id = ? FOR UPDATE', [movement.inventoryId]);
+          if (!inventory) throw new Error('Article associé au retour introuvable');
           const quantity = toIntOrDefault(movement.quantity, 0);
+          if (quantity <= 0) throw new Error('Quantité de retour invalide');
           if (movement.lotId) {
+            const lot = await queryOne(
+              'SELECT initialQuantity, remainingQuantity FROM inventory_lots WHERE id = ? FOR UPDATE',
+              [movement.lotId]
+            );
+            if (!lot) throw new Error('Lot associé au retour introuvable');
+            if (Number(lot.remainingQuantity || 0) + quantity > Number(lot.initialQuantity || 0)) {
+              throw new Error('Le stock du lot ne permet pas de restaurer entièrement cette vente');
+            }
             await run(
               `UPDATE inventory_lots
-               SET remainingQuantity = LEAST(initialQuantity, remainingQuantity + ?), updatedAt = ?
+               SET remainingQuantity = remainingQuantity + ?, updatedAt = ?
                WHERE id = ?`,
               [quantity, nowSql(), movement.lotId]
             );

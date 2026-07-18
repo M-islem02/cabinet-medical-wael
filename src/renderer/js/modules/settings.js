@@ -593,6 +593,10 @@ async function loadSettings() {
     if (documentHideSignatureEl) {
       documentHideSignatureEl.checked = s.documentHideSignature === 1 || s.documentHideSignature === true;
     }
+    const documentShowBarcodeEl = document.getElementById('document-show-barcode');
+    if (documentShowBarcodeEl) {
+      documentShowBarcodeEl.checked = s.documentShowBarcode !== 0 && s.documentShowBarcode !== false;
+    }
     updateCabinetLogoPreview(s.cabinetLogoDataUrl || '');
     updateAppLogoPreview(s.appLogoDataUrl || '');
     updateCabinetWatermarkLogoPreview(s.cabinetWatermarkLogoDataUrl || '');
@@ -676,6 +680,9 @@ function buildSettingsPayload({
     documentHideSignature: includePractice
       ? Boolean(document.getElementById('document-hide-signature')?.checked)
       : Boolean(existing.documentHideSignature),
+    documentShowBarcode: includePractice
+      ? document.getElementById('document-show-barcode')?.checked !== false
+      : (existing.documentShowBarcode !== 0 && existing.documentShowBarcode !== false),
     cabinetLogoDataUrl: includePractice ? document.getElementById('cabinet-logo-data')?.value || '' : (existing.cabinetLogoDataUrl || ''),
     appLogoDataUrl: includePractice ? document.getElementById('app-logo-data')?.value || '' : (existing.appLogoDataUrl || ''),
     cabinetWatermarkLogoDataUrl: includePractice ? document.getElementById('cabinet-watermark-logo-data')?.value || '' : (existing.cabinetWatermarkLogoDataUrl || ''),
@@ -750,6 +757,7 @@ async function saveSettings() {
     documentStyleVariant: normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value),
     documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5)),
     documentHideSignature: Boolean(document.getElementById('document-hide-signature')?.checked),
+    documentShowBarcode: document.getElementById('document-show-barcode')?.checked !== false,
     cabinetLogoDataUrl: document.getElementById('cabinet-logo-data')?.value || '',
     appLogoDataUrl: document.getElementById('app-logo-data')?.value || '',
     cabinetWatermarkLogoDataUrl: document.getElementById('cabinet-watermark-logo-data')?.value || '',

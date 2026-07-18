@@ -405,12 +405,7 @@ function showSection(sectionId) {
   currentPage = sectionId;
   
   if (sectionId === 'patients') {
-    // Show placeholder instead of loading all patients — user must search
-    const tbody = document.querySelector('#patients-list tbody') || document.getElementById('patients-tbody');
-    if (tbody && typeof patientsSearchTerm !== 'undefined' && !patientsSearchTerm) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-row" style="color:#94a3b8;padding:24px;font-style:italic;">🔍 Saisissez un nom pour rechercher un patient</td></tr>';
-      if (typeof renderPatientsPagination === 'function') renderPatientsPagination();
-    } else if (typeof loadPatients === 'function') {
+    if (typeof loadPatients === 'function') {
       loadPatients();
     }
   } else if (sectionId === 'payments') {

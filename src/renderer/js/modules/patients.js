@@ -224,15 +224,8 @@ function getActivePatientDetailsTabId() {
 async function searchPatients(term = '') {
   try {
     patientsSearchTerm = String(term || '').trim();
-    // Don't load all patients when search is empty — show placeholder instead
     if (!patientsSearchTerm) {
-      const tbody = document.querySelector('#patients-list tbody') || document.getElementById('patients-tbody');
-      if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-row" style="color:#94a3b8;padding:24px;font-style:italic;">🔍 Saisissez un nom pour rechercher un patient</td></tr>';
-      }
-      patientsFilteredData = [];
-      patientsPagination = { page: 1, pageSize: PATIENTS_PAGE_SIZE, total: 0, totalPages: 1 };
-      renderPatientsPagination();
+      await loadPatients(1);
       return;
     }
     await loadPatients(1);

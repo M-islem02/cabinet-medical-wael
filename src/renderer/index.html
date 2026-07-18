@@ -590,6 +590,15 @@
                 <section id="dentistry" class="section doctor-only">
                     <div class="feature-shell dental-shell">
 
+                        <div class="feature-main-tabs" role="tablist" aria-label="Dossier dentaire">
+                            <button type="button" class="dental-tab-btn feature-tab-btn active" data-tab="chart"
+                                onclick="switchDentalTab('chart')">Schéma dentaire</button>
+                            <button type="button" class="dental-tab-btn feature-tab-btn" data-tab="treatments"
+                                onclick="switchDentalTab('treatments')">Traitements</button>
+                            <button type="button" class="dental-tab-btn feature-tab-btn" data-tab="plans"
+                                onclick="switchDentalTab('plans')">Plans de traitement</button>
+                        </div>
+
                         <!-- CHART Tab -->
                         <div id="dental-tab-chart" class="dental-tab-content" style="display: block;">
                             <div class="card dental-panel-card dental-chart-card">
@@ -623,6 +632,48 @@
                                                     ici.</p>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="dental-tab-treatments" class="dental-tab-content" style="display: none;">
+                            <div class="card dental-panel-card">
+                                <div class="card-header dental-panel-header">
+                                    <div>
+                                        <span class="dental-panel-kicker">Suivi clinique</span>
+                                        <h3>Traitements dentaires du patient</h3>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-small"
+                                        onclick="openTreatmentModal()">+ Nouveau traitement</button>
+                                </div>
+                                <div class="dental-panel-body" id="dental-treatments-list">
+                                    <div class="dental-empty-state">
+                                        <h4>Sélectionnez un patient</h4>
+                                        <p>Les traitements dentaires apparaîtront ici.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="dental-tab-plans" class="dental-tab-content" style="display: none;">
+                            <div class="card dental-panel-card">
+                                <div class="card-header dental-panel-header">
+                                    <div>
+                                        <span class="dental-panel-kicker">Organisation des soins</span>
+                                        <h3>Plans de traitement dentaires</h3>
+                                    </div>
+                                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                        <button type="button" class="btn btn-secondary btn-small"
+                                            onclick="showSection('treatment-plans')">Tous les plans</button>
+                                        <button type="button" class="btn btn-primary btn-small"
+                                            onclick="openDentalPlanModal()">+ Nouveau plan dentaire</button>
+                                    </div>
+                                </div>
+                                <div class="dental-panel-body" id="dental-plans-list">
+                                    <div class="dental-empty-state">
+                                        <h4>Sélectionnez un patient</h4>
+                                        <p>Les plans dentaires apparaîtront ici.</p>
                                     </div>
                                 </div>
                             </div>
@@ -2129,6 +2180,8 @@
                                         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                                         <input type="text" id="equipment-search" class="form-control module-search module-search-wide" placeholder="Rechercher un équipement..." oninput="filterEquipment()">
                                     </label>
+                                    <button type="button" class="btn btn-primary btn-small equipment-filter-action" onclick="filterEquipment()">Filtrer</button>
+                                    <button type="button" class="btn btn-secondary btn-small equipment-filter-action" onclick="resetEquipmentFilters()">Réinitialiser</button>
                                     <div id="equipment-pagination" class="pagination-controls"></div>
                                 </div>
                             </div>
@@ -3247,6 +3300,10 @@
                                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                                     <input type="checkbox" id="document-hide-signature" style="width:auto;">
                                     Masquer « Signature et cachet » dans le footer (garder seulement « ÉMIS LE »)
+                                </label>
+                                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-top:10px;">
+                                    <input type="checkbox" id="document-show-barcode" style="width:auto;" checked>
+                                    Afficher le code-barres lié au numéro du document
                                 </label>
                             </div>
 

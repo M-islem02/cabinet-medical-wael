@@ -152,6 +152,23 @@ const SPECIALTY_LABELS = {
   general: 'Généraliste'
 };
 
+function buildPlanStatusSelect(plan) {
+  const transitions = {
+    active: ['active', 'completed', 'cancelled', 'archived'],
+    completed: ['completed', 'active', 'cancelled', 'archived'],
+    cancelled: ['cancelled', 'active', 'archived'],
+    archived: ['archived', 'active']
+  };
+  const labels = { active: 'Actif', completed: 'Terminé', cancelled: 'Annulé', archived: 'Archivé' };
+  return `
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#64748b">
+      Statut
+      <select class="form-control" style="height:34px;padding:4px 30px 4px 9px;font-size:12px" onchange="updatePlanStatus('${plan.id}', this.value)">
+        ${(transitions[plan.status] || [plan.status]).map((status) => `<option value="${status}" ${status === plan.status ? 'selected' : ''}>${labels[status] || status}</option>`).join('')}
+      </select>
+    </label>`;
+}
+
 function renderPlanCard(plan) {
   const meta = PLAN_STATUS_META[plan.status] || PLAN_STATUS_META.active;
   const cost = Number(plan.totalCost || 0);
@@ -164,6 +181,8 @@ function renderPlanCard(plan) {
   const date = plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('fr-FR') : '—';
   const treatmentLabel = plan.treatmentType && plan.treatmentType !== 'null' ? esc(plan.treatmentType) : 'Non spécifié';
   const isArchived = plan.status === 'archived';
+  const hasPayments = plan.hasCollectedPayment === true || paid > 0;
+  const canCollect = ['active', 'completed'].includes(plan.status) && balance > 0;
 
   return `
     <div class="plan-card" style="padding:20px;border-left:4px solid ${meta.color};cursor:${isArchived ? 'default' : 'pointer'};transition:transform 0.18s;background:#fff;border-radius:8px;display:flex;flex-direction:column;gap:14px" ${isArchived ? '' : `onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'" onclick="openEditPlanModal('${plan.id}')"`}>
@@ -218,17 +237,21 @@ function renderPlanCard(plan) {
         </div>
       `}
 
+      <div style="display:flex;justify-content:flex-end" onclick="event.stopPropagation()">
+        ${canSeeFullFinancials ? buildPlanStatusSelect(plan) : ''}
+      </div>
+
       <!-- ACTIONS ROW -->
       <div style="display:flex;gap:6px;align-items:center;margin-top:4px" onclick="event.stopPropagation()">
         ${isArchived ? `
           <button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>
-          <button onclick="unarchivePlan('${plan.id}')" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Désarchiver</button>
+          ${hasPayments ? '' : `<button onclick="deletePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fef2f2;border-color:#fecaca;color:#ef4444">Supprimer</button>`}
         ` : `
-          ${plan.status === 'active' && canSeeFullFinancials ? `<button onclick="openPlanPaymentActionsModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Payer</button>` : ''}
+          ${canCollect && canSeeFullFinancials ? `<button onclick="openPlanPaymentActionsModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Payer</button>` : ''}
           <button onclick="openEditPlanModal('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fff;border-color:#d1d5db;color:#374151">Modifier</button>
           ${canSeeFullFinancials ? `<button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>` : ''}
-          ${plan.status === 'active' ? `<button onclick="archivePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Archiver</button>` : ''}
-          <button onclick="deletePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fef2f2;border-color:#fecaca;color:#ef4444">Supprimer</button>
+          <button onclick="archivePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Archiver</button>
+          ${hasPayments ? '' : `<button onclick="deletePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fef2f2;border-color:#fecaca;color:#ef4444">Supprimer</button>`}
         `}
       </div>
     </div>
@@ -1232,7 +1255,7 @@ async function openPlanDetailsModal(planId) {
 async function archivePlan(planId) {
   if (!confirm('Archiver ce plan ? Il ne sera plus modifiable.')) return;
   try {
-    const result = await window.api.plans.archive(planId);
+    const result = await window.api.plans.updateStatus(planId, 'archived');
     if (result.success) { showNotification('Plan archivé', 'success'); loadTreatmentPlans(); }
     else showNotification('Erreur: ' + result.error, 'error');
   } catch (e) { showNotification('Erreur', 'error'); }
@@ -1241,7 +1264,7 @@ async function archivePlan(planId) {
 async function unarchivePlan(planId) {
   if (!confirm('Désarchiver ce plan et le rendre actif ?')) return;
   try {
-    const result = await window.api.plans.unarchive(planId);
+    const result = await window.api.plans.updateStatus(planId, 'active');
     if (result.success) {
       showNotification('Plan désarchivé', 'success');
       loadTreatmentPlans();
@@ -1250,6 +1273,18 @@ async function unarchivePlan(planId) {
     }
   } catch (e) {
     showNotification('Erreur lors du désarchivage', 'error');
+  }
+}
+
+async function updatePlanStatus(planId, status) {
+  try {
+    const result = await window.api.plans.updateStatus(planId, status);
+    if (!result?.success) throw new Error(result?.error || 'Changement de statut impossible');
+    showNotification('Statut du plan mis à jour', 'success');
+    await loadTreatmentPlans();
+  } catch (error) {
+    showNotification('Erreur: ' + error.message, 'error');
+    await loadTreatmentPlans();
   }
 }
 
@@ -1493,11 +1528,11 @@ async function printPlanDocument(planId) {
 }
 
 async function deletePlan(planId) {
-  if (!confirm('Supprimer définitivement ce plan ? Impossible si des paiements ou traitements existent.')) return;
+  if (!confirm('Supprimer définitivement ce plan sans encaissement ?')) return;
   try {
     const res = await window.api.plans.delete(planId);
     if (res.success) { showNotification('Plan supprimé', 'success'); loadTreatmentPlans(); }
-    else { showNotification('Erreur: ' + res.error, 'error'); alert('Pour conserver les traces comptables/cliniques, veuillez utiliser la fonction ARCHIVER au lieu de SUPPRIMER.'); }
+    else showNotification('Erreur: ' + res.error, 'error');
   } catch (e) { showNotification('Erreur', 'error'); }
 }
 

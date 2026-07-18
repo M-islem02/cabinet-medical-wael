@@ -90,7 +90,6 @@ const buildPreloadModules = (() => {
       recalculate: { channel: 'plans:recalculate', params: [id('planId')] },
       requestPayment: { channel: 'plans:requestPayment', params: [object('data', ['planId'])] },
       getPendingBalances: { channel: 'plans:getPendingBalances', params: [] },
-      getOrCreateDefault: { channel: 'plans:getOrCreateDefault', params: [object('data', ['patientId'])] },
       getFinancialStats: { channel: 'plans:getFinancialStats', params: [object('filters', [], true)] },
       updateSessionStatus: {
         channel: 'plans:updateSessionStatus',
@@ -544,6 +543,7 @@ contextBridge.exposeInMainWorld('api', {
     getRecord: (patientId) => ipcRenderer.invoke('dental:getRecord', patientId),
     saveRecord: (data) => ipcRenderer.invoke('dental:saveRecord', data),
     getTeeth: (patientId) => ipcRenderer.invoke('dental:getTeeth', patientId),
+    getSchemaAtDate: (patientId, date) => ipcRenderer.invoke('dental:getSchemaAtDate', patientId, date),
     saveTooth: (data) => ipcRenderer.invoke('dental:saveTooth', data),
     saveMultipleTeeth: (patientId, teeth) => ipcRenderer.invoke('dental:saveMultipleTeeth', patientId, teeth),
     getTreatmentsByPatient: (patientId) => ipcRenderer.invoke('dental:getTreatmentsByPatient', patientId),

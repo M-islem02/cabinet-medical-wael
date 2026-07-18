@@ -39,6 +39,7 @@ const CANONICAL_COLUMN_NAMES = [
   "documentStyleVariant",
   "documentWatermarkOpacity",
   "documentHideSignature",
+  "documentShowBarcode",
   "preferredPrinter",
   "preferredScanner",
   "preferredThermalPrinter",

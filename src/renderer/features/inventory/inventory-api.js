@@ -37,5 +37,6 @@ export const inventoryApi = Object.freeze({
   finalizeSale: (id) => write('pos.finalizeSale', () => window.api.pos.finalizeSale(id)),
   returnSale: (id, reason) => write('pos.returnSale', () => window.api.pos.returnSale(id, reason)),
   getPatients: (filters) => call('patients.getAll', () => window.api.patient.getAll(filters)),
+  getPatientDirectory: (filters) => call('patients.getDirectory', () => window.api.patient.getDirectory(filters)),
   printHtml: (payload) => call('print.html', () => window.api.print.html(payload))
 });

@@ -18,6 +18,7 @@ let dentalPatientHistoryItems = [];
 let dentalPatientHistoryPage = 0;
 let dentalSelectedHistoryDayKey = null;
 let dentalHistoryDateFilter = '';
+let dentalHistoricalTeethData = {};
 
 // Treatment status → tooth color overlay
 const TREATMENT_STATUS_COLORS = {
@@ -253,6 +254,8 @@ async function selectDentalPatient(patientId) {
     renderDentalChart();
     await loadDentalPatientHistoryCards(patientId);
     await updatePatientDentalStats(patientId);
+    if (dentalCurrentTab === 'treatments') await loadDentalTreatments(patientId);
+    if (dentalCurrentTab === 'plans') await loadDentalPlans(patientId);
   } catch (e) { console.error('Error selecting dental patient:', e); }
 }
 
@@ -459,6 +462,10 @@ function renderOneTooth(num, pos) {
 function selectDentalTooth(toothNumber) {
   if (!dentalSelectedPatientId) {
     showNotification('Sélectionnez d\'abord un patient', 'warning');
+    return;
+  }
+  if (dentalSelectedHistoryDayKey) {
+    openDentalPatientHistoryDayWindow(dentalSelectedHistoryDayKey, toothNumber);
     return;
   }
   dentalSelectedTooth = toothNumber;
@@ -894,7 +901,7 @@ function renderDentalPatientHistoryCards() {
   var start = dentalPatientHistoryPage * pageSize;
   var pageItems = groups.slice(start, start + pageSize);
   var cards = pageItems.map(function(group) {
-    return '<button type="button" class="dental-history-card" onclick="openDentalPatientHistoryDayWindow(\'' + dentalEscapeHtml(group.key) + '\')">' +
+    return '<button type="button" class="dental-history-card' + (dentalSelectedHistoryDayKey === group.key ? ' is-active' : '') + '" onclick="showDentalHistoricalSchema(\'' + dentalEscapeHtml(group.key) + '\')">' +
       '<strong>' + dentalEscapeHtml(group.dayLabel) + '</strong>' +
       '</button>';
   }).join('');
@@ -922,11 +929,100 @@ function changeDentalHistoryPage(direction) {
 function setDentalHistoryDateFilter(value) {
   dentalHistoryDateFilter = value || '';
   dentalPatientHistoryPage = 0;
+  if (dentalSelectedHistoryDayKey && dentalSelectedHistoryDayKey !== dentalHistoryDateFilter) {
+    showCurrentDentalSchema();
+    return;
+  }
+  renderDentalPatientHistoryCards();
+}
+
+function buildDentalHistoricalTeethData(group) {
+  var statusByTreatment = {
+    filling: 'filled',
+    extraction: 'extraction',
+    rootCanal: 'rootCanal',
+    crown: 'crown',
+    bridge: 'bridge',
+    implant: 'implant',
+    prosthesis: 'prosthesis'
+  };
+  var teethData = {};
+  (group?.items || []).forEach(function(item) {
+    if (!item.toothNumber) return;
+    teethData[item.toothNumber] = {
+      status: statusByTreatment[item.treatmentType] || 'healthy',
+      surfaces: '',
+      notes: item.description || item.notes || ''
+    };
+  });
+  return teethData;
+}
+
+function mapDentalTreatmentToToothStatus(treatmentType) {
+  return {
+    filling: 'filled',
+    extraction: 'extraction',
+    rootCanal: 'rootCanal',
+    crown: 'crown',
+    bridge: 'bridge',
+    implant: 'implant',
+    prosthesis: 'prosthesis'
+  }[treatmentType] || 'healthy';
+}
+
+async function showDentalHistoricalSchema(dayKey) {
+  var group = getDentalHistoryDayGroups().find(function(item) { return item.key === dayKey; });
+  if (!group) {
+    showNotification('Historique dentaire introuvable pour cette date', 'warning');
+    return;
+  }
+
+  dentalSelectedHistoryDayKey = dayKey;
+  dentalSelectedTooth = null;
+  dentalHistoricalTeethData = buildDentalHistoricalTeethData(group);
+  try {
+    var schemaResult = await window.api.dental.getSchemaAtDate(dentalSelectedPatientId, dayKey);
+    if (schemaResult?.success && schemaResult.data) {
+      (schemaResult.data.treatments || []).forEach(function(treatment) {
+        dentalHistoricalTeethData[treatment.toothNumber] = {
+          status: mapDentalTreatmentToToothStatus(treatment.treatmentType),
+          surfaces: '',
+          notes: treatment.description || treatment.notes || ''
+        };
+      });
+      (schemaResult.data.teeth || []).forEach(function(tooth) {
+        dentalHistoricalTeethData[tooth.toothNumber] = {
+          status: tooth.status || dentalHistoricalTeethData[tooth.toothNumber]?.status || 'healthy',
+          surfaces: tooth.surfaces || '',
+          notes: tooth.notes || dentalHistoricalTeethData[tooth.toothNumber]?.notes || ''
+        };
+      });
+    }
+  } catch (error) {
+    console.error('Unable to reconstruct complete historical schema:', error);
+  }
+  var currentTeethData = dentalTeethData;
+  var currentTreatmentsCache = dentalTreatmentsCache;
+  dentalTeethData = dentalHistoricalTeethData;
+  dentalTreatmentsCache = {};
+  renderDentalChart();
+  dentalTeethData = currentTeethData;
+  dentalTreatmentsCache = currentTreatmentsCache;
+
+  renderDentalDayHistoryPanel(group);
+  var panel = document.getElementById('dental-tooth-detail');
+  if (panel) {
+    panel.innerHTML =
+      '<div class="dental-detail-head"><div><span>Schéma historique</span><h3>' + dentalEscapeHtml(group.dayLabel) + '</h3><p>Consultation en lecture seule</p></div></div>' +
+      '<div class="dental-current-status" style="background:#eff6ff;border-color:#93c5fd;color:#1d4ed8"><strong>Historique</strong><span>' + group.items.length + ' acte(s) · ' + (group.teeth.length || 0) + ' dent(s)</span></div>' +
+      '<button type="button" class="btn btn-primary" style="width:100%;margin-top:14px" onclick="showCurrentDentalSchema()">Revenir au schéma actuel</button>';
+  }
   renderDentalPatientHistoryCards();
 }
 
 function showCurrentDentalSchema() {
   dentalSelectedHistoryDayKey = null;
+  dentalHistoricalTeethData = {};
   dentalSelectedTooth = null;
   renderDentalChart();
   var notesContainer = document.getElementById('dental-chart-notes-container');
@@ -942,7 +1038,8 @@ function renderDentalDayHistoryPanel(group) {
   var rows = group.items.map(function(item) {
     var typeInfo = TREATMENT_TYPES.find(function(t) { return t.value === item.treatmentType; }) || { icon: '', label: item.treatmentType || 'Acte' };
     var toothNumber = item.toothNumber || '—';
-    var toothData = item.toothNumber ? dentalTeethData[item.toothNumber] : null;
+    var historicalData = buildDentalHistoricalTeethData(group);
+    var toothData = item.toothNumber ? historicalData[item.toothNumber] : null;
     var status = toothData && toothData.status ? getToothStatusLabel(toothData.status) : 'État non défini';
     var desc = item.description || item.notes || '';
     return '<div class="dental-day-action-row">' +
@@ -967,27 +1064,13 @@ function renderDentalHistoryDaySvg(group, selectedTooth) {
   var previousSelected = dentalSelectedTooth;
   var previousTeethData = dentalTeethData;
   var modalSelectedTooth = selectedTooth || (latestWithTooth ? latestWithTooth.toothNumber : null);
-  var statusByTreatment = {
-    filling: 'filled',
-    extraction: 'extraction',
-    rootCanal: 'rootCanal',
-    crown: 'crown',
-    bridge: 'bridge',
-    implant: 'implant',
-    prosthesis: 'prosthesis'
-  };
-  var dayTeethData = {};
-  group.items.forEach(function(item) {
-    if (!item.toothNumber) return;
-    var current = previousTeethData[item.toothNumber] || {};
-    dayTeethData[item.toothNumber] = {
-      status: statusByTreatment[item.treatmentType] || current.status || 'healthy',
-      surfaces: current.surfaces || '',
-      notes: current.notes || ''
-    };
-  });
+  var previousTreatmentsCache = dentalTreatmentsCache;
+  var dayTeethData = dentalSelectedHistoryDayKey === group.key && Object.keys(dentalHistoricalTeethData).length
+    ? dentalHistoricalTeethData
+    : buildDentalHistoricalTeethData(group);
   dentalSelectedTooth = modalSelectedTooth;
   dentalTeethData = dayTeethData;
+  dentalTreatmentsCache = {};
   var teethSvg = renderAllTeeth(getToothPositions())
     .replaceAll('filter="url(#tSh)"', 'filter="url(#tShHistory)"')
     .replace(/onclick="selectDentalTooth\((\d+)\)"/g, function(match, toothNumber) {
@@ -1011,6 +1094,7 @@ function renderDentalHistoryDaySvg(group, selectedTooth) {
     '</svg>';
   dentalSelectedTooth = previousSelected;
   dentalTeethData = previousTeethData;
+  dentalTreatmentsCache = previousTreatmentsCache;
   return svg;
 }
 
@@ -1451,6 +1535,7 @@ registerLegacyGlobals('dentistry', {
   selectDentalTooth,
   setDentalHistoryDateFilter,
   setDentalLanguage,
+  showDentalHistoricalSchema,
   showCurrentDentalSchema,
   showToothDetail,
   switchDentalTab,

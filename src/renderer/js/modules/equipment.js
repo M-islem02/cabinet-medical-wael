@@ -174,9 +174,13 @@ function changeEquipmentPage(direction) {
 
 async function showEquipmentDetail(id) {
     equipmentSelectedId = id;
+    const container = document.getElementById('equipment-detail-content');
+    if (!container) return;
+    container.innerHTML = '<div class="module-empty-state"><strong>Chargement de la fiche...</strong></div>';
+    showModal('modal-equipment-detail');
     try {
         const result = await window.api.equipment.getById(id);
-        if (!result.success) return;
+        if (!result.success) throw new Error(result.error || 'Équipement introuvable');
         const e = result.data;
         const sc = EQUIPMENT_STATUS_COLORS[e.status] || EQUIPMENT_STATUS_COLORS.available;
         const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category;
@@ -199,8 +203,6 @@ async function showEquipmentDetail(id) {
             ? e.planUsage.map(p => `<div style="font-size:13px;padding:4px 0">${p.planTitle || 'Plan'} — ${p.lastName || ''} ${p.firstName || ''} (${formatEquipmentDate(p.usageDate)})</div>`).join('')
             : '<div style="font-size:13px;color:#94a3b8">Aucune utilisation enregistrée</div>';
 
-        const container = document.getElementById('equipment-detail-content');
-        if (!container) return;
         const title = document.getElementById('equipment-detail-modal-title');
         if (title) title.textContent = e.name;
         container.innerHTML = `
@@ -238,8 +240,11 @@ async function showEquipmentDetail(id) {
                 </div>
             </section>
         </div>`;
-        showModal('modal-equipment-detail');
-    } catch (e) { console.error('Error loading equipment detail:', e); }
+    } catch (e) {
+        console.error('Error loading equipment detail:', e);
+        container.innerHTML = `<div class="module-empty-state"><strong>Impossible de charger la fiche</strong><p>${String(e.message || 'Erreur inconnue')}</p></div>`;
+        showNotification('Erreur: ' + (e.message || 'Impossible de charger la fiche'), 'error');
+    }
 }
 
 async function loadEquipmentAlerts() {
@@ -308,6 +313,16 @@ async function updateEquipmentStats() {
 }
 
 async function filterEquipment() { await loadEquipmentList(1); }
+
+async function resetEquipmentFilters() {
+    const category = document.getElementById('equipment-filter-category');
+    const status = document.getElementById('equipment-filter-status');
+    const search = document.getElementById('equipment-search');
+    if (category) category.value = '';
+    if (status) status.value = '';
+    if (search) search.value = '';
+    await loadEquipmentList(1);
+}
 
 function openEquipmentModal(id = null) {
     const title = document.getElementById('equipment-modal-title');
@@ -501,7 +516,6 @@ async function deleteEquipment(id) {
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function formatEquipmentCurrency(amount) {
-    if (typeof window.formatEquipmentCurrency === 'function') return window.formatEquipmentCurrency(amount);
     return new Intl.NumberFormat('fr-DZ', { style: 'decimal', minimumFractionDigits: 2 }).format(amount) + ' DZD';
 }
 
@@ -518,6 +532,7 @@ window.clearEquipmentMaintenance = clearEquipmentMaintenance;
 window.switchEquipmentTab = switchEquipmentTab;
 window.refreshEquipment = refreshEquipment;
 window.filterEquipment = filterEquipment;
+window.resetEquipmentFilters = resetEquipmentFilters;
 window.changeEquipmentPage = changeEquipmentPage;
 window.openEquipmentModal = openEquipmentModal;
 window.editEquipment = editEquipment;

@@ -115,25 +115,6 @@ function applySessionFinancialVisibility(session) {
   };
 }
 
-async function getOrCreateDefaultPlan(patientId, createdBy, specialty = 'dentistry') {
-  const existing = await queryOne(
-    `SELECT id FROM treatment_plans WHERE patientId = ? AND status = 'active' ORDER BY createdAt DESC LIMIT 1`,
-    [patientId]
-  );
-  if (existing) return existing.id;
-
-  const id = uuidv4();
-  const now = moment().format('YYYY-MM-DD HH:mm:ss');
-  const title = `Plan de traitement — ${moment().format('DD/MM/YYYY')}`;
-  await run(
-    `INSERT INTO treatment_plans (id, patientId, title, specialty, status, createdBy, startDate, sessions, sessionsCount, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, 'active', ?, ?, 1, 1, ?, ?)`,
-    [id, patientId, title, specialty, createdBy || null, now.slice(0, 10), now, now]
-  );
-  broadcastRealtimeEvent({ type: 'plan:created', planId: id, patientId });
-  return id;
-}
-
 // ─── Handler registration ─────────────────────────────────────────────────────
 export function handleTreatmentPlanEvents() {
 
@@ -192,7 +173,12 @@ export function handleTreatmentPlanEvents() {
     try {
       let sql = `
         SELECT tp.*, p.firstName, p.lastName,
-               (tp.totalCost - tp.totalPaid) as balance
+               (tp.totalCost - tp.totalPaid) as balance,
+               EXISTS (
+                 SELECT 1 FROM plan_payment_sessions pps
+                 WHERE pps.planId = tp.id
+                   AND (COALESCE(pps.paidAmount, 0) > 0 OR pps.paymentId IS NOT NULL OR pps.status = 'paid')
+               ) AS hasCollectedPayment
         FROM treatment_plans tp
         LEFT JOIN patients p ON p.id = tp.patientId
         WHERE 1=1
@@ -355,6 +341,59 @@ export function handleTreatmentPlanEvents() {
     }
   });
 
+  registerValidatedContractHandler(ipcMain, 'plans', 'updateStatus', async (event, id, status) => {
+    try {
+      return await withTransaction(async () => {
+        const plan = await queryOne('SELECT patientId, status FROM treatment_plans WHERE id = ? FOR UPDATE', [id]);
+        if (!plan) return { success: false, error: 'Plan introuvable' };
+        if (plan.status === status) return { success: true };
+
+        const context = getUserFinancialContext();
+        if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
+          return { success: false, error: 'Modification du statut réservée au praticien' };
+        }
+        if (!validateStatusTransition(plan.status, status)) {
+          return { success: false, error: `Transition de statut non autorisée : ${plan.status} → ${status}` };
+        }
+        if (status === 'active') {
+          await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`active-plan:${plan.patientId}`]);
+          const activeCheck = await assertSingleActivePlan(plan.patientId, id);
+          if (!activeCheck.success) return activeCheck;
+        }
+
+        if (status === 'archived' || status === 'cancelled') {
+          const requests = await query(
+            `SELECT paymentRequestId FROM plan_payment_sessions
+             WHERE planId = ? AND paymentRequestId IS NOT NULL`,
+            [id]
+          );
+          const requestIds = (requests || []).map((row) => row.paymentRequestId).filter(Boolean);
+          for (const requestId of requestIds) {
+            await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [requestId]);
+            broadcastRealtimeEvent({ type: 'payment-request:updated', id: requestId });
+          }
+          await run(
+            `UPDATE plan_payment_sessions
+             SET status = CASE WHEN status = 'requested' THEN 'pending' ELSE status END,
+                 paymentRequestId = NULL
+             WHERE planId = ?`,
+            [id]
+          );
+        }
+
+        await run(
+          'UPDATE treatment_plans SET status = ?, updatedAt = ? WHERE id = ?',
+          [status, moment().format('YYYY-MM-DD HH:mm:ss'), id]
+        );
+        broadcastRealtimeEvent({ type: 'plan:updated', planId: id, patientId: plan.patientId });
+        return { success: true };
+      });
+    } catch (err) {
+      console.error('Error updating plan status:', err);
+      return { success: false, error: err.message };
+    }
+  });
+
   // ── ARCHIVE (soft-delete) ─────────────────────────────────────────────────
   registerValidatedContractHandler(ipcMain, 'plans', 'archive', async (event, id) => {
     try {
@@ -396,18 +435,30 @@ export function handleTreatmentPlanEvents() {
     try {
       return await withTransaction(async () => {
       const plan = await queryOne(`SELECT totalPaid, status FROM treatment_plans WHERE id = ? FOR UPDATE`, [id]);
+      if (!plan) return { success: false, error: 'Plan introuvable' };
+      const paymentEvidence = await queryOne(
+        `SELECT COUNT(*) AS count
+         FROM plan_payment_sessions
+         WHERE planId = ?
+           AND (COALESCE(paidAmount, 0) > 0 OR paymentId IS NOT NULL OR status = 'paid')`,
+        [id]
+      );
 
-      if (plan?.status === 'archived') {
-        return { success: false, error: 'Un plan archivé ne peut pas être supprimé.' };
-      }
-
-      if (Number(plan?.totalPaid || 0) > 0) {
+      if (Number(plan.totalPaid || 0) > 0 || Number(paymentEvidence?.count || 0) > 0) {
         return {
           success: false,
           error: 'Ce plan contient des paiements — archivez-le plutôt que de le supprimer.'
         };
       }
 
+      const pendingRequests = await query(
+        'SELECT paymentRequestId FROM plan_payment_sessions WHERE planId = ? AND paymentRequestId IS NOT NULL',
+        [id]
+      );
+      for (const request of pendingRequests || []) {
+        await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [request.paymentRequestId]);
+        broadcastRealtimeEvent({ type: 'payment-request:updated', id: request.paymentRequestId });
+      }
       await run(`DELETE FROM plan_payment_sessions WHERE planId = ?`, [id]);
       await run(`DELETE FROM treatment_plans WHERE id = ?`, [id]);
       broadcastRealtimeEvent({ type: 'plan:deleted', planId: id });
@@ -429,8 +480,8 @@ export function handleTreatmentPlanEvents() {
       await recalculatePlanTotals(planId);
       const plan = await queryOne(`SELECT * FROM treatment_plans WHERE id = ? FOR UPDATE`, [planId]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
-      if (plan.status !== 'active') {
-        return { success: false, error: 'Ce plan n’est pas actif. Réactivez-le avant d’enregistrer un paiement.' };
+      if (!['active', 'completed'].includes(plan.status)) {
+        return { success: false, error: 'Ce plan doit être actif ou terminé pour enregistrer un paiement.' };
       }
 
       const balance = plan.totalCost - plan.totalPaid;
@@ -723,22 +774,9 @@ export function handleTreatmentPlanEvents() {
     }
   });
 
-  // ── GET OR CREATE DEFAULT PLAN (helper for treatments) ───────────────────
-  registerValidatedContractHandler(ipcMain, 'plans', 'getOrCreateDefault', async (event, { patientId, createdBy, specialty }) => {
-    try {
-      const planId = await withTransaction(async () => {
-        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`active-plan:${patientId}`]);
-        return getOrCreateDefaultPlan(patientId, createdBy, specialty);
-      });
-      return { success: true, planId };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  });
-
   registerValidatedContractHandler(ipcMain, 'plans', 'requestPayment', async (event, data = {}) => {
     try {
-      return await withTransaction(async () => {
+      const result = await withTransaction(async () => {
       if (data.planId) {
         await recalculatePlanTotals(data.planId);
       }
@@ -751,8 +789,8 @@ export function handleTreatmentPlanEvents() {
         [data.planId]
       );
       if (!plan) return { success: false, error: 'Plan introuvable' };
-      if (plan.status !== 'active') {
-        return { success: false, error: 'Ce plan n’est pas actif. Réactivez-le avant de demander un paiement.' };
+       if (!['active', 'completed'].includes(plan.status)) {
+         return { success: false, error: 'Ce plan doit être actif ou terminé pour demander un paiement.' };
       }
 
       const amount = Number(data.amount || 0);
@@ -813,10 +851,13 @@ export function handleTreatmentPlanEvents() {
         `UPDATE plan_payment_sessions SET status = 'requested', paymentRequestId = ? WHERE id = ?`,
         [id, nextSession.id]
       );
-      broadcastRealtimeEvent({ type: 'payment-request:new', id, patientId: plan.patientId }, { role: 'assistant' });
-      broadcastRealtimeEvent({ type: 'plan:updated', planId: plan.id, patientId: plan.patientId });
-      return { success: true, id };
+      return { success: true, id, patientId: plan.patientId };
       });
+      if (result?.success && !result.duplicate) {
+        broadcastRealtimeEvent({ type: 'payment-request:new', id: result.id, patientId: result.patientId }, { role: 'assistant' });
+        broadcastRealtimeEvent({ type: 'plan:updated', planId: data.planId, patientId: result.patientId });
+      }
+      return result;
     } catch (err) {
       console.error('Error requesting plan payment:', err);
       return { success: false, error: err.message };
@@ -860,4 +901,4 @@ export function handleTreatmentPlanEvents() {
   console.log('Treatment plan events registered');
 }
 
-export { recalculatePlanTotals, getOrCreateDefaultPlan };
+export { recalculatePlanTotals };

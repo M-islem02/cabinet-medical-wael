@@ -18,6 +18,7 @@
     "rebuild": "npx @electron/rebuild",
     "build": "electron-builder",
     "build:secure": "npm run security:manifest && electron-builder",
+    "build-win:secure": "npm run security:manifest && electron-builder --win nsis --x64",
     "license:generate-keypair": "node scripts/generate-license-keypair.mjs",
     "license:install-public-key": "node scripts/install-license-public-key.mjs",
     "license:sign": "node scripts/sign-license.mjs",

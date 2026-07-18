@@ -83,10 +83,13 @@ function getPaymentAccessScope(paymentAlias = 'payments', patientAlias = 'patien
 function buildPaymentSelect() {
   return `
     SELECT payments.*,
-           patients.firstName AS patientFirstName,
-           patients.lastName AS patientLastName
+           COALESCE(patients.firstName, consultation_patient.firstName) AS patientFirstName,
+           COALESCE(patients.lastName, consultation_patient.lastName) AS patientLastName,
+           COALESCE(payments.patientId, consultations.patientId) AS resolvedPatientId
     FROM payments
     LEFT JOIN patients ON patients.id = payments.patientId
+    LEFT JOIN consultations ON consultations.id = payments.consultationId
+    LEFT JOIN patients consultation_patient ON consultation_patient.id = consultations.patientId
   `;
 }
 
@@ -108,6 +111,7 @@ export function handlePaymentEvents() {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const consultationId = toNullIfEmpty(paymentData.consultationId);
+      let patientId = toNullIfEmpty(paymentData.patientId);
 
       if (consultationId) {
         await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`payment:${consultationId}`]);
@@ -118,6 +122,10 @@ export function handlePaymentEvents() {
         if (existing?.id) {
           return { success: true, id: existing.id, duplicate: true };
         }
+        if (!patientId) {
+          const consultation = await queryOne('SELECT patientId FROM consultations WHERE id = ?', [consultationId]);
+          patientId = consultation?.patientId || null;
+        }
       }
 
       await run(
@@ -126,7 +134,7 @@ export function handlePaymentEvents() {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
-          paymentData.patientId,
+          patientId,
           consultationId,
           toNumberOrNull(paymentData.amount) || 0,
           paymentData.paymentDate || now,
@@ -284,6 +292,8 @@ export function handlePaymentEvents() {
         `SELECT COUNT(*) as total
          FROM payments
          LEFT JOIN patients ON patients.id = payments.patientId
+         LEFT JOIN consultations ON consultations.id = payments.consultationId
+         LEFT JOIN patients consultation_patient ON consultation_patient.id = consultations.patientId
          WHERE ${whereClause}`,
         params
       );

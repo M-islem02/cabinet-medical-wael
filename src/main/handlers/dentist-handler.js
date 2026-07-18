@@ -7,7 +7,7 @@ import { query, queryOne, run } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { broadcastRealtimeEvent } from '../realtime-server.js';
-import { recalculatePlanTotals, getOrCreateDefaultPlan } from './treatment-plans-handler.js';
+import { recalculatePlanTotals } from './treatment-plans-handler.js';
 
 const ALLOWED_TRANSITIONS = {
   proposed:    ['planned', 'cancelled'],
@@ -92,6 +92,35 @@ export function handleDentistEvents() {
       return { success: true, data: teeth };
     } catch (error) {
       console.error('Error getting teeth:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('dental:getSchemaAtDate', async (event, patientId, date) => {
+    try {
+      if (!patientId || !date) return { success: false, error: 'Patient et date requis' };
+      const [teeth, treatments] = await Promise.all([
+        query(
+          `SELECT * FROM dental_teeth
+           WHERE patientId = ? AND updatedAt < (CAST(? AS DATE) + INTERVAL '1 day')
+           ORDER BY toothNumber`,
+          [patientId, date]
+        ),
+        query(
+          `SELECT DISTINCT ON (toothNumber)
+                  toothNumber, treatmentType, status AS treatmentStatus,
+                  description, notes, treatmentDate
+           FROM dental_treatments
+           WHERE patientId = ?
+             AND toothNumber IS NOT NULL
+             AND treatmentDate < (CAST(? AS DATE) + INTERVAL '1 day')
+           ORDER BY toothNumber, treatmentDate DESC, createdAt DESC`,
+          [patientId, date]
+        )
+      ]);
+      return { success: true, data: { teeth: teeth || [], treatments: treatments || [] } };
+    } catch (error) {
+      console.error('Error loading historical dental schema:', error);
       return { success: false, error: error.message };
     }
   });
@@ -191,15 +220,8 @@ export function handleDentistEvents() {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
-      // Auto-link to a plan (create default if needed)
-      let planId = data.planId || null;
-      if (!planId && data.patientId) {
-        try {
-          planId = await getOrCreateDefaultPlan(data.patientId, data.doctorId, 'dentistry');
-        } catch (e) {
-          console.warn('Could not auto-create plan:', e.message);
-        }
-      }
+      // A treatment is linked only when the user explicitly chooses a plan.
+      const planId = data.planId || null;
 
       await run(`
         INSERT INTO dental_treatments

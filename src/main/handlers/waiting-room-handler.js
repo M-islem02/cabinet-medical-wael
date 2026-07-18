@@ -669,13 +669,13 @@ export function handleWaitingRoomEvents() {
   // Doctor creates a payment request for assistant to collect
   ipcMain.handle('payment-request:create', async (event, data) => {
     try {
-      return await withTransaction(async () => {
+      const result = await withTransaction(async () => {
       const requestLockKey = `${data.consultationId || ''}:${data.patientId || ''}:${Number(data.amount || 0)}`;
       await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`payment-request:${requestLockKey}`]);
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const patientName = data.patientName || 'Patient';
-      const serviceLabel = data.service ? ` â€¢ ${data.service}` : '';
+      const serviceLabel = data.service ? ` • ${data.service}` : '';
       const pendingRequests = await query(`
         SELECT id, data
         FROM user_notifications
@@ -720,22 +720,25 @@ export function handleWaitingRoomEvents() {
       ]);
 
       console.log(`Payment request created: ${data.amount} DZD for ${patientName}`);
-      broadcastRealtimeEvent({
-        type: 'payment-request:new',
-        id,
-        title: 'Paiement à collecter',
-        message: `${patientName}${serviceLabel} - ${data.amount} DZD`,
-        patientId: data.patientId || null,
-        data: {
-          amount: data.amount,
-          patientId: data.patientId,
-          patientName,
-          consultationId: data.consultationId,
-          service: data.service || ''
-        }
-      }, { role: 'assistant' });
-      return { success: true, id };
+      return { success: true, id, patientName, serviceLabel };
       });
+      if (result?.success && !result.duplicate) {
+        broadcastRealtimeEvent({
+          type: 'payment-request:new',
+          id: result.id,
+          title: 'Paiement à collecter',
+          message: `${result.patientName}${result.serviceLabel} - ${data.amount} DZD`,
+          patientId: data.patientId || null,
+          data: {
+            amount: data.amount,
+            patientId: data.patientId,
+            patientName: result.patientName,
+            consultationId: data.consultationId,
+            service: data.service || ''
+          }
+        }, { role: 'assistant' });
+      }
+      return result;
     } catch (error) {
       console.error('Error creating payment request:', error);
       return { success: false, error: error.message };

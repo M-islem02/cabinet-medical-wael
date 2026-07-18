@@ -391,6 +391,7 @@ contextBridge.exposeInMainWorld('api', {
     getRecord: (patientId) => ipcRenderer.invoke('dental:getRecord', patientId),
     saveRecord: (data) => ipcRenderer.invoke('dental:saveRecord', data),
     getTeeth: (patientId) => ipcRenderer.invoke('dental:getTeeth', patientId),
+    getSchemaAtDate: (patientId, date) => ipcRenderer.invoke('dental:getSchemaAtDate', patientId, date),
     saveTooth: (data) => ipcRenderer.invoke('dental:saveTooth', data),
     saveMultipleTeeth: (patientId, teeth) => ipcRenderer.invoke('dental:saveMultipleTeeth', patientId, teeth),
     getTreatmentsByPatient: (patientId) => ipcRenderer.invoke('dental:getTreatmentsByPatient', patientId),

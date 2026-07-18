@@ -70,6 +70,7 @@ const IPC_CONTRACTS = Object.freeze({
     getByPatient: { channel: 'plans:getByPatient', params: [id('patientId')] },
     getById: { channel: 'plans:getById', params: [id('id')] },
     update: { channel: 'plans:update', params: [id('id'), object('data')] },
+    updateStatus: { channel: 'plans:updateStatus', params: [id('id'), enumeration('status', ['active', 'completed', 'cancelled', 'archived'])] },
     archive: { channel: 'plans:archive', params: [id('id')] },
     delete: { channel: 'plans:delete', params: [id('id')] },
     addPaymentSession: { channel: 'plans:addPaymentSession', params: [object('data', ['planId'])] },
@@ -79,7 +80,6 @@ const IPC_CONTRACTS = Object.freeze({
     recalculate: { channel: 'plans:recalculate', params: [id('planId')] },
     requestPayment: { channel: 'plans:requestPayment', params: [object('data', ['planId'])] },
     getPendingBalances: { channel: 'plans:getPendingBalances', params: [] },
-    getOrCreateDefault: { channel: 'plans:getOrCreateDefault', params: [object('data', ['patientId'])] },
     getFinancialStats: { channel: 'plans:getFinancialStats', params: [object('filters', [], true)] },
     updateSessionStatus: {
       channel: 'plans:updateSessionStatus',

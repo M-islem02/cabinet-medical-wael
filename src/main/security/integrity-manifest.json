@@ -1,8 +1,8 @@
 {
   "version": 1,
   "files": {
-    "src/main/main.js": "aa02a8a4fb3e9babbbc604513df872b5099a24827c0a00963cf6c35cf0e43e60",
+    "src/main/main.js": "0123f6dd8d7056d318c72f63635a6cc814b98509ac22fd30d2569c17256239e8",
     "src/main/security/license-public-key.pem": "2eb87daa2bde09fb660149133211ba469c086c223246ffecacc422496c6aa35a"
   },
-  "signature": "dpvWM2k2yLOu259ZwiRsFgDp1ED/psf7whiO0tAz1/E4gslau+qraPB/z+ZHlI4ujhV9yLZdH+rbmWTNdpfeCw=="
+  "signature": "bf5LcHow5Mq0WSZqLwILe3izhvjCf3R7rBSz1kFk+8lDWXHe1bkH2Vq6Pign4/F4oFzTgOi6R0DymdfC7iljAw=="
 }

@@ -1116,21 +1116,23 @@ async function loadPendingPaymentRequests() {
       const createdAt = new Date(req.createdAt).toLocaleString('fr-FR');
       const requestRef = formatReferenceCode('Demande', req.id, req.createdAt);
       const safeService = typeof escapeHTML === 'function' ? escapeHTML(data.service || '') : (data.service || '');
-      const serviceLabel = safeService ? `<div class="request-time">Acte: ${safeService}</div>` : '';
-      const consultationRef = data.consultationId
-        ? `<div class="request-time">${formatReferenceCode('Consultation', data.consultationId, req.createdAt)}</div>`
-        : '';
 
       return `
         <div class="payment-request-card" data-id="${req.id}">
           <div class="request-info">
-            <div class="request-state">Paiement non reçu</div>
-            <div class="request-patient">${data.patientName || 'Patient'}</div>
-            <div class="request-time">${requestRef}</div>
-            ${serviceLabel}
-            ${consultationRef}
-            <div class="request-amount">${formatMoneyDZD(data.amount || 0)}</div>
-            <div class="request-time">${createdAt}</div>
+            <div class="request-heading">
+              <div>
+                <div class="request-state">À encaisser</div>
+                <div class="request-patient">${data.patientName || 'Patient'}</div>
+              </div>
+              <div class="request-amount">${formatMoneyDZD(data.amount || 0)}</div>
+            </div>
+            <div class="request-meta">
+              <span>${requestRef}</span>
+              ${safeService ? `<span>Acte: ${safeService}</span>` : ''}
+              ${data.consultationId ? `<span>${formatReferenceCode('Consultation', data.consultationId, req.createdAt)}</span>` : ''}
+              <span>${createdAt}</span>
+            </div>
             ${data.notes ? `<div class="request-notes">${data.notes}</div>` : ''}
           </div>
           <div class="request-actions">

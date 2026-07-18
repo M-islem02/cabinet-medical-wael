@@ -33,7 +33,14 @@ function handleRealtimeEvent(payload = {}) {
 
   if (payload.type === 'payment-request:new') {
     showNotification(payload.message || 'Nouvelle demande de paiement', 'info');
-    if (typeof loadPendingPaymentRequests === 'function') loadPendingPaymentRequests();
+    void (async () => {
+      if (typeof loadPendingPaymentRequests === 'function') await loadPendingPaymentRequests();
+      const paymentsSection = document.getElementById('payments');
+      if (paymentsSection?.classList.contains('active')) {
+        if (typeof loadPayments === 'function') await loadPayments(null, { forcePending: true });
+        if (typeof loadPaymentStats === 'function') await loadPaymentStats();
+      }
+    })();
     return;
   }
 

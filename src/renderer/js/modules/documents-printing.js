@@ -318,6 +318,39 @@ async function ensurePrintSettingsLoaded() {
   return sharedPrintScope.__printSettingsCache || {}
 }
 
+// Code 39 is deliberately generated locally: documents remain printable offline and
+// the value below is the actual document reference, not a decorative image.
+function buildDocumentBarcodeHtml(reference) {
+  const patterns = {
+    '0': 'nnnwwnwnn', '1': 'wnnwnnnnw', '2': 'nnwwnnnnw', '3': 'wnwwnnnnn',
+    '4': 'nnnwwnnnw', '5': 'wnnwwnnnn', '6': 'nnwwwnnnn', '7': 'nnnwnnwnw',
+    '8': 'wnnwnnwnn', '9': 'nnwwnnwnn', 'A': 'wnnnnwnnw', 'B': 'nnwnnwnnw',
+    'C': 'wnwnnwnnn', 'D': 'nnnnwwnnw', 'E': 'wnnnwwnnn', 'F': 'nnwnwwnnn',
+    'G': 'nnnnnwwnw', 'H': 'wnnnnwwnn', 'I': 'nnwnnwwnn', 'J': 'nnnnwwwnn',
+    'K': 'wnnnnnnww', 'L': 'nnwnnnnww', 'M': 'wnwnnnnwn', 'N': 'nnnnwnnww',
+    'O': 'wnnnwnnwn', 'P': 'nnwnwnnwn', 'Q': 'nnnnnnwww', 'R': 'wnnnnnwwn',
+    'S': 'nnwnnnwwn', 'T': 'nnnnwnwwn', 'U': 'wwnnnnnnw', 'V': 'nwwnnnnnw',
+    'W': 'wwwnnnnnn', 'X': 'nwnnwnnnw', 'Y': 'wwnnwnnnn', 'Z': 'nwwnwnnnn',
+    '-': 'nwnnnnwnw', '.': 'wwnnnnwnn', ' ': 'nwwnnnwnn', '*': 'nwnnwnwnn'
+  }
+  const rawValue = String(reference || 'DOCUMENT').toUpperCase()
+  const value = rawValue.replace(/[^0-9A-Z. -]/g, '-').replace(/-+/g, '-').slice(0, 44) || 'DOCUMENT'
+  const encoded = `*${value}*`
+  let x = 8
+  const bars = []
+  for (const character of encoded) {
+    for (let index = 0; index < patterns[character].length; index += 1) {
+      const width = patterns[character][index] === 'w' ? 2.3 : 1
+      if (index % 2 === 0) bars.push(`<rect x="${x}" y="2" width="${width}" height="32" fill="#111827"/>`)
+      x += width
+    }
+    x += 1.4
+  }
+  return `<div class="document-barcode" aria-label="Code-barres ${escapePrintingHtml(value)}"><svg viewBox="0 0 ${x + 8} 36" role="img" preserveAspectRatio="none">${bars.join('')}</svg><span>${escapePrintingHtml(value)}</span></div>`
+}
+
+sharedPrintScope.buildDocumentBarcodeHtml = buildDocumentBarcodeHtml
+
 function buildPrintableHtml(opts = {}) {
   const {
     title,
@@ -328,7 +361,8 @@ function buildPrintableHtml(opts = {}) {
     documentType = "generic",
     pages = [],
     specialtyKey = null,
-    pageSize = "A5"
+    pageSize = "A5",
+    documentNumber = ''
   } = opts
   let layout = getPrintLayout(pageSize)
 
@@ -356,6 +390,8 @@ function buildPrintableHtml(opts = {}) {
   const watermarkOpacity = resolveDocumentWatermarkOpacity(settings)
   const styleVariant = resolveDocumentStyleVariant(settings)
   const hideSignature = settings?.documentHideSignature === 1 || settings?.documentHideSignature === true
+  const showBarcode = settings?.documentShowBarcode !== 0 && settings?.documentShowBarcode !== false
+  const barcodeReference = documentNumber || `${documentType}-${dateLabel || formatPrintingDocumentDateLabel(new Date())}`
   layout = applyLayoutTextScale(layout, textScale)
   layout = applyLayoutLogoScale(layout, logoScale)
   
@@ -417,6 +453,7 @@ function buildPrintableHtml(opts = {}) {
   // Generate footer HTML (appears on every page)
   const footerHtml = `
     <div class="page-footer">
+      ${showBarcode ? `<div class="footer-barcode">${buildDocumentBarcodeHtml(barcodeReference)}</div>` : ''}
       <div class="footer-signature">
         <div class="footer-date">ÉMIS LE ${dateText}</div>
         ${hideSignature ? '' : `<div class="footer-sign">Dr. ${escapePrintingHtml(doctorName)} - Signature et cachet</div>`}
@@ -674,6 +711,11 @@ function generateHtmlDocument(bodyContent, options = {}) {
           margin-top: 0.8mm;
           margin-bottom: 1.6mm;
         }
+
+        .page-footer { position: relative; }
+        .footer-barcode { display: flex; justify-content: center; margin: 0 0 1.4mm; }
+        .document-barcode { display: inline-flex; flex-direction: column; align-items: center; gap: 0.5mm; color: #111827; font-size: 6.7pt; letter-spacing: 0.7px; font-family: Arial, sans-serif; }
+        .document-barcode svg { width: 37mm; height: 8mm; display: block; }
 
         /* BODY STYLES */
         .page-body {
@@ -1781,18 +1823,39 @@ function buildPreviewShellHtml(canEdit = false) {
   </html>`
 }
 
+function closeIntegratedDocumentPreview() {
+  document.getElementById('integrated-document-preview')?.remove()
+}
+
+async function printIntegratedDocumentPreview() {
+  const payload = sharedPrintScope.__pendingPreviewPrintPayload || null
+  if (!payload) return
+  try {
+    await printHtmlDocument(payload)
+  } catch (error) {
+    console.error('Integrated preview print error:', error)
+    showNotification(error?.message || 'Erreur lors de l’impression', 'error')
+  }
+}
+
+async function editIntegratedDocumentPreview() {
+  const editAction = sharedPrintScope.__pendingPreviewEditAction
+  if (typeof editAction !== 'function') return
+  closeIntegratedDocumentPreview()
+  try {
+    await editAction()
+  } catch (error) {
+    console.error('Integrated preview edit error:', error)
+    showNotification('Impossible d’ouvrir le document en modification', 'error')
+  }
+}
+
+window.closeIntegratedDocumentPreview = closeIntegratedDocumentPreview
+window.printIntegratedDocumentPreview = printIntegratedDocumentPreview
+window.editIntegratedDocumentPreview = editIntegratedDocumentPreview
+
 function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Document médical', printerType = 'standard', printerName = '', duplexMode = 'longEdge', windowFeatures = "width=980,height=1100", onEdit = null } = {}) {
   ensurePreviewMessageBridge()
-
-  const printWindow = window.open("", "medcare-print-preview", windowFeatures)
-  if (!printWindow) {
-    if (typeof showNotification === 'function') {
-      showNotification("Autorisez les pop-ups pour l'aperçu d'impression", "error")
-    } else {
-      alert("Autorisez les pop-ups pour l'aperçu d'impression")
-    }
-    return false
-  }
 
   sharedPrintScope.__pendingPreviewPrintPayload = {
     html,
@@ -1804,31 +1867,26 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
   }
   sharedPrintScope.__pendingPreviewEditAction = typeof onEdit === 'function' ? onEdit : null
 
-  printWindow.document.write(buildPreviewShellHtml(Boolean(sharedPrintScope.__pendingPreviewEditAction)))
-  printWindow.document.close()
-  try {
-    const previewFrame = printWindow.document.getElementById('document-preview-frame')
-    if (!previewFrame) throw new Error('Cadre d’aperçu introuvable')
-    // Blob URLs created in the main renderer are not consistently readable by
-    // Electron popup frames. srcdoc transfers the complete document directly.
-    previewFrame.srcdoc = String(html || '')
-    printWindow.document.title = `Aperçu - ${documentTitle}`
-    printWindow.focus()
-  } catch (error) {
-    console.error('Unable to render document preview:', error)
-    try {
-      const previewFrame = printWindow.document.getElementById('document-preview-frame')
-      const frameDocument = previewFrame?.contentDocument
-      if (frameDocument) {
-        frameDocument.open()
-        frameDocument.write(String(html || ''))
-        frameDocument.close()
-      }
-    } catch (fallbackError) {
-      console.error('Document preview fallback failed:', fallbackError)
-    }
-  }
-  sharedPrintScope.__documentPreviewWindow = printWindow
+  closeIntegratedDocumentPreview()
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="integrated-document-preview" style="position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.72);padding:18px;display:flex;align-items:stretch;justify-content:center">
+      <div style="width:min(1040px,100%);min-height:0;background:#fff;border-radius:14px;box-shadow:0 28px 90px rgba(0,0,0,.35);overflow:hidden;display:flex;flex-direction:column">
+        <div style="min-height:56px;padding:10px 14px;border-bottom:1px solid #dbe2ea;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff">
+          <strong style="font-size:14px;color:#1f2937">Aperçu - ${escapePrintingHtml(documentTitle)}</strong>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+            ${sharedPrintScope.__pendingPreviewEditAction ? '<button type="button" class="btn btn-secondary" onclick="editIntegratedDocumentPreview()">Modifier</button>' : ''}
+            <button type="button" class="btn btn-primary" onclick="printIntegratedDocumentPreview()">Imprimer</button>
+            <button type="button" class="btn btn-secondary" onclick="closeIntegratedDocumentPreview()">Fermer</button>
+          </div>
+        </div>
+        <div style="min-height:0;flex:1;background:#e5e7eb;padding:12px;overflow:auto">
+          <iframe id="integrated-document-preview-frame" title="Aperçu du document" style="display:block;width:100%;height:100%;min-height:calc(100vh - 130px);border:0;background:#fff;border-radius:8px"></iframe>
+        </div>
+      </div>
+    </div>`)
+  const previewFrame = document.getElementById('integrated-document-preview-frame')
+  if (!previewFrame) return false
+  previewFrame.srcdoc = String(html || '')
   return true
 }
 
@@ -1885,7 +1943,7 @@ async function openPrintDocument(opts = {}, pageSize = "A5") {
         duplexMode: opts?.duplexMode || (String(pageSize || 'A5').toUpperCase() === 'A5' ? 'longEdge' : undefined)
       })
     } else if (typeof showNotification === 'function') {
-      showNotification(`Aperçu ouvert. Cliquez sur ${opts?.onEdit ? 'Modifier ou Imprimer' : 'Imprimer'} dans la popup.`, "success")
+      showNotification(`Aperçu ouvert. Cliquez sur ${opts?.onEdit ? 'Modifier ou Imprimer' : 'Imprimer'}.`, "success")
     }
   } catch (error) {
     console.error('Error opening print document:', error)
@@ -2132,6 +2190,7 @@ async function printPrescriptionDetails(prescriptionId) {
       dateLabel: formattedDate,
       patient,
       documentType: 'prescription',
+      documentNumber: prescription.number || prescription.reference || prescription.id,
       pages: pageContents,
       duplexMode: pageContents.length > 1 ? 'longEdge' : 'simplex',
       onEdit: () => editPrescription(idToUse)
@@ -2307,6 +2366,7 @@ async function printSickLeaveDetails(sickLeaveId) {
       patient,
       bodyContentHtml: pageContent,
       documentType: isWorkstop ? 'workstop' : 'certificate',
+      documentNumber: sickLeave.documentNumber || sickLeave.reference || sickLeave.id,
       pages: [pageContent],
       onEdit: () => editSickLeave(idToUse)
     })
@@ -2609,6 +2669,7 @@ async function renderInvoiceDocument({ patient, invoiceData, onEdit = null }) {
     patient,
     bodyContentHtml: printableInvoiceContent,
     documentType: 'invoice',
+    documentNumber: normalized.invoiceNumber || normalized.number || normalized.id,
     pages: [printableInvoiceContent],
     onEdit
   })
@@ -3179,6 +3240,7 @@ async function renderRapportDocument({ patient, rapportData, dateHint, consultat
     patient,
     bodyContentHtml: pageContent,
     documentType: 'rapport',
+    documentNumber: rapportData?.id || rapportData?.reference || rapportData?.number || consultation?.id,
     pages: [pageContent],
     onEdit
   })
@@ -3287,6 +3349,7 @@ async function printConsultationDetails(consultationId) {
       dateLabel,
       patient,
       documentType: 'consultation',
+      documentNumber: consultation.number || consultation.id,
       pages: pageContents.length > 0 ?pageContents : [sections.join('')],
       onEdit: () => editConsultation(consultationId)
     })
