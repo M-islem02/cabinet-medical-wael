@@ -3018,6 +3018,8 @@
                             onclick="switchSettingsPage('general')">Général</button>
                         <button type="button" class="settings-page-tab" data-settings-tab="documents"
                             onclick="switchSettingsPage('documents')">Documents</button>
+                        <button type="button" class="settings-page-tab" data-settings-tab="prescriptions"
+                            onclick="switchSettingsPage('prescriptions')">Ordonnances</button>
                         <button type="button" class="settings-page-tab" data-settings-tab="devices"
                             onclick="switchSettingsPage('devices')">Impression</button>
                         <button type="button" class="settings-page-tab" data-settings-tab="booking"
@@ -3247,6 +3249,29 @@
                             <button type="button" class="btn btn-primary" onclick="savePracticeSettings()">
                                 💾 Enregistrer les documents
                             </button>
+                        </div>
+
+                        <div class="settings-card" id="prescription-templates-settings-card"
+                            data-settings-page="prescriptions">
+                            <h3>Modèles d'ordonnances</h3>
+                            <p class="settings-card-subtitle">Préparez vos ordonnances habituelles puis appliquez-les en un clic depuis l'ordonnance patient.</p>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+                                <button type="button" class="btn btn-primary" onclick="openPrescriptionTemplateBuilder()">+ Nouveau modèle</button>
+                                <button type="button" class="btn btn-secondary" onclick="loadPrescriptionTemplateSettings()">Actualiser</button>
+                            </div>
+                            <div id="settings-prescription-templates-list" class="info-box">Chargement...</div>
+                        </div>
+
+                        <div class="settings-card" id="medication-catalog-settings-card"
+                            data-settings-page="prescriptions">
+                            <h3>Catalogue de médicaments</h3>
+                            <p class="settings-card-subtitle">Catalogue de recherche pour l'ordonnance. La saisie manuelle reste toujours disponible.</p>
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+                                <input type="search" id="settings-medication-search" class="form-control" style="flex:1;min-width:240px;" placeholder="Rechercher un médicament ou une DCI..." oninput="filterMedicationCatalogSettings()">
+                                <button type="button" class="btn btn-primary" onclick="openMedicationEditor()">+ Médicament</button>
+                            </div>
+                            <div id="settings-medication-catalog-list" class="info-box">Chargement...</div>
+                            <small style="display:block;margin-top:10px;color:#64748b;">Source de référence réglementaire : portail ANPP / RCP Algérie. Le catalogue local est une aide à la saisie et doit être vérifié par le prescripteur.</small>
                         </div>
 
                         <div class="settings-card" id="admin-setup-card" data-settings-page="general"
@@ -4591,7 +4616,7 @@
     <div id="modal-add-prescription" class="modal ordonnance-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Ordonnance</h2>
+                <h2 id="prescription-modal-title">Ordonnance</h2>
                 <button class="close-btn" onclick="cancelPrescriptionCreation()">&times;</button>
             </div>
             <div class="modal-body">
@@ -4628,6 +4653,10 @@
                             <div class="ordonnance-title-block">
                                 <div class="ordonnance-title">ORDONNANCE</div>
                                 <div class="ordonnance-subtitle">Prescription médicale</div>
+                                <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;">
+                                    <button type="button" class="btn btn-secondary btn-small" onclick="openPrescriptionTemplatesModal()">📋 Choisir un modèle</button>
+                                    <button type="button" class="btn btn-outline btn-small" onclick="openSaveTemplateModal()">💾 Enregistrer comme modèle</button>
+                                </div>
                             </div>
 
                             <div class="medication-table-head" aria-hidden="true">
@@ -4664,7 +4693,7 @@
                                 onclick="cancelPrescriptionCreation()">Fermer</button>
                         </div>
                         <div class="modal-footer-actions">
-                            <button type="button" class="btn btn-primary" onclick="savePrescription()">💾🖨️ Enregistrer
+                            <button type="button" id="prescription-save-print-button" class="btn btn-primary" onclick="savePrescription()">💾🖨️ Enregistrer
                                 et imprimer</button>
                         </div>
                     </div>
@@ -5711,9 +5740,9 @@
             </div>
             <div class="modal-body">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <input type="text" id="template-search" placeholder="🔍 Rechercher un modèle..."
+                    <input type="text" id="template-search" placeholder="🔍 Rechercher un modèle..." oninput="renderPrescriptionTemplates(this.value)"
                         style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 300px;">
-                    <button class="btn btn-primary" onclick="openSaveTemplateModal()">➕ Créer un modèle</button>
+                    <button class="btn btn-primary" onclick="closeModal('modal-prescription-templates'); openPrescriptionTemplateBuilder()">➕ Créer un modèle</button>
                 </div>
                 <div id="templates-list" style="max-height: 400px; overflow-y: auto;">
                     <p class="text-center">Chargement des modèles...</p>

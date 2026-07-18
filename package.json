@@ -24,7 +24,7 @@
     "test:ipc": "npm run build:preload && node scripts/test-ipc-contracts.mjs",
     "check:renderer-html": "node scripts/check-renderer-html.mjs",
     "check:renderer-globals": "node scripts/check-renderer-globals.mjs",
-    "test": "npm run check:renderer-html && npm run check:renderer-globals && node --test tests/renderer && npm run test:ipc",
+    "test": "npm run check:renderer-html && npm run check:renderer-globals && node --test tests/renderer/*.test.mjs && npm run test:ipc",
     "build-win": "electron-builder --win --x64 && npm run rebuild",
     "build-linux": "electron-builder --linux",
     "build-mac": "electron-builder --mac"

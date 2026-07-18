@@ -72,6 +72,10 @@ function switchSettingsPage(page = 'general') {
       .filter(Boolean);
     card.classList.toggle('settings-page-hidden', !pages.includes(activeSettingsPage));
   });
+
+  if (activeSettingsPage === 'prescriptions' && typeof loadPrescriptionTemplateSettings === 'function') {
+    loadPrescriptionTemplateSettings();
+  }
 }
 
 function normalizeHexColor(value, fallback = '#1a8c7e') {

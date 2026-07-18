@@ -739,7 +739,6 @@ async function openManualPaymentRequestFromConsultationDraft() {
     dueDate,
     context: 'consultation-draft'
   });
-  closeModal('modal-consultation');
 }
 
 async function openDirectPaymentFromConsultationDraft() {
@@ -794,7 +793,6 @@ async function openDirectPaymentFromConsultationDraft() {
     }
 
     showModal('modal-add-payment');
-    closeModal('modal-consultation');
   } catch (error) {
     console.error('Error opening direct payment from consultation draft:', error);
     showNotification('Erreur lors de l\'ouverture du paiement', 'error');

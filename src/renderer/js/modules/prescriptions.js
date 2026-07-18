@@ -1,4 +1,4 @@
-﻿// ========== ORDONNANCE/PRESCRIPTION MANAGEMENT ==========
+// ========== ORDONNANCE/PRESCRIPTION MANAGEMENT ==========
 
 const prescriptionsScope = typeof window !== 'undefined' ? window : globalThis;
 let currentConsultationId = null;
@@ -15,6 +15,10 @@ const medicationRemoteSearchCache = new Map();
 const MEDICATION_REMOTE_SEARCH_CACHE_LIMIT = 60;
 const MEDICATION_REMOTE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000;
 let specialtyMedicationBasesCache = null;
+let prescriptionTemplateBuilderMode = false;
+let editingPrescriptionTemplateId = null;
+let prescriptionTemplatesCache = [];
+let medicationCatalogSettingsCache = [];
 
 function resetMedicationSuggestionsInlineStyles(suggestionsDiv) {
   if (!suggestionsDiv) return;
@@ -489,6 +493,7 @@ function cancelPrescriptionCreation() {
   closeActiveMedicationAutocomplete();
   pendingConsultationData = null;
   resetPrescriptionForm();
+  setPrescriptionTemplateBuilderMode(false);
   closeModal('modal-add-prescription');
 }
 
@@ -548,9 +553,31 @@ function openPatientPrescriptionModal() {
   }
   pendingConsultationData = null;
   currentConsultationId = null;
+  setPrescriptionTemplateBuilderMode(false);
   if (!prepareOrdonnanceModal()) {
     return;
   }
+  showModal('modal-add-prescription');
+}
+
+function setPrescriptionTemplateBuilderMode(enabled) {
+  prescriptionTemplateBuilderMode = enabled === true;
+  if (!prescriptionTemplateBuilderMode) editingPrescriptionTemplateId = null;
+  const title = document.getElementById('prescription-modal-title');
+  const savePrintButton = document.getElementById('prescription-save-print-button');
+  const header = document.querySelector('#modal-add-prescription .ordonnance-header');
+  if (title) title.textContent = prescriptionTemplateBuilderMode ? 'Modèle d’ordonnance' : 'Ordonnance';
+  if (savePrintButton) savePrintButton.style.display = prescriptionTemplateBuilderMode ? 'none' : '';
+  if (header) header.style.display = prescriptionTemplateBuilderMode ? 'none' : '';
+}
+
+function openPrescriptionTemplateBuilder(template = null) {
+  pendingConsultationData = null;
+  editingPrescriptionTemplateId = template?.id || null;
+  setPrescriptionTemplateBuilderMode(true);
+  populateMedicationsForm(parsePrescriptionTemplateMedications(template?.medications));
+  const notes = document.getElementById('prescription-general-notes');
+  if (notes) notes.value = repairPrescriptionMojibakeText(template?.notes || '');
   showModal('modal-add-prescription');
 }
 
@@ -1136,6 +1163,251 @@ function getMedicationsFromForm() {
     }
   });
   return medications;
+}
+
+function parsePrescriptionTemplateMedications(value) {
+  if (Array.isArray(value)) return value.map(normalizeMedicationRecord);
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeMedicationRecord) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function openPrescriptionTemplatesModal() {
+  showModal('modal-prescription-templates');
+  await loadPrescriptionTemplates();
+}
+
+async function loadPrescriptionTemplates() {
+  const containers = [
+    document.getElementById('templates-list'),
+    document.getElementById('settings-prescription-templates-list')
+  ].filter(Boolean);
+  containers.forEach((container) => { container.innerHTML = '<p class="text-center">Chargement...</p>'; });
+  try {
+    const result = await window.api.prescriptionTemplate.getAll();
+    prescriptionTemplatesCache = result.success && Array.isArray(result.data) ? result.data : [];
+    renderPrescriptionTemplates();
+  } catch (error) {
+    console.error('Impossible de charger les modèles d’ordonnance:', error);
+    containers.forEach((container) => { container.innerHTML = '<p class="text-center">Erreur de chargement</p>'; });
+  }
+}
+
+function renderPrescriptionTemplates(searchTerm = '') {
+  const normalizedSearch = String(searchTerm || '').trim().toLowerCase();
+  const templates = prescriptionTemplatesCache.filter((template) => {
+    const haystack = `${template.name || ''} ${template.category || ''} ${template.description || ''}`.toLowerCase();
+    return !normalizedSearch || haystack.includes(normalizedSearch);
+  });
+  const html = templates.length ? templates.map((template) => {
+    const medications = parsePrescriptionTemplateMedications(template.medications);
+    const names = medications.map((medication) => medication.name).filter(Boolean).slice(0, 4).join(', ');
+    const safeId = escapeHtmlAttribute(template.id || '');
+    return `<article style="padding:12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:9px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+        <div><strong>${escapePrescriptionHtml(template.name || 'Modèle')}</strong><div style="font-size:12px;color:#64748b;margin-top:4px;">${escapePrescriptionHtml(template.category || 'Général')} · ${medications.length} médicament(s)</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+          <button type="button" class="btn btn-primary btn-small" onclick="applyPrescriptionTemplate('${safeId}')">Utiliser</button>
+          <button type="button" class="btn btn-secondary btn-small" onclick="editPrescriptionTemplate('${safeId}')">Modifier</button>
+          <button type="button" class="btn btn-danger btn-small" onclick="deletePrescriptionTemplate('${safeId}')">Supprimer</button>
+        </div>
+      </div>
+      ${names ? `<p style="margin:8px 0 0;color:#475569;font-size:13px;">${escapePrescriptionHtml(names)}</p>` : ''}
+    </article>`;
+  }).join('') : '<p class="text-center" style="color:#64748b;">Aucun modèle enregistré.</p>';
+  const modalList = document.getElementById('templates-list');
+  const settingsList = document.getElementById('settings-prescription-templates-list');
+  if (modalList) modalList.innerHTML = html;
+  if (settingsList) settingsList.innerHTML = html;
+}
+
+async function applyPrescriptionTemplate(id) {
+  try {
+    const result = await window.api.prescriptionTemplate.use(id);
+    if (!result.success || !result.data) throw new Error(result.error || 'Modèle introuvable');
+    setPrescriptionTemplateBuilderMode(false);
+    populateMedicationsForm(parsePrescriptionTemplateMedications(result.data.medications));
+    const notes = document.getElementById('prescription-general-notes');
+    if (notes) notes.value = repairPrescriptionMojibakeText(result.data.notes || '');
+    closeModal('modal-prescription-templates');
+    showModal('modal-add-prescription');
+    showNotification('Modèle appliqué', 'success');
+  } catch (error) {
+    showNotification(`Erreur: ${error.message}`, 'error');
+  }
+}
+
+async function editPrescriptionTemplate(id) {
+  try {
+    const result = await window.api.prescriptionTemplate.getById(id);
+    if (!result.success || !result.data) throw new Error(result.error || 'Modèle introuvable');
+    closeModal('modal-prescription-templates');
+    openPrescriptionTemplateBuilder(result.data);
+  } catch (error) {
+    showNotification(`Erreur: ${error.message}`, 'error');
+  }
+}
+
+async function deletePrescriptionTemplate(id) {
+  if (!confirm('Supprimer ce modèle d’ordonnance ?')) return;
+  const result = await window.api.prescriptionTemplate.delete(id);
+  if (!result.success) {
+    showNotification(`Erreur: ${result.error}`, 'error');
+    return;
+  }
+  showNotification('Modèle supprimé', 'success');
+  await loadPrescriptionTemplates();
+}
+
+function openSaveTemplateModal() {
+  const medications = getMedicationsFromForm();
+  if (!medications.length) {
+    showNotification('Ajoutez au moins un médicament au modèle', 'warning');
+    return;
+  }
+  const existing = prescriptionTemplatesCache.find((template) => template.id === editingPrescriptionTemplateId);
+  const name = document.getElementById('template-name');
+  const category = document.getElementById('template-category');
+  const description = document.getElementById('template-description');
+  if (name) name.value = existing?.name || '';
+  if (category) category.value = existing?.category || '';
+  if (description) description.value = existing?.description || '';
+  showModal('modal-save-template');
+}
+
+async function savePrescriptionTemplate(event) {
+  event?.preventDefault();
+  const medications = getMedicationsFromForm();
+  if (!medications.length) {
+    showNotification('Ajoutez au moins un médicament', 'warning');
+    return;
+  }
+  const payload = {
+    name: document.getElementById('template-name')?.value?.trim(),
+    category: document.getElementById('template-category')?.value?.trim() || 'Général',
+    description: document.getElementById('template-description')?.value?.trim() || '',
+    medications,
+    notes: document.getElementById('prescription-general-notes')?.value?.trim() || '',
+    createdBy: typeof currentUserId !== 'undefined' ? currentUserId : null
+  };
+  const result = editingPrescriptionTemplateId
+    ? await window.api.prescriptionTemplate.update(editingPrescriptionTemplateId, payload)
+    : await window.api.prescriptionTemplate.create(payload);
+  if (!result.success) {
+    showNotification(`Erreur: ${result.error}`, 'error');
+    return;
+  }
+  closeModal('modal-save-template');
+  showNotification(editingPrescriptionTemplateId ? 'Modèle mis à jour' : 'Modèle enregistré', 'success');
+  editingPrescriptionTemplateId = null;
+  await loadPrescriptionTemplates();
+  if (prescriptionTemplateBuilderMode) {
+    cancelPrescriptionCreation();
+  }
+}
+
+async function loadPrescriptionTemplateSettings() {
+  await Promise.all([loadPrescriptionTemplates(), loadMedicationCatalogSettings()]);
+}
+
+async function loadMedicationCatalogSettings() {
+  const container = document.getElementById('settings-medication-catalog-list');
+  if (container) container.textContent = 'Chargement...';
+  try {
+    const [result, specialtyResult] = await Promise.all([
+      window.api.medication.getAll(),
+      window.api.package?.getLoadedBases ? window.api.package.getLoadedBases() : Promise.resolve({ success: true, data: [] })
+    ]);
+    const dbMedications = result.success && Array.isArray(result.data) ? result.data : [];
+    const specialtyMedications = specialtyResult.success && Array.isArray(specialtyResult.data)
+      ? specialtyResult.data.flatMap((base) => (base.medications || []).map((entry) => ({
+        id: '',
+        name: entry.nom_medicament || entry.name || '',
+        genericName: entry.dci || '',
+        defaultDosage: entry.dosage_posologie || '',
+        source: base.key || 'catalogue'
+      })))
+      : [];
+    medicationCatalogSettingsCache = mergeMedicationSuggestions(
+      dbMedications.map(mapMedicationSearchResult),
+      specialtyMedications.map(mapMedicationSearchResult)
+    );
+    renderMedicationCatalogSettings();
+  } catch (error) {
+    if (container) container.textContent = 'Erreur de chargement';
+  }
+}
+
+function filterMedicationCatalogSettings() {
+  renderMedicationCatalogSettings(document.getElementById('settings-medication-search')?.value || '');
+}
+
+function renderMedicationCatalogSettings(searchTerm = '') {
+  const container = document.getElementById('settings-medication-catalog-list');
+  if (!container) return;
+  const term = String(searchTerm || '').trim().toLowerCase();
+  const rows = medicationCatalogSettingsCache.filter((medication) => {
+    const haystack = `${medication.name || ''} ${medication.genericName || ''}`.toLowerCase();
+    return !term || haystack.includes(term);
+  }).slice(0, 100);
+  container.innerHTML = rows.length ? rows.map((medication) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-bottom:1px solid #e2e8f0;">
+    <span><strong>${escapePrescriptionHtml(medication.name || '-')}</strong>${medication.genericName ? ` <small style="color:#64748b;">(${escapePrescriptionHtml(medication.genericName)})</small>` : ''}</span>
+    ${medication.id ? `<button type="button" class="btn btn-secondary btn-small" onclick="openMedicationEditor('${escapeHtmlAttribute(medication.id)}')">Modifier</button>` : '<small style="color:#64748b;">Base intégrée</small>'}
+  </div>`).join('') : '<p class="text-center" style="color:#64748b;">Aucun médicament.</p>';
+}
+
+async function openMedicationEditor(id = '') {
+  document.getElementById('medication-editor-form')?.reset();
+  document.getElementById('medication-id').value = id || '';
+  document.getElementById('medication-modal-title').textContent = id ? 'Modifier le médicament' : 'Nouveau médicament';
+  if (id) {
+    const result = await window.api.medication.getById(id);
+    if (!result.success || !result.data) {
+      showNotification('Médicament introuvable', 'error');
+      return;
+    }
+    const medication = result.data;
+    document.getElementById('medication-name').value = medication.name || '';
+    document.getElementById('medication-generic').value = medication.genericName || '';
+    document.getElementById('medication-category').value = medication.category || '';
+    document.getElementById('medication-dosage-form-input').value = medication.dosageForm || '';
+    document.getElementById('medication-dosage').value = medication.defaultDosage || '';
+    document.getElementById('medication-intake').value = medication.defaultIntake || '';
+    document.getElementById('medication-duration').value = medication.defaultDuration || '';
+    document.getElementById('medication-instructions').value = medication.instructions || '';
+    document.getElementById('medication-contraindications').value = medication.contraindications || '';
+  }
+  showModal('modal-medication');
+}
+
+async function saveMedication(event) {
+  event?.preventDefault();
+  const id = document.getElementById('medication-id')?.value || '';
+  const payload = {
+    name: document.getElementById('medication-name')?.value?.trim(),
+    genericName: document.getElementById('medication-generic')?.value?.trim() || '',
+    category: document.getElementById('medication-category')?.value?.trim() || '',
+    dosageForm: document.getElementById('medication-dosage-form-input')?.value?.trim() || '',
+    defaultDosage: document.getElementById('medication-dosage')?.value?.trim() || '',
+    defaultIntake: document.getElementById('medication-intake')?.value?.trim() || '',
+    defaultDuration: document.getElementById('medication-duration')?.value?.trim() || '',
+    defaultBoxes: '',
+    instructions: document.getElementById('medication-instructions')?.value?.trim() || '',
+    contraindications: document.getElementById('medication-contraindications')?.value?.trim() || '',
+    sideEffects: ''
+  };
+  const result = id ? await window.api.medication.update(id, payload) : await window.api.medication.create(payload);
+  if (!result.success) {
+    showNotification(`Erreur: ${result.error}`, 'error');
+    return;
+  }
+  closeModal('modal-medication');
+  medicationRemoteSearchCache.clear();
+  showNotification('Médicament enregistré', 'success');
+  await loadMedicationCatalogSettings();
 }
 
 async function savePrescription() {
