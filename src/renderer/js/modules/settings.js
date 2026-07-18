@@ -829,6 +829,8 @@ async function refreshDeviceOptions() {
 async function loadLicenseStatus() {
   const licenseInfo = document.getElementById('license-info');
   if (!licenseInfo) return;
+
+  loadLicenseMachineId();
   const canManageLicense = currentUserIsSuperAdmin;
 
   const maskLicenseKey = (licenseKey) => (licenseKey ? '*****' : '-');
@@ -872,6 +874,32 @@ async function loadLicenseStatus() {
   } catch (error) {
     console.error('Error loading license status:', error);
     licenseInfo.innerHTML = '<p>Erreur lors du chargement de la licence.</p>';
+  }
+}
+
+async function loadLicenseMachineId() {
+  const target = document.getElementById('license-machine-id');
+  if (!target || target.dataset.loaded === 'true') return;
+  try {
+    const result = await window.api.license.getMachineId();
+    target.textContent = result?.success && result.machineId ? result.machineId : 'Indisponible';
+    target.dataset.loaded = 'true';
+  } catch (_) {
+    target.textContent = 'Indisponible';
+  }
+}
+
+async function copyLicenseMachineId() {
+  const machineId = document.getElementById('license-machine-id')?.textContent?.trim();
+  if (!machineId || machineId === 'Chargement…' || machineId === 'Indisponible') {
+    showNotification('Identifiant du poste indisponible', 'warning');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(machineId);
+    showNotification('Identifiant du poste copié', 'success');
+  } catch (_) {
+    showNotification('Impossible de copier l’identifiant', 'error');
   }
 }
 
@@ -954,6 +982,7 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
 });
 
 window.chooseSignedLicenseFile = chooseSignedLicenseFile;
+window.copyLicenseMachineId = copyLicenseMachineId;
 window.disableCurrentLicense = disableCurrentLicense;
 window.handleCabinetWatermarkLogoChange = handleCabinetWatermarkLogoChange;
 window.clearCabinetWatermarkLogo = clearCabinetWatermarkLogo;
