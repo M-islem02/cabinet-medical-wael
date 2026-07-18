@@ -3,6 +3,8 @@
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
+const { buildPreloadModules } = require('../shared/ipc-contracts.cjs');
+const contractApi = buildPreloadModules(ipcRenderer);
 
 contextBridge.exposeInMainWorld('api', {
   // API de Licence
@@ -53,7 +55,11 @@ contextBridge.exposeInMainWorld('api', {
   patient: {
     create: (data) => ipcRenderer.invoke('patient:create', data),
     getAll: (payload) => ipcRenderer.invoke('patient:getAll', payload),
-    getCount: () => ipcRenderer.invoke('patient:getCount'),
+    getCount: (payload) => ipcRenderer.invoke('patient:getCount', payload),
+    getScope: (payload) => ipcRenderer.invoke('patient:getScope', payload),
+    getDirectory: (payload) => ipcRenderer.invoke('patient:getDirectory', payload),
+    attach: (payload) => ipcRenderer.invoke('patient:attach', payload),
+    detach: (payload) => ipcRenderer.invoke('patient:detach', payload),
     getById: (id) => ipcRenderer.invoke('patient:getById', id),
     search: (term) => ipcRenderer.invoke('patient:search', term),
     update: (id, data) => ipcRenderer.invoke('patient:update', id, data),
@@ -333,23 +339,6 @@ contextBridge.exposeInMainWorld('api', {
     getTodayAppointments: () => ipcRenderer.invoke('notification:getTodayAppointments')
   },
 
-  // API Plans de traitement
-  treatmentPlan: {
-    create: (data) => ipcRenderer.invoke('treatmentPlan:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('treatmentPlan:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('treatmentPlan:getById', id),
-    update: (id, data) => ipcRenderer.invoke('treatmentPlan:update', id, data),
-    delete: (id) => ipcRenderer.invoke('treatmentPlan:delete', id),
-    getActive: () => ipcRenderer.invoke('treatmentPlan:getActive')
-  },
-
-  // API Séances de traitement
-  treatmentSession: {
-    complete: (id, notes) => ipcRenderer.invoke('treatmentSession:complete', id, notes),
-    cancel: (id, reason) => ipcRenderer.invoke('treatmentSession:cancel', id, reason),
-    getUpcoming: (days) => ipcRenderer.invoke('treatmentSession:getUpcoming', days)
-  },
-
   // ========== API RÉÉDUCATION MPR ==========
   
   // API Bilans Fonctionnels
@@ -363,13 +352,7 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // API Examens Cliniques
-  clinicalExam: {
-    create: (data) => ipcRenderer.invoke('clinicalExam:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('clinicalExam:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('clinicalExam:getById', id),
-    update: (id, data) => ipcRenderer.invoke('clinicalExam:update', id, data),
-    delete: (id) => ipcRenderer.invoke('clinicalExam:delete', id)
-  },
+  clinicalExam: contractApi.clinicalExam,
 
   // API Échelles Médicales
   medicalScale: {
@@ -381,57 +364,18 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // API Plans de Rééducation
-  rehabilitationPlan: {
-    create: (data) => ipcRenderer.invoke('rehabilitationPlan:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('rehabilitationPlan:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('rehabilitationPlan:getById', id),
-    getActive: (patientId) => ipcRenderer.invoke('rehabilitationPlan:getActive', patientId),
-    update: (id, data) => ipcRenderer.invoke('rehabilitationPlan:update', id, data),
-    updateStatus: (id, status) => ipcRenderer.invoke('rehabilitationPlan:updateStatus', id, status),
-    delete: (id) => ipcRenderer.invoke('rehabilitationPlan:delete', id)
-  },
+  rehabilitationPlan: contractApi.rehabilitationPlan,
 
   // API Séances de Rééducation
-  rehabilitationSession: {
-    create: (data) => ipcRenderer.invoke('rehabilitationSession:create', data),
-    getByPlan: (planId) => ipcRenderer.invoke('rehabilitationSession:getByPlan', planId),
-    getByPatient: (patientId) => ipcRenderer.invoke('rehabilitationSession:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('rehabilitationSession:getById', id),
-    complete: (id, data) => ipcRenderer.invoke('rehabilitationSession:complete', id, data),
-    cancel: (id, reason) => ipcRenderer.invoke('rehabilitationSession:cancel', id, reason),
-    getByTherapist: (therapistId) => ipcRenderer.invoke('rehabilitationSession:getByTherapist', therapistId),
-    getTodaySessions: () => ipcRenderer.invoke('rehabilitationSession:getTodaySessions')
-  },
+  rehabilitationSession: contractApi.rehabilitationSession,
 
   // API Progression Patient
-  patientProgress: {
-    create: (data) => ipcRenderer.invoke('patientProgress:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('patientProgress:getByPatient', patientId),
-    getLatest: (patientId) => ipcRenderer.invoke('patientProgress:getLatest', patientId),
-    getEvolution: (patientId, startDate, endDate) => ipcRenderer.invoke('patientProgress:getEvolution', { patientId, startDate, endDate })
-  },
+  patientProgress: contractApi.patientProgress,
 
   // API Équipements Patient
-  patientEquipment: {
-    create: (data) => ipcRenderer.invoke('patientEquipment:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('patientEquipment:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('patientEquipment:getById', id),
-    update: (id, data) => ipcRenderer.invoke('patientEquipment:update', id, data),
-    delete: (id) => ipcRenderer.invoke('patientEquipment:delete', id)
-  },
+  patientEquipment: contractApi.patientEquipment,
 
   // API Rééducation (wrapper)
-  rehabilitation: {
-    // Evaluations
-    saveEvaluation: (data) => ipcRenderer.invoke('functionalEvaluation:create', data),
-    getEvaluations: (patientId) => ipcRenderer.invoke('functionalEvaluation:getByPatient', patientId),
-    // Plans
-    savePlan: (data) => ipcRenderer.invoke('rehabilitationPlan:create', data),
-    getPlans: (patientId) => ipcRenderer.invoke('rehabilitationPlan:getByPatient', patientId),
-    // Scales
-    getScales: () => ipcRenderer.invoke('medicalScale:getAll')
-  },
-
   // ========== API DENTISTERIE ==========
   dental: {
     getRecord: (patientId) => ipcRenderer.invoke('dental:getRecord', patientId),
@@ -457,26 +401,7 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // ========== API PLANS DE TRAITEMENT ==========
-  plans: {
-    create: (data) => ipcRenderer.invoke('plans:create', data),
-    getAll: (filters) => ipcRenderer.invoke('plans:getAll', filters),
-    getByPatient: (patientId) => ipcRenderer.invoke('plans:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('plans:getById', id),
-    update: (id, data) => ipcRenderer.invoke('plans:update', id, data),
-    archive: (id) => ipcRenderer.invoke('plans:archive', id),
-    unarchive: (id) => ipcRenderer.invoke('plans:unarchive', id),
-    delete: (id) => ipcRenderer.invoke('plans:delete', id),
-    addPaymentSession: (data) => ipcRenderer.invoke('plans:addPaymentSession', data),
-    updateSessionPayment: (data) => ipcRenderer.invoke('plans:updateSessionPayment', data),
-    getSessions: (planId) => ipcRenderer.invoke('plans:getSessions', planId),
-    updateSessions: (planId, sessions) => ipcRenderer.invoke('plans:updateSessions', planId, sessions),
-    recalculate: (planId) => ipcRenderer.invoke('plans:recalculate', planId),
-    requestPayment: (data) => ipcRenderer.invoke('plans:requestPayment', data),
-    getPendingBalances: () => ipcRenderer.invoke('plans:getPendingBalances'),
-    getOrCreateDefault: (data) => ipcRenderer.invoke('plans:getOrCreateDefault', data),
-    getFinancialStats: (filters) => ipcRenderer.invoke('plans:getFinancialStats', filters),
-    updateSessionStatus: (sessionId, status) => ipcRenderer.invoke('plans:updateSessionStatus', sessionId, status)
-  },
+  plans: contractApi.plans,
 
   // ========== API SMS ==========
   sms: {
@@ -599,12 +524,7 @@ contextBridge.exposeInMainWorld('api', {
     getQuickStats: () => ipcRenderer.invoke('dashboard:getQuickStats')
   },
 
-  statistics: {
-    getAdvancedOverview: (filters) => ipcRenderer.invoke('statistics:getAdvancedOverview', filters),
-    getOverview: () => ipcRenderer.invoke('statistics:getOverview'),
-    getTopLists: (filters) => ipcRenderer.invoke('statistics:getTopLists', filters),
-    getDoctorsLeaderboard: () => ipcRenderer.invoke('statistics:getDoctorsLeaderboard')
-  },
+  statistics: contractApi.statistics,
 
   // ========== API CONFIGURATION BASE DE DONNÉES ==========
   dbConfig: {

@@ -556,7 +556,7 @@ function getAppBrandLogoSrc() {
     : 'general';
   const userSpecialty = normalizePracticeSpecialtyKey(currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || '');
   const specialtyLogoMap = {
-    general: userSpecialty === 'general' && currentUserRole === 'doctor' ? 'assets/Généraliste.png' : 'assets/logo.png',
+    general: 'assets/logo.png',
     mpr: 'assets/MPR.png',
     cardiology: 'assets/Cardiologue.png',
     dentistry: 'assets/Dentiste.png'

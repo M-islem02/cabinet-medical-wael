@@ -171,20 +171,22 @@ async function migrateForCabinetTypeChange(oldType, newType) {
       );
       for (const p of patients) {
         await run(
-          'INSERT INTO patient_medecins (id, patientId, medecinId, isPrimary) VALUES (?, ?, ?, TRUE) ON CONFLICT (patientId, medecinId) DO NOTHING',
-          [uuidv4(), p.id, p.primaryDoctorId]
+          `INSERT INTO patient_practitioners (patientId, practitionerId)
+           VALUES (?, ?)
+           ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+          [p.id, p.primaryDoctorId]
         );
       }
-      console.log(`[cabinetType] single→multiple : ${patients.length} assignations patient_medecins créées depuis primaryDoctorId`);
+      console.log(`[cabinetType] single→multiple : ${patients.length} assignations patient_practitioners créées depuis primaryDoctorId`);
     } else if (newType === 'single' && oldType === 'multiple') {
       const firstAssignments = await query(
-        `SELECT DISTINCT ON (patientId) patientId, medecinId
-         FROM patient_medecins ORDER BY patientId, assignedAt ASC`
+        `SELECT DISTINCT ON (patientId) patientId, practitionerId
+         FROM patient_practitioners ORDER BY patientId, assignedAt ASC`
       );
       for (const a of firstAssignments) {
-        await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ? AND (primaryDoctorId IS NULL OR primaryDoctorId = ?)', [a.medecinId, a.patientId, '']);
+        await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ? AND (primaryDoctorId IS NULL OR primaryDoctorId = ?)', [a.practitionerId, a.patientId, '']);
       }
-      console.log(`[cabinetType] multiple→single : ${firstAssignments.length} primaryDoctorId consolidés (table patient_medecins conservée)`);
+      console.log(`[cabinetType] multiple→single : ${firstAssignments.length} primaryDoctorId consolidés (assignations conservées)`);
     }
   } catch (e) {
     console.error('[cabinetType] migration error:', e.message);

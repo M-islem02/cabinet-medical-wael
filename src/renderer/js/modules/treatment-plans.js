@@ -221,7 +221,7 @@ function renderPlanCard(plan) {
           <button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>
           <button onclick="unarchivePlan('${plan.id}')" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Désarchiver</button>
         ` : `
-          ${plan.status === 'active' ? `<button onclick="openAddPaymentModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Payer</button>` : ''}
+          ${plan.status === 'active' && canSeeFullFinancials ? `<button onclick="openPlanPaymentActionsModal('${plan.id}',${cost},${paid})" class="btn btn-primary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px">Payer</button>` : ''}
           <button onclick="openEditPlanModal('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#fff;border-color:#d1d5db;color:#374151">Modifier</button>
           ${canSeeFullFinancials ? `<button onclick="printPlanDocument('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Imprimer</button>` : ''}
           ${plan.status === 'active' ? `<button onclick="archivePlan('${plan.id}')" class="btn btn-secondary btn-small" style="flex:1;padding:8px 6px;font-size:12px;border-radius:8px;background:#f8fafc;border-color:#e2e8f0;color:#475569">Archiver</button>` : ''}

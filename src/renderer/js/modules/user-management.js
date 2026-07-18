@@ -79,6 +79,7 @@ function setUserFormMode(mode = 'create', user = null) {
   const title = document.getElementById('modal-user-title');
   const subtitle = document.querySelector('#modal-add-user .admin-account-modal-subtitle');
   const submitBtn = document.getElementById('user-form-submit-btn');
+  const submitAndAddBtn = document.getElementById('user-form-submit-and-add-btn');
   const modeInput = document.getElementById('user-form-mode');
   const editingUserId = document.getElementById('editing-user-id');
   const passwordInput = document.getElementById('new-user-password');
@@ -98,6 +99,7 @@ function setUserFormMode(mode = 'create', user = null) {
       : 'Ajoutez un médecin avec sa spécialité individuelle ou un assistant du cabinet, sans créer de second administrateur.';
   }
   if (submitBtn) submitBtn.textContent = isEditMode ? 'Enregistrer' : 'Créer le compte';
+  if (submitAndAddBtn) submitAndAddBtn.style.display = isEditMode ? 'none' : '';
   if (passwordLabel) passwordLabel.textContent = isEditMode ? 'Nouveau mot de passe' : 'Mot de passe temporaire *';
   if (confirmLabel) confirmLabel.textContent = isEditMode ? 'Confirmer le nouveau mot de passe' : 'Confirmer le mot de passe *';
   if (passwordHint) {
@@ -108,6 +110,36 @@ function setUserFormMode(mode = 'create', user = null) {
 
   if (passwordInput) passwordInput.required = !isEditMode;
   if (confirmInput) confirmInput.required = !isEditMode;
+}
+
+function prepareUserFormForCreate({ focus = false } = {}) {
+  const form = document.getElementById('add-user-form');
+  if (!form) return;
+
+  form.reset();
+  setUserFormMode('create');
+  populateManagedRoleOptions('doctor');
+  populateSpecialtyOptions();
+
+  ['new-user-password', 'new-user-confirm-password'].forEach((inputId) => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.type = 'password';
+    const toggle = input.closest('.password-field-wrapper')?.querySelector('.password-toggle-btn');
+    if (toggle) {
+      toggle.textContent = '👁';
+      toggle.title = 'Afficher le mot de passe';
+      toggle.setAttribute('aria-label', 'Afficher le mot de passe');
+    }
+  });
+
+  if (typeof window.toggleSpecialtyField === 'function') {
+    window.toggleSpecialtyField();
+  }
+
+  if (focus) {
+    requestAnimationFrame(() => document.getElementById('new-user-fullname')?.focus());
+  }
 }
 
 function renderUserRoleBadge(user) {
@@ -205,14 +237,9 @@ function showAddUserModal() {
     return;
   }
   
-  document.getElementById('add-user-form').reset();
-  setUserFormMode('create');
-  populateManagedRoleOptions('doctor');
-  populateSpecialtyOptions();
-  if (typeof window.toggleSpecialtyField === 'function') {
-    window.toggleSpecialtyField();
-  }
+  prepareUserFormForCreate();
   showModal('modal-add-user');
+  requestAnimationFrame(() => document.getElementById('new-user-fullname')?.focus());
 }
 
 async function openEditUserModal(userId) {
@@ -326,6 +353,9 @@ async function addUser(event) {
   const role = selectedRole === 'doctor_admin' ? 'doctor' : selectedRole;
   const isDoctorAdmin = selectedRole === 'doctor_admin';
   const isEditMode = formMode === 'edit';
+  const createAnother = !isEditMode && event.submitter?.id === 'user-form-submit-and-add-btn';
+  const submitBtn = document.getElementById('user-form-submit-btn');
+  const submitAndAddBtn = document.getElementById('user-form-submit-and-add-btn');
 
   // Validation
   if (password !== confirmPassword) {
@@ -337,6 +367,9 @@ async function addUser(event) {
     showNotification('❌ Le mot de passe ne peut pas être vide', 'error');
     return;
   }
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (submitAndAddBtn) submitAndAddBtn.disabled = true;
 
   try {
     let specialty = '';
@@ -369,33 +402,28 @@ async function addUser(event) {
       : await window.api.user.add(payload);
 
     if (result.success) {
-      closeModal('modal-add-user');
+      if (!createAnother) {
+        closeModal('modal-add-user');
+      }
       await loadUsersList();
       
       if (!isEditMode) {
-        // Show credentials in alert with better formatting
-      alert(`✅ COMPTE CRÉÉ AVEC SUCCÈS!\n\n` +
-            `═══════════════════════════════\n` +
-            `📋 IDENTIFIANTS DE CONNEXION\n` +
-            `═══════════════════════════════\n\n` +
-            `👤 Nom d'utilisateur: ${username}\n` +
-            `🔑 Mot de passe: ${password}\n\n` +
-            `═══════════════════════════════\n\n` +
-            `⚠️ IMPORTANT:\n` +
-            `• Notez ces identifiants\n` +
-            `• Transmettez-les au docteur de manière sécurisée\n` +
-            `• Le docteur peut changer son mot de passe dans Paramètres\n\n` +
-            `═══════════════════════════════`);
-      
+        alert(`Compte créé avec succès.\n\nNom d'utilisateur : ${username}\nMot de passe : ${password}\n\nNotez ces identifiants et transmettez-les de manière sécurisée.`);
       }
 
       showNotification(isEditMode ? '✅ Compte modifié avec succès' : '✅ Compte créé avec succès', 'success');
+      if (createAnother) {
+        prepareUserFormForCreate({ focus: true });
+      }
     } else {
       showNotification('❌ Erreur: ' + result.error, 'error');
     }
   } catch (error) {
     console.error('Error adding user:', error);
     showNotification('❌ Erreur lors de la création', 'error');
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (submitAndAddBtn) submitAndAddBtn.disabled = false;
   }
 }
 

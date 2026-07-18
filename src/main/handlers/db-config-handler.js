@@ -69,7 +69,7 @@ export function createDbConfigWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false

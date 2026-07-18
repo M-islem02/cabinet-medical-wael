@@ -4,10 +4,11 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, queryOne, run } from '../database-unified.js';
+import { query, queryOne, run, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { broadcastRealtimeEvent } from '../realtime-server.js';
+import { registerValidatedContractHandler } from '../ipc/contract-handler.js';
 
 // ─── State machine ───────────────────────────────────────────────────────────
 const ALLOWED_STATUS_TRANSITIONS = {
@@ -52,10 +53,10 @@ async function recalculatePlanTotals(planId) {
       [totalCost, totalPaid, newStatus, moment().format('YYYY-MM-DD HH:mm:ss'), planId]
     );
 
-    broadcastRealtimeEvent({ type: 'plan:updated', planId });
     return { totalCost, totalPaid, newStatus };
   } catch (err) {
     console.error('Error recalculating plan totals:', err);
+    throw err;
   }
 }
 
@@ -124,19 +125,11 @@ async function getOrCreateDefaultPlan(patientId, createdBy, specialty = 'dentist
   const id = uuidv4();
   const now = moment().format('YYYY-MM-DD HH:mm:ss');
   const title = `Plan de traitement — ${moment().format('DD/MM/YYYY')}`;
-  try {
-    await run(
-      `INSERT INTO treatment_plans (id, patientId, title, specialty, status, createdBy, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`,
-      [id, patientId, title, specialty, createdBy || null, now, now]
-    );
-  } catch (error) {
-    await run(
-      `INSERT INTO treatment_plans (id, patientId, title, specialty, status, createdBy, startDate, sessions, sessionsCount, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, 'active', ?, ?, 1, 1, ?, ?)`,
-      [id, patientId, title, specialty, createdBy || null, now, now, now]
-    );
-  }
+  await run(
+    `INSERT INTO treatment_plans (id, patientId, title, specialty, status, createdBy, startDate, sessions, sessionsCount, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, 'active', ?, ?, 1, 1, ?, ?)`,
+    [id, patientId, title, specialty, createdBy || null, now.slice(0, 10), now, now]
+  );
   broadcastRealtimeEvent({ type: 'plan:created', planId: id, patientId });
   return id;
 }
@@ -145,11 +138,13 @@ async function getOrCreateDefaultPlan(patientId, createdBy, specialty = 'dentist
 export function handleTreatmentPlanEvents() {
 
   // ── CREATE ────────────────────────────────────────────────────────────────
-  ipcMain.handle('plans:create', async (event, data) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'create', async (event, data) => {
     try {
       if (!data?.patientId) return { success: false, error: 'patientId requis' };
       if (!data?.title) return { success: false, error: 'Titre requis' };
       if (Number(data.totalCost) < 0) return { success: false, error: 'Coût invalide' };
+      return await withTransaction(async () => {
+      await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`active-plan:${data.patientId}`]);
 
       const initialStatus = ['active', 'archived', 'cancelled'].includes(data.status)
         ? data.status
@@ -163,27 +158,15 @@ export function handleTreatmentPlanEvents() {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const sessionsCount = Math.max(1, parseInt(data.sessionsCount || 1));
 
-      try {
-        await run(
-          `INSERT INTO treatment_plans
-            (id, patientId, title, treatmentType, description, specialty, totalCost, sessionsCount, status, createdBy, notes, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, data.patientId, data.title, data.treatmentType || null,
-            data.description || null, data.specialty || 'dentistry',
-            Number(data.totalCost || 0), sessionsCount, initialStatus,
-            data.createdBy || null, data.notes || null, now, now]
-        );
-      } catch (error) {
-        await run(
-          `INSERT INTO treatment_plans
-            (id, patientId, title, treatmentType, description, specialty, totalCost, sessionsCount, sessions, startDate, status, createdBy, notes, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, data.patientId, data.title, data.treatmentType || null,
-            data.description || null, data.specialty || 'dentistry',
-            Number(data.totalCost || 0), sessionsCount, sessionsCount, now,
-            initialStatus, data.createdBy || null, data.notes || null, now, now]
-        );
-      }
+      await run(
+        `INSERT INTO treatment_plans
+          (id, patientId, title, treatmentType, description, specialty, totalCost, sessionsCount, sessions, startDate, status, createdBy, notes, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, data.patientId, data.title, data.treatmentType || null,
+          data.description || null, data.specialty || 'dentistry',
+          Number(data.totalCost || 0), sessionsCount, sessionsCount, data.startDate || now.slice(0, 10),
+          initialStatus, data.createdBy || null, data.notes || null, now, now]
+      );
 
       if (sessionsCount >= 1) {
         for (let i = 1; i <= sessionsCount; i++) {
@@ -197,6 +180,7 @@ export function handleTreatmentPlanEvents() {
 
       broadcastRealtimeEvent({ type: 'plan:created', planId: id, patientId: data.patientId });
       return { success: true, id };
+      });
     } catch (err) {
       console.error('Error creating plan:', err);
       return { success: false, error: err.message };
@@ -204,7 +188,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── GET ALL ───────────────────────────────────────────────────────────────
-  ipcMain.handle('plans:getAll', async (event, filters = {}) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getAll', async (event, filters = {}) => {
     try {
       let sql = `
         SELECT tp.*, p.firstName, p.lastName,
@@ -236,7 +220,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── GET BY PATIENT ────────────────────────────────────────────────────────
-  ipcMain.handle('plans:getByPatient', async (event, patientId) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getByPatient', async (event, patientId) => {
     try {
       if (!patientId) return { success: false, error: 'patientId requis' };
       const plans = await query(
@@ -267,7 +251,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── GET BY ID ─────────────────────────────────────────────────────────────
-  ipcMain.handle('plans:getById', async (event, id) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getById', async (event, id) => {
     try {
       const plan = await queryOne(
         `SELECT tp.*, p.firstName, p.lastName, (tp.totalCost - tp.totalPaid) as balance
@@ -314,9 +298,10 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── UPDATE ────────────────────────────────────────────────────────────────
-  ipcMain.handle('plans:update', async (event, id, data) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'update', async (event, id, data) => {
     try {
-      const plan = await queryOne(`SELECT patientId, status FROM treatment_plans WHERE id = ?`, [id]);
+      return await withTransaction(async () => {
+      const plan = await queryOne(`SELECT patientId, status FROM treatment_plans WHERE id = ? FOR UPDATE`, [id]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
       if (plan.status === 'archived') {
         return { success: false, error: 'Un plan archivé doit être désarchivé avant modification.' };
@@ -333,6 +318,7 @@ export function handleTreatmentPlanEvents() {
           return { success: false, error: `Transition de statut non autorisée : ${plan.status} → ${data.status}` };
         }
         if (data.status === 'active') {
+          await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`active-plan:${plan.patientId}`]);
           const activeCheck = await assertSingleActivePlan(plan.patientId, id);
           if (!activeCheck.success) return activeCheck;
         }
@@ -360,6 +346,7 @@ export function handleTreatmentPlanEvents() {
       await recalculatePlanTotals(id);
       broadcastRealtimeEvent({ type: 'plan:updated', planId: id });
       return { success: true };
+      });
     } catch (err) {
       console.error('Error updating plan:', err);
       return { success: false, error: err.message };
@@ -367,7 +354,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── ARCHIVE (soft-delete) ─────────────────────────────────────────────────
-  ipcMain.handle('plans:archive', async (event, id) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'archive', async (event, id) => {
     try {
       await run(
         `UPDATE treatment_plans SET status = 'archived', updatedAt = ? WHERE id = ?`,
@@ -403,9 +390,10 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── DELETE (bloqué si données liées) ─────────────────────────────────────
-  ipcMain.handle('plans:delete', async (event, id) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'delete', async (event, id) => {
     try {
-      const plan = await queryOne(`SELECT totalPaid, status FROM treatment_plans WHERE id = ?`, [id]);
+      return await withTransaction(async () => {
+      const plan = await queryOne(`SELECT totalPaid, status FROM treatment_plans WHERE id = ? FOR UPDATE`, [id]);
 
       if (plan?.status === 'archived') {
         return { success: false, error: 'Un plan archivé ne peut pas être supprimé.' };
@@ -422,6 +410,7 @@ export function handleTreatmentPlanEvents() {
       await run(`DELETE FROM treatment_plans WHERE id = ?`, [id]);
       broadcastRealtimeEvent({ type: 'plan:deleted', planId: id });
       return { success: true };
+      });
     } catch (err) {
       console.error('Error deleting plan:', err);
       return { success: false, error: err.message };
@@ -429,13 +418,14 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── ADD PAYMENT SESSION ───────────────────────────────────────────────────
-  ipcMain.handle('plans:addPaymentSession', async (event, data) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'addPaymentSession', async (event, data) => {
     try {
       const { planId, sessionId: requestedSessionId, paidAmount, scheduledDate, paidDate, paymentMethod, notes, recordedBy } = data || {};
       if (!planId) return { success: false, error: 'planId requis' };
+      return await withTransaction(async () => {
 
       await recalculatePlanTotals(planId);
-      const plan = await queryOne(`SELECT * FROM treatment_plans WHERE id = ?`, [planId]);
+      const plan = await queryOne(`SELECT * FROM treatment_plans WHERE id = ? FOR UPDATE`, [planId]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
       if (plan.status !== 'active') {
         return { success: false, error: 'Ce plan n’est pas actif. Réactivez-le avant d’enregistrer un paiement.' };
@@ -456,7 +446,7 @@ export function handleTreatmentPlanEvents() {
       if (requestedSessionId) {
         pendingSession = await queryOne(
           `SELECT * FROM plan_payment_sessions
-           WHERE id = ? AND planId = ?`,
+           WHERE id = ? AND planId = ? FOR UPDATE`,
           [requestedSessionId, planId]
         );
         if (!pendingSession) return { success: false, error: 'Séance introuvable' };
@@ -467,7 +457,7 @@ export function handleTreatmentPlanEvents() {
         pendingSession = await queryOne(
           `SELECT * FROM plan_payment_sessions
            WHERE planId = ? AND status != 'paid'
-           ORDER BY sessionNumber ASC LIMIT 1`,
+           ORDER BY sessionNumber ASC LIMIT 1 FOR UPDATE`,
           [planId]
         );
       }
@@ -521,6 +511,7 @@ export function handleTreatmentPlanEvents() {
           : null,
         autoClosed: result?.newStatus === 'completed'
       };
+      });
     } catch (err) {
       console.error('Error adding payment session:', err);
       return { success: false, error: err.message };
@@ -528,7 +519,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── UPDATE EXISTING PAYMENT SESSION ───────────────────────────────────────
-  ipcMain.handle('plans:updateSessionPayment', async (event, data = {}) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'updateSessionPayment', async (event, data = {}) => {
     try {
       const { planId, sessionId, paidAmount, paidDate, paymentMethod, notes, recordedBy } = data || {};
       if (!planId || !sessionId) return { success: false, error: 'planId et sessionId requis' };
@@ -537,14 +528,15 @@ export function handleTreatmentPlanEvents() {
       if (!context.userId) {
         return { success: false, error: 'Authentification requise.' };
       }
+      return await withTransaction(async () => {
 
       const session = await queryOne(
-        `SELECT * FROM plan_payment_sessions WHERE id = ? AND planId = ?`,
+        `SELECT * FROM plan_payment_sessions WHERE id = ? AND planId = ? FOR UPDATE`,
         [sessionId, planId]
       );
       if (!session) return { success: false, error: 'Séance introuvable' };
 
-      const plan = await queryOne(`SELECT * FROM treatment_plans WHERE id = ?`, [planId]);
+      const plan = await queryOne(`SELECT * FROM treatment_plans WHERE id = ? FOR UPDATE`, [planId]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
 
       const amount = Number(paidAmount || 0);
@@ -582,6 +574,7 @@ export function handleTreatmentPlanEvents() {
       await recalculatePlanTotals(planId);
       broadcastRealtimeEvent({ type: 'plan:payment-recorded', planId, patientId: plan.patientId });
       return { success: true, paymentId };
+      });
     } catch (err) {
       console.error('Error updating plan session payment:', err);
       return { success: false, error: err.message };
@@ -589,7 +582,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── GET SESSIONS ──────────────────────────────────────────────────────────
-  ipcMain.handle('plans:getSessions', async (event, planId) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getSessions', async (event, planId) => {
     try {
       const sessions = await query(
         `SELECT * FROM plan_payment_sessions WHERE planId = ? ORDER BY sessionNumber`,
@@ -602,12 +595,13 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── UPDATE SESSION TARIFFS ────────────────────────────────────────────────
-  ipcMain.handle('plans:updateSessions', async (event, planId, sessions = []) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'updateSessions', async (event, planId, sessions = []) => {
     try {
       if (!planId) return { success: false, error: 'planId requis' };
       if (!Array.isArray(sessions)) return { success: false, error: 'Séances invalides' };
+      return await withTransaction(async () => {
 
-      const plan = await queryOne(`SELECT id, status FROM treatment_plans WHERE id = ?`, [planId]);
+      const plan = await queryOne(`SELECT id, status FROM treatment_plans WHERE id = ? FOR UPDATE`, [planId]);
       if (!plan) return { success: false, error: 'Plan introuvable' };
 
       const context = getUserFinancialContext();
@@ -677,6 +671,7 @@ export function handleTreatmentPlanEvents() {
 
       broadcastRealtimeEvent({ type: 'plan:updated', planId });
       return { success: true, totalCost: totalExpected };
+      });
     } catch (err) {
       console.error('Error updating plan sessions:', err);
       return { success: false, error: err.message };
@@ -684,7 +679,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── RECALCULATE ───────────────────────────────────────────────────────────
-  ipcMain.handle('plans:recalculate', async (event, planId) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'recalculate', async (event, planId) => {
     try {
       await recalculatePlanTotals(planId);
       return { success: true };
@@ -694,7 +689,7 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── PENDING BALANCES (admin dashboard) ───────────────────────────────────
-  ipcMain.handle('plans:getPendingBalances', async () => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getPendingBalances', async () => {
     try {
       const context = getUserFinancialContext();
       if (!(context.isSuperAdmin || context.isDoctorAdmin || context.isPractitioner)) {
@@ -716,16 +711,19 @@ export function handleTreatmentPlanEvents() {
   });
 
   // ── GET OR CREATE DEFAULT PLAN (helper for treatments) ───────────────────
-  ipcMain.handle('plans:getOrCreateDefault', async (event, { patientId, createdBy, specialty }) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'getOrCreateDefault', async (event, { patientId, createdBy, specialty }) => {
     try {
-      const planId = await getOrCreateDefaultPlan(patientId, createdBy, specialty);
+      const planId = await withTransaction(async () => {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`active-plan:${patientId}`]);
+        return getOrCreateDefaultPlan(patientId, createdBy, specialty);
+      });
       return { success: true, planId };
     } catch (err) {
       return { success: false, error: err.message };
     }
   });
 
-  ipcMain.handle('plans:requestPayment', async (event, data = {}) => {
+  registerValidatedContractHandler(ipcMain, 'plans', 'requestPayment', async (event, data = {}) => {
     try {
       if (data.planId) {
         await recalculatePlanTotals(data.planId);

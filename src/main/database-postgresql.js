@@ -8,12 +8,15 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import { startLocalPostgres, stopLocalPostgres } from './postgres-local-service.js';
-import { ensurePostgreSqlSchema, getCanonicalColumnNameMap } from './database-schema-postgresql.js';
+import { getCanonicalColumnNameMap } from './database-schema-postgresql.js';
+import { runPostgreSqlMigrations } from './database/migration-runner.js';
+import { createTransactionManager } from './database/transaction-manager.js';
 
 const { Pool } = pg;
 
 let pool = null;
 let dbConfig = null;
+const transactionManager = createTransactionManager(() => pool);
 const BOOLEAN_COLUMN_NAMES = new Set([
   'activated',
   'isadmin',
@@ -21,6 +24,7 @@ const BOOLEAN_COLUMN_NAMES = new Set([
   'isactive',
   'publicbookingenabled',
   'publicbookingqrenabled',
+  'declaredappointment',
   'featureprescriptions',
   'featurewaitingroom',
   'featuredailysummary',
@@ -138,7 +142,10 @@ function normalizeResultRows(rows) {
 }
 
 export const DEFAULT_POSTGRES_CONFIG = {
-  mode: 'local',
+  // Packaged builds do not currently ship PostgreSQL binaries. Default to the
+  // standard Windows PostgreSQL service and let the configuration screen
+  // adjust the host/port for network or multi-PC installations.
+  mode: 'network',
   host: 'localhost',
   port: 5432,
   database: 'cabinet_db',
@@ -413,8 +420,9 @@ export async function initializeDatabase() {
     await waitForPostgres(dbConfig);
   }
 
-  await ensureDatabaseExists(dbConfig);
-
+  // The database and application role are provisioned manually before the
+  // software is installed. Network clients must never require access to the
+  // PostgreSQL maintenance database just to start MedCareSO.
   pool = new Pool({
     host: dbConfig.host,
     port: dbConfig.port,
@@ -434,7 +442,7 @@ export async function initializeDatabase() {
     client.release();
   }
 
-  await ensurePostgreSqlSchema(pool);
+  await runPostgreSqlMigrations(pool);
   console.log(`Connected to PostgreSQL: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
   return pool;
 }
@@ -454,7 +462,7 @@ export async function ensureSchemaForConfig(config) {
 
   try {
     await schemaPool.query('SELECT 1');
-    await ensurePostgreSqlSchema(schemaPool);
+    await runPostgreSqlMigrations(schemaPool);
     return { success: true, database: targetConfig.database };
   } finally {
     await schemaPool.end();
@@ -478,13 +486,13 @@ export async function closeDatabase() {
 
 export async function query(sql, params = []) {
   const prepared = prepareSql(sql, params);
-  const result = await pool.query(prepared.sql, prepared.params);
+  const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return normalizeResultRows(result.rows);
 }
 
 export async function run(sql, params = []) {
   const prepared = prepareSql(sql, params);
-  const result = await pool.query(prepared.sql, prepared.params);
+  const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return {
     rowCount: result.rowCount,
     affectedRows: result.rowCount,
@@ -495,8 +503,22 @@ export async function run(sql, params = []) {
 
 export async function queryOne(sql, params = []) {
   const prepared = prepareSql(sql, params);
-  const result = await pool.query(prepared.sql, prepared.params);
+  const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return result.rows[0] ? normalizeResultRow(result.rows[0]) : null;
+}
+
+/**
+ * Execute a workflow atomically on one PostgreSQL client. Existing
+ * query/queryOne/run calls automatically use this client. Nested calls use
+ * savepoints.
+ *
+ * @template T
+ * @param {() => Promise<T>} task
+ * @param {{isolationLevel?: 'READ COMMITTED'|'REPEATABLE READ'|'SERIALIZABLE'}} [options]
+ * @returns {Promise<T>}
+ */
+export function withTransaction(task, options = {}) {
+  return transactionManager.withTransaction(task, options);
 }
 
 export async function testConnection(config) {
@@ -553,27 +575,6 @@ async function waitForPostgres(config, timeoutMs = 15000) {
   }
 
   throw lastError || new Error('PostgreSQL local did not become ready');
-}
-
-async function ensureDatabaseExists(config) {
-  const adminPool = new Pool({
-    host: config.host,
-    port: config.port,
-    user: config.user,
-    password: config.password,
-    database: 'postgres',
-    max: 1,
-    connectionTimeoutMillis: 7000
-  });
-
-  try {
-    const exists = await adminPool.query('SELECT 1 FROM pg_database WHERE datname = $1', [config.database]);
-    if (exists.rowCount === 0) {
-      await adminPool.query(`CREATE DATABASE "${String(config.database).replace(/"/g, '""')}"`);
-    }
-  } finally {
-    await adminPool.end().catch(() => {});
-  }
 }
 
 export async function getDatabaseStatus(config = getConfig()) {

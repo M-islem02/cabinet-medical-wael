@@ -6,7 +6,8 @@ Generated during the PostgreSQL-only migration pass.
 
 - `src/main/database-unified.js`: now PostgreSQL-only facade.
 - `src/main/database-postgresql.js`: active runtime adapter using `pg`.
-- `src/main/database-schema-postgresql.js`: canonical PostgreSQL schema executor.
+- `src/main/database/migration-runner.js`: checksum-verified native PostgreSQL migration runner.
+- `src/main/database-schema-postgresql.js`: compatibility facade; it no longer converts or executes the legacy schema source.
 - `src/main/postgres-local-service.js`: starts/stops bundled local PostgreSQL binaries.
 - `src/main/handlers/db-config-handler.js`: PostgreSQL-only configuration/status IPC.
 
@@ -36,7 +37,7 @@ Generated during the PostgreSQL-only migration pass.
 ## SQL Dialect-Specific Runtime Areas
 
 - Date functions in `src/main/main.js` and `src/main/handlers/payment-handler.js` were switched to PostgreSQL expressions.
-- Remaining SQLite-like expressions such as `DATE('now')` and `strftime(...)` are translated in the PostgreSQL adapter while modules are progressively cleaned.
+- Inventory, POS, supplier and equipment handlers now use native PostgreSQL date, boolean, search, upsert and JSONB behavior. The general adapter keeps unrelated legacy compatibility only.
 - Cloud sync still contains dormant legacy code after early returns; it must be deleted after migration tooling is fully validated.
 
 ## Migration Boundary

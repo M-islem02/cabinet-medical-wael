@@ -1,3 +1,8 @@
+import { appointmentApi } from '../../features/appointments/appointment-api.js';
+import { renderAppointmentPatientOptions } from '../../features/appointments/patient-selector.js';
+import { eventBus } from '../../core/state/event-bus.js';
+import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
+
 // ========== CALENDAR MODULE (Professional EasyClinic-Style) ==========
 
 // Calendar state
@@ -142,7 +147,7 @@ function setupCalendarSearch() {
 // Load team members from database
 async function loadTeamMembers() {
   try {
-    const usersResult = await window.api.user.getAll();
+    const usersResult = await appointmentApi.getUsers();
     const users = Array.isArray(usersResult?.data)
       ? usersResult.data
       : Array.isArray(usersResult)
@@ -216,7 +221,7 @@ async function loadCalendarAppointments() {
     
     console.log('📅 Loading appointments from', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
     
-    const res = await window.api.appointment.getByDateRange(
+    const res = await appointmentApi.getByDateRange(
       startDate.toISOString().split('T')[0],
       endDate.toISOString().split('T')[0]
     );
@@ -342,7 +347,7 @@ function updateQuickStats() {
 // Update present patients from waiting room
 async function updatePresentPatientsFromWaitingRoom() {
   try {
-    const waitingRoom = await window.api.waitingRoom.getToday();
+    const waitingRoom = await appointmentApi.getWaitingRoomToday();
     const presentPatients = Array.isArray(waitingRoom) 
       ? waitingRoom.filter(p => p.status === 'waiting' || p.status === 'in-consultation')
       : [];
@@ -617,7 +622,7 @@ async function moveCalendarAppointment(appointmentId, newDate, newTime) {
     return;
   }
 
-  const conflictResult = await window.api.appointment.checkConflict(newDate, newTime, appointmentId);
+  const conflictResult = await appointmentApi.checkConflict(newDate, newTime, appointmentId);
   if (conflictResult.success && conflictResult.hasConflict) {
     if (window.showNotification) {
       window.showNotification('Conflit de rendez-vous détecté', 'warning');
@@ -627,7 +632,7 @@ async function moveCalendarAppointment(appointmentId, newDate, newTime) {
     return;
   }
 
-  const updateResult = await window.api.appointment.update(appointmentId, {
+  const updateResult = await appointmentApi.update(appointmentId, {
     date: newDate,
     time: normalizeTimeValue(newTime),
     reason: appointment.reason,
@@ -639,6 +644,8 @@ async function moveCalendarAppointment(appointmentId, newDate, newTime) {
   if (!updateResult?.success) {
     throw new Error(updateResult?.error || 'Impossible de déplacer le rendez-vous');
   }
+
+  eventBus.emit('appointment:updated', { appointmentId });
 
   if (window.showNotification) {
     window.showNotification('Rendez-vous déplacé', 'success');
@@ -1403,7 +1410,7 @@ async function openNewAppointmentModal(date = null, time = null) {
 // Open appointment details
 async function openAppointmentDetails(appointmentId) {
   try {
-    const aptResult = await window.api.appointment.getById(appointmentId);
+    const aptResult = await appointmentApi.getById(appointmentId);
     if (aptResult?.success && aptResult.data?.patientId) {
       // Navigate to patient and show appointment
       await showPatientDetails(aptResult.data.patientId);
@@ -1419,7 +1426,7 @@ async function searchPatientsForCalendar(query) {
   if (!query || query.length < 2) return;
   
   try {
-    const patients = await window.api.patient.search(query);
+    const patients = await appointmentApi.searchPatients(query);
     // Could show a dropdown with results
     console.log('Found patients:', patients);
   } catch (error) {
@@ -1427,17 +1434,11 @@ async function searchPatientsForCalendar(query) {
   }
 }
 
-// Export functions for global use
-window.initCalendar = initCalendar;
-window.refreshCalendar = refreshCalendar;
-window.openNewAppointmentModal = openNewAppointmentModal;
-window.openQuickAppointmentModal = openNewAppointmentModal;
-window.changeCalendarView = changeCalendarView;
-window.openDailyAppointmentsModal = openDailyAppointmentsModal;
-window.navigateCalendar = navigateCalendar;
-window.changeTodayAppointmentsPage = changeTodayAppointmentsPage;
-window.openCategoryModal = () => toggleCalendarCategoryForm();
-window.saveAppointmentCategory = () => {
+function openCategoryModal() {
+  toggleCalendarCategoryForm();
+}
+
+function saveAppointmentCategory() {
   const nameInput = document.getElementById('calendar-category-name');
   const colorInput = document.getElementById('calendar-category-color');
   const normalizedName = nameInput?.value?.trim();
@@ -1461,8 +1462,7 @@ window.saveAppointmentCategory = () => {
   if (colorInput) colorInput.value = '#0f5fa8';
   toggleCalendarCategoryForm(false);
   showNotification('✅ Catégorie ajoutée', 'success');
-};
-window.removeAppointmentCategory = removeAppointmentCategory;
+}
 
 // Change calendar view
 function changeCalendarView(view) {
@@ -1500,138 +1500,6 @@ function changeCalendarView(view) {
  * @param {string} dropdownId - ID of the dropdown container
  * @param {Array} patients - Array of patient objects with id, firstName, lastName
  */
-function initSearchablePatientSelect(searchInputId, hiddenInputId, dropdownId, patients) {
-  const searchInput = document.getElementById(searchInputId);
-  const hiddenInput = document.getElementById(hiddenInputId);
-  const dropdown = document.getElementById(dropdownId);
-  
-  if (!searchInput || !hiddenInput || !dropdown) return;
-  
-  // Store patients data on the dropdown element
-  dropdown.patientsData = patients || [];
-  
-  // Clear previous values
-  searchInput.value = '';
-  hiddenInput.value = '';
-  
-  // Remove any existing event listeners by cloning
-  const newSearchInput = searchInput.cloneNode(true);
-  searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-  
-  // Render all patients initially
-  renderPatientDropdown(dropdownId, dropdown.patientsData, '');
-  
-  // Add event listeners
-  newSearchInput.addEventListener('focus', () => {
-    dropdown.classList.add('active');
-    renderPatientDropdown(dropdownId, dropdown.patientsData, newSearchInput.value);
-  });
-  
-  newSearchInput.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    renderPatientDropdown(dropdownId, dropdown.patientsData, searchTerm);
-    dropdown.classList.add('active');
-    
-    // Clear hidden input when typing (user is changing selection)
-    if (hiddenInput.value) {
-      hiddenInput.value = '';
-    }
-  });
-  
-  newSearchInput.addEventListener('blur', (e) => {
-    // Delay to allow click on dropdown options
-    setTimeout(() => {
-      dropdown.classList.remove('active');
-    }, 200);
-  });
-  
-  // Handle keyboard navigation
-  newSearchInput.addEventListener('keydown', (e) => {
-    const options = dropdown.querySelectorAll('.searchable-select-option');
-    const highlighted = dropdown.querySelector('.searchable-select-option.highlighted');
-    
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (!highlighted && options.length > 0) {
-        options[0].classList.add('highlighted');
-      } else if (highlighted && highlighted.nextElementSibling) {
-        highlighted.classList.remove('highlighted');
-        highlighted.nextElementSibling.classList.add('highlighted');
-        highlighted.nextElementSibling.scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (highlighted && highlighted.previousElementSibling) {
-        highlighted.classList.remove('highlighted');
-        highlighted.previousElementSibling.classList.add('highlighted');
-        highlighted.previousElementSibling.scrollIntoView({ block: 'nearest' });
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (highlighted) {
-        highlighted.click();
-      }
-    } else if (e.key === 'Escape') {
-      dropdown.classList.remove('active');
-      newSearchInput.blur();
-    }
-  });
-}
-
-/**
- * Render the patient dropdown options based on search filter
- */
-function renderPatientDropdown(dropdownId, patients, searchTerm) {
-  const dropdown = document.getElementById(dropdownId);
-  if (!dropdown) return;
-  
-  const hiddenInputId = dropdownId.replace('-dropdown', '-select');
-  const searchInputId = dropdownId.replace('-dropdown', '-search');
-  const hiddenInput = document.getElementById(hiddenInputId);
-  const searchInput = document.getElementById(searchInputId);
-  
-  // Filter patients based on search term
-  const filteredPatients = patients.filter(p => {
-    const fullName = `${p.lastName || ''} ${p.firstName || ''}`.toLowerCase();
-    const reverseName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
-    return fullName.includes(searchTerm) || reverseName.includes(searchTerm);
-  });
-  
-  if (filteredPatients.length === 0) {
-    dropdown.innerHTML = '<div class="searchable-select-no-results">Aucun patient trouvé</div>';
-    return;
-  }
-  
-  dropdown.innerHTML = filteredPatients.map(p => {
-    const displayName = `${p.lastName || ''} ${p.firstName || ''}`.trim();
-    return `
-      <div class="searchable-select-option" data-patient-id="${p.id}" data-patient-name="${displayName}">
-        ${displayName}
-      </div>
-    `;
-  }).join('');
-  
-  // Add click handlers to options
-  dropdown.querySelectorAll('.searchable-select-option').forEach(option => {
-    option.addEventListener('click', () => {
-      const patientId = option.dataset.patientId;
-      const patientName = option.dataset.patientName;
-      
-      if (searchInput) {
-        searchInput.value = patientName;
-      }
-      if (hiddenInput) {
-        hiddenInput.value = patientId;
-      }
-      
-      dropdown.classList.remove('active');
-    });
-  });
-}
-
-// Make searchable select functions global
-window.initSearchablePatientSelect = initSearchablePatientSelect;
-window.renderPatientDropdown = renderPatientDropdown;
 
 // ========== LAZY PATIENT SEARCH OVERRIDE ==========
 
@@ -1701,7 +1569,7 @@ async function resolvePatientDisplayLabel(patientId, fallbackLabel = '') {
   }
 
   try {
-    const result = await window.api.patient.getById(normalizedId);
+    const result = await appointmentApi.getPatient(normalizedId);
     const patient = result?.success ? result.data : null;
     if (!patient) return '';
     return storePatientSearchRecord(patient);
@@ -1726,7 +1594,7 @@ async function searchPatientsByPrefix(searchTerm, staticPatients = null) {
   }
 
   try {
-    const result = await window.api.patient.search({
+    const result = await appointmentApi.searchPatients({
       searchTerm: normalizedTerm,
       limit: 50
     });
@@ -1841,29 +1709,18 @@ function renderPatientDropdown(dropdownId, patients) {
   const { searchInput } = getPatientFieldElements(valueInput);
   if (!valueInput || !searchInput) return;
 
-  dropdown.innerHTML = '';
-
-  if (!patients.length) {
-    createPatientSearchMessage(dropdown, 'Aucun patient commence par cette recherche');
-    return;
-  }
-
-  patients.forEach((patient) => {
-    const option = document.createElement('div');
-    const patientName = storePatientSearchRecord(patient);
-    option.className = 'searchable-select-option';
-    option.dataset.patientId = String(patient.id || '');
-    option.dataset.patientName = patientName;
-    option.textContent = patientName;
-    option.addEventListener('click', () => {
+  renderAppointmentPatientOptions({
+    dropdown,
+    patients,
+    onSelect: (patient, patientName) => {
+      storePatientSearchRecord(patient);
       setLazyPatientFieldValue(valueInput.id, patient.id, patientName, {
         triggerChange: valueInput.tagName === 'SELECT'
       });
       if (typeof searchInput._patientSearchOnSelect === 'function') {
         searchInput._patientSearchOnSelect(patient);
       }
-    });
-    dropdown.appendChild(option);
+    }
   });
 }
 
@@ -2075,8 +1932,21 @@ function attachLazyPatientSearchToSelect(selectId, config = {}) {
   });
 }
 
-window.initSearchablePatientSelect = initSearchablePatientSelect;
-window.renderPatientDropdown = renderPatientDropdown;
-window.attachLazyPatientSearchToSelect = attachLazyPatientSearchToSelect;
-window.setLazyPatientFieldValue = setLazyPatientFieldValue;
-window.resolvePatientDisplayLabel = resolvePatientDisplayLabel;
+registerLegacyGlobals('appointments', {
+  attachLazyPatientSearchToSelect,
+  changeCalendarView,
+  changeTodayAppointmentsPage,
+  initCalendar,
+  initSearchablePatientSelect,
+  navigateCalendar,
+  openCategoryModal,
+  openDailyAppointmentsModal,
+  openNewAppointmentModal,
+  openQuickAppointmentModal: openNewAppointmentModal,
+  refreshCalendar,
+  removeAppointmentCategory,
+  renderPatientDropdown,
+  resolvePatientDisplayLabel,
+  saveAppointmentCategory,
+  setLazyPatientFieldValue
+});

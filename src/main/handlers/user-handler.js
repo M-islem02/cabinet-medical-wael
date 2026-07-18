@@ -102,14 +102,6 @@ const SYSTEM_ACCOUNT_DEFAULTS = {
     role: 'admin',
     isAdmin: 0,
     isSuperAdmin: 1
-  },
-  admin: {
-    username: 'admin',
-    password: 'admin2024',
-    fullName: 'Administrateur',
-    role: 'admin',
-    isAdmin: 1,
-    isSuperAdmin: 0
   }
 };
 

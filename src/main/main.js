@@ -6,6 +6,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import moment from 'moment';
 import { initializeDatabase, closeDatabase, query, queryOne } from './database-unified.js';
 import {
   validateLicense, 
@@ -46,6 +47,7 @@ import { handleWaitingRoomEvents } from './handlers/waiting-room-handler.js';
 import { handlePackageEvents } from './handlers/package-handler.js';
 import { handleDentistEvents } from './handlers/dentist-handler.js';
 import { handleTreatmentPlanEvents } from './handlers/treatment-plans-handler.js';
+import { handleClinicalRehabilitationContractEvents } from './handlers/clinical-rehabilitation-ipc-handler.js';
 import { handleSMSEvents } from './handlers/sms-handler.js';
 import { handleCloudSyncEvents } from './handlers/cloud-sync-handler.js';
 import { handlePrintEvents } from './handlers/print-handler.js'; // watcher test
@@ -62,7 +64,7 @@ import {
 } from './realtime-server.js';
 import { getResponsiveWindowBounds, applyWindowPresentation } from './window-utils.js';
 import fs from 'fs';
-import moment from 'moment';
+import databaseConnectionTest from './test-database-connection.cjs';
 
 function normalizeTerminalText(value) {
   let text = String(value ?? '');
@@ -142,7 +144,15 @@ function getScopedUserContext() {
 }
 
 function getScopedPatientFilter(userContext, patientAlias = 'patients') {
-  // Patients are cabinet-wide for doctor-admin, normal doctors and assistants.
+  const practitionerId = userContext.isPractitioner
+    ? userContext.userId
+    : (userContext.isAssistant ? global.activePatientDoctorId : null);
+  if (practitionerId) {
+    return {
+      clause: `EXISTS (SELECT 1 FROM patient_practitioners pp_scope WHERE pp_scope.patientId = ${patientAlias}.id AND pp_scope.practitionerId = ?)`,
+      params: [practitionerId]
+    };
+  }
   return { clause: '', params: [] };
 }
 
@@ -317,7 +327,7 @@ function createMainWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false
@@ -355,7 +365,7 @@ function createLicenseWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false
@@ -400,7 +410,7 @@ function createSetupWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false
@@ -442,7 +452,7 @@ function createClientConfigWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false
@@ -487,7 +497,7 @@ function createLoginWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false
@@ -624,8 +634,21 @@ async function initializeApp() {
     
   } catch (error) {
     console.error('Application initialization error:', error);
-    dialog.showErrorBox('Erreur', 'Erreur lors de l\'initialisation de l\'application');
-    app.quit();
+    const details = error?.message || String(error || 'Erreur PostgreSQL inconnue');
+    dialog.showErrorBox(
+      'Configuration PostgreSQL requise',
+      `MedCareSO ne peut pas se connecter à la base de données.\n\n${details}\n\n` +
+      'Vérifiez le serveur, le port, la base, l\'utilisateur et le mot de passe.'
+    );
+
+    // Keep the application useful on a fresh workstation: the user can fix
+    // the connection, test it, save it and restart without editing JSON files.
+    try {
+      createDbConfigWindow();
+    } catch (configWindowError) {
+      console.error('Unable to open PostgreSQL configuration window:', configWindowError);
+      app.quit();
+    }
   }
 }
 
@@ -817,6 +840,7 @@ function setupIPCHandlers() {
   handlePackageEvents();
   handleDentistEvents();
   handleTreatmentPlanEvents();
+  handleClinicalRehabilitationContractEvents();
   handleSMSEvents();
   handleCloudSyncEvents();
   handlePrintEvents();
@@ -1570,6 +1594,16 @@ function setupIPCHandlers() {
 
 // Ã‰vÃ©nements Electron
 app.on('ready', async () => {
+  const databaseTestArgIndex = process.argv.indexOf('--test-database-connection');
+  if (databaseTestArgIndex >= 0) {
+    const result = await databaseConnectionTest.testDatabaseConnection(
+      process.argv[databaseTestArgIndex + 1],
+      process.argv[databaseTestArgIndex + 2]
+    );
+    app.exit(result.success ? 0 : 1);
+    return;
+  }
+
   setupIPCHandlers();
   await initializeApp();
 });

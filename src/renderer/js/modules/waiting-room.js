@@ -129,26 +129,13 @@ async function openAddToWaitingRoomModal() {
 
 async function loadWaitingDoctorOptions() {
   const doctorSelect = document.getElementById('waiting-doctor-select');
-  const doctorGroup = document.getElementById('waiting-doctor-group');
-  const doctorCheckboxes = document.getElementById('waiting-doctor-checkboxes');
   if (!doctorSelect) return;
-
-  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
-  if (!isMultiple) {
-    if (doctorGroup) doctorGroup.style.display = 'none';
-    return;
-  }
-  if (doctorGroup) doctorGroup.style.display = '';
 
   const isPractitioner = currentUserRole === 'doctor' || currentUserRole === 'dentist';
   if (isPractitioner) {
     doctorSelect.innerHTML = `<option value="${currentUserId}">Moi (${currentUsername || 'Praticien'})</option>`;
     doctorSelect.value = currentUserId;
     doctorSelect.disabled = true;
-    if (doctorCheckboxes) {
-      doctorCheckboxes.style.display = 'block';
-      doctorCheckboxes.innerHTML = `<label><input type="checkbox" value="${currentUserId}" checked> Moi (${currentUsername || 'Praticien'})</label>`;
-    }
     return;
   }
 
@@ -168,12 +155,20 @@ async function loadWaitingDoctorOptions() {
       return;
     }
 
-    doctorSelect.innerHTML = doctors
+    if (doctors.length === 1) {
+      const onlyDoctor = doctors[0];
+      doctorSelect.innerHTML = `<option value="${onlyDoctor.id}">${onlyDoctor.fullName || onlyDoctor.username || 'Médecin'}</option>`;
+      doctorSelect.value = onlyDoctor.id;
+      doctorSelect.disabled = true;
+      return;
+    }
+
+    doctorSelect.innerHTML = '<option value="">-- Choisir un médecin --</option>' + doctors
       .map((user) => `<option value="${user.id}">${user.fullName || user.username || 'Médecin'}</option>`)
       .join('');
-    if (doctorCheckboxes) {
-      doctorCheckboxes.style.display = 'grid';
-      doctorCheckboxes.innerHTML = doctors.map((user) => `<label><input type="checkbox" value="${user.id}"> ${user.fullName || user.username || 'Médecin'}</label>`).join('');
+    const activeDoctorId = String(window.activePatientDoctorId || '');
+    if (doctors.some((doctor) => String(doctor.id) === activeDoctorId)) {
+      doctorSelect.value = activeDoctorId;
     }
   } catch (error) {
     console.error('Error loading doctors list for waiting room:', error);
@@ -188,29 +183,7 @@ async function addToWaitingRoom(event) {
   event.preventDefault();
 
   const patientId = document.getElementById('waiting-patient-select').value;
-  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
-  let assignedTo;
-  if (isMultiple) {
-    assignedTo = [...document.querySelectorAll('#waiting-doctor-checkboxes input:checked')].map((input) => input.value);
-  } else {
-    assignedTo = null;
-    try {
-      let role = currentUserRole || localStorage.getItem('currentUserRole') || '';
-      if (role === 'doctor' || role === 'dentist') {
-        assignedTo = [currentUserId || localStorage.getItem('currentUserId')].filter(Boolean);
-      }
-      if (!assignedTo || !assignedTo.length) {
-        const res = await window.api.user.getAll({ requestingUserId: currentUserId || localStorage.getItem('currentUserId') });
-        const users = Array.isArray(res?.data) ? res.data : [];
-        const doctors = users.filter(u => u && u.isActive && !u.isSuperAdmin && (u.role === 'doctor' || u.role === 'dentist'));
-        if (doctors.length) {
-          assignedTo = [doctors[0].id];
-        }
-      }
-    } catch (_) {
-      assignedTo = null;
-    }
-  }
+  const assignedTo = document.getElementById('waiting-doctor-select')?.value;
   const arrivalTime = document.getElementById('waiting-arrival-time').value;
   const reason = document.getElementById('waiting-reason').value;
   const notes = document.getElementById('waiting-notes').value;
@@ -220,8 +193,8 @@ async function addToWaitingRoom(event) {
     return;
   }
 
-  if (isMultiple && !assignedTo.length) {
-    showNotification('Veuillez sélectionner au moins un médecin', 'error');
+  if (!assignedTo) {
+    showNotification('Veuillez sélectionner le médecin responsable', 'error');
     return;
   }
 
@@ -309,8 +282,7 @@ function renderWaitingRoom() {
   if (waitingRoomData.length === 0) {
     container.innerHTML = `
       <div class="waiting-empty">
-        <span class="waiting-empty-icon">🩺</span>
-        <p style="margin-top: 15px;">Aucun patient en salle d'attente</p>
+        <p>Aucun patient en salle d'attente</p>
       </div>
     `;
     return;
@@ -511,7 +483,7 @@ async function notifyDoctor(waitingId) {
       message: `${item.lastName} ${item.firstName} est prêt pour la consultation`,
       relatedType: 'waiting-room',
       relatedId: waitingId,
-      userId: null // Will be sent to all doctors
+      userId: item.assignedTo || null
     });
     
     // Show visual notification
@@ -538,7 +510,7 @@ async function notifyDoctorIn2Min(waitingId) {
       message: `${item.lastName} ${item.firstName} entrera dans 2 minutes`,
       relatedType: 'waiting-room',
       relatedId: waitingId,
-      userId: null // Will be sent to all doctors
+      userId: item.assignedTo || null
     });
     
     // Show visual notification
@@ -558,10 +530,23 @@ async function notifyDoctorIn2Min(waitingId) {
  */
 async function startConsultation(waitingId) {
   try {
-    await window.api.waitingRoom.updateStatus(waitingId, 'in-consultation');
-    
     const item = waitingRoomData.find(w => w.id === waitingId);
-    if (item) {
+    if (!item?.patientId) {
+      showNotification('Patient introuvable dans la salle d’attente', 'error');
+      return;
+    }
+
+    const patient = typeof showPatientDetails === 'function'
+      ? await showPatientDetails(item.patientId)
+      : null;
+    if (!patient) return;
+
+    const statusResult = await window.api.waitingRoom.updateStatus(waitingId, 'in-consultation');
+    if (statusResult?.success === false) {
+      throw new Error(statusResult.error || 'Impossible de démarrer la consultation');
+    }
+
+    try {
       // Notify assistant that consultation started
       await window.api.notification.create({
         type: 'consultation-started',
@@ -571,45 +556,23 @@ async function startConsultation(waitingId) {
         relatedId: waitingId,
         userId: null
       });
-      
-      loadWaitingRoom();
-      showNotification('Consultation démarrée - Redirection vers le dossier patient', 'success');
-      
-      // Navigate to patient details
-      if (item.patientId) {
-        // Set global patient ID
-        if (typeof window !== 'undefined') {
-          window.currentPatientId = item.patientId;
-        }
-        
-        // Navigate to patients section
-        if (typeof navigateToSection === 'function') {
-          navigateToSection('patients');
-        } else {
-          // Fallback: manually navigate
-          document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-          const patientsSection = document.getElementById('patients');
-          if (patientsSection) patientsSection.classList.add('active');
-          const patientsNav = document.querySelector('.nav-item[data-section="patients"]');
-          if (patientsNav) patientsNav.classList.add('active');
-        }
-        
-        // Then show patient details
-        setTimeout(() => {
-          if (typeof showPatientDetails === 'function') {
-            showPatientDetails(item.patientId);
-          }
-        }, 100);
-      }
-    } else {
-      loadWaitingRoom();
-      showNotification('Consultation démarrée', 'success');
+    } catch (notificationError) {
+      console.warn('Consultation started but notification failed:', notificationError);
     }
-    
+
+    await loadWaitingRoom();
+    await openNewConsultationModal();
+
+    const consultationForm = document.getElementById('consultation-form');
+    if (consultationForm) consultationForm.dataset.waitingRoomId = waitingId;
+
+    const reasonInput = document.getElementById('consultation-reason');
+    if (reasonInput && item.reason) reasonInput.value = item.reason;
+    reasonInput?.focus();
+    showNotification('Consultation démarrée', 'success');
   } catch (error) {
     console.error('Error starting consultation:', error);
-    showNotification('Erreur', 'error');
+    showNotification(error.message || 'Erreur lors du démarrage de la consultation', 'error');
   }
 }
 

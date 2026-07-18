@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
     <title>MedCareSO v2.1.1</title>
     <script>
         // Prevent sidebar/layout flicker before JS modules load.
@@ -947,6 +948,18 @@
                 <!-- Patients Section -->
                 <section id="patients" class="section">
                     <div class="patients-container">
+                        <div id="patients-scope-bar" class="patients-scope-bar" hidden>
+                            <div class="patients-view-tabs" role="tablist" aria-label="Vue des patients">
+                                <button type="button" id="patients-my-list-tab" class="patients-view-tab active"
+                                    onclick="switchPatientsView('mine')">Mes patients</button>
+                                <button type="button" id="patients-directory-tab" class="patients-view-tab"
+                                    onclick="switchPatientsView('directory')">Répertoire global</button>
+                            </div>
+                            <label id="patients-doctor-scope-wrap" class="patients-doctor-scope" hidden>
+                                <span>Médecin</span>
+                                <select id="patients-doctor-scope" class="form-control" onchange="changePatientsDoctorScope(this.value)"></select>
+                            </label>
+                        </div>
                         <div class="patients-toolbar">
                             <div class="patients-search-wrap">
                                 <span class="patients-search-icon" aria-hidden="true"></span>
@@ -954,7 +967,6 @@
                                     placeholder="Rechercher par nom, prénom, téléphone ou numéro SS..."
                                     aria-label="Rechercher un patient">
                             </div>
-                            <select id="patients-medecin-filter" class="form-control patients-medecin-filter" style="display:none" aria-label="Filtrer par médecin"></select>
                             <button class="btn btn-primary patients-add-btn" onclick="showPatientForm()">+ Ajouter un patient</button>
                         </div>
 
@@ -966,13 +978,12 @@
                                     <th>Date de Naissance</th>
                                     <th>Numéro SS</th>
                                     <th>Téléphone</th>
-                                    <th class="patients-medecin-column" style="display:none">Médecin(s)</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="patients-tbody">
                                 <tr class="empty-row">
-                                    <td colspan="7" class="text-center">Aucun patient trouvé</td>
+                                    <td colspan="6" class="text-center">Aucun patient trouvé</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1039,8 +1050,7 @@
                                 </div>
                                 <div id="imaging-preview-panel" class="imaging-preview-panel">
                                     <div class="imaging-preview-placeholder">
-                                        Choisissez un patient, importez un examen, puis cliquez sur une carte pour
-                                        afficher l’aperçu.
+                                        Sélectionnez un examen pour afficher l’aperçu.
                                     </div>
                                 </div>
                             </div>
@@ -1239,6 +1249,10 @@
                             <button class="btn btn-primary" onclick="openNewConsultationModal()">Nouvelle
                                 consultation</button>
                         </div>
+                    </div>
+
+                    <div id="patient-medical-overview" class="medical-overview" aria-live="polite">
+                        <div class="medical-overview-loading">Chargement du r&eacute;sum&eacute; m&eacute;dical...</div>
                     </div>
 
                     <div class="patient-details-grid patient-details-overview">
@@ -1565,7 +1579,7 @@
                     <!-- Payment Requests for Doctor & Assistant -->
                     <div id="payment-requests-section" class="card" style="margin-bottom: 20px; display: none;">
                         <div class="card-header" style="background: #fff3cd; border-radius: 8px 8px 0 0;">
-                            <h3>📥 Paiements à Encaisser <span id="payment-requests-badge"
+                            <h3>Paiements à encaisser <span id="payment-requests-badge"
                                     class="badge-count hidden">0</span></h3>
                         </div>
                         <div id="payment-requests-list" style="padding: 15px;">
@@ -1736,70 +1750,21 @@
                 <section id="inventory" class="section module-workspace">
                     <!-- Stats Cards -->
                     <div class="inventory-stats-grid inventory-overview-grid">
-                        <div class="inventory-stat-card inventory-stat-card-primary">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p
-                                        style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
-                                        Total Articles</p>
-                                    <div id="stat-total-items"
-                                        style="font-size: 42px; font-weight: 700; line-height: 1;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Articles en stock</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;">
-                                    <span style="font-size: 28px;">📦</span>
-                                </div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Articles</span>
+                            <strong id="stat-total-items">0</strong>
                         </div>
-
-                        <div class="inventory-stat-card inventory-stat-card-warning">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p
-                                        style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
-                                        Stock Bas</p>
-                                    <div id="stat-low-stock" style="font-size: 42px; font-weight: 700; line-height: 1;">
-                                        0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Articles à commander
-                                    </p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;">
-                                    <span style="font-size: 28px;">⚠️</span>
-                                </div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Stock bas</span>
+                            <strong id="stat-low-stock">0</strong>
                         </div>
-
-                        <div class="inventory-stat-card inventory-stat-card-info">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p
-                                        style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
-                                        Valeur Stock</p>
-                                    <div id="stat-stock-value"
-                                        style="font-size: 32px; font-weight: 700; line-height: 1;">0 DZD</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Valeur totale</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;">
-                                    <span style="font-size: 28px;">💰</span>
-                                </div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Valeur</span>
+                            <strong id="stat-stock-value">0 DZD</strong>
                         </div>
-
-                        <div class="inventory-stat-card inventory-stat-card-success">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p
-                                        style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
-                                        Expire bientôt</p>
-                                    <div id="inventory-expiring"
-                                        style="font-size: 42px; font-weight: 700; line-height: 1;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Lots à surveiller
-                                    </p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;">
-                                    <span style="font-size: 28px;">🗓️</span>
-                                </div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Expire bientôt</span>
+                            <strong id="inventory-expiring">0</strong>
                         </div>
                     </div>
 
@@ -1872,10 +1837,8 @@
                                     <tbody id="inventory-tbody">
                                         <tr class="empty-row">
                                             <td colspan="8" class="text-center" style="padding: 60px;">
-                                                <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
-                                                    <span style="font-size: 64px; opacity: 0.5;">📦</span>
+                                                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
                                                     <p style="color: #94a3b8; margin: 0; font-size: 16px;">Aucun article en stock</p>
-                                                    <button class="btn btn-primary" onclick="openInventoryModal()" style="margin-top: 10px;">➕ Ajouter un article</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -2106,45 +2069,21 @@
                 <section id="equipment" class="section module-workspace">
                     <!-- Stats Cards -->
                     <div class="inventory-stats-grid inventory-overview-grid">
-                        <div class="inventory-stat-card inventory-stat-card-primary">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Total Équipements</p>
-                                    <div id="equip-stat-total" style="font-size: 42px; font-weight: 700; line-height: 1;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Appareils enregistrés</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;"><span style="font-size: 28px;">🔧</span></div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Équipements</span>
+                            <strong id="equip-stat-total">0</strong>
                         </div>
-                        <div class="inventory-stat-card inventory-stat-card-warning">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Maintenance à venir</p>
-                                    <div id="equip-stat-upcoming" style="font-size: 42px; font-weight: 700; line-height: 1;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Interventions prévues</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;"><span style="font-size: 28px;">🗓️</span></div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Maintenance à venir</span>
+                            <strong id="equip-stat-upcoming">0</strong>
                         </div>
-                        <div class="inventory-stat-card inventory-stat-card-danger">
-                            <div style="background:#fef2f2; display: flex; justify-content: space-between; align-items: flex-start; padding: 20px; border-radius: 12px;">
-                                <div>
-                                    <p style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">En maintenance</p>
-                                    <div id="equip-stat-inmai" style="font-size: 42px; font-weight: 700; line-height: 1; color: #dc2626;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0; color: #dc2626;">Hors service / intervention</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;"><span style="font-size: 28px;">⚠️</span></div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">En maintenance</span>
+                            <strong id="equip-stat-inmai">0</strong>
                         </div>
-                        <div class="inventory-stat-card inventory-stat-card-success">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <p style="opacity: 0.9; font-size: 14px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Disponibles</p>
-                                    <div id="equip-stat-avail" style="font-size: 42px; font-weight: 700; line-height: 1;">0</div>
-                                    <p style="opacity: 0.8; font-size: 13px; margin: 8px 0 0 0;">Prêts à l'usage</p>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 12px;"><span style="font-size: 28px;">✅</span></div>
-                            </div>
+                        <div class="inventory-stat-card">
+                            <span class="inventory-stat-label">Disponibles</span>
+                            <strong id="equip-stat-avail">0</strong>
                         </div>
                     </div>
 
@@ -2213,7 +2152,7 @@
                     <!-- TAB: Alerts -->
                     <div id="equipment-tab-alerts" class="equipment-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px;">
-                            <h3 style="margin: 0 0 16px 0; font-size: 18px;">⚠️ Alertes de Maintenance</h3>
+                            <h3 style="margin: 0 0 16px 0; font-size: 18px;">Maintenance</h3>
                             <div id="equipment-alerts-overdue" style="margin-bottom: 20px;">
                                 <h4 style="color: #dc2626; margin: 0 0 8px 0;">En retard</h4>
                                 <div style="display: grid; gap: 10px;" id="equipment-alerts-overdue-list"></div>
@@ -2229,10 +2168,6 @@
                         </div>
                     </div>
 
-                    <!-- TAB: Add -->
-                    <div id="equipment-tab-add" class="equipment-tab-content" style="display: none;">
-                        <div id="equipment-add-form-container" class="card" style="padding: 20px;"></div>
-                    </div>
                 </section>
 
                 <!-- Statistics Section -->
@@ -3474,9 +3409,9 @@
                             <div
                                 style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                                 <div>
-                                    <h3 style="margin-bottom: 6px;">📅 Portail RDV local</h3>
-                                    <p style="margin:0;color:#64748b;font-size:14px;">Activez ou désactivez la prise de
-                                        rendez-vous locale, puis enregistrez cette section séparément.</p>
+                                    <h3 style="margin-bottom: 6px;">📱 Accueil QR &amp; RDV local</h3>
+                                    <p style="margin:0;color:#64748b;font-size:14px;">Les patients peuvent signaler leur
+                                        arrivée, suivre leur position ou prendre rendez-vous depuis leur téléphone.</p>
                                 </div>
                             </div>
 
@@ -3485,7 +3420,7 @@
                                     <label>Activation</label>
                                     <div style="display:flex;align-items:center;gap:10px;padding-top:12px;">
                                         <input type="checkbox" id="public-booking-enabled">
-                                        <span style="font-weight:600;">Activer la prise de RDV sans appel</span>
+                                        <span style="font-weight:600;">Activer le portail patient du cabinet</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -3508,6 +3443,27 @@
                                 </div>
                             </div>
 
+                            <div class="form-row" style="align-items:center;">
+                                <div class="form-group">
+                                    <label>QR code à afficher dans le cabinet</label>
+                                    <div style="min-height:190px;display:flex;align-items:center;justify-content:center;border:1px solid #dbe5ef;border-radius:18px;background:#fff;padding:14px;">
+                                        <img id="public-booking-qr-image" alt="QR code du portail patient"
+                                            style="display:none;width:180px;height:180px;object-fit:contain;">
+                                        <span id="public-booking-qr-empty" style="color:#64748b;text-align:center;">Activez et enregistrez le portail pour générer le QR code.</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Utilisation</label>
+                                    <div class="info-box" style="padding:14px;line-height:1.6;">
+                                        Imprimez ce QR code et placez-le à l’entrée. Le téléphone du patient doit être connecté au même réseau Wi-Fi que le PC serveur.
+                                    </div>
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+                                        <button type="button" class="btn btn-secondary" onclick="copyPublicBookingLink()">Copier le lien</button>
+                                        <button type="button" class="btn btn-secondary" onclick="printPublicBookingQr()">Imprimer le QR</button>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Lien local du cabinet</label>
@@ -3522,7 +3478,7 @@
 
                             <div style="display:flex;justify-content:flex-end;margin-top:18px;">
                                 <button type="button" class="btn btn-primary" onclick="savePublicBookingSettings()">💾
-                                    Enregistrer le portail RDV</button>
+                                    Enregistrer le portail patient</button>
                             </div>
                         </div>
 
@@ -3804,6 +3760,9 @@
             <form id="consultation-form" class="modal-body">
                 <input type="hidden" id="consultation-patientId">
 
+                <div id="consultation-patient-summary" class="medical-overview consultation-medical-overview"
+                    aria-label="R&eacute;sum&eacute; m&eacute;dical du patient"></div>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Date</label>
@@ -4068,6 +4027,47 @@
                         Ajouter Ordonnance</button>
                     <button type="button" id="consultation-save-btn" class="btn btn-primary"
                         onclick="document.getElementById('consultation-form').dispatchEvent(new Event('submit', {cancelable: true}))">Enregistrer</button>
+                    <button type="button" id="consultation-finish-btn" class="btn btn-success"
+                        onclick="openConsultationFinishChecklist()">Terminer la consultation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-consultation-finish" class="modal">
+        <div class="modal-content consultation-finish-dialog">
+            <div class="modal-header">
+                <div>
+                    <h2>Terminer la consultation</h2>
+                    <p class="consultation-finish-subtitle">V&eacute;rifiez ces points avant de cl&ocirc;turer.</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('modal-consultation-finish')">&times;</button>
+            </div>
+            <div class="modal-body consultation-finish-body">
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Dossier clinique relu</strong><small>Motif, examen, diagnostic et conduite &agrave; tenir.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Ordonnance et documents</strong><small>Remis au patient ou non n&eacute;cessaires.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Suivi expliqu&eacute;</strong><small>Examens et prochain rendez-vous d&eacute;finis si n&eacute;cessaire.</small></span>
+                </label>
+                <label class="consultation-finish-check">
+                    <input type="checkbox" name="consultation-finish-check" onchange="updateConsultationFinishChecklist()">
+                    <span><strong>Paiement orient&eacute;</strong><small>Transmis &agrave; l'accueil, encaiss&eacute; ou non applicable.</small></span>
+                </label>
+            </div>
+            <div class="modal-footer consultation-finish-footer">
+                <span id="consultation-finish-progress">0/4 v&eacute;rifi&eacute;s</span>
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('modal-consultation-finish')">Retour</button>
+                    <button type="button" id="consultation-finish-confirm" class="btn btn-success" disabled
+                        onclick="finishConsultationWithChecklist()">Enregistrer et terminer</button>
                 </div>
             </div>
         </div>
@@ -4917,8 +4917,8 @@
                     <div class="account-form-section simple-account-section">
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Rôle *</label>
-                                <select id="new-user-role" class="form-control" required
+                                <label for="new-user-role">Rôle *</label>
+                                <select id="new-user-role" name="role" class="form-control" required
                                     onchange="toggleSpecialtyField()">
                                     <option value="doctor">👨‍⚕️ Médecin</option>
                                     <option value="assistant">🧑‍💼 Assistant(e)</option>
@@ -4926,8 +4926,8 @@
                             </div>
 
                             <div class="form-group" id="doctor-specialty-group" style="display: none;">
-                                <label>Spécialité *</label>
-                                <select id="new-user-specialty" class="form-control">
+                                <label for="new-user-specialty">Spécialité *</label>
+                                <select id="new-user-specialty" name="specialty" class="form-control">
                                     <option value="general">Médecin généraliste</option>
                                 </select>
                             </div>
@@ -4935,32 +4935,37 @@
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Nom complet</label>
-                                <input type="text" id="new-user-fullname" class="form-control"
+                                <label for="new-user-fullname">Nom complet</label>
+                                <input type="text" id="new-user-fullname" name="fullName" class="form-control"
+                                    autocomplete="name"
                                     placeholder="Ex: Dr. Ahmed Benali">
                             </div>
                             <div class="form-group">
-                                <label>Numéro de téléphone</label>
-                                <input type="tel" id="new-user-phone" class="form-control" placeholder="Ex: 0555123456">
+                                <label for="new-user-phone">Numéro de téléphone</label>
+                                <input type="tel" id="new-user-phone" name="phone" class="form-control"
+                                    autocomplete="tel" placeholder="Ex: 0555123456">
                             </div>
                         </div>
 
                         <div class="form-row account-row-single">
                             <div class="form-group">
-                                <label>Nom d'utilisateur *</label>
-                                <input type="text" id="new-username" class="form-control" required minlength="3"
+                                <label for="new-username">Nom d'utilisateur *</label>
+                                <input type="text" id="new-username" name="username" class="form-control" required minlength="3"
+                                    autocomplete="off"
                                     placeholder="ex: dr.benali">
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label id="new-user-password-label">Mot de passe temporaire *</label>
-                                <input type="password" id="new-user-password" class="form-control" required>
+                                <label id="new-user-password-label" for="new-user-password">Mot de passe temporaire *</label>
+                                <input type="password" id="new-user-password" name="password" class="form-control"
+                                    autocomplete="new-password" required>
                             </div>
                             <div class="form-group">
-                                <label id="new-user-confirm-password-label">Confirmer le mot de passe *</label>
-                                <input type="password" id="new-user-confirm-password" class="form-control" required>
+                                <label id="new-user-confirm-password-label" for="new-user-confirm-password">Confirmer le mot de passe *</label>
+                                <input type="password" id="new-user-confirm-password" name="confirmPassword" class="form-control"
+                                    autocomplete="new-password" required>
                             </div>
                         </div>
                         <small class="field-hint" id="user-password-hint">Mot de passe requis à la création. Laissez
@@ -4968,6 +4973,9 @@
                     </div>
 
                     <div class="account-modal-actions">
+                        <button type="submit" class="btn btn-secondary" id="user-form-submit-and-add-btn">
+                            Créer et ajouter un autre
+                        </button>
                         <button type="submit" class="btn btn-success" id="user-form-submit-btn">Créer le compte</button>
                         <button type="button" class="btn btn-secondary"
                             onclick="closeModal('modal-add-user')">Annuler</button>
@@ -5756,7 +5764,7 @@
                 <h2 id="medication-modal-title">💊 Nouveau Médicament</h2>
                 <button class="close-btn" onclick="closeModal('modal-medication')">&times;</button>
             </div>
-            <form id="medication-form" class="modal-body" onsubmit="saveMedication(event)">
+            <form id="medication-editor-form" class="modal-body" onsubmit="saveMedication(event)">
                 <input type="hidden" id="medication-id">
 
                 <div class="form-group">
@@ -5778,7 +5786,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Forme galénique</label>
-                        <input type="text" id="medication-form" class="form-control"
+                        <input type="text" id="medication-dosage-form-input" class="form-control"
                             placeholder="Ex: Comprimé, Gélule, Sirop">
                     </div>
                     <div class="form-group">
@@ -5965,7 +5973,6 @@
                     <select id="waiting-doctor-select" class="form-control" required>
                         <option value="">Sélectionner un médecin</option>
                     </select>
-                    <div id="waiting-doctor-checkboxes" class="waiting-doctor-checkboxes" style="display:none"></div>
                 </div>
 
                 <div class="form-group">
@@ -6076,7 +6083,6 @@
     <script src="js/modules/document-generation.js"></script>
     <script src="js/modules/file-viewer.js"></script>
     <script src="js/modules/prescriptions.js"></script>
-    <script src="js/modules/patients.js"></script>
     <script src="js/modules/statistics.js"></script>
     <script src="js/modules/patient-documents.js"></script>
     <script src="js/modules/attachments.js"></script>
@@ -6086,23 +6092,17 @@
     <script src="js/modules/patient-details.js"></script>
     <script src="js/modules/payments.js"></script>
     <script src="js/modules/expenses.js"></script>
-    <script src="js/modules/inventory.js"></script>
     <script src="js/modules/equipment.js"></script>
     <script src="js/modules/logout.js"></script>
-    <script src="js/modules/calendar.js"></script>
-    <script src="js/modules/rehabilitation.js"></script>
     <script src="js/modules/waiting-room.js"></script>
-    <script src="js/modules/kine-staff.js"></script>
-    <script src="js/modules/daily-summary.js"></script>
     <script src="js/modules/package-config.js"></script>
-    <script src="js/modules/dentistry.js"></script>
     <script src="js/modules/treatment-plans.js"></script>
-    <script src="js/modules/cardiology.js"></script>
     <script src="js/modules/analysis.js"></script>
     <script src="js/modules/medical-imaging.js"></script>
     <script src="js/modules/sms-config.js"></script>
     <script src="js/modules/cloud-sync.js"></script>
     <script src="js/modules/init.js"></script>
+    <script type="module" src="app/bootstrap.js"></script>
 </body>
 
 </html>

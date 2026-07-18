@@ -146,7 +146,7 @@ function setCachedRemoteMedicationSearch(term, data) {
   medicationRemoteSearchCache.set(key, { at: Date.now(), data });
 }
 
-function repairMojibakeText(value) {
+function repairPrescriptionMojibakeText(value) {
   const text = String(value ?? '');
   if (!text) {
     return '';
@@ -184,12 +184,12 @@ function repairMojibakeText(value) {
 function normalizeMedicationRecord(medication = {}) {
   return {
     ...medication,
-    name: repairMojibakeText(medication.name || ''),
-    dosage: repairMojibakeText(medication.dosage || ''),
-    intake: repairMojibakeText(medication.intake || medication.dose || ''),
-    duration: repairMojibakeText(medication.duration || ''),
-    boxes: repairMojibakeText(medication.boxes || ''),
-    instructions: repairMojibakeText(medication.instructions || medication.notes || '')
+    name: repairPrescriptionMojibakeText(medication.name || ''),
+    dosage: repairPrescriptionMojibakeText(medication.dosage || ''),
+    intake: repairPrescriptionMojibakeText(medication.intake || medication.dose || ''),
+    duration: repairPrescriptionMojibakeText(medication.duration || ''),
+    boxes: repairPrescriptionMojibakeText(medication.boxes || ''),
+    instructions: repairPrescriptionMojibakeText(medication.instructions || medication.notes || '')
   };
 }
 
@@ -829,13 +829,13 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
     }
 
     suggestionsDiv.innerHTML = matches.map(med => {
-      const highlighted = query ? highlightMedicationMatch(med.name, query) : escapeHtml(med.name);
+      const highlighted = query ? highlightMedicationMatch(med.name, query) : escapePrescriptionHtml(med.name);
       const metaParts = [med.dosage, med.intake, med.duration, med.boxes].filter(Boolean);
       const metaText = metaParts.length ? metaParts.join(' - ') : '';
       const usageBadge = med.usageCount ? `<span style="background:#e3f2fd;color:#0d47a1;font-size:11px;padding:2px 6px;border-radius:10px;">${med.usageCount}x</span>` : '';
       const lastUsed = med.lastUsed ? `<small style="color:#999;">${new Date(med.lastUsed).toLocaleDateString('fr-FR')}</small>` : '';
       const genericName = String(med.genericName || '').trim();
-      const genericLabel = genericName ? `<div style="color:#6b7280;font-size:12px;">${escapeHtml(genericName)}</div>` : '';
+      const genericLabel = genericName ? `<div style="color:#6b7280;font-size:12px;">${escapePrescriptionHtml(genericName)}</div>` : '';
       return `
         <div class="suggestion-item" 
              data-name="${escapeHtmlAttribute(med.name)}" 
@@ -917,20 +917,20 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
       return;
     }
 
-    nameField.value = repairMojibakeText(target.dataset.name);
+    nameField.value = repairPrescriptionMojibakeText(target.dataset.name);
     if (!enforceUniqueMedicationName(nameField, { notify: true })) {
       closeSuggestions();
       return;
     }
 
     const dosageField = medRow.querySelector('.medication-dosage');
-    if (dosageField) dosageField.value = repairMojibakeText(target.dataset.dosage || '');
-    medRow.querySelector('.medication-intake').value = repairMojibakeText(target.dataset.intake || '');
-    medRow.querySelector('.medication-duration').value = repairMojibakeText(target.dataset.duration || '');
-    medRow.querySelector('.medication-boxes').value = repairMojibakeText(target.dataset.boxes || '');
+    if (dosageField) dosageField.value = repairPrescriptionMojibakeText(target.dataset.dosage || '');
+    medRow.querySelector('.medication-intake').value = repairPrescriptionMojibakeText(target.dataset.intake || '');
+    medRow.querySelector('.medication-duration').value = repairPrescriptionMojibakeText(target.dataset.duration || '');
+    medRow.querySelector('.medication-boxes').value = repairPrescriptionMojibakeText(target.dataset.boxes || '');
     const notesField = medRow.querySelector('.medication-notes');
     if (notesField && target.dataset.notes) {
-      notesField.value = repairMojibakeText(target.dataset.notes);
+      notesField.value = repairPrescriptionMojibakeText(target.dataset.notes);
     }
 
     closeSuggestions();
@@ -1044,7 +1044,7 @@ function sanitizeMedicationForHistory(medication, fallbackLastUsed = null) {
 }
 
 function highlightMedicationMatch(text, query) {
-  const safeText = escapeHtml(text);
+  const safeText = escapePrescriptionHtml(text);
   if (!query) {
     return safeText;
   }
@@ -1065,7 +1065,7 @@ function escapeHtmlAttribute(value) {
     .replace(/>/g, '&gt;');
 }
 
-function escapeHtml(value) {
+function escapePrescriptionHtml(value) {
   if (!value) {
     return '';
   }
@@ -1117,12 +1117,12 @@ function validateMedications({ notify = false } = {}) {
 function getMedicationsFromForm() {
   const medications = [];
   document.querySelectorAll('#medications-list > .medication-row').forEach(box => {
-    const name = repairMojibakeText(box.querySelector('.medication-name')?.value.trim());
-    const dosage = repairMojibakeText(box.querySelector('.medication-dosage')?.value.trim());
-    const intake = repairMojibakeText(box.querySelector('.medication-intake')?.value.trim());
-    const duration = repairMojibakeText(box.querySelector('.medication-duration')?.value.trim());
-    const boxesValue = repairMojibakeText(box.querySelector('.medication-boxes')?.value.trim());
-    const notes = repairMojibakeText(box.querySelector('.medication-notes')?.value.trim());
+    const name = repairPrescriptionMojibakeText(box.querySelector('.medication-name')?.value.trim());
+    const dosage = repairPrescriptionMojibakeText(box.querySelector('.medication-dosage')?.value.trim());
+    const intake = repairPrescriptionMojibakeText(box.querySelector('.medication-intake')?.value.trim());
+    const duration = repairPrescriptionMojibakeText(box.querySelector('.medication-duration')?.value.trim());
+    const boxesValue = repairPrescriptionMojibakeText(box.querySelector('.medication-boxes')?.value.trim());
+    const notes = repairPrescriptionMojibakeText(box.querySelector('.medication-notes')?.value.trim());
     
     if (name && dosage) {
       medications.push({

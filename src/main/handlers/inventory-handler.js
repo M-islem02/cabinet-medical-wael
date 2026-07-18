@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -77,6 +77,7 @@ export function handleInventoryEvents() {
   // Créer un article
   ipcMain.handle('inventory:create', async (event, data) => {
     try {
+      return await withTransaction(async () => {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const quantity = toIntOrDefault(data.quantity, 0);
@@ -127,6 +128,7 @@ export function handleInventoryEvents() {
       }
 
       return { success: true, id };
+      });
     } catch (error) {
       console.error('Erreur création article:', error);
       return { success: false, error: error.message };
@@ -156,21 +158,21 @@ export function handleInventoryEvents() {
         sql += ' AND i.quantity <= i.minQuantity';
       }
       if (request.expiring) {
-        sql += " AND i.expirationDate IS NOT NULL AND i.expirationDate <= DATE('now', '+30 day')";
+        sql += " AND i.expirationDate IS NOT NULL AND i.expirationDate <= CURRENT_DATE + INTERVAL '30 days'";
       }
       if (request.search) {
         const searchPattern = `%${request.search}%`;
         sql += hasSuppliers
-          ? ' AND (i.name LIKE ? OR i.category LIKE ? OR i.supplier LIKE ? OR i.location LIKE ? OR s.name LIKE ?)'
-          : ' AND (i.name LIKE ? OR i.category LIKE ? OR i.supplier LIKE ? OR i.location LIKE ?)';
+          ? ' AND (i.name ILIKE ? OR i.category ILIKE ? OR i.supplier ILIKE ? OR i.location ILIKE ? OR s.name ILIKE ?)'
+          : ' AND (i.name ILIKE ? OR i.category ILIKE ? OR i.supplier ILIKE ? OR i.location ILIKE ?)';
         params.push(searchPattern, searchPattern, searchPattern, searchPattern);
         if (hasSuppliers) params.push(searchPattern);
       }
       if (filters && filters.isActive !== undefined) {
         sql += ' AND i.isActive = ?';
-        params.push(request.isActive ? 1 : 0);
+        params.push(Boolean(request.isActive));
       } else {
-        sql += ' AND i.isActive = 1';
+        sql += ' AND i.isActive = TRUE';
       }
 
       const orderByClause = ' ORDER BY i.name';
@@ -257,9 +259,10 @@ export function handleInventoryEvents() {
   // Ajuster le stock (entrée/sortie) — utilise les lots FEFO
   ipcMain.handle('inventory:adjustStock', async (event, inventoryId, quantity, movementType, reason = '', reference = '', createdBy = null) => {
     try {
+      return await withTransaction(async () => {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
 
-      const item = await queryOne('SELECT quantity, purchasePrice FROM inventory WHERE id = ?', [inventoryId]);
+      const item = await queryOne('SELECT quantity, purchasePrice FROM inventory WHERE id = ? FOR UPDATE', [inventoryId]);
       if (!item) {
         return { success: false, error: 'Article non trouvé' };
       }
@@ -283,8 +286,9 @@ export function handleInventoryEvents() {
         // Déduire selon FEFO
         const lots = await query(
           `SELECT * FROM inventory_lots
-           WHERE inventoryId = ? AND remainingQuantity > 0 AND isActive = 1
-           ORDER BY CASE WHEN expirationDate IS NULL THEN 1 ELSE 0 END, expirationDate ASC, createdAt ASC`,
+           WHERE inventoryId = ? AND remainingQuantity > 0 AND isActive = TRUE
+           ORDER BY CASE WHEN expirationDate IS NULL THEN 1 ELSE 0 END, expirationDate ASC, createdAt ASC
+           FOR UPDATE`,
           [inventoryId]
         );
         let remaining = quantity;
@@ -320,6 +324,7 @@ export function handleInventoryEvents() {
       );
 
       return { success: true, newQuantity };
+      });
     } catch (error) {
       console.error('Erreur ajustement stock:', error);
       return { success: false, error: error.message };
@@ -330,7 +335,7 @@ export function handleInventoryEvents() {
   ipcMain.handle('inventory:delete', async (event, id) => {
     try {
       await run(
-        'UPDATE inventory SET isActive = 0, updatedAt = ? WHERE id = ?',
+        'UPDATE inventory SET isActive = FALSE, updatedAt = ? WHERE id = ?',
         [moment().format('YYYY-MM-DD HH:mm:ss'), id]
       );
       return { success: true };
@@ -363,7 +368,7 @@ export function handleInventoryEvents() {
   ipcMain.handle('inventory:getLowStock', async () => {
     try {
       const items = await query(
-        'SELECT * FROM inventory WHERE quantity <= minQuantity AND isActive = 1 ORDER BY name'
+        'SELECT * FROM inventory WHERE quantity <= minQuantity AND isActive = TRUE ORDER BY name'
       );
       return { success: true, data: items };
     } catch (error) {
@@ -382,7 +387,7 @@ export function handleInventoryEvents() {
          WHERE expirationDate IS NOT NULL
          AND expirationDate <= ?
          AND expirationDate >= ?
-         AND isActive = 1
+         AND isActive = TRUE
          ORDER BY expirationDate`,
         [futureDate, today]
       );
@@ -396,13 +401,13 @@ export function handleInventoryEvents() {
   // Statistiques inventaire
   ipcMain.handle('inventory:getStats', async () => {
     try {
-      const totalItems = await queryOne('SELECT COUNT(*) as count FROM inventory WHERE isActive = 1');
-      const totalValue = await queryOne('SELECT SUM(quantity * purchasePrice) as value FROM inventory WHERE isActive = 1');
-      const lowStockCount = await queryOne('SELECT COUNT(*) as count FROM inventory WHERE quantity <= minQuantity AND isActive = 1');
+      const totalItems = await queryOne('SELECT COUNT(*) as count FROM inventory WHERE isActive = TRUE');
+      const totalValue = await queryOne('SELECT SUM(quantity * purchasePrice) as value FROM inventory WHERE isActive = TRUE');
+      const lowStockCount = await queryOne('SELECT COUNT(*) as count FROM inventory WHERE quantity <= minQuantity AND isActive = TRUE');
 
       const byCategory = await query(
         `SELECT category, COUNT(*) as count, SUM(quantity) as totalQuantity
-         FROM inventory WHERE isActive = 1 GROUP BY category ORDER BY count DESC`
+         FROM inventory WHERE isActive = TRUE GROUP BY category ORDER BY count DESC`
       );
 
       return {

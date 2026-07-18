@@ -1,3 +1,7 @@
+import { inventoryApi } from '../../features/inventory/inventory-api.js';
+import { renderInventoryPaginationView } from '../../features/inventory/inventory-pagination.js';
+import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
+
 // =============================================
 // INVENTORY / STOCK MANAGEMENT MODULE — Sous-plan F
 // Articles, Fournisseurs, Lots FEFO, Commandes, Historique, Point de Vente
@@ -105,7 +109,7 @@ async function loadInventoryCategories() {
 
 async function loadSupplierSelects() {
     try {
-        const result = await window.api.supplier.getAll({ isActive: true });
+        const result = await inventoryApi.getSuppliers({ isActive: true });
         suppliersData = (result && result.success) ? result.data : [];
         const selects = [
             'inventory-supplier-id',
@@ -124,7 +128,7 @@ async function loadSupplierSelects() {
 
 async function loadPatientSelectForPOS() {
     try {
-        const result = await window.api.patient.getAll();
+        const result = await inventoryApi.getPatients();
         const sel = document.getElementById('pos-patient-select');
         if (!sel || !result.success) return;
         sel.innerHTML = '<option value="">-- Aucun --</option>' +
@@ -165,7 +169,7 @@ function switchInventoryTab(tabName) {
 
 async function loadInventoryStats() {
     try {
-        const statsResult = await window.api.inventory.getFullStats();
+        const statsResult = await inventoryApi.getFullStats();
         const stats = (statsResult && statsResult.success) ? statsResult.data : {};
 
         const totalItemsEl = document.getElementById('stat-total-items');
@@ -198,17 +202,9 @@ function updateInventoryPagination(pagination = null) {
 }
 
 function renderInventoryPagination() {
-    const container = document.getElementById('inventory-pagination');
+    const container = document.getElementById('inventory-main-pagination');
     if (!container) return;
-    const total = Number(inventoryPagination.total || 0);
-    const pageSize = Number(inventoryPagination.pageSize || INVENTORY_PAGE_SIZE);
-    const currentPage = Math.max(1, Number(inventoryPagination.page || 1));
-    const totalPages = Math.max(1, Number(inventoryPagination.totalPages || 1));
-    container.style.display = 'inline-flex';
-    container.innerHTML = `
-        <span>${currentPage}/${totalPages}</span>
-        <button class="btn btn-secondary pagination-btn" title="Page précédente" aria-label="Page précédente" ${currentPage <= 1 ? 'disabled' : ''} onclick="changeInventoryPage(-1)">‹</button>
-        <button class="btn btn-secondary pagination-btn" title="Page suivante" aria-label="Page suivante" ${currentPage >= totalPages ? 'disabled' : ''} onclick="changeInventoryPage(1)">›</button>`;
+    renderInventoryPaginationView({ container, pagination: inventoryPagination, onPageChange: changeInventoryPage });
 }
 
 async function changeInventoryPage(direction) {
@@ -223,7 +219,7 @@ async function loadInventory(page = 1) {
         if (tbody && !inventoryData.length) {
             tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding: 40px; color: #94a3b8;">Chargement...</td></tr>`;
         }
-        const result = await window.api.inventory.getAll({
+        const result = await inventoryApi.getAll({
             ...inventoryFilters,
             page,
             pageSize: INVENTORY_PAGE_SIZE,
@@ -372,10 +368,10 @@ async function saveInventoryItem(event) {
     try {
         let result;
         if (id) {
-            result = await window.api.inventory.update(id, data);
+            result = await inventoryApi.update(id, data);
             showNotification('Article modifié avec succès', 'success');
         } else {
-            result = await window.api.inventory.create(data);
+            result = await inventoryApi.create(data);
             showNotification('Article ajouté avec succès', 'success');
         }
         if (result && !result.success) throw new Error(result.error || 'Erreur inconnue');
@@ -394,7 +390,7 @@ function editInventoryItem(id) { openInventoryModal(id); }
 async function deleteInventoryItem(id) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) return;
     try {
-        await window.api.inventory.delete(id);
+        await inventoryApi.delete(id);
         showNotification('Article supprimé', 'success');
         await loadInventory(inventoryPagination.page);
         await loadInventoryStats();
@@ -423,7 +419,7 @@ async function adjustStock(event) {
     const reason = document.getElementById('stock-adjust-reason').value.trim();
     if (quantity <= 0) { showNotification('La quantité doit être supérieure à 0', 'warning'); return; }
     try {
-        const result = await window.api.inventory.adjustStock(id, quantity, type, reason);
+        const result = await inventoryApi.adjustStock(id, quantity, type, reason);
         if (result && result.success) {
             showNotification(`Stock ${type === 'in' ? 'augmenté' : 'diminué'} avec succès`, 'success');
             closeModal('modal-stock-adjust');
@@ -451,7 +447,7 @@ function buildInventoryEmptyRow(colspan, title, description) {
 async function loadSuppliers() {
     try {
         const search = document.getElementById('supplier-search')?.value.trim() || '';
-        const result = await window.api.supplier.getAll({ search });
+        const result = await inventoryApi.getSuppliers({ search });
         suppliersData = (result && result.success) ? result.data : [];
         displaySuppliers();
     } catch (error) {
@@ -524,8 +520,8 @@ async function saveSupplier(event) {
     };
     try {
         const result = id
-            ? await window.api.supplier.update(id, data)
-            : await window.api.supplier.create(data);
+            ? await inventoryApi.updateSupplier(id, data)
+            : await inventoryApi.createSupplier(data);
         if (!result.success) throw new Error(result.error);
         closeModal('modal-supplier');
         showNotification(id ? 'Fournisseur modifié' : 'Fournisseur créé', 'success');
@@ -541,7 +537,7 @@ function editSupplier(id) { openSupplierModal(id); }
 async function deleteSupplier(id) {
     if (!confirm('Supprimer ce fournisseur ?')) return;
     try {
-        await window.api.supplier.delete(id);
+        await inventoryApi.deleteSupplier(id);
         showNotification('Fournisseur supprimé', 'success');
         await loadSuppliers();
         await loadSupplierSelects();
@@ -550,7 +546,7 @@ async function deleteSupplier(id) {
 
 async function viewSupplier(id) {
     try {
-        const result = await window.api.supplier.getById(id);
+        const result = await inventoryApi.getSupplier(id);
         if (!result.success) return;
         const s = result.data;
         const purchasesRows = (s.purchases || []).map(p => `
@@ -583,13 +579,13 @@ async function loadLots() {
         const search = document.getElementById('lots-search')?.value.trim() || '';
         let allLots = [];
         if (articleFilter) {
-            const result = await window.api.inventoryLot.getByInventory(articleFilter);
+            const result = await inventoryApi.getLots(articleFilter);
             allLots = result.success ? result.data : [];
         } else {
-            const articles = await window.api.inventory.getAll({ paginated: false });
+            const articles = await inventoryApi.getAll({ paginated: false });
             if (articles.success) {
                 for (const art of articles.data || []) {
-                    const result = await window.api.inventoryLot.getByInventory(art.id);
+                    const result = await inventoryApi.getLots(art.id);
                     if (result.success) allLots.push(...(result.data || []));
                 }
             }
@@ -637,7 +633,7 @@ function displayLots() {
 async function filterLots() {
     const articleFilter = document.getElementById('lots-article-filter');
     if (articleFilter && !articleFilter.options.length) {
-        const arts = await window.api.inventory.getAll({ paginated: false });
+        const arts = await inventoryApi.getAll({ paginated: false });
         articleFilter.innerHTML = '<option value="">Tous les articles</option>' +
             (arts.success ? arts.data : []).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     }
@@ -678,7 +674,7 @@ async function openInventoryLotModalForItem(inventoryId) {
 async function populateLotArticleSelect() {
     const sel = document.getElementById('inventory-lot-article');
     if (!sel || sel.options.length > 1) return;
-    const result = await window.api.inventory.getAll({ paginated: false });
+    const result = await inventoryApi.getAll({ paginated: false });
     sel.innerHTML = '<option value="">-- Sélectionner --</option>' +
         (result.success ? result.data : []).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 }
@@ -697,7 +693,7 @@ async function saveInventoryLot(event) {
     };
     if (!data.inventoryId) { showNotification('Sélectionnez un article', 'warning'); return; }
     try {
-        const result = await window.api.inventoryLot.create(data);
+        const result = await inventoryApi.createLot(data);
         if (!result.success) throw new Error(result.error);
         closeModal('modal-inventory-lot');
         showNotification('Lot enregistré', 'success');
@@ -714,7 +710,7 @@ function openInventoryLotAdjustModal(id) {
     if (qty === null) return;
     const newQty = parseInt(qty, 10);
     if (isNaN(newQty) || newQty < 0) { showNotification('Quantité invalide', 'warning'); return; }
-    window.api.inventoryLot.adjust(id, { remainingQuantity: newQty, reason: 'Ajustement manuel' })
+    inventoryApi.adjustLot(id, { remainingQuantity: newQty, reason: 'Ajustement manuel' })
         .then(async (result) => {
             if (result.success) {
                 showNotification('Lot ajusté', 'success');
@@ -733,7 +729,7 @@ async function loadPurchaseHistory() {
         const category = document.getElementById('history-category-filter')?.value || '';
         const start = document.getElementById('history-start')?.value || '';
         const end = document.getElementById('history-end')?.value || '';
-        const result = await window.api.inventory.getPurchaseHistory({ supplierId, category, startDate: start, endDate: end });
+        const result = await inventoryApi.getPurchaseHistory({ supplierId, category, startDate: start, endDate: end });
         purchaseHistoryData = (result && result.success) ? result.data : [];
         displayPurchaseHistory();
         await loadPurchaseReports({ startDate: start, endDate: end });
@@ -764,7 +760,7 @@ async function filterPurchaseHistory() { await loadPurchaseHistory(); }
 
 async function loadPurchaseReports(filters) {
     try {
-        const result = await window.api.inventory.getPurchaseReports(filters);
+        const result = await inventoryApi.getPurchaseReports(filters);
         const container = document.getElementById('purchase-reports-content');
         if (!container) return;
         if (!result.success) { container.innerHTML = '<div>Accès refusé</div>'; return; }
@@ -785,7 +781,7 @@ async function loadPurchaseReports(filters) {
 async function loadPurchaseOrders() {
     try {
         const status = document.getElementById('orders-status-filter')?.value || '';
-        const result = await window.api.purchaseOrder.getAll({ status });
+        const result = await inventoryApi.getPurchaseOrders({ status });
         purchaseOrdersData = (result && result.success) ? result.data : [];
         displayPurchaseOrders();
     } catch (error) { console.error('Error loading purchase orders:', error); }
@@ -836,7 +832,7 @@ function openPurchaseOrderModal() {
 
 async function addPurchaseOrderItemRow() {
     const container = document.getElementById('purchase-order-items');
-    const result = await window.api.inventory.getAll({ paginated: false });
+    const result = await inventoryApi.getAll({ paginated: false });
     const articles = result.success ? result.data : [];
     const div = document.createElement('div');
     div.className = 'purchase-order-item-row';
@@ -867,7 +863,7 @@ async function savePurchaseOrder(event) {
         items
     };
     try {
-        const result = await window.api.purchaseOrder.create(data);
+        const result = await inventoryApi.createPurchaseOrder(data);
         if (!result.success) throw new Error(result.error);
         closeModal('modal-purchase-order');
         showNotification('Commande créée', 'success');
@@ -908,7 +904,7 @@ async function submitReceiveOrder(event) {
         invoiceAmount: parseFloat(document.getElementById('receive-order-invoice-amount').value) || null
     };
     try {
-        const result = await window.api.purchaseOrder.receive(id, data);
+        const result = await inventoryApi.receivePurchaseOrder(id, data);
         if (!result.success) throw new Error(result.error);
         closeModal('modal-receive-order');
         showNotification('Réception enregistrée', 'success');
@@ -921,7 +917,7 @@ async function submitReceiveOrder(event) {
 async function deletePurchaseOrder(id) {
     if (!confirm('Supprimer cette commande ?')) return;
     try {
-        await window.api.purchaseOrder.delete(id);
+        await inventoryApi.deletePurchaseOrder(id);
         showNotification('Commande supprimée', 'success');
         await loadPurchaseOrders();
     } catch (error) { showNotification('Erreur', 'error'); }
@@ -938,7 +934,7 @@ async function loadPOSData() {
 
 async function searchPOSArticles(term) {
     if (!term || term.length < 1) return [];
-    const result = await window.api.inventory.getAll({ search: term, paginated: false });
+    const result = await inventoryApi.getAll({ search: term, paginated: false });
     return (result.success ? result.data : []).filter(a => (a.quantity || 0) > 0);
 }
 
@@ -1054,7 +1050,7 @@ async function submitPOSSale() {
         items: posCart.map(i => ({ inventoryId: i.inventoryId, quantity: i.quantity, unitPrice: i.unitPrice }))
     };
     try {
-        const result = await window.api.pos.createSale(data);
+        const result = await inventoryApi.createSale(data);
         if (!result.success) throw new Error(result.error);
         showNotification(`Vente enregistrée: ${formatCurrency(result.finalAmount)}`, 'success');
         posCart = [];
@@ -1073,7 +1069,7 @@ async function submitPOSSale() {
 async function loadPOSSales() {
     try {
         const today = new Date().toISOString().slice(0, 10);
-        const result = await window.api.pos.getSales({ startDate: today, endDate: today });
+        const result = await inventoryApi.getSales({ startDate: today, endDate: today });
         posSalesData = (result && result.success) ? result.data : [];
         displayPOSSales();
     } catch (e) { console.error('Error loading POS sales:', e); }
@@ -1107,7 +1103,7 @@ function displayPOSSales() {
 
 async function printPOSReceipt(saleId) {
     try {
-        const result = await window.api.pos.getSaleById(saleId);
+        const result = await inventoryApi.getSale(saleId);
         if (!result.success) return;
         const s = result.data;
         const customer = s.patientId
@@ -1142,13 +1138,15 @@ async function printPOSReceipt(saleId) {
                     Merci de votre confiance
                 </div>
             </div>`;
-        if (window.api && window.api.print && window.api.print.html) {
-            await window.api.print.html({ content, title: `Ticket_Vente_${saleId.slice(-6)}` });
-        } else {
+        try {
+            await inventoryApi.printHtml({ content, title: `Ticket_Vente_${saleId.slice(-6)}` });
+        } catch (_) {
             const w = window.open('', '_blank');
-            w.document.write('<html><body>' + content + '</body></html>');
-            w.document.close();
-            w.print();
+            if (w) {
+                w.document.write('<html><body>' + content + '</body></html>');
+                w.document.close();
+                w.print();
+            }
         }
     } catch (e) { showNotification('Erreur impression ticket', 'error'); }
 }
@@ -1192,47 +1190,44 @@ function formatDateTime(dateStr) {
 
 // ─── GLOBAL EXPORTS ───────────────────────────────────────────────────────────
 
-window.initInventory = initInventory;
-window.loadInventory = loadInventory;
-window.openInventoryModal = openInventoryModal;
-window.saveInventoryItem = saveInventoryItem;
-window.editInventoryItem = editInventoryItem;
-window.deleteInventoryItem = deleteInventoryItem;
-window.openStockAdjustModal = openStockAdjustModal;
-window.adjustStock = adjustStock;
-window.filterInventory = filterInventory;
-window.resetInventoryFilters = resetInventoryFilters;
-window.changeInventoryPage = changeInventoryPage;
-window.switchInventoryTab = switchInventoryTab;
-window.refreshInventoryModule = refreshInventoryModule;
-
-window.openSupplierModal = openSupplierModal;
-window.saveSupplier = saveSupplier;
-window.editSupplier = editSupplier;
-window.deleteSupplier = deleteSupplier;
-window.viewSupplier = viewSupplier;
-window.filterSuppliers = filterSuppliers;
-
-window.openInventoryLotModal = openInventoryLotModal;
-window.openInventoryLotModalForItem = openInventoryLotModalForItem;
-window.saveInventoryLot = saveInventoryLot;
-window.openInventoryLotAdjustModal = openInventoryLotAdjustModal;
-window.filterLots = filterLots;
-
-window.openPurchaseOrderModal = openPurchaseOrderModal;
-window.addPurchaseOrderItemRow = addPurchaseOrderItemRow;
-window.savePurchaseOrder = savePurchaseOrder;
-window.openReceiveOrderModal = openReceiveOrderModal;
-window.submitReceiveOrder = submitReceiveOrder;
-window.deletePurchaseOrder = deletePurchaseOrder;
-window.filterPurchaseOrders = filterPurchaseOrders;
-
-window.filterPurchaseHistory = filterPurchaseHistory;
-
-window.addToPOSCart = addToPOSCart;
-window.updatePOSCartQty = updatePOSCartQty;
-window.updatePOSCartPrice = updatePOSCartPrice;
-window.removePOSCartItem = removePOSCartItem;
-window.recalculatePOS = recalculatePOS;
-window.submitPOSSale = submitPOSSale;
-window.printPOSReceipt = printPOSReceipt;
+registerLegacyGlobals('inventory', {
+    addPurchaseOrderItemRow,
+    addToPOSCart,
+    adjustStock,
+    changeInventoryPage,
+    deleteInventoryItem,
+    deletePurchaseOrder,
+    deleteSupplier,
+    editInventoryItem,
+    editSupplier,
+    filterInventory,
+    filterLots,
+    filterPurchaseHistory,
+    filterPurchaseOrders,
+    filterSuppliers,
+    initInventory,
+    loadInventory,
+    openInventoryLotAdjustModal,
+    openInventoryLotModal,
+    openInventoryLotModalForItem,
+    openInventoryModal,
+    openPurchaseOrderModal,
+    openReceiveOrderModal,
+    openStockAdjustModal,
+    openSupplierModal,
+    printPOSReceipt,
+    recalculatePOS,
+    refreshInventoryModule,
+    removePOSCartItem,
+    resetInventoryFilters,
+    saveInventoryItem,
+    saveInventoryLot,
+    savePurchaseOrder,
+    saveSupplier,
+    submitPOSSale,
+    submitReceiveOrder,
+    switchInventoryTab,
+    updatePOSCartPrice,
+    updatePOSCartQty,
+  viewSupplier
+});

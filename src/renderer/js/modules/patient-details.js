@@ -247,6 +247,7 @@ function setConsultationEditorMode(isEdit = false) {
   const form = document.getElementById('consultation-form');
   const modalTitle = document.getElementById('modal-consultation-title');
   const saveButton = document.getElementById('consultation-save-btn');
+  const finishButton = document.getElementById('consultation-finish-btn');
 
   if (form) {
     if (isEdit) {
@@ -262,6 +263,10 @@ function setConsultationEditorMode(isEdit = false) {
 
   if (saveButton) {
     saveButton.textContent = isEdit ? 'Mettre à jour' : 'Enregistrer';
+  }
+
+  if (finishButton) {
+    finishButton.style.display = isEdit && !form?.dataset.waitingRoomId ? 'none' : '';
   }
 }
 
@@ -652,7 +657,7 @@ async function persistConsultationDraft(options = {}) {
       loadKineStaff();
     }
 
-    if (keepModalOpen) {
+    if (!silent && keepModalOpen) {
       if (kineSessionInfo) {
         showNotification(`✅ Consultation enregistrée. La fenêtre reste ouverte pour le paiement. Séance kiné #${kineSessionInfo.sessionNumber} créée.`, 'success');
       } else if (editId) {
@@ -662,7 +667,7 @@ async function persistConsultationDraft(options = {}) {
       } else {
         showNotification('✅ Consultation enregistrée. La fenêtre reste ouverte pour le paiement.', 'success');
       }
-    } else {
+    } else if (!silent) {
       if (kineSessionInfo) {
         showNotification(`✅ Consultation enregistrée + Séance kiné #${kineSessionInfo.sessionNumber} (${kineSessionInfo.price} DZD)`, 'success');
       } else if (editId) {
@@ -673,8 +678,9 @@ async function persistConsultationDraft(options = {}) {
         showNotification('✅ Consultation enregistrée', 'success');
       }
 
-      closeModal('modal-consultation');
     }
+
+    if (!keepModalOpen) closeModal('modal-consultation');
 
     return {
       success: true,
@@ -1108,6 +1114,85 @@ function normalizePatientDetailValue(value) {
   return invalidValues.includes(normalized) ? '' : normalized;
 }
 
+function summarizePatientDetailValue(value, fallback, maxLength = 110) {
+  const normalized = normalizePatientDetailValue(value).replace(/\s+/g, ' ');
+  if (!normalized) return fallback;
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1).trim()}…`
+    : normalized;
+}
+
+function renderImmediateMedicalSummary(patient) {
+  if (!patient) return;
+
+  const summaryTargets = ['patient-medical-overview', 'consultation-patient-summary']
+    .map((targetId) => document.getElementById(targetId))
+    .filter(Boolean);
+  const canViewMedicalSummary = currentUserRole !== 'assistant' && currentUserRole !== 'director';
+  summaryTargets.forEach((target) => {
+    target.style.display = canViewMedicalSummary ? '' : 'none';
+  });
+  if (!canViewMedicalSummary) return;
+
+  const ageYears = typeof calculatePatientAgeYears === 'function'
+    ? calculatePatientAgeYears(patient.dateOfBirth)
+    : null;
+  const identityParts = [
+    ageYears === null ? '' : `${ageYears} ans`,
+    normalizePatientDetailValue(patient.bloodType)
+  ].filter(Boolean);
+  const allergies = summarizePatientDetailValue(patient.allergies, 'Non renseignées');
+  const medicalHistory = summarizePatientDetailValue(patient.medicalHistory, 'Non renseignés');
+  const latestConsultation = Array.isArray(patient.consultations) ? patient.consultations[0] : null;
+  const latestDateValue = latestConsultation?.date || latestConsultation?.consultationDate;
+  const latestDateObject = latestDateValue ? new Date(latestDateValue) : null;
+  const latestDate = latestDateObject && !Number.isNaN(latestDateObject.getTime())
+    ? latestDateObject.toLocaleDateString('fr-FR')
+    : '';
+  const normalizedAllergies = normalizePatientDetailValue(patient.allergies);
+  const hasReportedAllergies = normalizedAllergies.length > 0
+    && !['aucun', 'aucune', 'non', 'néant', 'neant', 'ras'].includes(normalizedAllergies.toLocaleLowerCase('fr-FR'));
+  const latestDetails = latestConsultation
+    ? [
+        latestDate,
+        summarizePatientDetailValue(
+          latestConsultation.diagnosis || latestConsultation.reason,
+          'Sans conclusion renseignée',
+          80
+        )
+      ].filter(Boolean).join(' · ')
+    : 'Aucune consultation antérieure';
+
+  const summaryHtml = `
+    <div class="medical-overview-heading">
+      <span>Résumé médical</span>
+      <small>À vérifier avant la consultation</small>
+    </div>
+    <div class="medical-overview-grid">
+      <div class="medical-overview-item">
+        <span>Patient</span>
+        <strong>${escapeHTML(identityParts.join(' · ') || 'Informations à compléter')}</strong>
+      </div>
+      <div class="medical-overview-item ${hasReportedAllergies ? 'medical-overview-alert' : ''}">
+        <span>Allergies</span>
+        <strong>${escapeHTML(allergies)}</strong>
+      </div>
+      <div class="medical-overview-item">
+        <span>Antécédents</span>
+        <strong>${escapeHTML(medicalHistory)}</strong>
+      </div>
+      <div class="medical-overview-item">
+        <span>Dernière consultation</span>
+        <strong>${escapeHTML(latestDetails)}</strong>
+      </div>
+    </div>
+  `;
+
+  summaryTargets.forEach((target) => {
+    target.innerHTML = summaryHtml;
+  });
+}
+
 async function renderPatientAssignedMedecins(patient) {
   const container = document.getElementById('patient-assigned-medecins');
   if (!container) return;
@@ -1139,11 +1224,16 @@ async function showPatientDetails(patientId) {
   }
 
   try {
-    const result = await window.api.patient.getById(patientId);
+    const result = await window.api.patient.getById({
+      patientId,
+      includeConsultations: currentUserRole !== 'assistant',
+      consultationLimit: 1
+    });
     if (result.success) {
       const patient = result.data;
       currentPatientId = patientId;
       currentPatientData = patient;
+      renderImmediateMedicalSummary(patient);
       void renderPatientAssignedMedecins(patient);
 
       // Keep summary cards collapsed on first view; content is ready when opened.
@@ -1261,10 +1351,14 @@ async function showPatientDetails(patientId) {
       } else {
         switchTab('tab-consultations');
       }
+      return patient;
     }
+    showNotification(result.error || 'Patient non trouvé', 'error');
+    return null;
   } catch (error) {
     console.error('❌ Erreur:', error);
     showNotification('Erreur lors du chargement du dossier patient', 'error');
+    return null;
   }
 }
 
@@ -1409,10 +1503,12 @@ async function openNewConsultationModal() {
   }
 
   if (!currentPatientId) return;
+  renderImmediateMedicalSummary(currentPatientData);
   const form = document.getElementById('consultation-form');
   form.reset();
   resetPreparedConsultationAttachments();
   delete form.dataset.editId; // Clear edit mode
+  delete form.dataset.waitingRoomId;
   document.getElementById('consultation-patientId').value = currentPatientId;
   
   setConsultationEditorMode(false);
@@ -1534,6 +1630,72 @@ async function loadKineSelectOptions() {
 async function saveConsultation(e) {
   e.preventDefault();
   await persistConsultationDraft({ keepModalOpen: false });
+}
+
+function updateConsultationFinishChecklist() {
+  const checks = Array.from(document.querySelectorAll('input[name="consultation-finish-check"]'));
+  const completed = checks.filter((check) => check.checked).length;
+  const progress = document.getElementById('consultation-finish-progress');
+  const confirmButton = document.getElementById('consultation-finish-confirm');
+  if (progress) progress.textContent = `${completed}/${checks.length} vérifiés`;
+  if (confirmButton) confirmButton.disabled = checks.length === 0 || completed !== checks.length;
+}
+
+function openConsultationFinishChecklist() {
+  const form = document.getElementById('consultation-form');
+  if (!form || !form.reportValidity()) return;
+
+  document.querySelectorAll('input[name="consultation-finish-check"]').forEach((check) => {
+    check.checked = false;
+  });
+  updateConsultationFinishChecklist();
+  showModal('modal-consultation-finish');
+}
+
+async function finishConsultationWithChecklist() {
+  const checks = Array.from(document.querySelectorAll('input[name="consultation-finish-check"]'));
+  if (!checks.length || checks.some((check) => !check.checked)) {
+    showNotification('Vérifiez les quatre points avant de terminer', 'warning');
+    return;
+  }
+
+  const form = document.getElementById('consultation-form');
+  const confirmButton = document.getElementById('consultation-finish-confirm');
+  const waitingRoomId = form?.dataset.waitingRoomId || '';
+  if (confirmButton?.disabled) return;
+
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.textContent = 'Enregistrement...';
+  }
+
+  try {
+    const persistence = await persistConsultationDraft({ keepModalOpen: true, silent: true });
+    if (!persistence.success) return;
+
+    if (waitingRoomId) {
+      const waitingResult = await window.api.waitingRoom.updateStatus(waitingRoomId, 'completed');
+      if (waitingResult?.success === false) {
+        throw new Error(waitingResult.error || 'La consultation est enregistrée, mais la salle d’attente n’a pas été clôturée');
+      }
+    }
+
+    closeModal('modal-consultation-finish');
+    closeModal('modal-consultation');
+    // Return the doctor to the operational queue immediately so the next
+    // waiting patient can be called without navigating through the dossier.
+    if (typeof showSection === 'function') showSection('waiting-room');
+    if (typeof loadWaitingRoom === 'function') await loadWaitingRoom();
+    showNotification('Consultation enregistrée et terminée', 'success');
+  } catch (error) {
+    console.error('Error finishing consultation:', error);
+    showNotification(error.message || 'Erreur lors de la fin de consultation', 'error');
+  } finally {
+    if (confirmButton) {
+      confirmButton.textContent = 'Enregistrer et terminer';
+    }
+    updateConsultationFinishChecklist();
+  }
 }
 
 // View consultation details in a professional modal
@@ -2009,7 +2171,9 @@ async function editConsultation(consultationId) {
       resetPreparedConsultationAttachments();
       
       // Store consultation ID for update
-      document.getElementById('consultation-form').dataset.editId = consultationId;
+      const consultationForm = document.getElementById('consultation-form');
+      consultationForm.dataset.editId = consultationId;
+      delete consultationForm.dataset.waitingRoomId;
       
       // Fill the form with existing data
       document.getElementById('consultation-patientId').value = c.patientId;

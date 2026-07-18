@@ -4,7 +4,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, queryOne, run, getCurrentMode } from '../database-unified.js';
+import { query, queryOne, run, withTransaction, getCurrentMode } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -51,7 +51,7 @@ function dateOnlySql(value) {
 
 async function recalculateInventoryQuantity(inventoryId) {
   const row = await queryOne(
-    `SELECT COALESCE(SUM(remainingQuantity), 0) as total FROM inventory_lots WHERE inventoryId = ? AND isActive = 1`,
+    `SELECT COALESCE(SUM(remainingQuantity), 0) as total FROM inventory_lots WHERE inventoryId = ? AND isActive = TRUE`,
     [inventoryId]
   );
   const total = toIntOrDefault(row?.total, 0);
@@ -62,9 +62,9 @@ async function recalculateInventoryQuantity(inventoryId) {
   return total;
 }
 
-async function getLotsFEFO(inventoryId, excludeExpired = true) {
+async function getLotsFEFO(inventoryId, excludeExpired = true, lockRows = false) {
   const today = moment().format('YYYY-MM-DD');
-  let sql = `SELECT * FROM inventory_lots WHERE inventoryId = ? AND remainingQuantity > 0 AND isActive = 1`;
+  let sql = `SELECT * FROM inventory_lots WHERE inventoryId = ? AND remainingQuantity > 0 AND isActive = TRUE`;
   const params = [inventoryId];
   if (excludeExpired) {
     sql += ` AND (expirationDate IS NULL OR expirationDate >= ?)`;
@@ -75,11 +75,12 @@ async function getLotsFEFO(inventoryId, excludeExpired = true) {
     expirationDate ASC,
     purchaseDate ASC,
     createdAt ASC`;
+  if (lockRows) sql += ` FOR UPDATE`;
   return query(sql, params);
 }
 
 async function deductFEFO(inventoryId, quantityRequested, meta = {}) {
-  const lots = await getLotsFEFO(inventoryId);
+  const lots = await getLotsFEFO(inventoryId, true, true);
   let remaining = toIntOrDefault(quantityRequested, 0);
   if (remaining <= 0) return { success: true, deductions: [] };
 
@@ -141,12 +142,12 @@ export function handleInventoryModuleEvents() {
       const params = [];
       if (filters.isActive !== undefined) {
         sql += ` AND isActive = ?`;
-        params.push(filters.isActive ? 1 : 0);
+        params.push(Boolean(filters.isActive));
       } else {
-        sql += ` AND isActive = 1`;
+        sql += ` AND isActive = TRUE`;
       }
       if (filters.search) {
-        sql += ` AND (name LIKE ? OR phone LIKE ? OR email LIKE ? OR specialty LIKE ?)`;
+        sql += ` AND (name ILIKE ? OR phone ILIKE ? OR email ILIKE ? OR specialty ILIKE ?)`;
         const p = `%${filters.search}%`;
         params.push(p, p, p, p);
       }
@@ -196,7 +197,7 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageSuppliers) return { success: false, error: 'Accès refusé' };
-      await run(`UPDATE suppliers SET isActive = 0, updatedAt = ? WHERE id = ?`, [nowSql(), id]);
+      await run(`UPDATE suppliers SET isActive = FALSE, updatedAt = ? WHERE id = ?`, [nowSql(), id]);
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -208,9 +209,12 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageLots) return { success: false, error: 'Accès refusé' };
+      return await withTransaction(async () => {
       const id = uuidv4();
       const initialQuantity = toIntOrDefault(data.initialQuantity, 0);
       const unitPrice = toNumberOrNull(data.unitPrice) || 0;
+      const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ? FOR UPDATE`, [data.inventoryId]);
+      if (!prev) throw new Error('Article introuvable');
       await run(
         `INSERT INTO inventory_lots (id, inventoryId, supplierId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -218,7 +222,6 @@ export function handleInventoryModuleEvents() {
           dateOnlySql(data.purchaseDate) || nowSql().slice(0, 10), dateOnlySql(data.expirationDate),
           initialQuantity, initialQuantity, unitPrice, toNullIfEmpty(data.notes), nowSql()]
       );
-      const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ?`, [data.inventoryId]);
       const newQuantity = await recalculateInventoryQuantity(data.inventoryId);
       await recordMovement({
         inventoryId: data.inventoryId,
@@ -233,6 +236,7 @@ export function handleInventoryModuleEvents() {
         purchaseOrderId: data.purchaseOrderId || null
       });
       return { success: true, id, newQuantity };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -243,7 +247,7 @@ export function handleInventoryModuleEvents() {
       let sql = `SELECT l.*, s.name as supplierName FROM inventory_lots l LEFT JOIN suppliers s ON s.id = l.supplierId WHERE l.inventoryId = ?`;
       const params = [inventoryId];
       if (filters.activeOnly !== false) {
-        sql += ` AND l.isActive = 1`;
+        sql += ` AND l.isActive = TRUE`;
       }
       sql += ` ORDER BY l.createdAt DESC`;
       const items = await query(sql, params);
@@ -266,7 +270,7 @@ export function handleInventoryModuleEvents() {
            AND l.expirationDate <= ?
            AND l.expirationDate >= ?
            AND l.remainingQuantity > 0
-           AND l.isActive = 1
+           AND l.isActive = TRUE
          ORDER BY l.expirationDate`,
         [future, today]
       );
@@ -280,14 +284,15 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageLots) return { success: false, error: 'Accès refusé' };
-      const lot = await queryOne(`SELECT * FROM inventory_lots WHERE id = ?`, [id]);
+      return await withTransaction(async () => {
+      const lot = await queryOne(`SELECT * FROM inventory_lots WHERE id = ? FOR UPDATE`, [id]);
       if (!lot) return { success: false, error: 'Lot introuvable' };
       const newRemaining = toIntOrDefault(data.remainingQuantity, lot.remainingQuantity);
       await run(
         `UPDATE inventory_lots SET remainingQuantity = ?, notes = ?, updatedAt = ? WHERE id = ?`,
         [newRemaining, toNullIfEmpty(data.notes) || lot.notes, nowSql(), id]
       );
-      const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ?`, [lot.inventoryId]);
+      const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ? FOR UPDATE`, [lot.inventoryId]);
       const newQuantity = await recalculateInventoryQuantity(lot.inventoryId);
       await recordMovement({
         inventoryId: lot.inventoryId,
@@ -300,6 +305,7 @@ export function handleInventoryModuleEvents() {
         createdBy: ctx.userId
       });
       return { success: true, newQuantity };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -308,15 +314,15 @@ export function handleInventoryModuleEvents() {
   // ── INVENTORY EXTENDED STATS ──────────────────────────────────────────────
   ipcMain.handle('inventory:getFullStats', async () => {
     try {
-      const totalItems = await queryOne(`SELECT COUNT(*) as count FROM inventory WHERE isActive = 1`);
+      const totalItems = await queryOne(`SELECT COUNT(*) as count FROM inventory WHERE isActive = TRUE`);
       const lowStock = await queryOne(
-        `SELECT COUNT(*) as count FROM inventory WHERE isActive = 1 AND quantity <= minQuantity`
+        `SELECT COUNT(*) as count FROM inventory WHERE isActive = TRUE AND quantity <= minQuantity`
       );
       const valueRow = await queryOne(
         `SELECT COALESCE(SUM(l.remainingQuantity * l.unitPrice), 0) as value
          FROM inventory_lots l
          JOIN inventory i ON i.id = l.inventoryId
-         WHERE i.isActive = 1 AND l.isActive = 1`
+         WHERE i.isActive = TRUE AND l.isActive = TRUE`
       );
       const expiring = await query(
         `SELECT l.*, i.name as itemName, i.unit, s.name as supplierName
@@ -324,10 +330,10 @@ export function handleInventoryModuleEvents() {
          JOIN inventory i ON i.id = l.inventoryId
          LEFT JOIN suppliers s ON s.id = l.supplierId
          WHERE l.expirationDate IS NOT NULL
-           AND l.expirationDate <= DATE('now', '+30 day')
-           AND l.expirationDate >= DATE('now')
+           AND l.expirationDate <= CURRENT_DATE + INTERVAL '30 days'
+           AND l.expirationDate >= CURRENT_DATE
            AND l.remainingQuantity > 0
-           AND l.isActive = 1
+           AND l.isActive = TRUE
          ORDER BY l.expirationDate`
       );
       return {
@@ -350,6 +356,7 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageSuppliers) return { success: false, error: 'Accès refusé' };
+      return await withTransaction(async () => {
       const id = uuidv4();
       const items = Array.isArray(data.items) ? data.items : [];
       const totalAmount = items.reduce((sum, it) => sum + (toIntOrDefault(it.orderedQuantity, 0) * (toNumberOrNull(it.unitPrice) || 0)), 0);
@@ -368,6 +375,7 @@ export function handleInventoryModuleEvents() {
         );
       }
       return { success: true, id };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -415,9 +423,10 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageLots) return { success: false, error: 'Accès refusé' };
-      const po = await queryOne(`SELECT * FROM purchase_orders WHERE id = ?`, [id]);
+      return await withTransaction(async () => {
+      const po = await queryOne(`SELECT * FROM purchase_orders WHERE id = ? FOR UPDATE`, [id]);
       if (!po) return { success: false, error: 'Commande introuvable' };
-      const items = await query(`SELECT * FROM purchase_order_items WHERE purchaseOrderId = ?`, [id]);
+      const items = await query(`SELECT * FROM purchase_order_items WHERE purchaseOrderId = ? ORDER BY id FOR UPDATE`, [id]);
       const received = data.items || [];
       const invoiceNumber = toNullIfEmpty(data.invoiceNumber);
       const invoiceAmount = toNumberOrNull(data.invoiceAmount);
@@ -434,7 +443,7 @@ export function handleInventoryModuleEvents() {
             [lotId, it.inventoryId, po.supplierId, `PO-${id.slice(-6)}`, nowSql().slice(0, 10),
               dateOnlySql(rcv.expirationDate), addQty, addQty, it.unitPrice || 0, `Réception commande ${id}`, nowSql()]
           );
-          const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ?`, [it.inventoryId]);
+          const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ? FOR UPDATE`, [it.inventoryId]);
           const newQuantity = await recalculateInventoryQuantity(it.inventoryId);
           await recordMovement({
             inventoryId: it.inventoryId,
@@ -463,6 +472,7 @@ export function handleInventoryModuleEvents() {
         [newStatus, invoiceNumber || po.invoiceNumber, invoiceAmount !== null ? invoiceAmount : po.invoiceAmount, nowSql(), id]
       );
       return { success: true, status: newStatus };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -472,9 +482,11 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageSuppliers) return { success: false, error: 'Accès refusé' };
+      return await withTransaction(async () => {
       await run(`DELETE FROM purchase_order_items WHERE purchaseOrderId = ?`, [id]);
       await run(`DELETE FROM purchase_orders WHERE id = ?`, [id]);
       return { success: true };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -528,10 +540,10 @@ export function handleInventoryModuleEvents() {
         [start, end]
       );
       const byMonth = await query(
-        `SELECT strftime('%Y-%m', l.purchaseDate) as label, COALESCE(SUM(l.initialQuantity * l.unitPrice), 0) as total
+        `SELECT TO_CHAR(l.purchaseDate, 'YYYY-MM') as label, COALESCE(SUM(l.initialQuantity * l.unitPrice), 0) as total
          FROM inventory_lots l
          WHERE l.purchaseDate BETWEEN ? AND ?
-         GROUP BY label
+         GROUP BY 1
          ORDER BY label`,
         [start, end]
       );
@@ -568,7 +580,7 @@ export function handleInventoryModuleEvents() {
         `SELECT ac.*, i.name as itemName, i.unit
          FROM act_consumables ac
          JOIN inventory i ON i.id = ac.inventoryId
-         WHERE ac.actType = ? AND ac.specialty = ? AND ac.isActive = 1`,
+         WHERE ac.actType = ? AND ac.specialty = ? AND ac.isActive = TRUE`,
         [actType, specialty]
       );
       return { success: true, data: rows || [] };
@@ -582,10 +594,12 @@ export function handleInventoryModuleEvents() {
       const ctx = getScopedInventoryContext();
       if (!ctx.isPractitioner && !ctx.isAdmin && !ctx.isSuperAdmin) return { success: false, error: 'Accès refusé' };
       await run(
-        `INSERT OR REPLACE INTO act_consumables (id, actType, inventoryId, quantity, specialty, isActive, createdAt)
-         VALUES (COALESCE((SELECT id FROM act_consumables WHERE actType = ? AND inventoryId = ? AND specialty = ?), ?), ?, ?, ?, ?, 1, ?)`,
-        [data.actType, data.inventoryId, data.specialty || 'dentistry', uuidv4(), data.actType, data.inventoryId,
-          toNumberOrNull(data.quantity) || 1, data.specialty || 'dentistry', nowSql()]
+        `INSERT INTO act_consumables (id, actType, inventoryId, quantity, specialty, isActive, createdAt)
+         VALUES (?, ?, ?, ?, ?, TRUE, ?)
+         ON CONFLICT (actType, inventoryId, specialty)
+         DO UPDATE SET quantity = EXCLUDED.quantity, isActive = TRUE`,
+        [uuidv4(), data.actType, data.inventoryId, toNumberOrNull(data.quantity) || 1,
+          data.specialty || 'dentistry', nowSql()]
       );
       return { success: true };
     } catch (error) {
@@ -605,19 +619,20 @@ export function handleInventoryModuleEvents() {
   ipcMain.handle('actConsumable:apply', async (event, actType, specialty = 'dentistry', meta = {}) => {
     try {
       const ctx = getScopedInventoryContext();
+      return await withTransaction(async () => {
       const items = await query(
         `SELECT ac.*, i.name as itemName, i.quantity as currentStock
          FROM act_consumables ac
          JOIN inventory i ON i.id = ac.inventoryId
-         WHERE ac.actType = ? AND ac.specialty = ? AND ac.isActive = 1`,
+         WHERE ac.actType = ? AND ac.specialty = ? AND ac.isActive = TRUE`,
         [actType, specialty]
       );
       const results = [];
-      for (const it of items || []) {
+      for (const it of [...(items || [])].sort((left, right) => left.inventoryId.localeCompare(right.inventoryId))) {
         const qty = toIntOrDefault(it.quantity, 1);
         const check = await deductFEFO(it.inventoryId, qty);
         if (!check.success) {
-          return { success: false, error: `${it.itemName}: ${check.error}`, item: it.itemName };
+          throw new Error(`${it.itemName}: ${check.error}`);
         }
         await recordMovement({
           inventoryId: it.inventoryId,
@@ -632,6 +647,7 @@ export function handleInventoryModuleEvents() {
         results.push({ inventoryId: it.inventoryId, itemName: it.itemName, quantity: qty, deductions: check.deductions });
       }
       return { success: true, data: results };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -644,18 +660,19 @@ export function handleInventoryModuleEvents() {
       if (!ctx.canSell) return { success: false, error: 'Accès refusé' };
       const items = Array.isArray(data.items) ? data.items : [];
       if (!items.length) return { success: false, error: 'Aucun article dans le panier' };
+      return await withTransaction(async () => {
 
       // Validate stock and compute totals
       let subtotal = 0;
       const preparedItems = [];
-      for (const it of items) {
-        const article = await queryOne(`SELECT * FROM inventory WHERE id = ?`, [it.inventoryId]);
-        if (!article) return { success: false, error: 'Article introuvable' };
+      for (const it of [...items].sort((left, right) => String(left.inventoryId).localeCompare(String(right.inventoryId)))) {
+        const article = await queryOne(`SELECT * FROM inventory WHERE id = ? FOR UPDATE`, [it.inventoryId]);
+        if (!article) throw new Error('Article introuvable');
         const qty = toIntOrDefault(it.quantity, 1);
         const unitPrice = toNumberOrNull(it.unitPrice) || article.sellingPrice || 0;
         const check = await deductFEFO(article.id, qty);
         if (!check.success) {
-          return { success: false, error: `${article.name}: ${check.error}` };
+          throw new Error(`${article.name}: ${check.error}`);
         }
         subtotal += qty * unitPrice;
         preparedItems.push({ ...it, article, qty, unitPrice, deductions: check.deductions });
@@ -716,6 +733,7 @@ export function handleInventoryModuleEvents() {
       }
 
       return { success: true, id: saleId, finalAmount };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -726,11 +744,11 @@ export function handleInventoryModuleEvents() {
       const ctx = getScopedInventoryContext();
       let sql = `SELECT ps.*, p.firstName, p.lastName FROM pos_sales ps LEFT JOIN patients p ON p.id = ps.patientId WHERE 1=1`;
       const params = [];
-      if (filters.startDate) { sql += ` AND DATE(ps.saleDate) >= ?`; params.push(filters.startDate); }
-      if (filters.endDate) { sql += ` AND DATE(ps.saleDate) <= ?`; params.push(filters.endDate); }
+      if (filters.startDate) { sql += ` AND CAST(ps.saleDate AS DATE) >= ?`; params.push(filters.startDate); }
+      if (filters.endDate) { sql += ` AND CAST(ps.saleDate AS DATE) <= ?`; params.push(filters.endDate); }
       if (filters.patientId) { sql += ` AND ps.patientId = ?`; params.push(filters.patientId); }
       if (ctx.isAssistant) {
-        sql += ` AND DATE(ps.saleDate) = DATE('now')`;
+        sql += ` AND CAST(ps.saleDate AS DATE) = CURRENT_DATE`;
       }
       sql += ` ORDER BY ps.saleDate DESC`;
       const sales = await query(sql, params);
@@ -772,15 +790,15 @@ export function handleInventoryModuleEvents() {
       const end = filters.endDate || '9999-12-31';
       const period = filters.period || 'day'; // day, week, month
       let periodExpr;
-      if (period === 'month') periodExpr = `strftime('%Y-%m', ps.saleDate)`;
-      else if (period === 'week') periodExpr = `strftime('%Y-W%W', ps.saleDate)`;
-      else periodExpr = `DATE(ps.saleDate)`;
+      if (period === 'month') periodExpr = `TO_CHAR(ps.saleDate, 'YYYY-MM')`;
+      else if (period === 'week') periodExpr = `TO_CHAR(ps.saleDate, 'IYYY-"W"IW')`;
+      else periodExpr = `CAST(ps.saleDate AS DATE)`;
 
       const byPeriod = await query(
         `SELECT ${periodExpr} as label, COALESCE(SUM(ps.finalAmount), 0) as total, COUNT(*) as count
          FROM pos_sales ps
-         WHERE DATE(ps.saleDate) BETWEEN ? AND ?
-         GROUP BY label
+         WHERE CAST(ps.saleDate AS DATE) BETWEEN ? AND ?
+         GROUP BY 1
          ORDER BY label`,
         [start, end]
       );
@@ -790,7 +808,7 @@ export function handleInventoryModuleEvents() {
          FROM pos_sale_items psi
          JOIN pos_sales ps ON ps.id = psi.posSaleId
          JOIN inventory i ON i.id = psi.inventoryId
-         WHERE DATE(ps.saleDate) BETWEEN ? AND ?
+         WHERE CAST(ps.saleDate AS DATE) BETWEEN ? AND ?
          GROUP BY psi.inventoryId, i.name
          ORDER BY qty DESC
          LIMIT 20`,

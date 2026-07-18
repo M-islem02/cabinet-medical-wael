@@ -87,13 +87,13 @@ export function handleEquipmentEvents() {
 
   ipcMain.handle('equipment:getAll', async (event, filters = {}) => {
     try {
-      let sql = `SELECT e.*, u.fullName as doctorName FROM equipment e LEFT JOIN users u ON u.id = e.assignedDoctorId WHERE e.isActive = 1`;
+      let sql = `SELECT e.*, u.fullName as doctorName FROM equipment e LEFT JOIN users u ON u.id = e.assignedDoctorId WHERE e.isActive = TRUE`;
       const params = [];
       if (filters.category) { sql += ' AND e.category = ?'; params.push(filters.category); }
       if (filters.status) { sql += ' AND e.status = ?'; params.push(filters.status); }
       if (filters.room) { sql += ' AND e.assignedRoom = ?'; params.push(filters.room); }
       if (filters.search) {
-        sql += ' AND (e.name LIKE ? OR e.brand LIKE ? OR e.model LIKE ? OR e.serialNumber LIKE ?)';
+        sql += ' AND (e.name ILIKE ? OR e.brand ILIKE ? OR e.model ILIKE ? OR e.serialNumber ILIKE ?)';
         const p = `%${filters.search}%`;
         params.push(p, p, p, p);
       }
@@ -163,7 +163,7 @@ export function handleEquipmentEvents() {
     try {
       const ctx = getEquipmentContext();
       if (!ctx.canManage) return { success: false, error: 'Accès refusé' };
-      await run(`UPDATE equipment SET isActive=0, updatedAt=? WHERE id=?`, [nowSql(), id]);
+      await run(`UPDATE equipment SET isActive=FALSE, updatedAt=? WHERE id=?`, [nowSql(), id]);
       return { success: true };
     } catch (e) { return { success: false, error: e.message }; }
   });
@@ -195,20 +195,20 @@ export function handleEquipmentEvents() {
       const future = moment().add(days, 'days').format('YYYY-MM-DD');
       const today = moment().format('YYYY-MM-DD');
       const upcoming = await query(
-        `SELECT * FROM equipment WHERE isActive=1 AND status != 'out_of_service'
+        `SELECT * FROM equipment WHERE isActive=TRUE AND status != 'out_of_service'
          AND nextMaintenanceDate IS NOT NULL AND nextMaintenanceDate <= ?
          AND nextMaintenanceDate >= ?
          ORDER BY nextMaintenanceDate`,
         [future, today]
       );
       const overdue = await query(
-        `SELECT * FROM equipment WHERE isActive=1 AND status != 'out_of_service'
+        `SELECT * FROM equipment WHERE isActive=TRUE AND status != 'out_of_service'
          AND nextMaintenanceDate IS NOT NULL AND nextMaintenanceDate < ?
          ORDER BY nextMaintenanceDate`,
         [today]
       );
       const inMaintenance = await query(
-        `SELECT * FROM equipment WHERE isActive=1 AND status IN ('maintenance', 'out_of_service')
+        `SELECT * FROM equipment WHERE isActive=TRUE AND status IN ('maintenance', 'out_of_service')
          ORDER BY name`
       );
       return {
@@ -233,6 +233,9 @@ export function handleEquipmentEvents() {
   // ── LIEN PLAN (G5) ────────────────────────────────────────────────────────
   ipcMain.handle('equipment:linkToPlan', async (event, data) => {
     try {
+      if (!data.inventoryId && !data.equipmentId) {
+        return { success: false, error: 'Un article ou un équipement doit être sélectionné' };
+      }
       const id = uuidv4();
       await run(
         `INSERT INTO plan_equipment_usage (id, planId, inventoryId, equipmentId, usageDate, notes, createdAt)
@@ -248,5 +251,7 @@ export function handleEquipmentEvents() {
 
 function safelyParseJson(value) {
   if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
   try { return JSON.parse(value); } catch (_) { return {}; }
 }

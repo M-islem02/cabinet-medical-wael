@@ -4552,8 +4552,6 @@ body.admin-mode .sidebar .logo {
 
 .pkg-cabinet-type-option input { margin-top: 3px; accent-color: #0f766e; }
 
-.waiting-doctor-checkboxes { gap: 8px; margin-top: 8px; }
-.waiting-doctor-checkboxes label { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #d9e2ee; border-radius:7px; font-size:13px; }
 .patient-assigned-medecins { padding: 0 18px 18px; }
 .patient-assigned-medecins h4 { margin: 0 0 10px; font-size: 14px; }
 .patient-medecin-checklist { display:grid; gap:8px; }
@@ -6514,6 +6512,11 @@ hr {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.imaging-actions-bar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .imaging-hero-actions .btn-secondary {
@@ -8809,6 +8812,110 @@ body.assistant-mode #payment-requests-section {
 .waiting-empty-icon {
   display: inline-block;
   font-size: 52px;
+}
+
+/* Compact operational pages: the app header already carries the page title. */
+.compact-actions-header {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+#waiting-room .waiting-room-stats {
+  gap: 0;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+#waiting-room .waiting-board-header {
+  padding: 12px 16px;
+}
+
+#waiting-room .waiting-list-container {
+  padding: 12px 16px;
+}
+
+#waiting-room .waiting-empty {
+  padding: 24px 16px;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+#waiting-room .waiting-empty p {
+  margin: 0;
+}
+
+#patients .patients-container {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#patients .search-box-section {
+  margin-bottom: 12px;
+}
+
+#medical-imaging .imaging-shell {
+  gap: 14px;
+}
+
+#medical-imaging .imaging-toolbar {
+  gap: 12px;
+}
+
+#medical-imaging .imaging-list-card,
+#medical-imaging .imaging-viewer-card {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+#payments .stats-row {
+  margin-bottom: 16px !important;
+}
+
+#payments .card-header,
+#equipment .card-header {
+  padding: 12px 16px !important;
+}
+
+#equipment .inventory-stats-grid {
+  margin-bottom: 12px;
+}
+
+#equipment-tab-detail > div,
+#equipment-tab-list .text-center[style*="padding: 40px"] {
+  padding: 24px 16px !important;
+}
+
+#statistics .statistics-header {
+  align-items: center;
+}
+
+#statistics .statistics-refresh-btn {
+  min-width: auto;
+}
+
+#statistics .card-footer,
+#statistics .statistics-card-icon {
+  display: none !important;
+}
+
+#statistics .dashboard-grid {
+  gap: 12px !important;
+  padding: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+#statistics .statistics-card {
+  min-height: 0 !important;
+  padding: 0 12px 0 0 !important;
+  box-shadow: none !important;
+}
+
+#statistics .statistics-list-card {
+  padding: 14px 16px;
 }
 
 .waiting-section {
@@ -16161,6 +16268,253 @@ td button {
   margin-bottom: 14px;
 }
 
+.patients-scope-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e4ebf2;
+}
+
+.patients-scope-bar[hidden] {
+  display: none;
+}
+
+.patients-view-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #eef4f8;
+}
+
+.patients-view-tab {
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 14px;
+  background: transparent;
+  color: #536579;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.patients-view-tab.active {
+  background: #fff;
+  color: var(--primary-color);
+  box-shadow: 0 1px 4px rgba(30, 50, 70, 0.12);
+}
+
+.patients-doctor-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #536579;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.patients-doctor-scope[hidden] {
+  display: none;
+}
+
+.patients-doctor-scope .form-control {
+  min-width: 220px;
+  height: 40px;
+}
+
+.medical-overview {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5ea;
+  border-left: 4px solid #0f766e;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.medical-overview-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.medical-overview-heading > span {
+  color: #182230;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.medical-overview-heading > small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.medical-overview-grid {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr 1.25fr 1.25fr;
+  gap: 8px;
+}
+
+.medical-overview-item {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f7f9fb;
+}
+
+.medical-overview-item > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #667085;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.medical-overview-item > strong {
+  display: block;
+  color: #182230;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.medical-overview-item.medical-overview-alert {
+  background: #fff1f2;
+}
+
+.medical-overview-item.medical-overview-alert > span,
+.medical-overview-item.medical-overview-alert > strong {
+  color: #b42318;
+}
+
+.medical-overview-loading {
+  color: #667085;
+  font-size: 12px;
+}
+
+#modal-consultation .consultation-medical-overview {
+  margin-bottom: 2px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+#modal-consultation-finish {
+  width: min(560px, calc(100vw - 32px));
+  max-width: 560px;
+  height: min(520px, calc(100vh - 28px));
+  max-height: calc(100vh - 28px);
+}
+
+.consultation-finish-dialog {
+  width: 100%;
+  max-height: calc(100vh - 28px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.consultation-finish-dialog .modal-header {
+  align-items: flex-start;
+}
+
+.consultation-finish-dialog .modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.consultation-finish-subtitle {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 12.5px;
+}
+
+.consultation-finish-body {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px !important;
+  overflow-y: auto;
+}
+
+.consultation-finish-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 8px 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.consultation-finish-check:has(input:checked) {
+  border-color: #99d5c9;
+  background: #f0fdf9;
+}
+
+.consultation-finish-check input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #0f766e;
+}
+
+.consultation-finish-check span,
+.consultation-finish-check strong,
+.consultation-finish-check small {
+  display: block;
+}
+
+.consultation-finish-check strong {
+  color: #182230;
+  font-size: 13.5px;
+}
+
+.consultation-finish-check small {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.consultation-finish-footer {
+  flex: 0 0 auto;
+  justify-content: space-between !important;
+  gap: 12px;
+  padding: 12px 16px !important;
+}
+
+#consultation-finish-progress {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#consultation-finish-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 1100px) {
+  .medical-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .medical-overview-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .medical-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 #patient-details .card,
 #patient-details .details-card,
 #patient-details .patient-collapsible-card,
@@ -16650,6 +17004,56 @@ td button {
 /* ==================================================
    DESIGN SYSTEM OVERRIDE — NOTION/LINEAR HIGHDENSITY
    ================================================== */
+
+/* Inventory: compact operational layout */
+#inventory > .section-header {
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+#inventory > .section-header h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.inventory-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#inventory .inventory-overview-grid {
+  gap: 0 !important;
+  margin-bottom: 12px !important;
+  padding: 9px 14px !important;
+}
+
+#inventory .inventory-stat-card {
+  gap: 6px !important;
+}
+
+.inventory-stat-label {
+  color: #6B7280;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#inventory .feature-tabs-shell {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  margin-bottom: 12px !important;
+}
+
+#inventory .feature-tabs-wrap {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
 
 /* Clean flat card layouts */
 .card,

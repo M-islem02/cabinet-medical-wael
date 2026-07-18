@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 
@@ -127,10 +127,11 @@ export function handleDebtEvents() {
   // Effectuer un paiement partiel
   ipcMain.handle('debt:makePayment', async (event, debtId, paymentAmount) => {
     try {
+      return await withTransaction(async () => {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       
       // Récupérer la dette actuelle
-      const debt = await queryOne('SELECT * FROM debts WHERE id = ?', [debtId]);
+      const debt = await queryOne('SELECT * FROM debts WHERE id = ? FOR UPDATE', [debtId]);
       if (!debt) {
         return { success: false, error: 'Dette non trouvée' };
       }
@@ -154,6 +155,7 @@ export function handleDebtEvents() {
       );
 
       return { success: true, newRemaining: Math.max(0, newRemaining), status: newStatus };
+      });
     } catch (error) {
       console.error('❌ Erreur paiement dette:', error);
       return { success: false, error: error.message };

@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, run, queryOne } from '../database-unified.js';
+import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { sendAppointmentCreatedSMS } from './sms-handler.js';
@@ -28,18 +28,18 @@ function getCurrentUserContext() {
   };
 }
 
-function getAppointmentScope(userContext, patientAlias = 'p') {
-  if (userContext.isPractitioner && !userContext.isAdmin && userContext.userId) {
+function getAppointmentScope(userContext, appointmentAlias = 'a', patientAlias = 'p') {
+  const practitionerId = userContext.isPractitioner
+    ? userContext.userId
+    : (userContext.isAssistant ? global.activePatientDoctorId : null);
+  if (practitionerId) {
     return {
-      clause: `${patientAlias}.primaryDoctorId = ?`,
-      params: [userContext.userId]
-    };
-  }
-
-  if (userContext.isAssistant && userContext.userId) {
-    return {
-      clause: '',
-      params: []
+      clause: `(${appointmentAlias}.assignedTo = ? OR (${appointmentAlias}.assignedTo IS NULL AND EXISTS (
+        SELECT 1 FROM patient_practitioners pp_appointment
+        WHERE pp_appointment.patientId = ${patientAlias}.id
+          AND pp_appointment.practitionerId = ?
+      )))`,
+      params: [practitionerId, practitionerId]
     };
   }
 
@@ -131,39 +131,55 @@ export function handleAppointmentEvents() {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const appointmentDateTime = `${appointmentData.date} ${appointmentData.time}`;
+      const userContext = getCurrentUserContext();
+      const assignedTo = appointmentData.assignedTo
+        || (userContext.isPractitioner ? userContext.userId : null)
+        || (userContext.isAssistant ? global.activePatientDoctorId : null)
+        || null;
+      const creation = await withTransaction(async () => {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-slot:${assignedTo || 'unassigned'}:${appointmentDateTime}`]);
+        const existingAppointment = await queryOne(
+          `SELECT id FROM appointments
+           WHERE appointmentDateTime = ?
+             AND assignedTo IS NOT DISTINCT FROM ?
+             AND status != 'cancelled'
+           FOR UPDATE`,
+          [appointmentDateTime, assignedTo]
+        );
 
-      const existingAppointment = await queryOne(
-        `SELECT id FROM appointments
-         WHERE appointmentDateTime = ? AND status != 'cancelled'`,
-        [appointmentDateTime]
-      );
+        if (existingAppointment && !appointmentData.forceCreate) {
+          return { conflict: true };
+        }
 
-      if (existingAppointment && !appointmentData.forceCreate) {
+        await run(
+          `INSERT INTO appointments
+           (id, patientId, assignedTo, appointmentDateTime, appointmentType, reason, status, notes, bookingSource, bookingCode, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            appointmentData.patientId,
+            assignedTo,
+            appointmentDateTime,
+            appointmentData.type || 'Consultation',
+            toNullIfEmpty(appointmentData.reason),
+            appointmentData.status || 'scheduled',
+            toNullIfEmpty(appointmentData.notes),
+            appointmentData.source || 'manual',
+            appointmentData.bookingCode || null,
+            now,
+            now
+          ]
+        );
+        return { conflict: false };
+      });
+
+      if (creation.conflict) {
         return {
           success: false,
           error: 'Un rendez-vous existe deja a cette date et heure',
           conflictType: 'duplicate'
         };
       }
-
-      await run(
-        `INSERT INTO appointments
-         (id, patientId, appointmentDateTime, appointmentType, reason, status, notes, bookingSource, bookingCode, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          appointmentData.patientId,
-          appointmentDateTime,
-          appointmentData.type || 'Consultation',
-          toNullIfEmpty(appointmentData.reason),
-          appointmentData.status || 'scheduled',
-          toNullIfEmpty(appointmentData.notes),
-          appointmentData.source || 'manual',
-          appointmentData.bookingCode || null,
-          now,
-          now
-        ]
-      );
 
       const createdAppointment = await getAppointmentDetailsById(id);
       let smsResult = { success: false, skipped: true, reason: 'Rendez-vous cree sans details complementaires' };
@@ -226,7 +242,7 @@ export function handleAppointmentEvents() {
     try {
       const todayStart = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
       const todayEnd = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
-      const scope = getAppointmentScope(getCurrentUserContext(), 'p');
+      const scope = getAppointmentScope(getCurrentUserContext(), 'a', 'p');
       const whereParts = ['a.appointmentDateTime BETWEEN ? AND ?'];
       const params = [todayStart, todayEnd];
 
@@ -282,7 +298,7 @@ export function handleAppointmentEvents() {
   // Recuperer tous les rendez-vous
   ipcMain.handle('appointment:getAll', async () => {
     try {
-      const scope = getAppointmentScope(getCurrentUserContext(), 'p');
+      const scope = getAppointmentScope(getCurrentUserContext(), 'a', 'p');
       const appointments = await query(
         `SELECT a.*, p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
@@ -317,7 +333,7 @@ export function handleAppointmentEvents() {
       console.log('appointment:getByDateRange called:', startDate, 'to', endDate);
       const startOfDay = moment(startDate).startOf('day').format('YYYY-MM-DD HH:mm:ss');
       const endOfDay = moment(endDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
-      const scope = getAppointmentScope(getCurrentUserContext(), 'p');
+      const scope = getAppointmentScope(getCurrentUserContext(), 'a', 'p');
       const whereParts = ['a.appointmentDateTime BETWEEN ? AND ?'];
       const params = [startOfDay, endOfDay];
 

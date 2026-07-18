@@ -2,25 +2,30 @@
 -- PHYSIOCARE / MEDCARESO - CONFIGURATION POSTGRESQL
 -- Base:          cabinet_db
 -- Utilisateur:   cabinet_app
--- Mot de passe:  PhysioCare2024!
 -- Port attendu:  5432
 -- ================================================================
 --
 -- A executer avec psql en administrateur PostgreSQL:
 --   psql -U postgres -f SETUP_WINDOWS/SCRIPT_POSTGRESQL_COMPLET.sql
+-- Le mot de passe sera demande sans etre stocke dans ce fichier.
+-- En automatisation: psql -U postgres -v app_password="..." -f ...
 --
 -- IMPORTANT:
 -- PostgreSQL utilise 5432 par defaut.
+-- Ce script cree uniquement le role, la base et les droits. Au premier
+-- demarrage, MedCareSO applique automatiquement les migrations SQL versionnees.
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cabinet_app') THEN
-    CREATE ROLE cabinet_app LOGIN PASSWORD 'PhysioCare2024!';
-  ELSE
-    ALTER ROLE cabinet_app WITH LOGIN PASSWORD 'PhysioCare2024!';
-  END IF;
-END
-$$;
+\set ON_ERROR_STOP on
+\if :{?app_password}
+\else
+\prompt 'Mot de passe du role cabinet_app: ' app_password
+\endif
+
+SELECT format('CREATE ROLE cabinet_app LOGIN PASSWORD %L', :'app_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cabinet_app')\gexec
+
+SELECT format('ALTER ROLE cabinet_app WITH LOGIN PASSWORD %L', :'app_password')
+WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cabinet_app')\gexec
 
 SELECT 'CREATE DATABASE cabinet_db OWNER cabinet_app ENCODING ''UTF8'''
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'cabinet_db')\gexec

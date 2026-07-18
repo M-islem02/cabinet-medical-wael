@@ -4,7 +4,8 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, queryOne, run } from '../database-unified.js';
+import { registerValidatedContractHandler } from '../ipc/contract-handler.js';
+import { query, queryOne, run, withTransaction } from '../database-unified.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -293,7 +294,7 @@ ipcMain.handle('medicalScale:getScoreHistory', async (event, patientId, scaleTyp
 // ========== REHABILITATION PLANS ==========
 
 // Create rehabilitation plan - using existing table columns
-ipcMain.handle('rehabilitationPlan:create', async (event, data) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'create', async (event, data) => {
   try {
     const id = `plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -346,7 +347,7 @@ ipcMain.handle('rehabilitationPlan:create', async (event, data) => {
 });
 
 // Get plans by patient
-ipcMain.handle('rehabilitationPlan:getByPatient', async (event, patientId) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'getByPatient', async (event, patientId) => {
   try {
     const plans = await query(`
       SELECT rp.*, u.fullName as creatorName
@@ -364,7 +365,7 @@ ipcMain.handle('rehabilitationPlan:getByPatient', async (event, patientId) => {
 });
 
 // Get plan by ID
-ipcMain.handle('rehabilitationPlan:getById', async (event, id) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'getById', async (event, id) => {
   try {
     const plan = await queryOne(`
       SELECT rp.*, u.fullName as creatorName
@@ -381,7 +382,7 @@ ipcMain.handle('rehabilitationPlan:getById', async (event, id) => {
 });
 
 // Get active plan for patient
-ipcMain.handle('rehabilitationPlan:getActive', async (event, patientId) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'getActive', async (event, patientId) => {
   try {
     const plan = await queryOne(`
       SELECT * FROM rehabilitation_plans
@@ -398,7 +399,7 @@ ipcMain.handle('rehabilitationPlan:getActive', async (event, patientId) => {
 });
 
 // Update plan status
-ipcMain.handle('rehabilitationPlan:updateStatus', async (event, id, status) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'updateStatus', async (event, id, status) => {
   try {
     await run(`UPDATE rehabilitation_plans SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`, [status, id]);
     return { success: true };
@@ -409,7 +410,7 @@ ipcMain.handle('rehabilitationPlan:updateStatus', async (event, id, status) => {
 });
 
 // Delete plan
-ipcMain.handle('rehabilitationPlan:delete', async (event, id) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationPlan', 'delete', async (event, id) => {
   try {
     await run('DELETE FROM rehabilitation_plans WHERE id = ?', [id]);
     return { success: true };
@@ -421,7 +422,7 @@ ipcMain.handle('rehabilitationPlan:delete', async (event, id) => {
 
 // ========== REHABILITATION SESSIONS ==========
 
-ipcMain.handle('rehabilitationSession:create', async (event, data) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'create', async (event, data) => {
   try {
     const id = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
@@ -453,7 +454,7 @@ ipcMain.handle('rehabilitationSession:create', async (event, data) => {
   }
 });
 
-ipcMain.handle('rehabilitationSession:getByPlan', async (event, planId) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'getByPlan', async (event, planId) => {
   try {
     return await query(`
       SELECT rs.*, u.fullName as therapistName
@@ -468,7 +469,7 @@ ipcMain.handle('rehabilitationSession:getByPlan', async (event, planId) => {
   }
 });
 
-ipcMain.handle('rehabilitationSession:getByPatient', async (event, patientId) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'getByPatient', async (event, patientId) => {
   try {
     return await query(`
       SELECT rs.*, u.fullName as therapistName
@@ -483,7 +484,7 @@ ipcMain.handle('rehabilitationSession:getByPatient', async (event, patientId) =>
   }
 });
 
-ipcMain.handle('rehabilitationSession:getById', async (event, id) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'getById', async (event, id) => {
   try {
     return await queryOne(`
       SELECT rs.*, u.fullName as therapistName
@@ -497,7 +498,7 @@ ipcMain.handle('rehabilitationSession:getById', async (event, id) => {
   }
 });
 
-ipcMain.handle('rehabilitationSession:complete', async (event, id, data) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'complete', async (event, id, data) => {
   try {
     await run(`
       UPDATE rehabilitation_sessions SET
@@ -513,9 +514,10 @@ ipcMain.handle('rehabilitationSession:complete', async (event, id, data) => {
   }
 });
 
-ipcMain.handle('rehabilitationSession:cancel', async (event, id, reason) => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'cancel', async (event, id, reason) => {
   try {
-    const existing = await queryOne('SELECT notes FROM rehabilitation_sessions WHERE id = ?', [id]);
+    return await withTransaction(async () => {
+    const existing = await queryOne('SELECT notes FROM rehabilitation_sessions WHERE id = ? FOR UPDATE', [id]);
     const appendReason = `AnnulÃ©: ${reason || 'Sans raison'}`;
     const newNotes = existing?.notes ? `${existing.notes} | ${appendReason}` : appendReason;
 
@@ -526,13 +528,14 @@ ipcMain.handle('rehabilitationSession:cancel', async (event, id, reason) => {
       WHERE id = ?
     `, [newNotes, id]);
     return { success: true };
+    });
   } catch (error) {
     console.error('Error cancelling session:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('rehabilitationSession:getTodaySessions', async () => {
+registerValidatedContractHandler(ipcMain, 'rehabilitationSession', 'getTodaySessions', async () => {
   try {
     const today = new Date().toISOString().split('T')[0];
     const sessions = await query(`

@@ -5,8 +5,10 @@ import moment from 'moment';
 import QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
 import { ipcMain } from 'electron';
-import { query, queryOne, run } from '../database-unified.js';
+import { query, queryOne, run, withTransaction } from '../database-unified.js';
 import { sendAppointmentCreatedSMS } from '../handlers/sms-handler.js';
+import { broadcastRealtimeEvent } from '../realtime-server.js';
+import { resolvePublicPractitioner } from './public-practitioner-selection.js';
 
 let bookingServer = null;
 let bookingServerState = {
@@ -253,7 +255,7 @@ function createSlotList(bookedTimes = []) {
   return slots;
 }
 
-async function getSlotsForDate(dateValue) {
+async function getSlotsForDate(dateValue, requestedPractitionerId = '') {
   const date = String(dateValue || '').slice(0, 10);
   if (!date) {
     return { slots: createSlotList([]) };
@@ -262,12 +264,23 @@ async function getSlotsForDate(dateValue) {
   const startOfDay = moment(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
   const endOfDay = moment(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
+  const practitioners = await getPublicPractitioners();
+  const { selectedPractitioner, selectionRequired } = resolvePublicPractitioner(
+    practitioners,
+    requestedPractitionerId
+  );
+  if (selectionRequired) {
+    return { slots: [], practitionerRequired: true };
+  }
+
   const rows = await query(
     `SELECT appointmentDateTime
      FROM appointments
-     WHERE appointmentDateTime BETWEEN ? AND ? AND status != 'cancelled'
+     WHERE appointmentDateTime BETWEEN ? AND ?
+       AND status != 'cancelled'
+       AND assignedTo IS NOT DISTINCT FROM ?
      ORDER BY appointmentDateTime ASC`,
-    [startOfDay, endOfDay]
+    [startOfDay, endOfDay, selectedPractitioner?.id || null]
   );
 
   const bookedTimes = (rows || []).map((row) => {
@@ -350,46 +363,87 @@ async function createAppointmentFromPublicBooking(payload) {
   const time = String(payload.time || '').slice(0, 5);
   const type = String(payload.type || 'Consultation').trim() || 'Consultation';
   const reason = String(payload.reason || '').trim();
+  const requestedPractitionerId = String(payload.practitionerId || '').trim();
 
   if (!fullName || !phone || !date || !time || !reason) {
     return { success: false, error: 'Merci de remplir les champs obligatoires.' };
   }
 
-  const appointmentDateTime = `${date} ${time}`;
-  const conflict = await queryOne(
-    `SELECT id FROM appointments
-     WHERE appointmentDateTime = ? AND status != 'cancelled'`,
-    [appointmentDateTime]
-  );
+  const practitioners = await getPublicPractitioners();
+  const { selectedPractitioner } = resolvePublicPractitioner(practitioners, requestedPractitionerId);
+  if (!selectedPractitioner) {
+    return {
+      success: false,
+      error: practitioners.length > 1
+        ? 'Merci de choisir un médecin.'
+        : 'Aucun médecin disponible pour ce rendez-vous.'
+    };
+  }
 
-  if (conflict) {
+  const appointmentDateTime = `${date} ${time}`;
+  const created = await withTransaction(async () => {
+    await queryOne(
+      'SELECT pg_advisory_xact_lock(hashtext(?))',
+      [`public-slot:${selectedPractitioner.id}:${appointmentDateTime}`]
+    );
+    const conflict = await queryOne(
+      `SELECT id FROM appointments
+       WHERE appointmentDateTime = ?
+         AND assignedTo = ?
+         AND status != 'cancelled'
+       FOR UPDATE`,
+      [appointmentDateTime, selectedPractitioner.id]
+    );
+
+    if (conflict) {
+      return { conflict: true };
+    }
+
+    const patientLockKey = normalizePhone(phone) || String(email || '').trim().toLowerCase();
+    await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-patient:${patientLockKey}`]);
+    const patientId = await findOrCreatePatientFromBooking({ fullName, phone, email });
+    await run(
+      `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+       VALUES (?, ?, ?)
+       ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+      [patientId, selectedPractitioner.id, selectedPractitioner.id]
+    );
+    await run(
+      'UPDATE patients SET primaryDoctorId = COALESCE(primaryDoctorId, ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+      [selectedPractitioner.id, patientId]
+    );
+    const appointmentId = uuidv4();
+    const now = moment().format('YYYY-MM-DD HH:mm:ss');
+    const bookingCode = generateBookingCode();
+
+    await run(
+      `INSERT INTO appointments (
+        id, patientId, assignedTo, appointmentDateTime, appointmentType, reason, status, notes,
+        bookingSource, bookingCode, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        appointmentId,
+        patientId,
+        selectedPractitioner.id,
+        appointmentDateTime,
+        type,
+        reason,
+        'scheduled',
+        'RDV pris depuis le portail web du cabinet',
+        'web',
+        bookingCode,
+        now,
+        now
+      ]
+    );
+    return { appointmentId, patientId, bookingCode };
+  }, { isolationLevel: 'SERIALIZABLE' });
+
+  if (created.conflict) {
     return { success: false, error: 'Ce créneau vient d’être réservé. Merci de choisir une autre heure.' };
   }
 
-  const patientId = await findOrCreatePatientFromBooking({ fullName, phone, email });
-  const appointmentId = uuidv4();
-  const now = moment().format('YYYY-MM-DD HH:mm:ss');
-  const bookingCode = generateBookingCode();
-
-  await run(
-    `INSERT INTO appointments (
-      id, patientId, appointmentDateTime, appointmentType, reason, status, notes,
-      bookingSource, bookingCode, createdAt, updatedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      appointmentId,
-      patientId,
-      appointmentDateTime,
-      type,
-      reason,
-      'scheduled',
-      'RDV pris depuis le portail web du cabinet',
-      'web',
-      bookingCode,
-      now,
-      now
-    ]
-  );
+  const { appointmentId, patientId, bookingCode } = created;
 
   const createdAppointment = await getAppointmentDetailsById(appointmentId);
   let smsResult = { success: false, skipped: true };
@@ -411,7 +465,231 @@ async function createAppointmentFromPublicBooking(payload) {
       date,
       time,
       type,
+      practitionerId: selectedPractitioner.id,
+      practitionerName: selectedPractitioner.name,
       smsResult
+    }
+  };
+}
+
+async function getPublicPractitioners() {
+  const rows = await query(
+    `SELECT id, fullName, specialty
+     FROM users
+     WHERE isActive = 1
+       AND isSuperAdmin = 0
+       AND role IN ('doctor', 'dentist')
+     ORDER BY fullName ASC`
+  );
+  return (rows || []).map((row) => ({
+    id: row.id,
+    name: row.fullName || 'Praticien',
+    specialty: row.specialty || ''
+  }));
+}
+
+async function getPublicQueue(trackingToken = '', requestedPractitionerId = '') {
+  const today = moment().format('YYYY-MM-DD');
+  const allRows = await query(
+    `SELECT w.id, w.publicTicketCode, w.publicTrackingToken, w.status,
+            w.priority, w.arrivalTime, w.declaredAppointment, w.appointmentId, w.assignedTo
+     FROM waiting_room w
+     WHERE DATE(w.arrivalTime) = ?
+       AND w.status IN ('waiting', 'in-consultation')
+     ORDER BY CASE WHEN w.status = 'in-consultation' THEN 0 ELSE 1 END,
+              w.priority DESC, w.arrivalTime ASC`,
+    [today]
+  );
+
+  const ownRow = trackingToken
+    ? (allRows || []).find((row) => row.publicTrackingToken === trackingToken)
+    : null;
+  const practitionerId = ownRow?.assignedTo || String(requestedPractitionerId || '').trim();
+  const rows = practitionerId
+    ? (allRows || []).filter((row) => row.assignedTo === practitionerId)
+    : (allRows || []);
+
+  let waitingPosition = 0;
+  const queue = (rows || []).map((row) => {
+    const isWaiting = row.status === 'waiting';
+    if (isWaiting) waitingPosition += 1;
+    return {
+      ticketCode: row.publicTicketCode || 'Accueil',
+      status: row.status,
+      position: isWaiting ? waitingPosition : 0
+    };
+  });
+
+  const ownQueueEntry = ownRow
+    ? queue[(rows || []).findIndex((row) => row.id === ownRow.id)]
+    : null;
+
+  return {
+    queue,
+    updatedAt: new Date().toISOString(),
+    own: ownRow ? {
+      ticketCode: ownRow.publicTicketCode,
+      status: ownRow.status,
+      position: ownQueueEntry?.position || 0,
+      peopleAhead: ownQueueEntry?.position > 0 ? ownQueueEntry.position - 1 : 0,
+      declaredAppointment: !!ownRow.declaredAppointment,
+      appointmentMatched: !!ownRow.appointmentId
+    } : null
+  };
+}
+
+async function createPublicWaitingCheckIn(payload) {
+  const fullName = String(payload.fullName || '').trim().replace(/\s+/g, ' ');
+  const phone = String(payload.phone || '').trim();
+  const reason = String(payload.reason || '').trim().slice(0, 255);
+  const declaredAppointment = payload.hasAppointment === true || payload.hasAppointment === 'true';
+  const requestedPractitionerId = String(payload.practitionerId || '').trim();
+
+  if (!fullName || !phone) {
+    return { success: false, error: 'Merci de saisir le nom complet et le numéro de téléphone.' };
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (normalizedPhone.length < 8) {
+    return { success: false, error: 'Le numéro de téléphone est invalide.' };
+  }
+
+  const today = moment().format('YYYY-MM-DD');
+  const practitioners = await getPublicPractitioners();
+  const practitionerSelection = resolvePublicPractitioner(practitioners, requestedPractitionerId);
+  const { selectedPractitioner } = practitionerSelection;
+
+  if (!practitionerSelection.hasPractitioners) {
+    return { success: false, error: 'Aucun médecin disponible pour cette arrivée.' };
+  }
+  if (practitionerSelection.requestedPractitionerUnavailable) {
+    return { success: false, error: 'Le praticien sélectionné est indisponible.' };
+  }
+  if (practitionerSelection.selectionRequired) {
+    return { success: false, error: 'Merci de choisir le praticien concerné.' };
+  }
+
+  const created = await withTransaction(async () => {
+    await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-waiting:${today}`]);
+    await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`public-arrival:${today}:${normalizedPhone}`]);
+
+    const patientId = await findOrCreatePatientFromBooking({ fullName, phone, email: '' });
+    if (selectedPractitioner) {
+      await run(
+        `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+         VALUES (?, ?, ?)
+         ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+        [patientId, selectedPractitioner.id, selectedPractitioner.id]
+      );
+      await run(
+        'UPDATE patients SET primaryDoctorId = COALESCE(primaryDoctorId, ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+        [selectedPractitioner.id, patientId]
+      );
+    }
+    const existing = await queryOne(
+      `SELECT id, appointmentId, publicTicketCode, publicTrackingToken
+       FROM waiting_room
+       WHERE patientId = ?
+         AND DATE(arrivalTime) = ?
+         AND status IN ('waiting', 'in-consultation')
+       FOR UPDATE`,
+      [patientId, today]
+    );
+    if (existing) {
+      let ticketCode = existing.publicTicketCode;
+      let trackingToken = existing.publicTrackingToken;
+      if (!ticketCode || !trackingToken) {
+        const existingCount = await queryOne(
+          'SELECT COUNT(*) AS count FROM waiting_room WHERE DATE(arrivalTime) = ?',
+          [today]
+        );
+        ticketCode = ticketCode || `A-${String(Number(existingCount?.count || 0)).padStart(3, '0')}`;
+        trackingToken = trackingToken || crypto.randomBytes(24).toString('hex');
+        await run(
+          `UPDATE waiting_room
+           SET publicTicketCode = ?, publicTrackingToken = ?, arrivalSource = 'public-web', updatedAt = ?
+           WHERE id = ?`,
+          [ticketCode, trackingToken, moment().format('YYYY-MM-DD HH:mm:ss'), existing.id]
+        );
+      }
+      return {
+        duplicate: true,
+        ticketCode,
+        trackingToken,
+        appointmentId: existing.appointmentId || null
+      };
+    }
+
+    let appointmentId = null;
+    if (declaredAppointment) {
+      const appointment = await queryOne(
+        `SELECT id
+         FROM appointments
+         WHERE patientId = ?
+           AND DATE(appointmentDateTime) = ?
+           AND status != 'cancelled'
+         ORDER BY ABS(EXTRACT(EPOCH FROM (appointmentDateTime - CURRENT_TIMESTAMP))) ASC
+         LIMIT 1`,
+        [patientId, today]
+      );
+      appointmentId = appointment?.id || null;
+    }
+
+    const countRow = await queryOne(
+      'SELECT COUNT(*) AS count FROM waiting_room WHERE DATE(arrivalTime) = ?',
+      [today]
+    );
+    const ticketCode = `A-${String(Number(countRow?.count || 0) + 1).padStart(3, '0')}`;
+    const trackingToken = crypto.randomBytes(24).toString('hex');
+    const id = uuidv4();
+    const arrivalTime = moment().format('YYYY-MM-DD HH:mm:ss');
+    const defaultReason = declaredAppointment ? 'Arrivée avec rendez-vous' : 'Arrivée sans rendez-vous';
+
+    await run(
+      `INSERT INTO waiting_room (
+         id, patientId, appointmentId, arrivalTime, reason, status, priority,
+         assignedTo, notes, publicTicketCode, publicTrackingToken,
+         arrivalSource, declaredAppointment, createdAt, updatedAt
+       ) VALUES (?, ?, ?, ?, ?, 'waiting', 0, ?, ?, ?, ?, 'public-web', ?, ?, ?)`,
+      [
+        id,
+        patientId,
+        appointmentId,
+        arrivalTime,
+        reason || defaultReason,
+        selectedPractitioner?.id || null,
+        declaredAppointment && !appointmentId ? 'Rendez-vous déclaré par le patient, non rapproché automatiquement' : null,
+        ticketCode,
+        trackingToken,
+        declaredAppointment,
+        arrivalTime,
+        arrivalTime
+      ]
+    );
+
+    return { id, patientId, ticketCode, trackingToken, appointmentId, duplicate: false };
+  }, { isolationLevel: 'SERIALIZABLE' });
+
+  if (!created.duplicate) {
+    broadcastRealtimeEvent({
+      type: 'waiting-room:new',
+      id: created.id,
+      patientId: created.patientId,
+      assignedTo: selectedPractitioner?.id || null,
+      title: 'Nouvelle arrivée depuis le QR code',
+      message: `${created.ticketCode} vient de rejoindre la salle d’attente`
+    });
+  }
+
+  const queueState = await getPublicQueue(created.trackingToken);
+  return {
+    success: true,
+    data: {
+      ticketCode: created.ticketCode,
+      trackingToken: created.trackingToken,
+      duplicate: created.duplicate,
+      appointmentMatched: !!created.appointmentId,
+      queue: queueState
     }
   };
 }
@@ -630,8 +908,68 @@ function renderPortalHtml(shareData) {
       color: var(--danger);
       border: 1px solid rgba(185, 28, 28, 0.12);
     }
+    .portal-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 18px;
+    }
+    .tab-btn {
+      border: 1px solid rgba(15, 95, 168, 0.14);
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--brand); color: white; }
+    .portal-panel.hidden { display: none; }
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .choice-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(15, 95, 168, 0.14);
+      border-radius: 16px;
+      padding: 14px;
+      background: #f9fbfd;
+      cursor: pointer;
+    }
+    .choice-card input { width: auto; }
+    .queue-layout {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .queue-box {
+      border: 1px solid rgba(15, 95, 168, 0.10);
+      border-radius: 20px;
+      background: #f8fbff;
+      padding: 18px;
+    }
+    .queue-list { display: grid; gap: 9px; margin-top: 12px; }
+    .queue-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 13px;
+      border-radius: 14px;
+      background: white;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      font-weight: 700;
+    }
+    .queue-row.own { border-color: var(--brand); background: #eff6ff; }
+    .own-ticket { font-size: 30px; font-weight: 900; color: var(--brand); margin: 8px 0; }
+    .privacy-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 10px; }
     @media (max-width: 900px) {
-      .hero, .form-grid, .meta {
+      .hero, .form-grid, .meta, .queue-layout {
         grid-template-columns: 1fr;
       }
       .shell {
@@ -641,6 +979,7 @@ function renderPortalHtml(shareData) {
         border-radius: 24px;
         padding: 20px;
       }
+      .portal-tabs, .choice-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -648,11 +987,10 @@ function renderPortalHtml(shareData) {
   <div class="shell">
     <div class="hero">
       <section class="card">
-        <span class="eyebrow">RDV en ligne</span>
-        <h1>Prendre rendez-vous sans appel.</h1>
+        <span class="eyebrow">Accueil du cabinet</span>
+        <h1>Signalez votre arrivée en quelques secondes.</h1>
         <p class="lead">
-          Choisissez une date, un créneau libre et envoyez votre demande directement au cabinet.
-          Le rendez-vous est enregistré dans l’agenda principal dès validation.
+          Rejoignez la salle d’attente avec ou sans rendez-vous, puis suivez votre position depuis votre téléphone.
         </p>
         <div class="meta">
           <div class="meta-item">
@@ -666,15 +1004,66 @@ function renderPortalHtml(shareData) {
         </div>
       </section>
       <section class="card">
-        <span class="eyebrow">Créneaux disponibles</span>
-        <h2 style="margin:16px 0 10px;font-size:28px;letter-spacing:-0.04em;">Agenda sécurisé du cabinet</h2>
+        <span class="eyebrow">File en direct</span>
+        <h2 style="margin:16px 0 10px;font-size:28px;letter-spacing:-0.04em;">Votre ordre, sans afficher les noms</h2>
         <p class="lead" style="font-size:15px;">
-          Les créneaux occupés sont masqués automatiquement. Le lien partagé peut aussi être ouvert avec le QR code du cabinet.
+          Un numéro de passage privé vous est attribué. La liste se met à jour automatiquement.
         </p>
       </section>
     </div>
 
-    <section class="card">
+    <nav class="portal-tabs" aria-label="Services du cabinet">
+      <button type="button" class="tab-btn active" data-panel="checkin-panel">Je suis arrivé(e)</button>
+      <button type="button" class="tab-btn" data-panel="booking-panel">Prendre un rendez-vous</button>
+    </nav>
+
+    <section class="card portal-panel" id="checkin-panel">
+      <form id="public-checkin-form">
+        <div class="form-grid">
+          <div class="field">
+            <label for="checkin-fullname">Nom complet *</label>
+            <input id="checkin-fullname" required autocomplete="name" maxlength="160">
+          </div>
+          <div class="field">
+            <label for="checkin-phone">Téléphone *</label>
+            <input id="checkin-phone" required autocomplete="tel" inputmode="tel" maxlength="30">
+          </div>
+          <div class="field-full">
+            <label>Avez-vous un rendez-vous aujourd’hui ? *</label>
+            <div class="choice-grid">
+              <label class="choice-card"><input type="radio" name="hasAppointment" value="true" required> Oui, j’ai un RDV</label>
+              <label class="choice-card"><input type="radio" name="hasAppointment" value="false" required> Non, sans RDV</label>
+            </div>
+          </div>
+          <div class="field-full" id="checkin-practitioner-field">
+            <label for="checkin-practitioner">Médecin *</label>
+            <select id="checkin-practitioner"></select>
+          </div>
+          <div class="field-full">
+            <label for="checkin-reason">Motif de la visite (optionnel)</label>
+            <textarea id="checkin-reason" maxlength="255" placeholder="Ex. consultation, contrôle, douleur..."></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <div class="hint">Votre arrivée sera visible immédiatement dans le logiciel du cabinet.</div>
+          <button type="submit" class="submit-btn" id="checkin-submit">Rejoindre la file</button>
+        </div>
+      </form>
+      <div id="checkin-feedback" class="feedback"></div>
+      <div class="queue-layout">
+        <div class="queue-box" id="own-status">
+          <strong>Votre passage</strong>
+          <p class="hint">Après votre inscription, votre numéro et votre position apparaîtront ici.</p>
+        </div>
+        <div class="queue-box">
+          <strong>Ordre de passage actuel</strong>
+          <div id="public-queue-list" class="queue-list"></div>
+          <div class="privacy-note">Pour protéger les patients, seuls les numéros de passage sont affichés.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card portal-panel hidden" id="booking-panel">
       <form id="public-booking-form">
         <div class="form-grid">
           <div class="field">
@@ -684,6 +1073,10 @@ function renderPortalHtml(shareData) {
           <div class="field">
             <label for="booking-phone">Téléphone *</label>
             <input id="booking-phone" name="phone" required autocomplete="tel" inputmode="tel">
+          </div>
+          <div class="field-full" id="booking-practitioner-field">
+            <label for="booking-practitioner">Médecin *</label>
+            <select id="booking-practitioner" name="practitionerId"></select>
           </div>
           <div class="field">
             <label for="booking-email">Email</label>
@@ -726,21 +1119,179 @@ function renderPortalHtml(shareData) {
     const typeSelect = document.getElementById('booking-type');
     const slotsContainer = document.getElementById('booking-slots');
     const feedback = document.getElementById('booking-feedback');
+    const checkinForm = document.getElementById('public-checkin-form');
+    const checkinFeedback = document.getElementById('checkin-feedback');
+    const practitionerField = document.getElementById('checkin-practitioner-field');
+    const practitionerSelect = document.getElementById('checkin-practitioner');
+    const bookingPractitionerField = document.getElementById('booking-practitioner-field');
+    const bookingPractitionerSelect = document.getElementById('booking-practitioner');
+    const queueList = document.getElementById('public-queue-list');
+    const ownStatus = document.getElementById('own-status');
+    const trackingStorageKey = 'medcareso-waiting-tracking-' + token;
 
     function showFeedback(type, message) {
       feedback.className = 'feedback ' + type;
       feedback.textContent = message;
     }
 
+    function showCheckinFeedback(type, message) {
+      checkinFeedback.className = 'feedback ' + type;
+      checkinFeedback.textContent = message;
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(function(button) {
+      button.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(item) {
+          item.classList.toggle('active', item === button);
+        });
+        document.querySelectorAll('.portal-panel').forEach(function(panel) {
+          panel.classList.toggle('hidden', panel.id !== button.dataset.panel);
+        });
+      });
+    });
+
     async function loadConfig() {
       const response = await fetch('/api/rdv/' + token + '/config');
       const result = await response.json();
       if (!result.success) return;
 
-      typeSelect.innerHTML = result.data.types.map(function(type) {
-        return '<option value="' + type + '">' + type + '</option>';
-      }).join('');
+      typeSelect.replaceChildren();
+      (result.data.types || []).forEach(function(type) {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        typeSelect.appendChild(option);
+      });
+
+      const practitioners = result.data.practitioners || [];
+      [practitionerSelect, bookingPractitionerSelect].forEach(function(select) {
+        select.replaceChildren();
+        if (practitioners.length !== 1) {
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = practitioners.length ? 'Choisir un médecin' : 'Aucun médecin disponible';
+          select.appendChild(placeholder);
+        }
+        practitioners.forEach(function(practitioner) {
+          const option = document.createElement('option');
+          option.value = practitioner.id;
+          option.textContent = practitioner.name + (practitioner.specialty ? ' • ' + practitioner.specialty : '');
+          select.appendChild(option);
+        });
+        select.required = practitioners.length > 1;
+        select.disabled = practitioners.length <= 1;
+        if (practitioners.length === 1) select.value = practitioners[0].id;
+      });
+      practitionerField.style.display = 'flex';
+      bookingPractitionerField.style.display = 'flex';
     }
+
+    function statusLabel(status) {
+      return status === 'in-consultation' ? 'Appelé / en consultation' : 'En attente';
+    }
+
+    function renderQueue(data) {
+      const queue = data.queue || [];
+      const own = data.own || null;
+      queueList.replaceChildren();
+
+      if (!queue.length) {
+        const empty = document.createElement('div');
+        empty.className = 'hint';
+        empty.textContent = 'La file est vide pour le moment.';
+        queueList.appendChild(empty);
+      } else {
+        queue.forEach(function(entry) {
+          const row = document.createElement('div');
+          row.className = 'queue-row' + (own && own.ticketCode === entry.ticketCode ? ' own' : '');
+          const ticket = document.createElement('span');
+          ticket.textContent = entry.ticketCode;
+          const position = document.createElement('span');
+          position.textContent = entry.status === 'in-consultation' ? 'En consultation' : '#' + entry.position;
+          row.append(ticket, position);
+          queueList.appendChild(row);
+        });
+      }
+
+      if (own) {
+        ownStatus.replaceChildren();
+        const heading = document.createElement('strong');
+        heading.textContent = 'Votre passage';
+        const ticket = document.createElement('div');
+        ticket.className = 'own-ticket';
+        ticket.textContent = own.ticketCode;
+        const detail = document.createElement('p');
+        detail.className = 'hint';
+        detail.textContent = own.status === 'in-consultation'
+          ? 'Vous avez été appelé(e). Merci de vous présenter.'
+          : 'Position ' + own.position + ' • ' + own.peopleAhead + ' personne(s) avant vous.';
+        const appointment = document.createElement('p');
+        appointment.className = 'privacy-note';
+        appointment.textContent = own.declaredAppointment
+          ? (own.appointmentMatched ? 'Rendez-vous retrouvé dans l’agenda.' : 'Rendez-vous déclaré, vérification par l’accueil.')
+          : 'Arrivée sans rendez-vous.';
+        ownStatus.append(heading, ticket, detail, appointment);
+      }
+    }
+
+    async function loadQueue() {
+      try {
+        const tracking = localStorage.getItem(trackingStorageKey) || '';
+        const response = await fetch(
+          '/api/rdv/' + token + '/queue?tracking=' + encodeURIComponent(tracking)
+          + '&practitioner=' + encodeURIComponent(practitionerSelect.value || ''),
+          { cache: 'no-store' }
+        );
+        const result = await response.json();
+        if (result.success) renderQueue(result.data || {});
+      } catch (_) {
+        // The next automatic refresh will retry.
+      }
+    }
+
+    checkinForm.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const submitButton = document.getElementById('checkin-submit');
+      const appointmentChoice = checkinForm.querySelector('input[name="hasAppointment"]:checked');
+      if (!appointmentChoice) {
+        showCheckinFeedback('error', 'Merci d’indiquer si vous avez un rendez-vous.');
+        return;
+      }
+
+      submitButton.disabled = true;
+      try {
+        const response = await fetch('/api/rdv/' + token + '/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: document.getElementById('checkin-fullname').value,
+            phone: document.getElementById('checkin-phone').value,
+            hasAppointment: appointmentChoice.value === 'true',
+            practitionerId: practitionerSelect.value,
+            reason: document.getElementById('checkin-reason').value
+          })
+        });
+        const result = await response.json();
+        if (!result.success) {
+          showCheckinFeedback('error', result.error || 'Inscription impossible.');
+          return;
+        }
+        const data = result.data || {};
+        if (data.trackingToken) localStorage.setItem(trackingStorageKey, data.trackingToken);
+        showCheckinFeedback(
+          'success',
+          data.duplicate
+            ? 'Vous êtes déjà inscrit(e). Votre position a été retrouvée.'
+            : 'Arrivée enregistrée. Votre numéro est ' + data.ticketCode + '.'
+        );
+        renderQueue(data.queue || {});
+        checkinForm.reset();
+      } catch (_) {
+        showCheckinFeedback('error', 'Le portail ne répond pas. Vérifiez le Wi-Fi du cabinet.');
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
 
     function renderSlots(slots) {
       slotsContainer.innerHTML = slots.map(function(slot) {
@@ -752,7 +1303,15 @@ function renderPortalHtml(shareData) {
 
     async function loadSlots(dateValue) {
       if (!dateValue) return;
-      const response = await fetch('/api/rdv/' + token + '/slots?date=' + encodeURIComponent(dateValue));
+      if (!bookingPractitionerSelect.value) {
+        slotsContainer.innerHTML = '<span class="hint">Choisissez d’abord un médecin.</span>';
+        timeInput.value = '';
+        return;
+      }
+      const response = await fetch(
+        '/api/rdv/' + token + '/slots?date=' + encodeURIComponent(dateValue)
+        + '&practitioner=' + encodeURIComponent(bookingPractitionerSelect.value)
+      );
       const result = await response.json();
       if (!result.success) {
         showFeedback('error', result.error || 'Impossible de charger les créneaux.');
@@ -776,6 +1335,12 @@ function renderPortalHtml(shareData) {
       loadSlots(dateInput.value);
     });
 
+    bookingPractitionerSelect.addEventListener('change', function() {
+      loadSlots(dateInput.value);
+    });
+
+    practitionerSelect.addEventListener('change', loadQueue);
+
     form.addEventListener('submit', async function(event) {
       event.preventDefault();
 
@@ -788,6 +1353,7 @@ function renderPortalHtml(shareData) {
         fullName: document.getElementById('booking-fullname').value,
         phone: document.getElementById('booking-phone').value,
         email: document.getElementById('booking-email').value,
+        practitionerId: bookingPractitionerSelect.value,
         type: document.getElementById('booking-type').value,
         date: document.getElementById('booking-date').value,
         time: document.getElementById('booking-time').value,
@@ -808,7 +1374,11 @@ function renderPortalHtml(shareData) {
       }
 
       const booking = result.data || {};
-      showFeedback('success', 'Rendez-vous confirmé pour le ' + booking.date + ' à ' + booking.time + ' • Référence ' + booking.bookingCode);
+      showFeedback(
+        'success',
+        'Rendez-vous confirmé avec ' + (booking.practitionerName || 'le médecin')
+          + ' pour le ' + booking.date + ' à ' + booking.time + ' • Référence ' + booking.bookingCode
+      );
       form.reset();
       const today = new Date();
       const localIso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split('T')[0];
@@ -822,8 +1392,9 @@ function renderPortalHtml(shareData) {
       dateInput.min = localIso;
       dateInput.value = localIso;
       loadConfig().then(function() {
-        return loadSlots(localIso);
+        return Promise.all([loadSlots(localIso), loadQueue()]);
       });
+      setInterval(loadQueue, 3000);
     }());
   </script>
 </body>
@@ -867,20 +1438,43 @@ async function requestHandler(req, res) {
 
     if (pathParts[0] === 'api' && pathParts[1] === 'rdv' && pathParts[2] === token) {
       if (pathParts[3] === 'config' && req.method === 'GET') {
-        const types = await getDistinctAppointmentTypes();
+        const [types, practitioners] = await Promise.all([
+          getDistinctAppointmentTypes(),
+          getPublicPractitioners()
+        ]);
         sendJson(res, 200, {
           success: true,
           data: {
             cabinetName: settings.cabinetName || 'Cabinet médical',
             doctorName: settings.doctorName || '',
-            types
+            types,
+            practitioners
           }
         });
         return;
       }
 
+      if (pathParts[3] === 'queue' && req.method === 'GET') {
+        const result = await getPublicQueue(
+          String(url.searchParams.get('tracking') || ''),
+          String(url.searchParams.get('practitioner') || '')
+        );
+        sendJson(res, 200, { success: true, data: result });
+        return;
+      }
+
+      if (pathParts[3] === 'checkin' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const result = await createPublicWaitingCheckIn(body);
+        sendJson(res, result.success ? 200 : 400, result);
+        return;
+      }
+
       if (pathParts[3] === 'slots' && req.method === 'GET') {
-        const result = await getSlotsForDate(url.searchParams.get('date'));
+        const result = await getSlotsForDate(
+          url.searchParams.get('date'),
+          url.searchParams.get('practitioner')
+        );
         sendJson(res, 200, { success: true, data: result });
         return;
       }

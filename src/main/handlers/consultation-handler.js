@@ -100,13 +100,13 @@ export function handleConsultationEvents() {
         return { success: false, error: 'Patient introuvable' };
       }
 
-      if (!userContext.isAdmin && userContext.isPractitioner && userContext.userId) {
-        if (patient.primaryDoctorId && patient.primaryDoctorId !== userContext.userId) {
-          return { success: false, error: 'Accès refusé: ce patient est rattaché à un autre médecin' };
-        }
-
-        if (!patient.primaryDoctorId) {
-          await run('UPDATE patients SET primaryDoctorId = ? WHERE id = ?', [userContext.userId, consultationData.patientId]);
+      if (userContext.isPractitioner && userContext.userId) {
+        const assignment = await queryOne(
+          'SELECT patientId FROM patient_practitioners WHERE patientId = ? AND practitionerId = ?',
+          [consultationData.patientId, userContext.userId]
+        );
+        if (!assignment) {
+          return { success: false, error: 'Accès refusé: ajoutez d’abord ce patient à votre liste' };
         }
       }
 

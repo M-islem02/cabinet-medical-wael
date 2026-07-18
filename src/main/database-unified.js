@@ -11,6 +11,7 @@ import {
   query as postgreSqlQuery,
   queryOne as postgreSqlQueryOne,
   run as postgreSqlRun,
+  withTransaction as postgreSqlWithTransaction,
   getDatabase as getPostgreSqlDatabase,
   getConfig as getPostgreSqlConfig,
   loadConfig as loadPostgreSqlConfig
@@ -43,6 +44,10 @@ export function queryOne(sql, params = []) {
 
 export function run(sql, params = []) {
   return postgreSqlRun(sql, sanitizeParams(params));
+}
+
+export function withTransaction(task, options = {}) {
+  return postgreSqlWithTransaction(task, options);
 }
 
 export function closeDatabase() {
