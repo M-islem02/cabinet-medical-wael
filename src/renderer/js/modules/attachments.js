@@ -318,6 +318,7 @@ async function loadPatientAttachments(patientId, options = {}) {
               ${familyBadge}
             </div>
             <div class="attachment-card-actions">
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="event.stopPropagation(); openAttachment('${encodedPath}', '${safeName}', ${index})">👁️</button>
               <button class="btn btn-tiny btn-info" onclick="event.stopPropagation(); downloadAttachment('${encodedPath}', '${safeName}', ${index})">Télécharger</button>
               <button class="btn btn-tiny btn-primary" onclick="event.stopPropagation(); printAttachment('${encodedPath}', '${safeName}', ${index})">Imprimer</button>
               <button class="btn btn-tiny btn-danger" onclick="event.stopPropagation(); ${deleteAction}">Supprimer</button>

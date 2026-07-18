@@ -45,6 +45,28 @@ function sanitizePatientForDirector(patient) {
   };
 }
 
+// Assistants can schedule and collect payments, so they receive identity and
+// contact data only. Clinical history and social-security data stay server-side.
+function sanitizePatientForAssistant(patient) {
+  if (!patient) return patient;
+  return {
+    id: patient.id,
+    firstName: patient.firstName,
+    lastName: patient.lastName,
+    dateOfBirth: patient.dateOfBirth,
+    gender: patient.gender,
+    email: patient.email,
+    phone: patient.phone,
+    address: patient.address,
+    city: patient.city,
+    zipCode: patient.zipCode,
+    emergencyContact: patient.emergencyContact,
+    emergencyPhone: patient.emergencyPhone,
+    createdAt: patient.createdAt,
+    updatedAt: patient.updatedAt
+  };
+}
+
 function toPositiveInt(value, fallback) {
   const parsed = parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -469,13 +491,19 @@ export function handlePatientEvents() {
         }
       } else if (userContext.isAssistant) {
         const scope = await resolvePatientScope(userContext, request.doctorId);
-        if (!(await patientIsAssigned(request.patientId, scope.doctorId))) {
+        // In a multi-practitioner cabinet assistants use the global directory.
+        // Their response is restricted to non-clinical fields below.
+        if (!scope.cabinetMode && !(await patientIsAssigned(request.patientId, scope.doctorId))) {
           return { success: false, error: 'Accès refusé: patient absent de la liste du médecin sélectionné' };
         }
       }
 
       if (isCurrentUserDirector()) {
         return { success: true, data: sanitizePatientForDirector(patient) };
+      }
+
+      if (userContext.isAssistant) {
+        return { success: true, data: sanitizePatientForAssistant(patient) };
       }
 
       const assignedMedecins = await query(

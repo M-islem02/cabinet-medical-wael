@@ -5,7 +5,7 @@
 
 let equipmentData = [];
 let equipmentCategories = [];
-let equipmentAlerts = { overdue: [], upcoming: [], inMaintenance: [] };
+let equipmentAlerts = { overdue: [], upcoming: [], inMaintenance: [], unscheduled: [] };
 let equipmentTabState = { activeTab: 'list' };
 let equipmentSelectedId = null;
 let canManageEquipment = false;
@@ -16,8 +16,10 @@ let equipmentPagination = { page: 1, pageSize: EQUIPMENT_PAGE_SIZE, total: 0, to
 function checkEquipmentPerms() {
     const isSuperAdmin = typeof currentUserIsSuperAdmin !== 'undefined' ? currentUserIsSuperAdmin : false;
     const isAdmin = typeof currentUserIsAdmin !== 'undefined' ? currentUserIsAdmin : false;
-    canManageEquipment = isSuperAdmin || isAdmin;
-    canSeeEquipmentCosts = isSuperAdmin || isAdmin;
+    const role = typeof currentUserRole === 'string' ? currentUserRole.trim().toLowerCase() : '';
+    const isPractitioner = ['doctor', 'dentist'].includes(role);
+    canManageEquipment = isSuperAdmin || isAdmin || isPractitioner;
+    canSeeEquipmentCosts = isSuperAdmin || isAdmin || isPractitioner;
 }
 
 const EQUIPMENT_STATUS_LABELS = {
@@ -68,7 +70,7 @@ async function refreshEquipment() {
 }
 
 function switchEquipmentTab(tabName) {
-    const validTabs = ['list', 'detail', 'alerts', 'add'];
+    const validTabs = ['list', 'detail', 'alerts'];
     if (!validTabs.includes(tabName)) return;
     equipmentTabState.activeTab = tabName;
     document.querySelectorAll('#equipment .module-tabs-inline [data-tab]').forEach(btn => {
@@ -81,12 +83,11 @@ function switchEquipmentTab(tabName) {
     if (target) target.style.display = 'block';
 
     const addBtn = document.getElementById('equipment-add-btn');
-    if (addBtn) addBtn.style.display = ['list', 'add'].includes(tabName) ? '' : 'none';
+    if (addBtn) addBtn.style.display = tabName === 'list' ? '' : 'none';
 
     if (tabName === 'list') loadEquipmentList();
     if (tabName === 'detail') { /* Handled by click on listing */ }
     if (tabName === 'alerts') loadEquipmentAlerts();
-    if (tabName === 'add') renderEquipmentAddForm();
 }
 
 async function loadEquipmentList(page = 1) {
@@ -140,7 +141,9 @@ function displayEquipmentList() {
             <td style="padding: 14px 16px;" onclick="event.stopPropagation()">
                 ${canManageEquipment ? `<button onclick="editEquipment('${e.id}')" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>` : ''}
                 ${canManageEquipment ? `<button onclick="openAddMaintenanceModal('${e.id}')" class="inventory-action-btn inventory-action-btn-stock">Maintenance</button>` : ''}
-                ${!canManageEquipment ? `<button onclick="requestEquipmentMaintenance('${e.id}')" class="inventory-action-btn inventory-action-btn-edit">🚩 Signaler</button>` : ''}
+                ${e.status === 'maintenance'
+                    ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-resolve">Remettre en service</button>`
+                    : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-report">Signaler un problème</button>`}
             </td>
         </tr>`;
     }).join('');
@@ -226,7 +229,11 @@ async function showEquipmentDetail(id) {
                     <button onclick="editEquipment('${e.id}')" class="btn btn-secondary btn-small">Modifier</button>
                     <button onclick="openAddMaintenanceModal('${e.id}')" class="btn btn-primary btn-small">+ Maintenance</button>
                 </div>` : ''}
-                ${!canManageEquipment ? `<button onclick="requestEquipmentMaintenance('${e.id}')" class="btn btn-small" style="margin-top:20px;background:#fef3c7;border:1px solid #fcd34d;color:#92400e">🚩 Signaler un besoin de maintenance</button>` : ''}
+                <div class="equipment-detail-actions-secondary">
+                  ${e.status === 'maintenance'
+                    ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Remettre en service</button>`
+                    : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Signaler un problème</button>`}
+                </div>
             </div>
         </div>`;
     } catch (e) { console.error('Error loading equipment detail:', e); }
@@ -242,29 +249,44 @@ async function loadEquipmentAlerts() {
 }
 
 function displayEquipmentAlerts() {
-    const renderCards = (items, containerId) => {
+    const renderCards = (items, containerId, kind) => {
         const container = document.getElementById(containerId);
         if (!container) return;
         if (!items.length) { container.innerHTML = '<div style="font-size:13px;color:#94a3b8;padding:12px">Aucun équipement</div>'; return; }
         container.innerHTML = items.map(e => {
             const sc = EQUIPMENT_STATUS_COLORS[e.status] || EQUIPMENT_STATUS_COLORS.available;
             const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category;
+            const maintenanceDate = e.nextMaintenanceDate ? new Date(`${String(e.nextMaintenanceDate).slice(0, 10)}T00:00:00`) : null;
+            const dayDistance = maintenanceDate && !Number.isNaN(maintenanceDate.getTime())
+                ? Math.ceil((maintenanceDate.getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
+                : null;
+            const timing = kind === 'overdue' && dayDistance !== null
+                ? `${Math.abs(dayDistance)} jour(s) de retard`
+                : kind === 'upcoming' && dayDistance !== null
+                    ? `Dans ${dayDistance} jour(s)`
+                    : kind === 'unscheduled' ? 'Aucune date définie' : 'Intervention nécessaire';
             return `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer" onclick="showEquipmentDetail('${e.id}')">
-                <div>
+            <div class="equipment-alert-card equipment-alert-${kind}" onclick="showEquipmentDetail('${e.id}')">
+                <div class="equipment-alert-main">
                     <strong>${e.name}</strong>
-                    <div style="font-size:12px;color:#64748b">${catLabel} · Prochaine: ${formatEquipmentDate(e.nextMaintenanceDate)}</div>
+                    <div>${catLabel}${e.assignedRoom ? ` · ${e.assignedRoom}` : ''}</div>
+                    <small>Dernière maintenance : ${formatEquipmentDate(e.lastMaintenanceDate)} · Prochaine : ${formatEquipmentDate(e.nextMaintenanceDate)}</small>
                 </div>
-                <div style="display:flex;gap:8px;align-items:center">
+                <div class="equipment-alert-actions" onclick="event.stopPropagation()">
+                    <span class="equipment-alert-timing">${timing}</span>
                     <span style="background:${sc.bg};color:${sc.color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status]}</span>
-                    ${canManageEquipment ? `<button onclick="event.stopPropagation();openAddMaintenanceModal('${e.id}')" class="btn btn-primary btn-small">Maintenance</button>` : ''}
+                    <button onclick="showEquipmentDetail('${e.id}')" class="btn btn-secondary btn-small">Voir la fiche</button>
+                    ${kind === 'inMaintenance'
+                        ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Remettre en service</button>`
+                        : `<button onclick="openAddMaintenanceModal('${e.id}')" class="btn btn-primary btn-small">Planifier / enregistrer</button>`}
                 </div>
             </div>`;
         }).join('');
     };
-    renderCards(equipmentAlerts.overdue, 'equipment-alerts-overdue-list');
-    renderCards(equipmentAlerts.upcoming, 'equipment-alerts-upcoming-list');
-    renderCards(equipmentAlerts.inMaintenance, 'equipment-alerts-inmai-list');
+    renderCards(equipmentAlerts.overdue, 'equipment-alerts-overdue-list', 'overdue');
+    renderCards(equipmentAlerts.upcoming, 'equipment-alerts-upcoming-list', 'upcoming');
+    renderCards(equipmentAlerts.inMaintenance, 'equipment-alerts-inmai-list', 'inMaintenance');
+    renderCards(equipmentAlerts.unscheduled || [], 'equipment-alerts-unscheduled-list', 'unscheduled');
 }
 
 async function updateEquipmentStats() {
@@ -289,12 +311,12 @@ function openEquipmentModal(id = null) {
     document.getElementById('equipment-form').reset();
     document.getElementById('equipment-id').value = '';
     document.getElementById('equipment-specific-fields').innerHTML = '';
-    title.textContent = '🔧 Nouvel Équipement';
+    title.textContent = 'Nouvel équipement';
 
     if (id) {
         const eq = equipmentData.find(e => e.id === id);
         if (eq) {
-            title.textContent = '🔧 Modifier Équipement';
+            title.textContent = 'Modifier l’équipement';
             document.getElementById('equipment-id').value = eq.id;
             document.getElementById('equipment-name').value = eq.name || '';
             document.getElementById('equipment-category').value = eq.category || '';
@@ -437,10 +459,23 @@ async function requestEquipmentMaintenance(id) {
     const reason = prompt('Décrivez le besoin de maintenance:');
     if (!reason) return;
     try {
-        await window.api.equipment.requestMaintenance(id, reason);
+        const result = await window.api.equipment.requestMaintenance(id, reason);
+        if (!result?.success) throw new Error(result?.error || 'Signalement impossible');
         showNotification('Demande de maintenance envoyée', 'success');
         await loadEquipmentList();
         await loadEquipmentAlerts();
+    } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+}
+
+async function clearEquipmentMaintenance(id) {
+    if (!confirm('Confirmer que cet équipement est de nouveau disponible ?')) return;
+    try {
+        const result = await window.api.equipment.clearMaintenanceRequest(id);
+        if (!result?.success) throw new Error(result?.error || 'Mise à jour impossible');
+        showNotification('Équipement remis en service', 'success');
+        await loadEquipmentList();
+        await loadEquipmentAlerts();
+        if (equipmentSelectedId === id) await showEquipmentDetail(id);
     } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
 }
 
@@ -468,6 +503,7 @@ function formatEquipmentDate(dateStr) {
 
 // ─── GLOBAL EXPORTS ──────────────────────────────────────────────────────────
 window.initEquipment = initEquipment;
+window.clearEquipmentMaintenance = clearEquipmentMaintenance;
 window.switchEquipmentTab = switchEquipmentTab;
 window.refreshEquipment = refreshEquipment;
 window.filterEquipment = filterEquipment;

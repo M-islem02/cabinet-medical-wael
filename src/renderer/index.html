@@ -145,6 +145,10 @@
                         title="Réinitialiser le zoom (Ctrl 0)" aria-label="Réinitialiser le zoom">90%</button>
                     <button type="button" class="zoom-control-btn" id="app-zoom-in" title="Zoom avant (Ctrl +)"
                         aria-label="Zoom avant">+</button>
+                    <button type="button" class="zoom-control-btn app-refresh-btn" id="app-refresh-btn"
+                        title="Actualiser l'application (F5)" aria-label="Actualiser l'application" onclick="refreshApp()">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 1 0 2.05 5.35"></path><path d="M20 4v7h-7"></path></svg>
+                    </button>
                 </div>
             </header>
 
@@ -152,6 +156,14 @@
             <div class="content-area">
                 <!-- Dashboard -->
                 <section id="dashboard" class="section active">
+                    <div class="dashboard-intro">
+                        <div>
+                            <p class="dashboard-eyebrow">Vue d'ensemble</p>
+                            <h1>Activité du cabinet</h1>
+                            <p id="dashboard-summary-text">Chargement des informations du jour...</p>
+                        </div>
+                        <button type="button" class="dashboard-refresh-action" onclick="loadDashboardStats()">Actualiser les données</button>
+                    </div>
                     <div class="dashboard-grid">
                         <div class="card">
                             <div class="card-header rehab-panel-header">
@@ -1380,7 +1392,7 @@
                                         <th>Date Début</th>
                                         <th>Date Fin</th>
                                         <th>Durée</th>
-                                        <th>Motif</th>
+                                        <th>Document</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -1401,7 +1413,7 @@
                                         <th>Date Début</th>
                                         <th>Date Fin</th>
                                         <th>Durée</th>
-                                        <th>Motif</th>
+                                        <th>Document</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -1777,9 +1789,6 @@
                                 <button class="feature-tab-btn inventory-tab-btn" data-tab="suppliers" role="tab" aria-selected="false" onclick="switchInventoryTab('suppliers')">
                                     Fournisseurs
                                 </button>
-                                <button class="feature-tab-btn inventory-tab-btn" data-tab="lots" role="tab" aria-selected="false" onclick="switchInventoryTab('lots')">
-                                    Lots & Expiration
-                                </button>
                                 <button class="feature-tab-btn inventory-tab-btn" data-tab="history" role="tab" aria-selected="false" onclick="switchInventoryTab('history')">
                                     Historique d'achats
                                 </button>
@@ -1789,12 +1798,14 @@
                                 <button class="feature-tab-btn inventory-tab-btn" data-tab="pos" role="tab" aria-selected="false" onclick="switchInventoryTab('pos')">
                                     Point de vente
                                 </button>
+                                <button class="feature-tab-btn inventory-tab-btn" data-tab="sales" role="tab" aria-selected="false" onclick="switchInventoryTab('sales')">
+                                    Historique des ventes
+                                </button>
                             </div>
                             <div class="module-tabs-actions">
                                 <button class="btn btn-secondary plans-refresh-btn" onclick="refreshInventoryModule()">Actualiser</button>
                                 <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="articles" onclick="openInventoryModal()">+ Nouvel article</button>
                                 <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="suppliers" onclick="openSupplierModal()" style="display:none">+ Nouveau fournisseur</button>
-                                <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="lots" onclick="openInventoryLotModal()" style="display:none">+ Nouveau lot</button>
                                 <button class="btn btn-primary plans-new-btn inventory-action-btn-tab" data-action="orders" onclick="openPurchaseOrderModal()" style="display:none">+ Nouvelle commande</button>
                             </div>
                     </div>
@@ -1802,19 +1813,18 @@
                     <!-- TAB: Articles -->
                     <div id="inventory-tab-articles" class="inventory-tab-content" style="display: block;">
                         <div class="card module-content-card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
-                            <div class="card-header module-command-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                            <div class="card-header module-command-bar inventory-articles-toolbar" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Liste des articles</h3>
-                                <div class="module-filter-row" style="display: flex; gap: 15px; align-items: center;">
-                                    <select id="inventory-category-filter" class="form-control module-filter-category" onchange="filterInventory()" style="min-width:160px">
+                                <div class="module-filter-row inventory-articles-filters">
+                                    <select id="inventory-category-filter" class="form-control module-filter-category inventory-category-select" onchange="filterInventory()">
                                         <option value="">Toutes catégories</option>
                                     </select>
-                                    <div class="module-search-wrap" style="position: relative;">
-                                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;">🔍</span>
-                                        <input type="text" id="inventory-search" class="form-control module-search module-search-wide" placeholder="Rechercher..."
-                                            style="padding: 10px 12px 10px 38px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px; font-size: 14px;">
+                                    <div class="module-search-wrap inventory-search-control">
+                                        <svg class="inventory-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+                                        <input type="text" id="inventory-search" class="form-control module-search module-search-wide" placeholder="Rechercher un article...">
                                     </div>
-                                    <label class="module-filter-toggle" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: #fff; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; color: #475569;">
-                                        <input type="checkbox" id="inventory-low-only" style="width: 18px; height: 18px; accent-color: #f5576c;">
+                                    <label class="module-filter-toggle inventory-low-filter">
+                                        <input type="checkbox" id="inventory-low-only">
                                         Stock bas
                                     </label>
                                     <div id="inventory-pagination" class="pagination-controls"></div>
@@ -1968,7 +1978,7 @@
                     <!-- TAB: POS -->
                     <div id="inventory-tab-pos" class="inventory-tab-content" style="display: none;">
                         <div class="card" style="padding: 20px;">
-                            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
+                            <div id="pos-checkout-panel" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
                                 <div>
                                     <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">🛒 Caisse</h3>
                                     <div style="position: relative; margin-bottom: 16px;">
@@ -2036,13 +2046,13 @@
                                             <span>Total</span><span id="pos-final-total">0 DZD</span>
                                         </div>
                                     </div>
-                                    <button class="btn btn-primary btn-block" onclick="submitPOSSale()" style="margin-top: 20px; width: 100%; padding: 14px; font-size: 16px; font-weight: 700;">
+                                    <button id="pos-submit-button" class="btn btn-primary btn-block" onclick="submitPOSSale()" style="margin-top: 20px; width: 100%; padding: 14px; font-size: 16px; font-weight: 700;">
                                         ✅ Valider la vente
                                     </button>
                                 </div>
                             </div>
 
-                            <div id="pos-sales-history" style="margin-top: 24px;">
+                            <div id="pos-sales-history" style="display:none;">
                                 <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">Historique des ventes</h4>
                                 <div style="overflow-x: auto;">
                                     <table class="table" style="margin:0;">
@@ -2052,11 +2062,12 @@
                                                 <th style="padding: 12px 14px; font-size: 13px;">Client / Patient</th>
                                                 <th style="padding: 12px 14px; font-size: 13px;">Articles</th>
                                                 <th style="padding: 12px 14px; font-size: 13px; text-align:right;">Total</th>
-                                                <th style="padding: 12px 14px; font-size: 13px;">Paiement</th>
+                                                <th style="padding: 12px 14px; font-size: 13px;">Statut</th>
+                                                <th style="padding: 12px 14px; font-size: 13px;">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody id="pos-sales-tbody">
-                                            <tr><td colspan="5" class="text-center" style="padding: 30px; color: #94a3b8;">Aucune vente</td></tr>
+                                            <tr><td colspan="6" class="text-center" style="padding: 30px; color: #94a3b8;">Aucune vente</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -2093,7 +2104,6 @@
                                 <button class="feature-tab-btn equipment-tab-btn active" data-tab="list" role="tab" aria-selected="true" onclick="switchEquipmentTab('list')">Liste des équipements</button>
                                 <button class="feature-tab-btn equipment-tab-btn" data-tab="detail" role="tab" aria-selected="false" onclick="switchEquipmentTab('detail')">Fiche équipement</button>
                                 <button class="feature-tab-btn equipment-tab-btn" data-tab="alerts" role="tab" aria-selected="false" onclick="switchEquipmentTab('alerts')">Alertes maintenance</button>
-                                <button class="feature-tab-btn equipment-tab-btn" data-tab="add" role="tab" aria-selected="false" onclick="switchEquipmentTab('add')">Ajouter un équipement</button>
                             </div>
                             <div class="module-tabs-actions">
                                 <button class="btn btn-secondary plans-refresh-btn" onclick="refreshEquipment()">Actualiser</button>
@@ -2106,18 +2116,21 @@
                         <div class="card module-content-card">
                             <div class="card-header module-command-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
                                 <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Liste des équipements</h3>
-                                <div class="module-filter-row" style="display: flex; gap: 12px; align-items: center;">
-                                    <select id="equipment-filter-category" class="form-control module-filter-category" onchange="filterEquipment()" style="min-width: 160px;">
+                                <div class="module-filter-row equipment-filter-row">
+                                    <select id="equipment-filter-category" class="form-control module-filter-category" onchange="filterEquipment()">
                                         <option value="">Toutes catégories</option>
                                     </select>
-                                    <select id="equipment-filter-status" class="form-control module-filter-status" onchange="filterEquipment()" style="min-width: 140px;">
+                                    <select id="equipment-filter-status" class="form-control module-filter-status" onchange="filterEquipment()">
                                         <option value="">Tous statuts</option>
                                         <option value="available">Disponible</option>
                                         <option value="in_use">En cours d'utilisation</option>
                                         <option value="maintenance">En maintenance</option>
                                         <option value="out_of_service">Hors service</option>
                                     </select>
-                                    <input type="text" id="equipment-search" class="form-control module-search module-search-wide" placeholder="Rechercher..." oninput="filterEquipment()" style="padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 10px; width: 220px;">
+                                    <label class="module-search-shell" for="equipment-search">
+                                        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                        <input type="text" id="equipment-search" class="form-control module-search module-search-wide" placeholder="Rechercher un équipement..." oninput="filterEquipment()">
+                                    </label>
                                     <div id="equipment-pagination" class="pagination-controls"></div>
                                 </div>
                             </div>
@@ -2164,6 +2177,10 @@
                             <div id="equipment-alerts-inmai">
                                 <h4 style="color: #8b5cf6; margin: 0 0 8px 0;">Actuellement en maintenance / hors service</h4>
                                 <div style="display: grid; gap: 10px;" id="equipment-alerts-inmai-list"></div>
+                            </div>
+                            <div id="equipment-alerts-unscheduled" style="margin-top: 20px;">
+                                <h4 style="color: #475569; margin: 0 0 8px 0;">Maintenance non planifiée</h4>
+                                <div style="display: grid; gap: 10px;" id="equipment-alerts-unscheduled-list"></div>
                             </div>
                         </div>
                     </div>
@@ -3058,6 +3075,33 @@
                                     </div>
                                 </div>
 
+                                <div class="form-group">
+                                    <label>Logo de l’application (interface uniquement)</label>
+                                    <small class="settings-field-help">Ce logo remplace MedCareSO dans la barre latérale. Il ne change pas le logo des documents.</small>
+                                    <input type="hidden" id="app-logo-data">
+                                    <input type="file" id="app-logo-file"
+                                        accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;"
+                                        onchange="handleAppLogoChange(event)">
+                                    <div class="settings-logo-uploader">
+                                        <div class="settings-logo-preview-shell app-logo-preview-shell">
+                                            <img id="app-logo-preview" class="settings-logo-preview"
+                                                alt="Logo de l’application" style="display:none;">
+                                            <div id="app-logo-placeholder" class="settings-logo-placeholder">Logo MedCareSO</div>
+                                        </div>
+                                        <div class="settings-logo-actions">
+                                            <button type="button" class="btn btn-secondary"
+                                                onclick="chooseApplicationLogo()">Choisir un logo</button>
+                                            <button type="button" class="btn btn-outline"
+                                                onclick="useBundledTransparentAppLogo()">Utiliser le logo dent transparent</button>
+                                            <button type="button" class="btn btn-outline"
+                                                onclick="clearAppLogo()">Rétablir MedCareSO</button>
+                                            <button type="button" class="btn btn-primary"
+                                                onclick="savePracticeSettings()">Enregistrer le logo</button>
+                                        </div>
+                                        <div id="app-logo-selection-status" class="settings-logo-selection-status">Aucun nouveau logo sélectionné.</div>
+                                    </div>
+                                </div>
+
                                 <hr>
 
                                 <h4 style="margin-top: 20px; margin-bottom: 15px;">Informations du Praticien</h4>
@@ -3187,6 +3231,12 @@
                                         <option value="sidebar">Bande latérale</option>
                                         <option value="gradient-header">En-tête dégradé</option>
                                         <option value="minimal">Minimal</option>
+                                        <option value="letterhead">Papier à en-tête médical</option>
+                                        <option value="dental-letterhead">En-tête dentaire avec dent</option>
+                                        <option value="professional-center">Professionnel — logo centré, patient à droite</option>
+                                        <option value="executive">Cabinet exécutif</option>
+                                        <option value="clinical-grid">Grille clinique moderne</option>
+                                        <option value="wave">Vague médicale innovante</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -3232,7 +3282,15 @@
                                                     <div class="preview-doctor">DR. CABINET</div>
                                                     <div class="preview-meta">Spécialité médicale</div>
                                                 </div>
+                                                <div class="preview-dental-mark" aria-hidden="true">
+                                                    <svg viewBox="0 0 100 100"><path d="M50 13C39 6 24 7 19 22c-5 16 5 27 9 42 5 21 12 30 19 9l3-16 3 16c7 21 14 12 19-9 4-15 14-26 9-42C76 7 61 6 50 13Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M76 11l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" fill="currentColor"/></svg>
+                                                </div>
                                                 <div class="preview-logo">LOGO</div>
+                                                <div class="preview-professional-patient">
+                                                    <strong>PATIENT</strong>
+                                                    <span>NOM PRÉNOM</span>
+                                                    <small>42 ans · 18/07/2026</small>
+                                                </div>
                                             </div>
                                             <div class="preview-watermark">LOGO</div>
                                             <div class="preview-title">ORDONNANCE</div>
@@ -3271,7 +3329,7 @@
                                 <button type="button" class="btn btn-primary" onclick="openMedicationEditor()">+ Médicament</button>
                             </div>
                             <div id="settings-medication-catalog-list" class="info-box">Chargement...</div>
-                            <small style="display:block;margin-top:10px;color:#64748b;">Source de référence réglementaire : portail ANPP / RCP Algérie. Le catalogue local est une aide à la saisie et doit être vérifié par le prescripteur.</small>
+                            <small style="display:block;margin-top:10px;color:#64748b;">Source : Nomenclature nationale du Ministère de l'Industrie Pharmaceutique, avril 2026 (5 337 enregistrements). Aide à la saisie à vérifier par le prescripteur.</small>
                         </div>
 
                         <div class="settings-card" id="admin-setup-card" data-settings-page="general"
@@ -3305,68 +3363,20 @@
                             <form id="license-management-form" style="margin-top: 18px;">
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="license-key-input">Clé à activer</label>
-                                        <input type="password" id="license-key-input" class="form-control"
-                                            placeholder="Clé masquée" autocomplete="off">
-                                        <small>La clé reste masquée à l'écran. Utilisez les boutons rapides ci-dessous
-                                            si besoin.</small>
+                                        <label for="license-key-input">Fichier de licence signé</label>
+                                        <input type="text" id="license-key-input" class="form-control"
+                                            placeholder="Aucun fichier sélectionné" readonly autocomplete="off">
+                                        <small>La licence est un fichier signé par MedCareSO et lié à ce poste.</small>
                                     </div>
                                 </div>
                                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                    <button type="submit" class="btn btn-primary">Activer la clé</button>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="fillDurationLicenseKey(5)">Clé 5 jours</button>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="fillDurationLicenseKey(7)">Clé 7 jours</button>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="fillDurationLicenseKey(15)">Clé 15 jours</button>
-                                    <button type="button" class="btn btn-secondary" onclick="fillAnnualLicenseKey()">Clé
-                                        1 an</button>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="fillUnlimitedLicenseKey()">Clé illimitée</button>
+                                    <button type="button" class="btn btn-secondary" onclick="chooseSignedLicenseFile()">Choisir la licence</button>
+                                    <button type="submit" class="btn btn-primary">Activer la licence</button>
                                     <button type="button" class="btn btn-danger"
                                         onclick="disableCurrentLicense()">Désactiver la licence active</button>
                                 </div>
                             </form>
-                            <form id="license-generator-form" class="license-generator-form"
-                                onsubmit="handleGenerateLicensePack(event)">
-                                <h4>Générer des clés locales</h4>
-                                <p class="db-status-help">Ces clés sont enregistrées dans la table licences et seront
-                                    synchronisées avec le VPS/cloud via la synchronisation des données.</p>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Client / cabinet</label>
-                                        <input type="text" id="license-client-name" class="form-control"
-                                            placeholder="Ex: Cabinet Dr. Ahmed">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Durée (jours)</label>
-                                        <input type="number" id="license-duration-days" class="form-control" value="7"
-                                            min="1" max="365" onchange="updateLicensePricePreview()"
-                                            oninput="updateLicensePricePreview()">
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Nombre de clés</label>
-                                        <input type="number" id="license-count" class="form-control" value="1" min="1"
-                                            max="200" onchange="updateLicensePricePreview()"
-                                            oninput="updateLicensePricePreview()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Prix proposé</label>
-                                        <div id="license-price-preview" class="info-box" style="padding: 10px 12px;">-
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                    <button type="submit" class="btn btn-primary" id="btn-generate-license-pack">Générer
-                                        les clés</button>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="loadLicenseInventory()">Rafraîchir</button>
-                                </div>
-                                <div id="license-keys-container" style="margin-top: 14px;"></div>
-                            </form>
+                            <p class="db-status-help" style="margin-top:16px;">La génération de licence se fait uniquement avec l’outil développeur sécurisé, jamais dans l’application client.</p>
                         </div>
 
                         <div class="settings-card" id="devices-settings-card" data-settings-page="devices">
@@ -3513,15 +3523,15 @@
                             <div class="admin-panel-header">
                                 <div>
                                     <span class="admin-panel-kicker">Administration</span>
-                                    <h3 id="user-mgmt-title">👤 Gestion des Utilisateurs</h3>
+                                    <h3 id="user-mgmt-title">Gestion des utilisateurs</h3>
                                     <p class="admin-panel-subtitle">Créez les comptes médecin et assistant du cabinet,
                                         avec une spécialité attribuée individuellement à chaque docteur.</p>
                                 </div>
                                 <div class="admin-panel-actions">
                                     <button type="button" class="btn btn-secondary btn-small"
-                                        onclick="refreshUsersList()">⟳ Actualiser</button>
+                                        onclick="refreshUsersList()">Actualiser</button>
                                     <button type="button" id="btn-add-user" class="btn btn-success"
-                                        onclick="showAddUserModal()">➕ Créer un Nouveau Compte</button>
+                                        onclick="showAddUserModal()">Créer un compte</button>
                                 </div>
                             </div>
 
@@ -3920,6 +3930,12 @@
                     </div>
                 </div>
 
+                <div class="form-section consultation-equipment-section">
+                    <h4>Équipements utilisés</h4>
+                    <p>Sélectionnez les appareils utilisés pendant cette consultation.</p>
+                    <div id="consultation-equipment-list" class="care-equipment-picker" aria-live="polite"></div>
+                </div>
+
                 <div class="consultation-clinical-layout">
                     <div class="consultation-vitals-stack">
                         <div class="form-group">
@@ -4252,6 +4268,9 @@
                     <!-- Populated by JavaScript -->
                 </div>
                 <div style="margin-top: 30px; display: flex; gap: 10px;">
+                    <button class="btn btn-secondary"
+                        onclick="closeModal('modal-view-prescription'); editPrescription(window.currentPrescriptionId)">✏️
+                        Modifier</button>
                     <button id="btn-print-prescription" class="btn btn-primary" onclick="printPrescriptionDetails()">🖨️
                         Imprimer</button>
                     <button class="btn btn-secondary" onclick="closeModal('modal-view-prescription')">Fermer</button>
@@ -4272,7 +4291,9 @@
                     <!-- Populated by JavaScript -->
                 </div>
                 <div style="margin-top: 30px; display: flex; gap: 10px;">
-                    <button class="btn btn-primary" onclick="printSickLeaveDetails()">🖨️ Imprimer</button>
+                    <button class="btn btn-secondary"
+                        onclick="closeModal('modal-view-sickleave'); editSickLeave(window.currentSickLeaveId)">✏️ Modifier</button>
+                    <button id="btn-print-sickleave" class="btn btn-primary" onclick="printSickLeaveDetails()">🖨️ Imprimer</button>
                     <button class="btn btn-secondary" onclick="closeModal('modal-view-sickleave')">Fermer</button>
                 </div>
             </div>
@@ -4976,6 +4997,17 @@
                             </div>
                         </div>
 
+                        <div class="form-group account-admin-choice" id="new-user-admin-group" style="display:none;">
+                            <label class="account-admin-toggle" for="new-user-is-admin">
+                                <input type="checkbox" id="new-user-is-admin" name="isAdmin">
+                                <span>
+                                    <strong>Administrateur du cabinet</strong>
+                                    <small>Ce praticien pourra gérer les comptes, les paramètres, les documents et les statistiques globales.</small>
+                                </span>
+                            </label>
+                            <p class="field-hint">Un compte reste praticien même lorsque cette case est cochée. « Administrateur » est une autorisation supplémentaire, pas un métier.</p>
+                        </div>
+
                         <div class="form-row account-row-single">
                             <div class="form-group">
                                 <label for="new-username">Nom d'utilisateur *</label>
@@ -5216,7 +5248,7 @@
 
     <!-- Modal: Add Inventory Item -->
     <div id="modal-inventory" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-large inventory-editor-modal">
             <div class="modal-header">
                 <h2 id="inventory-modal-title">📦 Nouvel Article</h2>
                 <button class="close-btn" onclick="closeModal('modal-inventory')">&times;</button>
@@ -5239,6 +5271,17 @@
                         <label>Unité</label>
                         <input type="text" id="inventory-unit" class="form-control" value="unité"
                             placeholder="Ex: boîte, pièce">
+                    </div>
+                </div>
+
+                <div class="inventory-perishable-row">
+                    <label class="module-filter-toggle">
+                        <input type="checkbox" id="inventory-is-perishable" onchange="toggleInventoryPerishableFields()">
+                        Article périssable (suivi par lot et date d'expiration)
+                    </label>
+                    <div class="form-group" id="inventory-initial-expiration-group" hidden>
+                        <label>Date d'expiration du stock initial *</label>
+                        <input type="date" id="inventory-expiration-date" class="form-control">
                     </div>
                 </div>
 
@@ -5473,7 +5516,7 @@
     <div id="modal-equipment" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="equipment-modal-title">🔧 Nouvel Équipement</h2>
+                <h2 id="equipment-modal-title">Nouvel équipement</h2>
                 <button class="close-btn" onclick="closeModal('modal-equipment')">&times;</button>
             </div>
             <form id="equipment-form" class="modal-body" onsubmit="saveEquipment(event)">
@@ -5624,6 +5667,23 @@
                 <div class="form-group">
                     <label>Article: <strong id="stock-adjust-name"></strong></label>
                     <p>Stock actuel: <span id="stock-adjust-current"></span></p>
+                </div>
+
+                <div id="stock-add-details" hidden>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fournisseur</label>
+                            <select id="stock-adjust-supplier" class="form-control"><option value="">-- Aucun --</option></select>
+                        </div>
+                        <div class="form-group inventory-price-col">
+                            <label>Prix d'achat unitaire (DZD)</label>
+                            <input type="number" id="stock-adjust-unit-price" class="form-control" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-group" id="stock-adjust-expiration-group" hidden>
+                        <label>Date d'expiration *</label>
+                        <input type="date" id="stock-adjust-expiration" class="form-control">
+                    </div>
                 </div>
 
                 <div class="form-group">

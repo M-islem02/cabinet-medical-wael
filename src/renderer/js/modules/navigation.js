@@ -323,7 +323,7 @@ function showSection(sectionId) {
 
   // Check role-based access for assistant
   if (currentUserRole === 'assistant') {
-    const assistantRestrictedSections = ['statistics', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
+    const assistantRestrictedSections = ['statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
     if (assistantRestrictedSections.includes(sectionId)) {
       showNotification('Accès non autorisé', 'error');
       return;
@@ -405,7 +405,14 @@ function showSection(sectionId) {
   currentPage = sectionId;
   
   if (sectionId === 'patients') {
-    loadPatients();
+    // Show placeholder instead of loading all patients — user must search
+    const tbody = document.querySelector('#patients-list tbody') || document.getElementById('patients-tbody');
+    if (tbody && typeof patientsSearchTerm !== 'undefined' && !patientsSearchTerm) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-row" style="color:#94a3b8;padding:24px;font-style:italic;">🔍 Saisissez un nom pour rechercher un patient</td></tr>';
+      if (typeof renderPatientsPagination === 'function') renderPatientsPagination();
+    } else if (typeof loadPatients === 'function') {
+      loadPatients();
+    }
   } else if (sectionId === 'payments') {
     loadPayments();
     loadPaymentStats();
@@ -484,8 +491,18 @@ async function loadDashboardStats() {
     }
 
     document.getElementById('stat-patients').textContent = patientsCount;
-    document.getElementById('stat-consultations').textContent = Number(stats.consultationsMonth || 0);
-    document.getElementById('stat-prescriptions').textContent = Number(stats.prescriptionsMonth || 0);
+    document.getElementById('stat-consultations').textContent = currentUserRole === 'assistant'
+      ? '—'
+      : Number(stats.consultationsMonth || 0);
+    document.getElementById('stat-prescriptions').textContent = currentUserRole === 'assistant'
+      ? '—'
+      : Number(stats.prescriptionsMonth || 0);
+
+    const summary = document.getElementById('dashboard-summary-text');
+    if (summary) {
+      const roleLabel = currentUserRole === 'assistant' ? 'assistant(e)' : 'praticien(ne)';
+      summary.textContent = `${patientsCount} patient(s) dans le répertoire · ${roleLabel} connecté(e) · données mises à jour maintenant.`;
+    }
 
     // Load today's appointments
     await loadTodayAppointments();

@@ -269,7 +269,17 @@ async function loadStatistics(force = false) {
     statisticsState.lastLoadedAt = Date.now();
   } catch (error) {
     console.error('Error loading statistics:', error);
-    showNotification('Erreur lors du chargement des statistiques', 'error');
+    const message = error?.message || 'Erreur inconnue';
+    const consultationsList = document.getElementById('stats-consultations-list');
+    const actsList = document.getElementById('stats-acts-list');
+    const periodicalBody = document.getElementById('stats-periodical-tbody');
+    const errorHtml = `<div class="statistics-list-empty">Chargement impossible : ${escapeStatisticsHtml(message)}</div>`;
+    if (consultationsList) consultationsList.innerHTML = errorHtml;
+    if (actsList) actsList.innerHTML = errorHtml;
+    if (periodicalBody) {
+      periodicalBody.innerHTML = `<tr><td colspan="5" class="statistics-list-empty">Chargement impossible : ${escapeStatisticsHtml(message)}</td></tr>`;
+    }
+    showNotification(`Erreur statistiques : ${message}`, 'error');
   } finally {
     statisticsState.isLoading = false;
     const refreshButton = document.querySelector('#statistics .statistics-refresh-btn');

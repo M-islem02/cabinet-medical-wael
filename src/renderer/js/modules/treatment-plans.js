@@ -29,6 +29,8 @@ const PLAN_TREATMENT_TYPES = {
 };
 
 async function initTreatmentPlans() {
+  treatmentPlansState.filterPatient = typeof currentPatientId !== 'undefined' ? currentPatientId || '' : '';
+  treatmentPlansState.page = 1;
   await loadPatientsFilter();
   await loadTreatmentPlans();
   connectPlansRealtimeWs();
@@ -78,6 +80,7 @@ async function loadTreatmentPlans() {
     const currentTab = treatmentPlansState.activeTab;
     
     if (searchInput?.value?.trim()) filters.search = searchInput.value.trim();
+    if (treatmentPlansState.filterPatient) filters.patientId = treatmentPlansState.filterPatient;
     
     if (currentTab === 'archived') {
       filters.status = 'archived';
@@ -298,8 +301,15 @@ function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
     const scheduled = formatDateInputValue(s.scheduledDate);
     const paidDate = formatDisplayDate(s.paidDate);
     const isPaid = paid > 0 || s.status === 'paid';
-    const badgeBg = isPaid ? '#f0fdf4' : '#f8fafc';
-    const badgeColor = isPaid ? '#15803d' : '#64748b';
+    const isRequested = !isPaid && s.status === 'requested';
+    const badgeBg = isPaid ? '#f0fdf4' : (isRequested ? '#fff7ed' : '#f8fafc');
+    const badgeColor = isPaid ? '#15803d' : (isRequested ? '#c2410c' : '#64748b');
+    const statusLabel = isPaid ? 'Payée' : (isRequested ? 'Demande envoyée' : 'Prévue');
+    const actionHtml = isPaid
+      ? `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); modifierEncaissementPlanSession('${planId}', '${esc(s.id)}', ${paid}, '${esc(formatDateInputValue(s.paidDate))}', '${esc(s.notes || '')}')" style="padding:7px 10px;font-size:12px">Modifier paiement</button>`
+      : (isRequested
+        ? '<span style="color:#c2410c;font-size:12px;font-weight:700">En attente d’encaissement</span>'
+        : `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); openPlanSessionPaymentChoice('${planId}', '${esc(s.id)}', ${expected})" style="padding:7px 10px;font-size:12px">Encaisser</button>`);
     rows.push(`
       <tr class="ep-session-row" data-session-id="${esc(s.id)}" data-session-number="${sessionNumber}" data-status="${esc(s.status || 'pending')}">
         <td style="padding:8px 10px;font-weight:600;color:#111827">#${sessionNumber}</td>
@@ -307,9 +317,9 @@ function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
         <td style="padding:8px 10px"><input class="ep-session-expected" type="number" min="0" value="${expected}" style="width:110px;padding:7px;border:1px solid #d1d5db;border-radius:6px;text-align:right"></td>
         <td style="padding:8px 10px;text-align:right;color:#111827;font-weight:600">${paid.toLocaleString()} DA</td>
         <td style="padding:8px 10px;color:#475569;font-weight:600">${isPaid ? paidDate : '—'}</td>
-        <td style="padding:8px 10px"><span style="display:inline-flex;align-items:center;min-height:24px;padding:2px 8px;border-radius:999px;background:${badgeBg};color:${badgeColor};font-size:12px;font-weight:700">${isPaid ? 'Payée' : 'Prévue'}</span></td>
+        <td style="padding:8px 10px"><span style="display:inline-flex;align-items:center;min-height:24px;padding:2px 8px;border-radius:999px;background:${badgeBg};color:${badgeColor};font-size:12px;font-weight:700">${statusLabel}</span></td>
         <td style="padding:8px 10px"><input class="ep-session-notes" value="${esc(s.notes || '')}" onfocus="showSessionNotePreview(this)" oninput="showSessionNotePreview(this)" onblur="hideSessionNotePreview()" style="width:160px;padding:7px;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></td>
-        <td style="padding:8px 10px;text-align:right">${isPaid ? `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); modifierEncaissementPlanSession('${planId}', '${esc(s.id)}', ${paid}, '${esc(formatDateInputValue(s.paidDate))}', '${esc(s.notes || '')}')" style="padding:7px 10px;font-size:12px">Modifier paiement</button>` : `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); encaisserPlanSession('${planId}', '${esc(s.id)}', ${expected})" style="padding:7px 10px;font-size:12px">Encaisser</button>`}</td>
+        <td style="padding:8px 10px;text-align:right">${actionHtml}</td>
       </tr>`);
   }
 
@@ -375,7 +385,7 @@ function filterTreatmentPlans() {
 }
 
 // ─── Unified Create/Edit Plan Modal ───────────────────────────────────────────
-function openCreatePlanModal(patientId) {
+function openCreatePlanModal(patientId = currentPatientId) {
   openPlanFormModal({ mode: 'create', patientId });
 }
 
@@ -462,6 +472,10 @@ async function openPlanFormModal({ mode = 'create', planId = null, patientId = n
             <label style="font-weight:700;font-size:13px;color:#6b7280;display:block;margin-bottom:6px">Description / Notes</label>
             <textarea id="cp-desc" rows="3" class="form-control" placeholder="Détails du plan, observations cliniques..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;resize:vertical;box-sizing:border-box">${esc(plan?.description || plan?.notes || '')}</textarea>
           </div>
+          <div>
+            <label style="font-weight:700;font-size:13px;color:#6b7280;display:block;margin-bottom:6px">Équipements utilisés</label>
+            <div id="cp-equipment-list" class="care-equipment-picker" aria-live="polite">Chargement des équipements...</div>
+          </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end">
           <button onclick="closeCreatePlanModal()" class="btn btn-secondary">Annuler</button>
@@ -472,26 +486,71 @@ async function openPlanFormModal({ mode = 'create', planId = null, patientId = n
   document.body.insertAdjacentHTML('beforeend', html);
   await wirePlanTreatmentTypeDropdown();
   await populatePlanPatientPicker({ selectedPatientId: patientId, readOnly: isEdit });
+  await populatePlanEquipmentPicker(plan?.equipment || []);
+}
+
+async function populatePlanEquipmentPicker(selectedUsage = []) {
+  const container = document.getElementById('cp-equipment-list');
+  if (!container) return;
+  try {
+    const result = await window.api.equipment.getAll({});
+    const rows = result?.success ? (result.data || []) : [];
+    const selected = new Set((selectedUsage || []).map(item => String(item.equipmentId || '')));
+    container.innerHTML = rows.length ? rows.map(item => `
+      <label class="care-equipment-option">
+        <input type="checkbox" name="cp-equipment" value="${esc(item.id)}" ${selected.has(String(item.id)) ? 'checked' : ''}>
+        <span><strong>${esc(item.name)}</strong><small>${esc(EQUIPMENT_STATUS_LABELS?.[item.status] || item.status || '')}</small></span>
+      </label>`).join('') : '<span class="care-equipment-empty">Aucun équipement disponible. Ajoutez-le d’abord dans le module Équipement.</span>';
+  } catch (error) {
+    container.innerHTML = '<span class="care-equipment-empty">Impossible de charger les équipements.</span>';
+  }
+}
+
+async function syncPlanEquipment(planId, previousUsage = []) {
+  const selectedIds = new Set(Array.from(document.querySelectorAll('input[name="cp-equipment"]:checked')).map(input => input.value));
+  const existingByEquipment = new Map((previousUsage || []).filter(item => item.equipmentId).map(item => [String(item.equipmentId), item]));
+  for (const equipmentId of selectedIds) {
+    if (!existingByEquipment.has(equipmentId)) {
+      const linked = await window.api.invoke('plans:addEquipment', { planId, equipmentId });
+      if (!linked?.success) throw new Error(linked?.error || 'Association équipement impossible');
+    }
+  }
+  for (const [equipmentId, usage] of existingByEquipment.entries()) {
+    if (!selectedIds.has(equipmentId)) {
+      const removed = await window.api.invoke('plans:removeEquipment', usage.id);
+      if (!removed?.success) throw new Error(removed?.error || 'Retrait équipement impossible');
+    }
+  }
 }
 
 async function populatePlanPatientPicker({ selectedPatientId = null, readOnly = false } = {}) {
-  const res = await window.api.patient.getAll();
   const searchInput = document.getElementById('cp-patient-search');
   const hiddenInput = document.getElementById('cp-patient');
   const dropdown = document.getElementById('cp-patient-dropdown');
-  if (!searchInput || !hiddenInput || !dropdown || !res.success) return;
-  const patients = res.data || [];
-  const selected = patients.find(p => p.id === selectedPatientId);
-  if (selected) {
-    hiddenInput.value = selected.id;
-    searchInput.value = `${selected.lastName} ${selected.firstName}`;
+  if (!searchInput || !hiddenInput || !dropdown) return;
+
+  if (selectedPatientId) {
+    const selectedResult = await window.api.patient.getById(selectedPatientId);
+    const selected = selectedResult?.success ? selectedResult.data : null;
+    if (selected) {
+      hiddenInput.value = selected.id;
+      searchInput.value = `${selected.lastName} ${selected.firstName}`;
+    }
   }
   if (readOnly) return;
-  const renderDropdown = (filterText = '') => {
-    const lowerFilter = filterText.toLowerCase();
-    const filtered = patients.filter(p => `${p.lastName} ${p.firstName}`.toLowerCase().includes(lowerFilter));
-    dropdown.innerHTML = filtered.length
-      ? filtered.map(p => `<div class="patient-opt" data-id="${p.id}" data-name="${esc(p.lastName)} ${esc(p.firstName)}" style="padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f5f9">${esc(p.lastName)} ${esc(p.firstName)}</div>`).join('')
+  let searchVersion = 0;
+  const renderDropdown = async (filterText = '') => {
+    const term = String(filterText || '').trim();
+    if (!term) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    const version = ++searchVersion;
+    const result = await window.api.patient.search(term);
+    if (version !== searchVersion) return;
+    const patients = result?.success ? (result.data || []) : [];
+    dropdown.innerHTML = patients.length
+      ? patients.map(p => `<div class="patient-opt" data-id="${p.id}" data-name="${esc(p.lastName)} ${esc(p.firstName)}" style="padding:10px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f5f9">${esc(p.lastName)} ${esc(p.firstName)}</div>`).join('')
       : '<div style="padding:10px 12px;color:#64748b;font-size:14px;text-align:center">Aucun patient trouvé</div>';
     dropdown.querySelectorAll('.patient-opt').forEach(opt => {
       opt.addEventListener('click', () => {
@@ -501,8 +560,22 @@ async function populatePlanPatientPicker({ selectedPatientId = null, readOnly = 
       });
     });
   };
-  searchInput.addEventListener('focus', () => { renderDropdown(searchInput.value); dropdown.style.display = 'block'; });
-  searchInput.addEventListener('input', (e) => { hiddenInput.value = ''; renderDropdown(e.target.value); dropdown.style.display = 'block'; });
+  searchInput.addEventListener('focus', () => {
+    // Only open dropdown if user has already typed something
+    if (searchInput.value.trim().length > 0) {
+      renderDropdown(searchInput.value);
+      dropdown.style.display = 'block';
+    }
+  });
+  searchInput.addEventListener('input', (e) => {
+    hiddenInput.value = '';
+    if (e.target.value.trim().length === 0) {
+      dropdown.style.display = 'none';
+    } else {
+      renderDropdown(e.target.value);
+      dropdown.style.display = 'block';
+    }
+  });
 }
 
 async function wirePlanTreatmentTypeDropdown() {
@@ -580,10 +653,12 @@ async function savePlanFormModal() {
     status: document.getElementById('cp-status')?.value || undefined
   };
   try {
+    const previousPlan = mode === 'edit' && planId ? await window.api.plans.getById(planId) : null;
     const result = mode === 'edit'
       ? await window.api.plans.update(planId, payload)
       : await window.api.plans.create(payload);
     if (result.success) {
+      await syncPlanEquipment(planId || result.id, previousPlan?.success ? (previousPlan.data?.equipment || []) : []);
       showNotification(mode === 'edit' ? 'Plan modifié avec succès' : 'Plan créé avec succès', 'success');
       closeCreatePlanModal();
       loadTreatmentPlans();
@@ -760,6 +835,66 @@ async function encaisserPlanSession(planId, sessionId = '', expectedAmount = 0) 
   openAddPaymentModal(planId, totalCost, totalPaid, Number(expectedAmount || 0), sessionId);
 }
 
+function openPlanSessionPaymentChoice(planId, sessionId, expectedAmount = 0) {
+  document.getElementById('plan-session-payment-choice')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="plan-session-payment-choice" class="inventory-detail-overlay">
+      <div style="width:min(440px,100%);background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 70px rgba(15,23,42,.3)">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:18px"><div><h3 style="margin:0">Encaissement de la séance</h3><p style="margin:6px 0 0;color:#64748b">Montant prévu: <strong>${Number(expectedAmount || 0).toLocaleString()} DA</strong></p></div><button class="close-btn" onclick="document.getElementById('plan-session-payment-choice').remove()">&times;</button></div>
+        <div style="display:grid;gap:10px">
+          <label for="plan-session-choice-amount" style="font-size:13px;font-weight:700;color:#475569">Montant à encaisser ou demander (DA)</label>
+          <input id="plan-session-choice-amount" class="form-control" type="number" min="1" step="0.01" value="${Number(expectedAmount || 0)}" style="width:100%;box-sizing:border-box">
+          <button class="btn btn-primary" onclick="collectPlanSessionFromChoice('${planId}','${esc(sessionId)}')">Encaisser maintenant</button>
+          <button class="btn btn-secondary" onclick="requestPlanSessionPaymentFromChoice('${planId}','${esc(sessionId)}')">Demander un paiement</button>
+          <button class="btn btn-outline" onclick="document.getElementById('plan-session-payment-choice').remove()">Annuler</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function getPlanSessionChoiceAmount() {
+  const amount = Number(document.getElementById('plan-session-choice-amount')?.value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showNotification('Veuillez saisir un montant valide', 'warning');
+    return null;
+  }
+  return amount;
+}
+
+function collectPlanSessionFromChoice(planId, sessionId) {
+  const amount = getPlanSessionChoiceAmount();
+  if (amount === null) return;
+  document.getElementById('plan-session-payment-choice')?.remove();
+  encaisserPlanSession(planId, sessionId, amount);
+}
+
+function requestPlanSessionPaymentFromChoice(planId, sessionId) {
+  const amount = getPlanSessionChoiceAmount();
+  if (amount === null) return;
+  requestPlanSessionPayment(planId, sessionId, amount);
+}
+
+async function requestPlanSessionPayment(planId, sessionId, expectedAmount = 0) {
+  try {
+    const result = await window.api.plans.getById(planId);
+    if (!result?.success || !result.data) throw new Error(result?.error || 'Plan introuvable');
+    const plan = result.data;
+    document.getElementById('plan-session-payment-choice')?.remove();
+    if (typeof openPaymentRequestModal !== 'function') throw new Error('Module de demande de paiement indisponible');
+    await openPaymentRequestModal(plan.patientId, {
+      amount: Number(expectedAmount || 0),
+      patientName: `${plan.firstName || ''} ${plan.lastName || ''}`.trim(),
+      service: 'other',
+      notes: `${plan.title || 'Plan de traitement'} — séance ${sessionId}`,
+      selectedActs: ['other'],
+      planId,
+      planSessionId: sessionId
+    });
+  } catch (error) {
+    showNotification('Erreur: ' + error.message, 'error');
+  }
+}
+
 function modifierEncaissementPlanSession(planId, sessionId, paidAmount = 0, paidDate = '', notes = '') {
   openEditPaymentModal(planId, sessionId, paidAmount, paidDate, notes);
 }
@@ -808,7 +943,7 @@ async function submitPlanPaymentRequest(planId, totalCost, totalPaid) {
       document.getElementById('plan-payment-actions-modal')?.remove();
       showNotification('Demande de paiement enregistrée', 'success');
       if (typeof loadPendingPaymentRequests === 'function') loadPendingPaymentRequests();
-      openAddPaymentModal(planId, totalCost, totalPaid, amount, '', notes);
+      if (typeof loadTreatmentPlans === 'function') await loadTreatmentPlans();
     } else {
       showNotification('Erreur: ' + result.error, 'error');
     }
@@ -1371,7 +1506,7 @@ async function showAddEquipmentSelect(planId) {
   const sel = document.getElementById(`equip-sel-${planId}`);
   if (sel.children.length > 0) return;
   try {
-    const res = await window.api.inventory.getAll();
+    const res = await window.api.equipment.getAll({});
     if (res.success) {
       sel.innerHTML = res.data.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join('');
     }
@@ -1379,10 +1514,10 @@ async function showAddEquipmentSelect(planId) {
 }
 
 async function addPlanEquipment(planId) {
-  const invId = document.getElementById(`equip-sel-${planId}`).value;
-  if (!invId) return;
+  const equipmentId = document.getElementById(`equip-sel-${planId}`).value;
+  if (!equipmentId) return;
   try {
-    const res = await window.api.invoke('plans:addEquipment', { planId, inventoryId: invId });
+    const res = await window.api.invoke('plans:addEquipment', { planId, equipmentId });
     if (res.success) { openPlanDetailsModal(planId); }
     else { showNotification('Erreur', 'error'); }
   } catch(e){}

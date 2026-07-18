@@ -19,11 +19,16 @@ let purchaseHistoryData = [];
 let purchaseOrdersData = [];
 let posCart = [];
 let posSalesData = [];
+let editingPOSSaleId = '';
 let inventoryTabState = { activeTab: 'articles' };
 let posSearchDebounce = null;
 let canSeeInventoryPrices = false;
 let canManageSuppliersFlag = false;
 let canManageLotsFlag = false;
+
+function isAssistantInventoryUser() {
+    return typeof currentUserRole !== 'undefined' && currentUserRole === 'assistant';
+}
 
 const DENTAL_CATEGORIES = [
     'Consommables dentaires',
@@ -53,30 +58,45 @@ function checkInventoryPermissions() {
     const role = typeof currentUserRole !== 'undefined' ? currentUserRole : '';
     const isSuperAdmin = typeof currentUserIsSuperAdmin !== 'undefined' ? currentUserIsSuperAdmin : false;
     const isAdmin = typeof currentUserIsAdmin !== 'undefined' ? currentUserIsAdmin : false;
-    canSeeInventoryPrices = isSuperAdmin || isAdmin;
-    canManageSuppliersFlag = isSuperAdmin || isAdmin;
+    const isPractitioner = role === 'doctor' || role === 'dentist';
+    canSeeInventoryPrices = isSuperAdmin || isAdmin || isPractitioner;
+    canManageSuppliersFlag = isSuperAdmin || isAdmin || isPractitioner;
     canManageLotsFlag = isSuperAdmin || isAdmin || role === 'doctor' || role === 'dentist';
 }
 
 function refreshInventoryModule() {
-    loadInventoryStats();
+    if (!isAssistantInventoryUser()) loadInventoryStats();
     if (inventoryTabState.activeTab === 'articles') loadInventory();
     if (inventoryTabState.activeTab === 'suppliers') loadSuppliers();
     if (inventoryTabState.activeTab === 'lots') loadLots();
     if (inventoryTabState.activeTab === 'history') loadPurchaseHistory();
     if (inventoryTabState.activeTab === 'orders') loadPurchaseOrders();
     if (inventoryTabState.activeTab === 'pos') loadPOSData();
+    if (inventoryTabState.activeTab === 'sales') loadPOSSales();
 }
 
 async function initInventory() {
     checkInventoryPermissions();
     if (!inventoryInitialized) {
-        await loadInventoryCategories();
-        await loadSupplierSelects();
+        if (!isAssistantInventoryUser()) {
+            await loadInventoryCategories();
+            await loadSupplierSelects();
+        }
         await loadPatientSelectForPOS();
         resetInventoryFilters(false);
         setupInventoryEventListeners();
         inventoryInitialized = true;
+    }
+    if (isAssistantInventoryUser()) {
+        document.querySelectorAll('#inventory .inventory-tab-btn').forEach((button) => {
+            button.style.display = ['pos', 'sales'].includes(button.dataset.tab) ? '' : 'none';
+        });
+        document.querySelector('#inventory .inventory-stats-grid')?.setAttribute('hidden', '');
+        document.querySelectorAll('#inventory .inventory-action-btn-tab').forEach((button) => {
+            button.style.display = 'none';
+        });
+        switchInventoryTab('pos');
+        return;
     }
     switchInventoryTab('articles');
     await loadInventoryStats();
@@ -137,8 +157,11 @@ async function loadPatientSelectForPOS() {
 }
 
 function switchInventoryTab(tabName) {
-    const validTabs = ['articles', 'suppliers', 'lots', 'history', 'orders', 'pos'];
+    const validTabs = ['articles', 'suppliers', 'lots', 'history', 'orders', 'pos', 'sales'];
     if (!validTabs.includes(tabName)) return;
+    if (isAssistantInventoryUser() && !['pos', 'sales'].includes(tabName)) {
+        tabName = 'pos';
+    }
     inventoryTabState.activeTab = tabName;
     document.querySelectorAll('#inventory .module-tabs-inline [data-tab]').forEach(btn => {
         const isActive = btn.dataset.tab === tabName;
@@ -146,11 +169,16 @@ function switchInventoryTab(tabName) {
         btn.setAttribute('aria-selected', String(isActive));
     });
     document.querySelectorAll('#inventory .inventory-tab-content').forEach(c => c.style.display = 'none');
-    const target = document.getElementById('inventory-tab-' + tabName);
+    const target = document.getElementById('inventory-tab-' + (tabName === 'sales' ? 'pos' : tabName));
     if (target) target.style.display = 'block';
 
+    const checkoutPanel = document.getElementById('pos-checkout-panel');
+    const salesHistory = document.getElementById('pos-sales-history');
+    if (checkoutPanel) checkoutPanel.style.display = tabName === 'pos' ? 'grid' : 'none';
+    if (salesHistory) salesHistory.style.display = tabName === 'sales' ? 'block' : 'none';
+
     document.querySelectorAll('#inventory .inventory-action-btn-tab').forEach(btn => {
-        btn.style.display = btn.dataset.action === tabName ? 'inline-flex' : 'none';
+        btn.style.display = !isAssistantInventoryUser() && btn.dataset.action === tabName ? 'inline-flex' : 'none';
     });
 
     if (tabName === 'articles') loadInventory();
@@ -159,6 +187,7 @@ function switchInventoryTab(tabName) {
     if (tabName === 'history') loadPurchaseHistory();
     if (tabName === 'orders') loadPurchaseOrders();
     if (tabName === 'pos') loadPOSData();
+    if (tabName === 'sales') loadPOSSales();
 
     document.querySelectorAll('#inventory .inventory-price-col').forEach(el => {
         el.style.display = canSeeInventoryPrices ? '' : 'none';
@@ -278,10 +307,8 @@ function displayInventory() {
             <td style="padding: 16px; color: #64748b;">${supplier}</td>
             <td style="padding: 16px;">
                 <div class="inventory-actions">
-                    <button onclick="openStockAdjustModal('${item.id}')" title="Ajuster stock" class="inventory-action-btn inventory-action-btn-stock">Stock</button>
-                    <button onclick="openInventoryLotModalForItem('${item.id}')" title="Ajouter lot" class="inventory-action-btn inventory-action-btn-edit">Lot</button>
-                    <button onclick="editInventoryItem('${item.id}')" title="Modifier" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>
-                    <button onclick="deleteInventoryItem('${item.id}')" title="Supprimer" class="inventory-action-btn inventory-action-btn-delete">Supprimer</button>
+                    <button onclick="openInventoryArticleDetails('${item.id}')" class="inventory-action-btn inventory-action-btn-edit">Détails</button>
+                    <button onclick="deleteInventoryItem('${item.id}')" class="inventory-action-btn inventory-action-btn-delete">Supprimer</button>
                 </div>
             </td>
         </tr>`;
@@ -318,21 +345,40 @@ function resetInventoryFilters(reload = true) {
     if (reload && inventoryTabState.activeTab === 'articles') loadInventory(1);
 }
 
-function openInventoryModal(id = null) {
+function escapeInventoryHtml(value) {
+    if (typeof escapeHTML === 'function') return escapeHTML(value == null ? '' : String(value));
+    return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function toggleInventoryPerishableFields() {
+    const checkbox = document.getElementById('inventory-is-perishable');
+    const group = document.getElementById('inventory-initial-expiration-group');
+    const expiration = document.getElementById('inventory-expiration-date');
+    const quantity = Number(document.getElementById('inventory-quantity')?.value || 0);
+    if (group) group.hidden = !checkbox?.checked;
+    if (expiration) expiration.required = Boolean(checkbox?.checked && quantity > 0);
+}
+
+async function openInventoryModal(id = null) {
+    await loadSupplierSelects();
     const modal = document.getElementById('modal-inventory');
     const form = document.getElementById('inventory-form');
     const title = document.getElementById('inventory-modal-title');
     form.reset();
     document.getElementById('inventory-id').value = '';
     document.getElementById('inventory-quantity').value = '0';
+    document.getElementById('inventory-quantity').disabled = Boolean(id);
     document.getElementById('inventory-min-quantity').value = '5';
     document.getElementById('inventory-unit').value = 'unité';
-    title.textContent = '📦 Nouvel Article';
+    document.getElementById('inventory-is-perishable').checked = false;
+    document.getElementById('inventory-expiration-date').value = '';
+    modal.dataset.currentPhoto = '';
+    title.textContent = 'Nouvel Article';
 
     if (id) {
         const item = inventoryData.find(i => i.id === id);
         if (item) {
-            title.textContent = '📦 Modifier Article';
+            title.textContent = 'Modifier Article';
             document.getElementById('inventory-id').value = item.id;
             document.getElementById('inventory-name').value = item.name || '';
             document.getElementById('inventory-category').value = item.category || '';
@@ -344,26 +390,58 @@ function openInventoryModal(id = null) {
             document.getElementById('inventory-supplier-id').value = item.supplierId || '';
             document.getElementById('inventory-location').value = item.location || '';
             document.getElementById('inventory-notes').value = item.notes || '';
+            document.getElementById('inventory-is-perishable').checked = item.isPerishable === true;
+            document.getElementById('inventory-expiration-date').value = item.expirationDate ? String(item.expirationDate).slice(0, 10) : '';
+            modal.dataset.currentPhoto = item.photoPath || '';
         }
     }
+    toggleInventoryPerishableFields();
     showModal('modal-inventory');
+}
+
+async function readInventoryPhotoDataUrl() {
+    const file = document.getElementById('inventory-photo')?.files?.[0];
+    if (!file) return document.getElementById('modal-inventory')?.dataset.currentPhoto || null;
+    return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Photo illisible'));
+        reader.readAsDataURL(file);
+    });
 }
 
 async function saveInventoryItem(event) {
     event.preventDefault();
     const id = document.getElementById('inventory-id').value;
+    const quantity = Number(document.getElementById('inventory-quantity').value || 0);
+    const minQuantity = Number(document.getElementById('inventory-min-quantity').value || 0);
+    const purchasePriceValue = document.getElementById('inventory-purchase-price').value;
+    const sellingPriceValue = document.getElementById('inventory-selling-price').value;
+    const isPerishable = document.getElementById('inventory-is-perishable').checked;
+    const expirationDate = document.getElementById('inventory-expiration-date').value || null;
     const data = {
         name: document.getElementById('inventory-name').value.trim(),
         category: document.getElementById('inventory-category').value.trim(),
         unit: document.getElementById('inventory-unit').value.trim() || 'unité',
-        quantity: parseInt(document.getElementById('inventory-quantity').value, 10) || 0,
-        minQuantity: parseInt(document.getElementById('inventory-min-quantity').value, 10) || 5,
-        purchasePrice: parseFloat(document.getElementById('inventory-purchase-price').value) || null,
-        sellingPrice: parseFloat(document.getElementById('inventory-selling-price').value) || null,
+        quantity,
+        minQuantity,
+        purchasePrice: purchasePriceValue === '' ? null : Number(purchasePriceValue),
+        sellingPrice: sellingPriceValue === '' ? null : Number(sellingPriceValue),
         supplierId: document.getElementById('inventory-supplier-id').value || null,
         location: document.getElementById('inventory-location').value.trim(),
-        notes: document.getElementById('inventory-notes').value.trim()
+        notes: document.getElementById('inventory-notes').value.trim(),
+        isPerishable,
+        expirationDate,
+        photoPath: await readInventoryPhotoDataUrl()
     };
+
+    if (!data.name) { showNotification('Le nom de l’article est obligatoire', 'warning'); return; }
+    if (quantity < 0 || minQuantity < 0 || (data.purchasePrice !== null && data.purchasePrice < 0) || (data.sellingPrice !== null && data.sellingPrice < 0)) {
+        showNotification('Les quantités, seuils et prix doivent être positifs', 'warning'); return;
+    }
+    if (isPerishable && !id && quantity > 0 && !expirationDate) {
+        showNotification('Indiquez la date d’expiration du stock initial', 'warning'); return;
+    }
 
     try {
         let result;
@@ -390,13 +468,97 @@ function editInventoryItem(id) { openInventoryModal(id); }
 async function deleteInventoryItem(id) {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet article ?')) return;
     try {
-        await inventoryApi.delete(id);
+        const result = await inventoryApi.delete(id);
+        if (!result?.success) throw new Error(result?.error || 'Suppression impossible');
+        document.getElementById('inventory-article-detail-modal')?.remove();
         showNotification('Article supprimé', 'success');
         await loadInventory(inventoryPagination.page);
         await loadInventoryStats();
     } catch (error) {
-        showNotification('Erreur lors de la suppression', 'error');
+        showNotification('Erreur: ' + (error.message || 'Suppression impossible'), 'error');
     }
+}
+
+async function openInventoryArticleDetails(id) {
+    let item = inventoryData.find(entry => String(entry.id) === String(id));
+    if (!item) {
+        const result = await inventoryApi.getById(id);
+        item = result?.success ? result.data : null;
+    }
+    if (!item) return;
+    document.getElementById('inventory-article-detail-modal')?.remove();
+    const photo = item.photoPath
+        ? `<img src="${escapeInventoryHtml(item.photoPath)}" alt="" class="inventory-detail-photo">`
+        : '<div class="inventory-detail-photo inventory-detail-photo-empty">Aucune photo</div>';
+    const supplierOptions = '<option value="">-- Aucun --</option>' + suppliersData.map(s =>
+        `<option value="${escapeInventoryHtml(s.id)}" ${s.id === item.supplierId ? 'selected' : ''}>${escapeInventoryHtml(s.name)}</option>`
+    ).join('');
+    const html = `
+      <div id="inventory-article-detail-modal" class="inventory-detail-overlay">
+        <div class="inventory-detail-dialog">
+          <div class="inventory-detail-header"><div><span class="inventory-detail-kicker">Fiche article</span><h2>${escapeInventoryHtml(item.name)}</h2></div><button type="button" class="close-btn" onclick="document.getElementById('inventory-article-detail-modal').remove()">&times;</button></div>
+          <div class="inventory-detail-body">
+            <div class="inventory-detail-summary">${photo}<div class="inventory-detail-grid">
+              <div><span>Catégorie</span><strong>${escapeInventoryHtml(item.category || '—')}</strong></div><div><span>Stock actuel</span><strong>${Number(item.quantity || 0)} ${escapeInventoryHtml(item.unit || '')}</strong></div>
+              <div><span>Seuil minimum</span><strong>${Number(item.minQuantity || 0)}</strong></div><div><span>Suivi</span><strong>${item.isPerishable ? 'Périssable / lots' : 'Stock simple'}</strong></div>
+              <div><span>Prix d'achat</span><strong>${formatCurrency(item.purchasePrice || 0)}</strong></div><div><span>Prix de vente</span><strong>${formatCurrency(item.sellingPrice || 0)}</strong></div>
+              <div><span>Fournisseur</span><strong>${escapeInventoryHtml(item.supplierName || '—')}</strong></div><div><span>Emplacement</span><strong>${escapeInventoryHtml(item.location || '—')}</strong></div>
+              <div class="wide"><span>Notes</span><strong>${escapeInventoryHtml(item.notes || 'Aucune note')}</strong></div>
+            </div></div>
+            <form class="inventory-quick-stock" onsubmit="adjustStockFromArticleDetails(event, '${escapeInventoryHtml(item.id)}')">
+              <h3>Ajuster le stock</h3>
+              <div class="inventory-quick-stock-grid">
+                <select class="form-control" name="movementType"><option value="in">Ajouter du stock</option><option value="out">Retirer du stock</option></select>
+                <input class="form-control" name="quantity" type="number" min="1" required placeholder="Quantité">
+                <select class="form-control" name="supplierId">${supplierOptions}</select>
+                <input class="form-control" name="unitPrice" type="number" min="0" step="0.01" placeholder="Prix d'achat">
+                ${item.isPerishable ? '<input class="form-control" name="expirationDate" type="date" required aria-label="Date expiration">' : ''}
+                <input class="form-control" name="reason" placeholder="Motif / référence">
+              </div>
+              <button type="submit" class="btn btn-primary">Confirmer l'ajustement</button>
+            </form>
+          </div>
+          <div class="inventory-detail-footer"><button class="btn btn-danger" onclick="deleteInventoryItem('${escapeInventoryHtml(item.id)}')">Supprimer</button><button class="btn btn-primary" onclick="document.getElementById('inventory-article-detail-modal').remove();editInventoryItem('${escapeInventoryHtml(item.id)}')">Modifier</button></div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function adjustStockFromArticleDetails(event, id) {
+    event.preventDefault();
+    let item = inventoryData.find(entry => String(entry.id) === String(id));
+    if (!item) {
+        const result = await inventoryApi.getById(id);
+        item = result?.success ? result.data : null;
+    }
+    if (!item) return;
+    const form = event.currentTarget;
+    const type = form.elements.movementType.value;
+    const quantity = Number(form.elements.quantity.value || 0);
+    if (quantity <= 0) return showNotification('Quantité invalide', 'warning');
+    try {
+        let result;
+        if (type === 'in' && item.isPerishable) {
+            result = await inventoryApi.createLot({
+                inventoryId: id,
+                supplierId: form.elements.supplierId.value || null,
+                lotNumber: `LOT-${Date.now().toString().slice(-6)}`,
+                purchaseDate: new Date().toISOString().slice(0, 10),
+                expirationDate: form.elements.expirationDate.value,
+                initialQuantity: quantity,
+                unitPrice: Number(form.elements.unitPrice.value || item.purchasePrice || 0),
+                notes: form.elements.reason.value || 'Ajout depuis la fiche article'
+            });
+        } else {
+            result = await inventoryApi.adjustStock(id, quantity, type, form.elements.reason.value || 'Ajustement depuis la fiche article');
+        }
+        if (!result?.success) throw new Error(result?.error || 'Ajustement impossible');
+        showNotification(type === 'in' ? 'Stock ajouté' : 'Stock retiré', 'success');
+        document.getElementById('inventory-article-detail-modal')?.remove();
+        await loadInventory(inventoryPagination.page);
+        await loadInventoryStats();
+        openInventoryArticleDetails(id);
+    } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
 function openStockAdjustModal(id) {
@@ -473,8 +635,6 @@ function displaySuppliers() {
             <td style="padding: 14px 16px;">
                 <div class="inventory-actions">
                     <button onclick="viewSupplier('${s.id}')" class="inventory-action-btn inventory-action-btn-edit">Détails</button>
-                    ${canManageSuppliersFlag ? `<button onclick="editSupplier('${s.id}')" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>` : ''}
-                    ${canManageSuppliersFlag ? `<button onclick="deleteSupplier('${s.id}')" class="inventory-action-btn inventory-action-btn-delete">Supprimer</button>` : ''}
                 </div>
             </td>
         </tr>`;
@@ -537,11 +697,13 @@ function editSupplier(id) { openSupplierModal(id); }
 async function deleteSupplier(id) {
     if (!confirm('Supprimer ce fournisseur ?')) return;
     try {
-        await inventoryApi.deleteSupplier(id);
+        const result = await inventoryApi.deleteSupplier(id);
+        if (!result?.success) throw new Error(result?.error || 'Suppression impossible');
+        document.getElementById('inventory-supplier-detail-modal')?.remove();
         showNotification('Fournisseur supprimé', 'success');
         await loadSuppliers();
         await loadSupplierSelects();
-    } catch (error) { showNotification('Erreur', 'error'); }
+    } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
 }
 
 async function viewSupplier(id) {
@@ -549,25 +711,27 @@ async function viewSupplier(id) {
         const result = await inventoryApi.getSupplier(id);
         if (!result.success) return;
         const s = result.data;
-        const purchasesRows = (s.purchases || []).map(p => `
-            <tr><td>${formatDate(p.purchaseDate)}</td><td>${p.itemName}</td><td>${p.initialQuantity}</td><td>${canSeeInventoryPrices ? formatCurrency(p.unitPrice) : '—'}</td><td>${canSeeInventoryPrices ? formatCurrency(p.initialQuantity * p.unitPrice) : '—'}</td></tr>
+        const linkedRows = (s.linkedArticles || []).map(article => `
+            <tr><td><button class="inventory-link-button" onclick="document.getElementById('inventory-supplier-detail-modal').remove();openInventoryArticleDetails('${escapeInventoryHtml(article.id)}')">${escapeInventoryHtml(article.name)}</button></td><td>${escapeInventoryHtml(article.category || '—')}</td><td>${Number(article.quantity || 0)} ${escapeInventoryHtml(article.unit || '')}</td><td>${formatCurrency(article.sellingPrice || 0)}</td></tr>
         `).join('');
         const html = `
-            <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px">
-                <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-                        <h3 style="margin:0">${s.name}</h3>
-                        <button onclick="this.closest('.modal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer">×</button>
+            <div id="inventory-supplier-detail-modal" class="inventory-detail-overlay">
+                <div class="inventory-detail-dialog">
+                    <div class="inventory-detail-header"><div><span class="inventory-detail-kicker">Fiche fournisseur</span><h2>${escapeInventoryHtml(s.name)}</h2></div><button class="close-btn" onclick="document.getElementById('inventory-supplier-detail-modal').remove()">×</button></div>
+                    <div class="inventory-detail-body">
+                      <div class="inventory-detail-grid">
+                        <div><span>Contact</span><strong>${escapeInventoryHtml(s.contactName || '—')}</strong></div><div><span>Spécialité</span><strong>${escapeInventoryHtml(s.specialty || '—')}</strong></div>
+                        <div><span>Téléphone</span><strong>${escapeInventoryHtml(s.phone || '—')}</strong></div><div><span>Email</span><strong>${escapeInventoryHtml(s.email || '—')}</strong></div>
+                        <div class="wide"><span>Adresse</span><strong>${escapeInventoryHtml(s.address || '—')}</strong></div><div class="wide"><span>Notes</span><strong>${escapeInventoryHtml(s.notes || 'Aucune note')}</strong></div>
+                      </div>
+                      <h3>Articles rattachés</h3>
+                      <div class="inventory-detail-table"><table class="table"><thead><tr><th>Article</th><th>Catégorie</th><th>Stock</th><th>Prix vente</th></tr></thead><tbody>${linkedRows || '<tr><td colspan="4" class="text-center">Aucun article rattaché</td></tr>'}</tbody></table></div>
                     </div>
-                    <p style="color:#64748b">${[s.phone, s.email, s.address].filter(Boolean).join(' · ') || 'Aucun contact'}</p>
-                    <h4 style="margin:20px 0 10px 0">Historique des achats (${canSeeInventoryPrices ? formatCurrency(s.totalSpent) : '—'})</h4>
-                    <table class="table"><thead><tr><th>Date</th><th>Article</th><th>Qté</th><th>Prix U.</th><th>Total</th></tr></thead><tbody>${purchasesRows || '<tr><td colspan="5" class="text-center">Aucun achat</td></tr>'}</tbody></table>
+                    <div class="inventory-detail-footer"><button class="btn btn-danger" onclick="deleteSupplier('${escapeInventoryHtml(s.id)}')">Supprimer</button><button class="btn btn-primary" onclick="document.getElementById('inventory-supplier-detail-modal').remove();editSupplier('${escapeInventoryHtml(s.id)}')">Modifier</button></div>
                 </div>
             </div>`;
-        const div = document.createElement('div');
-        div.className = 'modal';
-        div.innerHTML = html;
-        document.body.appendChild(div);
+        document.getElementById('inventory-supplier-detail-modal')?.remove();
+        document.body.insertAdjacentHTML('beforeend', html);
     } catch (e) { showNotification('Erreur', 'error'); }
 }
 
@@ -584,12 +748,15 @@ async function loadLots() {
         } else {
             const articles = await inventoryApi.getAll({ paginated: false });
             if (articles.success) {
-                for (const art of articles.data || []) {
+                for (const art of (articles.data || []).filter(item => item.isPerishable === true)) {
                     const result = await inventoryApi.getLots(art.id);
-                    if (result.success) allLots.push(...(result.data || []));
+                    if (result.success) allLots.push(...(result.data || []).filter(lot => Boolean(lot.expirationDate)));
                 }
             }
         }
+        // The lots screen is reserved for dated/perishable batches. Historical
+        // undated rows must not make a simple article appear as perishable.
+        allLots = allLots.filter(lot => Boolean(lot.expirationDate));
         if (search) {
             const lower = search.toLowerCase();
             allLots = allLots.filter(l =>
@@ -616,7 +783,7 @@ function displayLots() {
         const priceDisplay = canSeeInventoryPrices ? formatCurrency(l.unitPrice) : '—';
         return `
         <tr${isExpiring}>
-            <td style="padding: 14px 16px;">${l.itemName || l.inventoryId}</td>
+            <td style="padding: 14px 16px;">${escapeInventoryHtml(l.itemName || 'Article introuvable')}</td>
             <td style="padding: 14px 16px; color: #64748b;">${l.lotNumber || '-'}</td>
             <td style="padding: 14px 16px; color: #64748b;">${l.supplierName || '-'}</td>
             <td style="padding: 14px 16px; color: #64748b;">${formatDate(l.purchaseDate)}</td>
@@ -635,7 +802,7 @@ async function filterLots() {
     if (articleFilter && !articleFilter.options.length) {
         const arts = await inventoryApi.getAll({ paginated: false });
         articleFilter.innerHTML = '<option value="">Tous les articles</option>' +
-            (arts.success ? arts.data : []).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            (arts.success ? arts.data : []).filter(a => a.isPerishable === true).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     }
     await loadLots();
 }
@@ -676,7 +843,7 @@ async function populateLotArticleSelect() {
     if (!sel || sel.options.length > 1) return;
     const result = await inventoryApi.getAll({ paginated: false });
     sel.innerHTML = '<option value="">-- Sélectionner --</option>' +
-        (result.success ? result.data : []).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        (result.success ? result.data : []).filter(a => a.isPerishable === true).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 }
 
 async function saveInventoryLot(event) {
@@ -928,7 +1095,6 @@ async function deletePurchaseOrder(id) {
 async function loadPOSData() {
     try {
         await loadPatientSelectForPOS();
-        await loadPOSSales();
     } catch (e) { console.error('Error loading POS data:', e); }
 }
 
@@ -994,6 +1160,7 @@ function updatePOSCartQty(index, qty) {
 }
 
 function updatePOSCartPrice(index, price) {
+    if (isAssistantInventoryUser()) return;
     if (posCart[index]) posCart[index].unitPrice = parseFloat(price) || 0;
     renderPOSCart();
 }
@@ -1013,7 +1180,7 @@ function renderPOSCart() {
             <tr>
                 <td style="padding: 12px 14px;"><strong>${item.name}</strong><div style="font-size:12px;color:#64748b">Stock: ${item.stock} ${item.unit}</div></td>
                 <td style="padding: 12px 14px; text-align:center;"><input type="number" class="form-control" value="${item.quantity}" min="1" max="${item.stock}" onchange="updatePOSCartQty(${idx}, this.value)" style="width:70px;text-align:center"></td>
-                <td style="padding: 12px 14px; text-align:right;"><input type="number" class="form-control" value="${item.unitPrice}" min="0" step="0.01" onchange="updatePOSCartPrice(${idx}, this.value)" style="width:100px;text-align:right"></td>
+                <td style="padding: 12px 14px; text-align:right;"><input type="number" class="form-control" value="${item.unitPrice}" min="0" step="0.01" ${isAssistantInventoryUser() ? 'readonly' : `onchange="updatePOSCartPrice(${idx}, this.value)"`} style="width:100px;text-align:right"></td>
                 <td style="padding: 12px 14px; text-align:right; font-weight:600;">${formatCurrency(item.quantity * item.unitPrice)}</td>
                 <td style="padding: 12px 14px;"><button type="button" class="btn btn-secondary btn-small" onclick="removePOSCartItem(${idx})">✕</button></td>
             </tr>`).join('');
@@ -1050,17 +1217,22 @@ async function submitPOSSale() {
         items: posCart.map(i => ({ inventoryId: i.inventoryId, quantity: i.quantity, unitPrice: i.unitPrice }))
     };
     try {
-        const result = await inventoryApi.createSale(data);
+        const result = editingPOSSaleId
+            ? await inventoryApi.updateSale(editingPOSSaleId, data)
+            : await inventoryApi.createSale(data);
         if (!result.success) throw new Error(result.error);
-        showNotification(`Vente enregistrée: ${formatCurrency(result.finalAmount)}`, 'success');
+        showNotification(`${editingPOSSaleId ? 'Vente modifiée' : 'Vente enregistrée'}: ${formatCurrency(result.finalAmount)}`, 'success');
+        editingPOSSaleId = '';
         posCart = [];
         document.getElementById('pos-customer-name').value = '';
         if (patientSelect) patientSelect.value = '';
         document.getElementById('pos-discount-percent').value = '0';
         document.getElementById('pos-discount-amount').value = '0';
+        const submitButton = document.getElementById('pos-submit-button');
+        if (submitButton) submitButton.textContent = 'Valider la vente';
         renderPOSCart();
         await loadPOSSales();
-        await loadInventoryStats();
+        if (!isAssistantInventoryUser()) await loadInventoryStats();
         if (inventoryTabState.activeTab === 'articles') await loadInventory();
         if (inventoryTabState.activeTab === 'lots') await loadLots();
     } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
@@ -1068,8 +1240,7 @@ async function submitPOSSale() {
 
 async function loadPOSSales() {
     try {
-        const today = new Date().toISOString().slice(0, 10);
-        const result = await inventoryApi.getSales({ startDate: today, endDate: today });
+        const result = await inventoryApi.getSales({ limit: 200 });
         posSalesData = (result && result.success) ? result.data : [];
         displayPOSSales();
     } catch (e) { console.error('Error loading POS sales:', e); }
@@ -1079,7 +1250,7 @@ function displayPOSSales() {
     const tbody = document.getElementById('pos-sales-tbody');
     if (!tbody) return;
     if (!posSalesData.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(5, 'Aucune vente', 'Aucune vente enregistrée aujourd’hui.');
+        tbody.innerHTML = buildInventoryEmptyRow(6, 'Aucune vente', 'Aucune vente enregistrée.');
         return;
     }
     tbody.innerHTML = posSalesData.map(s => {
@@ -1087,18 +1258,108 @@ function displayPOSSales() {
             ? `${s.lastName || ''} ${s.firstName || ''}`.trim()
             : (s.customerName || 'Client de passage');
         const itemsSummary = (s.items || []).map(i => `${i.itemName} ×${i.quantity}`).join(', ');
+        const returned = s.status === 'returned';
+        const open = !returned && (s.status === 'open' || !s.status);
+        const statusLabel = returned ? 'Retournée' : (open ? 'Ouverte' : 'Facturée');
         return `
-        <tr>
+        <tr class="${returned ? 'pos-sale-returned' : ''}">
             <td style="padding: 12px 14px;">${formatDateTime(s.saleDate)}</td>
             <td style="padding: 12px 14px;">${customer}</td>
             <td style="padding: 12px 14px; font-size:13px; color:#64748b">${itemsSummary}</td>
             <td style="padding: 12px 14px; text-align:right; font-weight:600;">${formatCurrency(s.finalAmount)}</td>
             <td style="padding: 12px 14px;">
-                <span style="background:#f1f5f9;padding:4px 10px;border-radius:20px;font-size:12px">${s.paymentMethod}</span>
-                <button type="button" class="btn btn-secondary btn-small" onclick="printPOSReceipt('${s.id}')" style="margin-left:8px">🖨️ Ticket</button>
+                <span style="background:#f1f5f9;padding:4px 10px;border-radius:20px;font-size:12px">${statusLabel}</span>
+            </td>
+            <td style="padding: 12px 14px; white-space:nowrap">
+                ${open ? `<button type="button" class="btn btn-secondary btn-small" onclick="editPOSSale('${s.id}')">Modifier</button>` : ''}
+                <button type="button" class="btn btn-secondary btn-small" onclick="viewPOSInvoice('${s.id}')">Voir facture</button>
+                ${returned ? '' : `<button type="button" class="btn btn-danger btn-small" onclick="returnPOSSale('${s.id}')">Retourner</button>`}
             </td>
         </tr>`;
     }).join('');
+}
+
+async function editPOSSale(saleId) {
+    try {
+        const result = await inventoryApi.getSale(saleId);
+        if (!result?.success) throw new Error(result?.error || 'Vente introuvable');
+        const sale = result.data;
+        if (sale.status !== 'open' && sale.status) throw new Error('Cette vente est déjà clôturée');
+        editingPOSSaleId = saleId;
+        posCart = (sale.items || []).map(item => ({
+            inventoryId: item.inventoryId,
+            name: item.itemName,
+            unitPrice: Number(item.unitPrice || 0),
+            unit: item.unit || 'unité',
+            stock: Number(item.stockQuantity || 0) + Number(item.quantity || 0),
+            quantity: Number(item.quantity || 1)
+        }));
+        document.getElementById('pos-customer-name').value = sale.customerName || '';
+        document.getElementById('pos-patient-select').value = sale.patientId || '';
+        document.getElementById('pos-discount-percent').value = Number(sale.discountPercent || 0);
+        document.getElementById('pos-discount-amount').value = Number(sale.discountAmount || 0);
+        document.getElementById('pos-payment-method').value = sale.paymentMethod || 'Espèces';
+        const submitButton = document.getElementById('pos-submit-button');
+        if (submitButton) submitButton.textContent = 'Enregistrer les modifications';
+        switchInventoryTab('pos');
+        renderPOSCart();
+    } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
+}
+
+function buildPOSInvoiceHtml(sale, settings = {}) {
+    const customer = sale.patientId ? `${sale.lastName || ''} ${sale.firstName || ''}`.trim() : (sale.customerName || 'Client de passage');
+    const rows = (sale.items || []).map(item => `<tr><td>${escapeInventoryHtml(item.itemName)}</td><td>${Number(item.quantity || 0)}</td><td>${formatCurrency(item.unitPrice || 0)}</td><td>${formatCurrency(item.totalPrice || 0)}</td></tr>`).join('');
+    const logo = settings.cabinetLogoDataUrl ? `<img src="${escapeInventoryHtml(settings.cabinetLogoDataUrl)}" style="width:22mm;height:16mm;object-fit:contain" alt="">` : '';
+    return `<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A5 portrait;margin:9mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;font-size:9pt;margin:0}.head{display:flex;justify-content:space-between;border-bottom:1.5px solid #111;padding-bottom:4mm}.brand{display:flex;gap:3mm}.brand h1{font-size:13pt;margin:0}.muted{color:#555;font-size:8pt;line-height:1.4}.meta{text-align:right}.meta h2{font-size:16pt;margin:0}.client{border:1px solid #aaa;padding:3mm;margin:5mm 0}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #bbb;padding:2.2mm;text-align:left}th{background:#f2f2f2}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total{margin:6mm 0 0 auto;width:58mm;border-top:2px solid #111;padding-top:3mm;display:flex;justify-content:space-between;font-size:12pt;font-weight:700}.signature{margin-top:22mm;text-align:right}.signature span{display:inline-block;width:48mm;border-top:1px solid #111;padding-top:2mm;text-align:center}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><header class="head"><div class="brand">${logo}<div><h1>${escapeInventoryHtml(settings.cabinetName || 'MedCareSO')}</h1><div class="muted">${escapeInventoryHtml(settings.cabinetAddress || '')}<br>${escapeInventoryHtml(settings.cabinetPhone || '')} ${escapeInventoryHtml(settings.cabinetEmail || '')}</div></div></div><div class="meta"><h2>FACTURE</h2><div>${escapeInventoryHtml(sale.invoiceNumber || `PROV-${String(sale.id).slice(-6).toUpperCase()}`)}</div><div>${formatDateTime(sale.saleDate)}</div></div></header><section class="client"><strong>Client / Patient</strong><div>${escapeInventoryHtml(customer)}</div></section><table><thead><tr><th>Désignation</th><th>Quantité</th><th>Prix unitaire</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>${Number(sale.discountAmount || 0) || Number(sale.discountPercent || 0) ? `<div class="muted" style="text-align:right;margin-top:3mm">Remise appliquée: ${formatCurrency(Number(sale.totalAmount || 0)-Number(sale.finalAmount || 0))}</div>` : ''}<div class="total"><span>Total général</span><span>${formatCurrency(sale.finalAmount || 0)}</span></div><div class="signature"><span>Signature / Cachet</span></div></body></html>`;
+}
+
+async function viewPOSInvoice(saleId) {
+    try {
+        const [saleResult, settingsResult] = await Promise.all([inventoryApi.getSale(saleId), window.api.settings.get()]);
+        if (!saleResult?.success) throw new Error(saleResult?.error || 'Vente introuvable');
+        const sale = saleResult.data;
+        const settings = settingsResult?.success ? settingsResult.data || {} : {};
+        document.getElementById('pos-invoice-preview')?.remove();
+        const render = () => buildPOSInvoiceHtml(sale, settings);
+        document.body.insertAdjacentHTML('beforeend', `<div id="pos-invoice-preview" class="inventory-detail-overlay"><div class="inventory-detail-dialog"><div class="inventory-detail-header"><div><span class="inventory-detail-kicker">Aperçu A5</span><h2>Facture de vente</h2></div><button class="close-btn" onclick="document.getElementById('pos-invoice-preview').remove()">&times;</button></div><div class="inventory-detail-body" style="background:#e5e7eb"><iframe id="pos-invoice-frame" style="display:block;width:148mm;height:210mm;max-width:100%;margin:auto;border:0;background:#fff"></iframe></div><div class="inventory-detail-footer"><button class="btn btn-secondary" onclick="document.getElementById('pos-invoice-preview').remove()">Fermer</button><button class="btn btn-primary" onclick="printPOSInvoice('${saleId}')">Imprimer et clôturer</button></div></div></div>`);
+        document.getElementById('pos-invoice-frame').srcdoc = render();
+    } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
+}
+
+async function printPOSInvoice(saleId) {
+    try {
+        const finalized = await inventoryApi.finalizeSale(saleId);
+        if (!finalized?.success) throw new Error(finalized?.error || 'Clôture impossible');
+        const [saleResult, settingsResult] = await Promise.all([inventoryApi.getSale(saleId), window.api.settings.get()]);
+        const html = buildPOSInvoiceHtml(saleResult.data, settingsResult?.data || {});
+        const printed = await inventoryApi.printHtml({
+            html,
+            pageSize: 'A5',
+            documentTitle: `Facture_${finalized.invoiceNumber}`
+        });
+        if (printed?.success === false) throw new Error(printed.error || 'Impression impossible');
+        document.getElementById('pos-invoice-preview')?.remove();
+        showNotification('Facture clôturée et envoyée à l’impression', 'success');
+        await loadPOSSales();
+    } catch (error) { showNotification('Erreur: ' + error.message, 'error'); }
+}
+
+async function returnPOSSale(saleId) {
+    const reason = prompt('Motif du retour (obligatoire) :');
+    if (reason === null) return;
+    if (!reason.trim()) {
+        showNotification('Le motif du retour est obligatoire', 'warning');
+        return;
+    }
+    if (!confirm('Confirmer le retour complet de cette vente ? Le stock sera restauré.')) return;
+    try {
+        const result = await inventoryApi.returnSale(saleId, reason.trim());
+        if (!result.success) throw new Error(result.error || 'Retour impossible');
+        showNotification('Vente retournée et stock restauré', 'success');
+        await loadPOSSales();
+    } catch (error) {
+        showNotification('Erreur: ' + error.message, 'error');
+    }
 }
 
 async function printPOSReceipt(saleId) {
@@ -1139,7 +1400,11 @@ async function printPOSReceipt(saleId) {
                 </div>
             </div>`;
         try {
-            await inventoryApi.printHtml({ content, title: `Ticket_Vente_${saleId.slice(-6)}` });
+            await inventoryApi.printHtml({
+                html: content,
+                pageSize: 'A5',
+                documentTitle: `Ticket_Vente_${saleId.slice(-6)}`
+            });
         } catch (_) {
             const w = window.open('', '_blank');
             if (w) {
@@ -1194,11 +1459,13 @@ registerLegacyGlobals('inventory', {
     addPurchaseOrderItemRow,
     addToPOSCart,
     adjustStock,
+    adjustStockFromArticleDetails,
     changeInventoryPage,
     deleteInventoryItem,
     deletePurchaseOrder,
     deleteSupplier,
     editInventoryItem,
+    editPOSSale,
     editSupplier,
     filterInventory,
     filterLots,
@@ -1207,6 +1474,7 @@ registerLegacyGlobals('inventory', {
     filterSuppliers,
     initInventory,
     loadInventory,
+    openInventoryArticleDetails,
     openInventoryLotAdjustModal,
     openInventoryLotModal,
     openInventoryLotModalForItem,
@@ -1216,9 +1484,11 @@ registerLegacyGlobals('inventory', {
     openStockAdjustModal,
     openSupplierModal,
     printPOSReceipt,
+    printPOSInvoice,
     recalculatePOS,
     refreshInventoryModule,
     removePOSCartItem,
+    returnPOSSale,
     resetInventoryFilters,
     saveInventoryItem,
     saveInventoryLot,
@@ -1227,7 +1497,9 @@ registerLegacyGlobals('inventory', {
     submitPOSSale,
     submitReceiveOrder,
     switchInventoryTab,
+    toggleInventoryPerishableFields,
     updatePOSCartPrice,
     updatePOSCartQty,
+    viewPOSInvoice,
   viewSupplier
 });

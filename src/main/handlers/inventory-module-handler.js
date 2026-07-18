@@ -80,9 +80,32 @@ async function getLotsFEFO(inventoryId, excludeExpired = true, lockRows = false)
 }
 
 async function deductFEFO(inventoryId, quantityRequested, meta = {}) {
-  const lots = await getLotsFEFO(inventoryId, true, true);
   let remaining = toIntOrDefault(quantityRequested, 0);
   if (remaining <= 0) return { success: true, deductions: [] };
+
+  const inventory = await queryOne(
+    'SELECT quantity, purchasePrice, isPerishable FROM inventory WHERE id = ? FOR UPDATE',
+    [inventoryId]
+  );
+  if (!inventory) return { success: false, error: 'Article introuvable', available: 0 };
+
+  // Simple articles keep their stock directly on inventory. Lots and FEFO only
+  // apply to products explicitly marked as perishable.
+  if (!inventory.isPerishable) {
+    const available = toIntOrDefault(inventory.quantity, 0);
+    if (available < remaining) {
+      return { success: false, error: `Stock insuffisant (disponible ${available})`, available };
+    }
+    const newQuantity = available - remaining;
+    await run('UPDATE inventory SET quantity = ?, updatedAt = ? WHERE id = ?', [newQuantity, nowSql(), inventoryId]);
+    return {
+      success: true,
+      deductions: [{ lotId: null, quantity: remaining, unitPrice: inventory.purchasePrice || 0 }],
+      newQuantity
+    };
+  }
+
+  const lots = await getLotsFEFO(inventoryId, true, true);
 
   const totalAvailable = lots.reduce((sum, l) => sum + (l.remainingQuantity || 0), 0);
   if (totalAvailable < remaining) {
@@ -138,6 +161,8 @@ export function handleInventoryModuleEvents() {
 
   ipcMain.handle('supplier:getAll', async (event, filters = {}) => {
     try {
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
       let sql = `SELECT * FROM suppliers WHERE 1=1`;
       const params = [];
       if (filters.isActive !== undefined) {
@@ -161,6 +186,8 @@ export function handleInventoryModuleEvents() {
 
   ipcMain.handle('supplier:getById', async (event, id) => {
     try {
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
       const supplier = await queryOne(`SELECT * FROM suppliers WHERE id = ?`, [id]);
       if (!supplier) return { success: false, error: 'Fournisseur introuvable' };
       const purchases = await query(
@@ -171,8 +198,13 @@ export function handleInventoryModuleEvents() {
          ORDER BY l.purchaseDate DESC`,
         [id]
       );
+      const linkedArticles = await query(
+        `SELECT id, name, category, quantity, unit, sellingPrice
+         FROM inventory WHERE supplierId = ? AND isActive = TRUE ORDER BY name`,
+        [id]
+      );
       const totalSpent = purchases.reduce((sum, p) => sum + ((p.initialQuantity || 0) * (p.unitPrice || 0)), 0);
-      return { success: true, data: { ...supplier, purchases: purchases || [], totalSpent } };
+      return { success: true, data: { ...supplier, purchases: purchases || [], linkedArticles: linkedArticles || [], totalSpent } };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -197,6 +229,13 @@ export function handleInventoryModuleEvents() {
     try {
       const ctx = getScopedInventoryContext();
       if (!ctx.canManageSuppliers) return { success: false, error: 'Accès refusé' };
+      const linked = await queryOne(
+        'SELECT COUNT(*) AS count FROM inventory WHERE supplierId = ? AND isActive = TRUE',
+        [id]
+      );
+      if (Number(linked?.count || 0) > 0) {
+        return { success: false, error: `${linked.count} article(s) sont encore liés à ce fournisseur` };
+      }
       await run(`UPDATE suppliers SET isActive = FALSE, updatedAt = ? WHERE id = ?`, [nowSql(), id]);
       return { success: true };
     } catch (error) {
@@ -213,8 +252,10 @@ export function handleInventoryModuleEvents() {
       const id = uuidv4();
       const initialQuantity = toIntOrDefault(data.initialQuantity, 0);
       const unitPrice = toNumberOrNull(data.unitPrice) || 0;
-      const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ? FOR UPDATE`, [data.inventoryId]);
+      const prev = await queryOne(`SELECT quantity, isPerishable FROM inventory WHERE id = ? FOR UPDATE`, [data.inventoryId]);
       if (!prev) throw new Error('Article introuvable');
+      if (!prev.isPerishable) return { success: false, error: 'Cet article utilise un stock simple, sans lot' };
+      if (!dateOnlySql(data.expirationDate)) return { success: false, error: 'La date d’expiration est obligatoire' };
       await run(
         `INSERT INTO inventory_lots (id, inventoryId, supplierId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -244,7 +285,13 @@ export function handleInventoryModuleEvents() {
 
   ipcMain.handle('inventoryLot:getByInventory', async (event, inventoryId, filters = {}) => {
     try {
-      let sql = `SELECT l.*, s.name as supplierName FROM inventory_lots l LEFT JOIN suppliers s ON s.id = l.supplierId WHERE l.inventoryId = ?`;
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
+      let sql = `SELECT l.*, i.name as itemName, i.unit, i.isPerishable, s.name as supplierName
+                 FROM inventory_lots l
+                 JOIN inventory i ON i.id = l.inventoryId
+                 LEFT JOIN suppliers s ON s.id = l.supplierId
+                 WHERE l.inventoryId = ?`;
       const params = [inventoryId];
       if (filters.activeOnly !== false) {
         sql += ` AND l.isActive = TRUE`;
@@ -259,6 +306,8 @@ export function handleInventoryModuleEvents() {
 
   ipcMain.handle('inventoryLot:getExpiringSoon', async (event, days = 30) => {
     try {
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
       const future = moment().add(days, 'days').format('YYYY-MM-DD');
       const today = moment().format('YYYY-MM-DD');
       const items = await query(
@@ -314,6 +363,8 @@ export function handleInventoryModuleEvents() {
   // ── INVENTORY EXTENDED STATS ──────────────────────────────────────────────
   ipcMain.handle('inventory:getFullStats', async () => {
     try {
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
       const totalItems = await queryOne(`SELECT COUNT(*) as count FROM inventory WHERE isActive = TRUE`);
       const lowStock = await queryOne(
         `SELECT COUNT(*) as count FROM inventory WHERE isActive = TRUE AND quantity <= minQuantity`
@@ -383,6 +434,8 @@ export function handleInventoryModuleEvents() {
 
   ipcMain.handle('purchaseOrder:getAll', async (event, filters = {}) => {
     try {
+      const ctx = getScopedInventoryContext();
+      if (ctx.isAssistant) return { success: false, error: 'Accès refusé' };
       let sql = `SELECT po.*, s.name as supplierName FROM purchase_orders po LEFT JOIN suppliers s ON s.id = po.supplierId WHERE 1=1`;
       const params = [];
       if (filters.status) { sql += ` AND po.status = ?`; params.push(filters.status); }
@@ -436,21 +489,31 @@ export function handleInventoryModuleEvents() {
         const qty = toIntOrDefault(rcv.receivedQuantity, it.receivedQuantity || 0);
         const addQty = qty - (it.receivedQuantity || 0);
         if (addQty > 0) {
-          const lotId = uuidv4();
-          await run(
-            `INSERT INTO inventory_lots (id, inventoryId, supplierId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [lotId, it.inventoryId, po.supplierId, `PO-${id.slice(-6)}`, nowSql().slice(0, 10),
-              dateOnlySql(rcv.expirationDate), addQty, addQty, it.unitPrice || 0, `Réception commande ${id}`, nowSql()]
-          );
-          const prev = await queryOne(`SELECT quantity FROM inventory WHERE id = ? FOR UPDATE`, [it.inventoryId]);
-          const newQuantity = await recalculateInventoryQuantity(it.inventoryId);
+          const article = await queryOne(`SELECT quantity, isPerishable FROM inventory WHERE id = ? FOR UPDATE`, [it.inventoryId]);
+          if (!article) throw new Error('Article introuvable');
+          let lotId = null;
+          let newQuantity;
+          if (article.isPerishable) {
+            const expirationDate = dateOnlySql(rcv.expirationDate);
+            if (!expirationDate) throw new Error('Date d’expiration obligatoire pour un article périssable');
+            lotId = uuidv4();
+            await run(
+              `INSERT INTO inventory_lots (id, inventoryId, supplierId, lotNumber, purchaseDate, expirationDate, initialQuantity, remainingQuantity, unitPrice, notes, createdAt)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [lotId, it.inventoryId, po.supplierId, `PO-${id.slice(-6)}`, nowSql().slice(0, 10),
+                expirationDate, addQty, addQty, it.unitPrice || 0, `Réception commande ${id}`, nowSql()]
+            );
+            newQuantity = await recalculateInventoryQuantity(it.inventoryId);
+          } else {
+            newQuantity = Number(article.quantity || 0) + addQty;
+            await run('UPDATE inventory SET quantity = ?, updatedAt = ? WHERE id = ?', [newQuantity, nowSql(), it.inventoryId]);
+          }
           await recordMovement({
             inventoryId: it.inventoryId,
             lotId,
             movementType: 'in',
             quantity: addQty,
-            previousQuantity: prev?.quantity || 0,
+            previousQuantity: article.quantity || 0,
             newQuantity,
             reason: `Réception commande ${id}`,
             reference: invoiceNumber || null,
@@ -669,7 +732,9 @@ export function handleInventoryModuleEvents() {
         const article = await queryOne(`SELECT * FROM inventory WHERE id = ? FOR UPDATE`, [it.inventoryId]);
         if (!article) throw new Error('Article introuvable');
         const qty = toIntOrDefault(it.quantity, 1);
-        const unitPrice = toNumberOrNull(it.unitPrice) || article.sellingPrice || 0;
+        const unitPrice = ctx.isAssistant
+          ? (article.sellingPrice || 0)
+          : (toNumberOrNull(it.unitPrice) || article.sellingPrice || 0);
         const check = await deductFEFO(article.id, qty);
         if (!check.success) {
           throw new Error(`${article.name}: ${check.error}`);
@@ -716,14 +781,17 @@ export function handleInventoryModuleEvents() {
           [uuidv4(), saleId, it.inventoryId, it.deductions?.[0]?.lotId || null, it.qty, it.unitPrice,
             it.deductions?.[0]?.unitPrice || it.article.purchasePrice || 0, totalPrice]
         );
+        let movementQuantity = Number(it.article.quantity || 0);
         for (const d of it.deductions || []) {
+          const previousQuantity = movementQuantity;
+          movementQuantity -= Number(d.quantity || 0);
           await recordMovement({
             inventoryId: it.inventoryId,
             lotId: d.lotId,
             movementType: 'sale',
             quantity: d.quantity,
-            previousQuantity: (it.article.quantity || 0) + d.quantity,
-            newQuantity: it.article.quantity || 0,
+            previousQuantity,
+            newQuantity: movementQuantity,
             reason: `Vente POS #${saleId.slice(-6)}`,
             reference: saleId,
             createdBy: ctx.userId,
@@ -747,14 +815,14 @@ export function handleInventoryModuleEvents() {
       if (filters.startDate) { sql += ` AND CAST(ps.saleDate AS DATE) >= ?`; params.push(filters.startDate); }
       if (filters.endDate) { sql += ` AND CAST(ps.saleDate AS DATE) <= ?`; params.push(filters.endDate); }
       if (filters.patientId) { sql += ` AND ps.patientId = ?`; params.push(filters.patientId); }
-      if (ctx.isAssistant) {
-        sql += ` AND CAST(ps.saleDate AS DATE) = CURRENT_DATE`;
-      }
-      sql += ` ORDER BY ps.saleDate DESC`;
+      const limit = Math.min(500, Math.max(1, toIntOrDefault(filters.limit, 200)));
+      sql += ` ORDER BY ps.saleDate DESC LIMIT ?`;
+      params.push(limit);
       const sales = await query(sql, params);
       const enriched = await Promise.all((sales || []).map(async (sale) => {
         const items = await query(
-          `SELECT psi.*, i.name as itemName FROM pos_sale_items psi JOIN inventory i ON i.id = psi.inventoryId WHERE psi.posSaleId = ?`,
+          `SELECT psi.id, psi.posSaleId, psi.inventoryId, psi.quantity, psi.unitPrice, psi.totalPrice, i.name as itemName, i.quantity as stockQuantity, i.unit
+           FROM pos_sale_items psi JOIN inventory i ON i.id = psi.inventoryId WHERE psi.posSaleId = ?`,
           [sale.id]
         );
         return { ...sale, items: items || [] };
@@ -773,10 +841,214 @@ export function handleInventoryModuleEvents() {
       );
       if (!sale) return { success: false, error: 'Vente introuvable' };
       const items = await query(
-        `SELECT psi.*, i.name as itemName FROM pos_sale_items psi JOIN inventory i ON i.id = psi.inventoryId WHERE psi.posSaleId = ?`,
+        `SELECT psi.id, psi.posSaleId, psi.inventoryId, psi.quantity, psi.unitPrice, psi.totalPrice, i.name as itemName, i.quantity as stockQuantity, i.unit
+         FROM pos_sale_items psi JOIN inventory i ON i.id = psi.inventoryId WHERE psi.posSaleId = ?`,
         [id]
       );
       return { success: true, data: { ...sale, items: items || [] } };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('pos:updateSale', async (event, id, data = {}) => {
+    try {
+      const ctx = getScopedInventoryContext();
+      if (!ctx.canSell) return { success: false, error: 'Accès refusé' };
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) return { success: false, error: 'Aucun article dans la vente' };
+
+      return await withTransaction(async () => {
+        const sale = await queryOne('SELECT * FROM pos_sales WHERE id = ? FOR UPDATE', [id]);
+        if (!sale) return { success: false, error: 'Vente introuvable' };
+        if (sale.status !== 'open' || sale.invoicedAt) {
+          return { success: false, error: 'Cette vente est clôturée et ne peut plus être modifiée' };
+        }
+
+        const oldMovements = await query(
+          `SELECT inventoryId, lotId, SUM(quantity) AS quantity
+           FROM inventory_movements WHERE posSaleId = ? AND movementType = 'sale'
+           GROUP BY inventoryId, lotId ORDER BY inventoryId, lotId`,
+          [id]
+        );
+        for (const movement of oldMovements) {
+          const qty = toIntOrDefault(movement.quantity, 0);
+          if (movement.lotId) {
+            await run(
+              `UPDATE inventory_lots SET remainingQuantity = LEAST(initialQuantity, remainingQuantity + ?), updatedAt = ? WHERE id = ?`,
+              [qty, nowSql(), movement.lotId]
+            );
+            await recalculateInventoryQuantity(movement.inventoryId);
+          } else {
+            await run(
+              `UPDATE inventory SET quantity = quantity + ?, updatedAt = ? WHERE id = ?`,
+              [qty, nowSql(), movement.inventoryId]
+            );
+          }
+        }
+        await run(`UPDATE inventory_movements SET movementType = 'sale_reversed' WHERE posSaleId = ? AND movementType = 'sale'`, [id]);
+        await run('DELETE FROM pos_sale_items WHERE posSaleId = ?', [id]);
+
+        let subtotal = 0;
+        const preparedItems = [];
+        for (const it of [...items].sort((left, right) => String(left.inventoryId).localeCompare(String(right.inventoryId)))) {
+          const article = await queryOne('SELECT * FROM inventory WHERE id = ? FOR UPDATE', [it.inventoryId]);
+          if (!article) throw new Error('Article introuvable');
+          const qty = toIntOrDefault(it.quantity, 1);
+          const unitPrice = ctx.isAssistant ? (article.sellingPrice || 0) : (toNumberOrNull(it.unitPrice) || article.sellingPrice || 0);
+          const check = await deductFEFO(article.id, qty);
+          if (!check.success) throw new Error(`${article.name}: ${check.error}`);
+          subtotal += qty * unitPrice;
+          preparedItems.push({ ...it, article, qty, unitPrice, deductions: check.deductions });
+        }
+
+        const discountAmount = Math.max(0, toNumberOrNull(data.discountAmount) || 0);
+        const discountPercent = Math.min(100, Math.max(0, toNumberOrNull(data.discountPercent) || 0));
+        const finalAmount = Math.max(0, subtotal - (subtotal * discountPercent / 100) - discountAmount);
+
+        for (const it of preparedItems) {
+          await run(
+            `INSERT INTO pos_sale_items (id, posSaleId, inventoryId, lotId, quantity, unitPrice, purchasePrice, totalPrice)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [uuidv4(), id, it.inventoryId, it.deductions?.[0]?.lotId || null, it.qty, it.unitPrice,
+              it.deductions?.[0]?.unitPrice || it.article.purchasePrice || 0, it.qty * it.unitPrice]
+          );
+          let movementQuantity = Number(it.article.quantity || 0);
+          for (const deduction of it.deductions || []) {
+            const previousQuantity = movementQuantity;
+            movementQuantity -= Number(deduction.quantity || 0);
+            await recordMovement({
+              inventoryId: it.inventoryId,
+              lotId: deduction.lotId,
+              movementType: 'sale',
+              quantity: deduction.quantity,
+              previousQuantity,
+              newQuantity: movementQuantity,
+              reason: `Modification vente POS #${id.slice(-6)}`,
+              reference: id,
+              createdBy: ctx.userId,
+              posSaleId: id
+            });
+          }
+        }
+
+        const patientId = toNullIfEmpty(data.patientId);
+        let paymentId = sale.paymentId || null;
+        if (sale.paymentId) {
+          if (patientId) {
+            await run(
+              `UPDATE payments SET patientId=?, amount=?, paymentMethod=?, updatedAt=? WHERE id=?`,
+              [patientId, finalAmount, data.paymentMethod || 'Espèces', nowSql(), sale.paymentId]
+            );
+          } else {
+            await run('DELETE FROM payments WHERE id = ?', [sale.paymentId]);
+            paymentId = null;
+          }
+        } else if (patientId) {
+          paymentId = uuidv4();
+          await run(
+            `INSERT INTO payments (id, patientId, amount, paymentDate, paymentMethod, description, notes, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [paymentId, patientId, finalAmount, nowSql().slice(0, 10), data.paymentMethod || 'Espèces',
+              'Vente produit (POS)', toNullIfEmpty(data.notes) || `Vente POS #${id.slice(-6)}`, nowSql(), nowSql()]
+          );
+        }
+        await run(
+          `UPDATE pos_sales SET patientId=?, customerName=?, totalAmount=?, discountAmount=?, discountPercent=?, finalAmount=?, paymentMethod=?, paymentId=?, notes=? WHERE id=?`,
+          [patientId, toNullIfEmpty(data.customerName), subtotal, discountAmount, discountPercent,
+            finalAmount, data.paymentMethod || 'Espèces', paymentId, toNullIfEmpty(data.notes), id]
+        );
+        return { success: true, finalAmount };
+      });
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('pos:finalizeSale', async (event, id) => {
+    try {
+      const ctx = getScopedInventoryContext();
+      if (!ctx.canSell) return { success: false, error: 'Accès refusé' };
+      return await withTransaction(async () => {
+        const sale = await queryOne('SELECT * FROM pos_sales WHERE id = ? FOR UPDATE', [id]);
+        if (!sale) return { success: false, error: 'Vente introuvable' };
+        if (sale.status === 'returned') return { success: false, error: 'Vente retournée' };
+        const invoiceNumber = sale.invoiceNumber || `FAC-${moment().format('YYYYMMDD')}-${String(id).replace(/-/g, '').slice(-6).toUpperCase()}`;
+        if (sale.status === 'open') {
+          await run(
+            `UPDATE pos_sales SET status='completed', invoiceNumber=?, invoicedAt=? WHERE id=?`,
+            [invoiceNumber, nowSql(), id]
+          );
+        }
+        return { success: true, invoiceNumber };
+      });
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('pos:returnSale', async (event, id, reason = '') => {
+    try {
+      const ctx = getScopedInventoryContext();
+      if (!ctx.canSell) return { success: false, error: 'Accès refusé' };
+      const normalizedReason = String(reason || '').trim();
+      if (!normalizedReason) return { success: false, error: 'Le motif du retour est obligatoire' };
+
+      return await withTransaction(async () => {
+        const sale = await queryOne('SELECT * FROM pos_sales WHERE id = ? FOR UPDATE', [id]);
+        if (!sale) return { success: false, error: 'Vente introuvable' };
+        if (sale.status === 'returned') return { success: false, error: 'Cette vente a déjà été retournée' };
+
+        const soldMovements = await query(
+          `SELECT inventoryId, lotId, SUM(quantity) AS quantity
+           FROM inventory_movements
+           WHERE posSaleId = ? AND movementType = 'sale'
+           GROUP BY inventoryId, lotId
+           ORDER BY inventoryId, lotId`,
+          [id]
+        );
+        if (!soldMovements.length) throw new Error('Mouvements de stock de la vente introuvables');
+
+        for (const movement of soldMovements) {
+          const inventory = await queryOne('SELECT quantity FROM inventory WHERE id = ? FOR UPDATE', [movement.inventoryId]);
+          const quantity = toIntOrDefault(movement.quantity, 0);
+          if (movement.lotId) {
+            await run(
+              `UPDATE inventory_lots
+               SET remainingQuantity = LEAST(initialQuantity, remainingQuantity + ?), updatedAt = ?
+               WHERE id = ?`,
+              [quantity, nowSql(), movement.lotId]
+            );
+            await recalculateInventoryQuantity(movement.inventoryId);
+          } else {
+            await run(
+              `UPDATE inventory SET quantity = quantity + ?, updatedAt = ? WHERE id = ?`,
+              [quantity, nowSql(), movement.inventoryId]
+            );
+          }
+          const updatedInventory = await queryOne('SELECT quantity FROM inventory WHERE id = ?', [movement.inventoryId]);
+          const newQuantity = toIntOrDefault(updatedInventory?.quantity, 0);
+          await recordMovement({
+            inventoryId: movement.inventoryId,
+            lotId: movement.lotId,
+            movementType: 'return',
+            quantity,
+            previousQuantity: inventory?.quantity || 0,
+            newQuantity,
+            reason: normalizedReason,
+            reference: id,
+            createdBy: ctx.userId,
+            posSaleId: id
+          });
+        }
+
+        await run(
+          `UPDATE pos_sales SET status = 'returned', returnedAt = ?, returnedBy = ?, returnReason = ? WHERE id = ?`,
+          [nowSql(), ctx.userId, normalizedReason, id]
+        );
+        if (sale.paymentId) await run('DELETE FROM payments WHERE id = ?', [sale.paymentId]);
+        return { success: true };
+      });
     } catch (error) {
       return { success: false, error: error.message };
     }

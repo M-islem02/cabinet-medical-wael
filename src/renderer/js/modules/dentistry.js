@@ -168,7 +168,13 @@ function getToothPositions() {
 async function initDentistry() {
   currentDentalLanguage = localStorage.getItem(DENTAL_LANGUAGE_KEY) === 'en' ? 'en' : 'fr';
   applyDentalLanguageToUI();
+  if (typeof currentPatientId !== 'undefined' && currentPatientId) {
+    dentalSelectedPatientId = currentPatientId;
+  }
   await loadDentalPatientList();
+  if (dentalSelectedPatientId) {
+    await selectDentalPatient(dentalSelectedPatientId);
+  }
   updateDentalStats();
   connectDentalRealtimeWs();
   renderDentalChart();
@@ -237,6 +243,9 @@ async function selectDentalPatient(patientId) {
     const res = await window.api.patient.getById(patientId);
     if (res.success && res.data) {
       if (display) display.textContent = res.data.lastName + ' ' + res.data.firstName;
+      if (typeof window.setSelectedPatient === 'function') {
+        await window.setSelectedPatient(patientId, { patient: res.data, source: 'dentistry' });
+      }
     }
     updateDentalPatientActionState();
     await loadDentalTeeth(patientId);

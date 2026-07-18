@@ -20,6 +20,12 @@ let rehabActiveLoadToken = 0;
 
 // Initialize Rehabilitation Module
 async function initRehabilitation() {
+  const selectedPatientChanged = typeof currentPatientId !== 'undefined'
+    && currentPatientId
+    && String(rehabSelectedPatientId || '') !== String(currentPatientId);
+  if (typeof currentPatientId !== 'undefined' && currentPatientId) {
+    rehabSelectedPatientId = currentPatientId;
+  }
   if (!rehabPatientListLoaded) {
     await refreshRehabPatientList();
   }
@@ -33,8 +39,8 @@ async function initRehabilitation() {
     rehabGlobalStatsLoaded = true;
   }
 
-  if (!rehabModuleInitialized && rehabSelectedPatientId) {
-    await loadRehabDataForPatient(rehabSelectedPatientId);
+  if (rehabSelectedPatientId && (!rehabModuleInitialized || selectedPatientChanged)) {
+    await selectRehabPatient(rehabSelectedPatientId);
   }
 
   rehabModuleInitialized = true;
@@ -281,9 +287,8 @@ async function selectRehabPatient(patientId) {
       const name = `${patient.lastName || ''} ${patient.firstName || ''}`.trim();
       document.getElementById('rehab-current-patient-display').textContent = name;
       
-      // Also update global currentPatientId for compatibility
-      if (typeof currentPatientId !== 'undefined') {
-        currentPatientId = patientId;
+      if (typeof window.setSelectedPatient === 'function') {
+        await window.setSelectedPatient(patientId, { patient, source: 'rehabilitation' });
       }
     }
   } catch (error) {
@@ -2230,7 +2235,7 @@ async function refreshRehabPatientList() {
 
     if (typeof window.attachLazyPatientSearchToSelect === 'function') {
       window.attachLazyPatientSearchToSelect('rehab-patient-selector', {
-        selectedPatientId: rehabSelectedPatientId || '',
+        selectedPatientId: (typeof currentPatientId !== 'undefined' && currentPatientId) || rehabSelectedPatientId || '',
         placeholder: 'Tapez la premiere lettre du patient...',
         emptyMessage: 'Tapez la premiere lettre du patient',
         loadingMessage: 'Recherche des patients...',

@@ -55,6 +55,7 @@ function getEquipmentContext() {
 export function handleEquipmentEvents() {
   // ── CATEGORIES ─────────────────────────────────────────────────────────────
   ipcMain.handle('equipment:getCategories', async () => {
+    if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
     const list = Object.entries(EQUIPMENT_CATEGORIES).map(([key, val]) => ({
       value: key,
       label: val.label,
@@ -87,6 +88,7 @@ export function handleEquipmentEvents() {
 
   ipcMain.handle('equipment:getAll', async (event, filters = {}) => {
     try {
+      if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
       let sql = `SELECT e.*, u.fullName as doctorName FROM equipment e LEFT JOIN users u ON u.id = e.assignedDoctorId WHERE e.isActive = TRUE`;
       const params = [];
       if (filters.category) { sql += ' AND e.category = ?'; params.push(filters.category); }
@@ -108,6 +110,7 @@ export function handleEquipmentEvents() {
 
   ipcMain.handle('equipment:getById', async (event, id) => {
     try {
+      if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
       const eq = await queryOne(
         `SELECT e.*, u.fullName as doctorName FROM equipment e LEFT JOIN users u ON u.id = e.assignedDoctorId WHERE e.id = ?`,
         [id]
@@ -182,7 +185,7 @@ export function handleEquipmentEvents() {
           toNull(data.notes), ctx.userId, nowSql()]
       );
       await run(
-        `UPDATE equipment SET lastMaintenanceDate=?, nextMaintenanceDate=?, updatedAt=? WHERE id=?`,
+        `UPDATE equipment SET lastMaintenanceDate=?, nextMaintenanceDate=?, status='available', updatedAt=? WHERE id=?`,
         [data.maintenanceDate, toNull(data.nextMaintenanceDate), nowSql(), data.equipmentId]
       );
       return { success: true, id };
@@ -192,6 +195,7 @@ export function handleEquipmentEvents() {
   // ── ALERTES ────────────────────────────────────────────────────────────────
   ipcMain.handle('equipment:getAlerts', async (event, days = 15) => {
     try {
+      if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
       const future = moment().add(days, 'days').format('YYYY-MM-DD');
       const today = moment().format('YYYY-MM-DD');
       const upcoming = await query(
@@ -211,9 +215,17 @@ export function handleEquipmentEvents() {
         `SELECT * FROM equipment WHERE isActive=TRUE AND status IN ('maintenance', 'out_of_service')
          ORDER BY name`
       );
+      const unscheduled = await query(
+        `SELECT * FROM equipment WHERE isActive=TRUE
+         AND nextMaintenanceDate IS NULL AND status NOT IN ('maintenance', 'out_of_service')
+         ORDER BY name`
+      );
       return {
         success: true,
-        data: { upcoming: upcoming || [], overdue: overdue || [], inMaintenance: inMaintenance || [] }
+        data: {
+          upcoming: upcoming || [], overdue: overdue || [],
+          inMaintenance: inMaintenance || [], unscheduled: unscheduled || []
+        }
       };
     } catch (e) { return { success: false, error: e.message }; }
   });
@@ -221,7 +233,7 @@ export function handleEquipmentEvents() {
   ipcMain.handle('equipment:requestMaintenance', async (event, id, reason = '') => {
     try {
       const ctx = getEquipmentContext();
-      if (!ctx.isPractitioner && !ctx.isAssistant) return { success: false, error: 'Accès refusé' };
+      if (!ctx.isPractitioner) return { success: false, error: 'Accès refusé' };
       await run(
         `UPDATE equipment SET status='maintenance', notes=COALESCE(notes,'') || ?, updatedAt=? WHERE id=?`,
         [`\nDemande maintenance: ${reason}`, nowSql(), id]
@@ -230,9 +242,23 @@ export function handleEquipmentEvents() {
     } catch (e) { return { success: false, error: e.message }; }
   });
 
+  ipcMain.handle('equipment:clearMaintenanceRequest', async (event, id) => {
+    try {
+      const ctx = getEquipmentContext();
+      if (!ctx.isPractitioner && !ctx.canManage) return { success: false, error: 'Accès refusé' };
+      await run(
+        `UPDATE equipment SET status='available', notes=COALESCE(notes,'') || ?, updatedAt=?
+         WHERE id=? AND isActive=TRUE`,
+        [`\nSignalement clôturé le ${moment().format('DD/MM/YYYY HH:mm')}`, nowSql(), id]
+      );
+      return { success: true };
+    } catch (e) { return { success: false, error: e.message }; }
+  });
+
   // ── LIEN PLAN (G5) ────────────────────────────────────────────────────────
   ipcMain.handle('equipment:linkToPlan', async (event, data) => {
     try {
+      if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
       if (!data.inventoryId && !data.equipmentId) {
         return { success: false, error: 'Un article ou un équipement doit être sélectionné' };
       }
@@ -243,6 +269,37 @@ export function handleEquipmentEvents() {
         [id, data.planId, data.inventoryId || null, data.equipmentId || null, nowSql(), toNull(data.notes), nowSql()]
       );
       return { success: true, id };
+    } catch (e) { return { success: false, error: e.message }; }
+  });
+
+  ipcMain.handle('equipment:getForConsultation', async (event, consultationId) => {
+    try {
+      if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
+      const rows = await query(
+        `SELECT ceu.*, e.name, e.category, e.status
+         FROM consultation_equipment_usage ceu
+         JOIN equipment e ON e.id = ceu.equipmentId
+         WHERE ceu.consultationId = ? ORDER BY e.name`,
+        [consultationId]
+      );
+      return { success: true, data: rows || [] };
+    } catch (e) { return { success: false, error: e.message }; }
+  });
+
+  ipcMain.handle('equipment:syncConsultation', async (event, consultationId, equipmentIds = []) => {
+    try {
+      const ctx = getEquipmentContext();
+      if (!ctx.isPractitioner && !ctx.canManage) return { success: false, error: 'Accès refusé' };
+      const ids = [...new Set((Array.isArray(equipmentIds) ? equipmentIds : []).filter(Boolean))];
+      await run('DELETE FROM consultation_equipment_usage WHERE consultationId = ?', [consultationId]);
+      for (const equipmentId of ids) {
+        await run(
+          `INSERT INTO consultation_equipment_usage (id, consultationId, equipmentId, createdAt)
+           VALUES (?, ?, ?, ?)`,
+          [uuidv4(), consultationId, equipmentId, nowSql()]
+        );
+      }
+      return { success: true, count: ids.length };
     } catch (e) { return { success: false, error: e.message }; }
   });
 

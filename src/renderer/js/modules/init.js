@@ -70,6 +70,11 @@ function setupAppZoomControls() {
   });
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'F5') {
+      event.preventDefault();
+      refreshApp();
+      return;
+    }
     if (!(event.ctrlKey || event.metaKey)) return;
     const key = String(event.key || '').toLowerCase();
     if (key === '+' || key === '=') {
@@ -88,6 +93,14 @@ function setupAppZoomControls() {
   window.appZoomOut = () => changeZoom(-APP_ZOOM_STEP);
   window.appZoomReset = () => resetBtn?.click();
 }
+
+// Reload the renderer so the operator can manually refresh all displayed data.
+// This is deliberately exposed globally because the topbar action is inline HTML.
+function refreshApp() {
+  window.location.reload();
+}
+
+window.refreshApp = refreshApp;
 
 function markNavigationReady() {
   document.documentElement.classList.remove('app-booting');
@@ -184,11 +197,13 @@ async function initializeLegacyApplication() {
       applySpecialtyAccent();
     }
 
-    const sickLeaveTableBody = document.getElementById('details-sickleaves-tbody');
-    if (sickLeaveTableBody && !sickLeaveTableBody.dataset.actionsBound) {
-      sickLeaveTableBody.addEventListener('click', handleSickLeaveTableClick);
-      sickLeaveTableBody.dataset.actionsBound = 'true';
-    }
+    ['details-sickleaves-tbody', 'details-certificats-tbody', 'details-arrets-tbody'].forEach((tbodyId) => {
+      const sickLeaveTableBody = document.getElementById(tbodyId);
+      if (sickLeaveTableBody && !sickLeaveTableBody.dataset.actionsBound) {
+        sickLeaveTableBody.addEventListener('click', handleSickLeaveTableClick);
+        sickLeaveTableBody.dataset.actionsBound = 'true';
+      }
+    });
 
   // Apply package restrictions early to avoid nav flicker
   await applyPackageRestrictions();
@@ -210,10 +225,10 @@ async function initializeLegacyApplication() {
   
   // Modules lourds (agenda/imagerie/rééducation/kiné/résumé) sont chargés à la demande via navigation.
   
-  // Initialiser le module de demandes de paiement (pour assistantes)
-  if (typeof initPaymentRequestsPolling === 'function' && currentUserRole === 'assistant') {
+  // Keep payment requests current for everyone who can see or validate them.
+  if (typeof initPaymentRequestsPolling === 'function' && ['assistant', 'doctor', 'dentist'].includes(currentUserRole)) {
     initPaymentRequestsPolling();
-    console.log('✅ Module demandes de paiement initialisé (assistante)');
+    console.log('✅ Module demandes de paiement initialisé');
   }
   
   // Initialiser le module configuration packages (superadmin uniquement)
@@ -660,10 +675,25 @@ function updateAdminUI() {
 
   const toggleDoctorSettings = (enabled) => {
     if (!settingsForm) return;
+    const rawRole = String(currentUserRole || '').trim().toLowerCase();
+    const recoveryRoleAliases = {
+      medecin: 'doctor', 'médecin': 'doctor', dentiste: 'dentist',
+      kine: 'kinesitherapeute', 'kiné': 'kinesitherapeute',
+      infirmier: 'nurse', infirmiere: 'nurse', 'infirmière': 'nurse'
+    };
+    const normalizedRole = recoveryRoleAliases[rawRole] || rawRole;
+    const canRecoverAdmin = [
+      'doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute',
+      'orthophoniste', 'nurse'
+    ].includes(normalizedRole) && !isSuperAdminUser;
     const inputs = settingsForm.querySelectorAll('input, button, select, textarea');
     inputs.forEach(input => {
-      input.disabled = !enabled;
-      if (!enabled) {
+      const isLogoRecoveryControl = Boolean(input.closest('.settings-logo-uploader'))
+        || input.id === 'app-logo-data'
+        || input.id === 'app-logo-file';
+      const keepEnabledForRecovery = canRecoverAdmin && isLogoRecoveryControl;
+      input.disabled = !enabled && !keepEnabledForRecovery;
+      if (!enabled && !keepEnabledForRecovery) {
         input.classList.add('disabled-field');
       } else {
         input.classList.remove('disabled-field');
@@ -824,7 +854,7 @@ function enforceAssistantMode() {
   // Hide navigation items that assistants shouldn't access
   // Assistants can access: dashboard, waiting-room, daily-summary, appointments-calendar, patients, payments, inventory (view only), settings
   // Assistants cannot access: statistics, rehabilitation, kine-staff, daily-summary (doctor only sections)
-  const doctorOnlySections = ['statistics', 'rehabilitation', 'kine-staff', 'daily-summary'];
+  const doctorOnlySections = ['statistics', 'equipment', 'rehabilitation', 'kine-staff', 'daily-summary'];
   
   document.querySelectorAll('.nav-item').forEach(item => {
     const section = item.dataset.section;
@@ -958,11 +988,17 @@ function setupEventListeners() {
     });
   });
 
-  // Patients search
+  // Patients search — only search when user has typed at least 1 character
   const searchInput = document.getElementById('patients-search');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
-      searchPatients(e.target.value || '');
+      const val = e.target.value || '';
+      if (val.trim().length === 0) {
+        // Clear results when search is empty to avoid loading all patients
+        searchPatients('');
+      } else {
+        searchPatients(val);
+      }
     });
   }
 

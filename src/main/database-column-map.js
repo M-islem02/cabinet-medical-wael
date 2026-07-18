@@ -48,6 +48,7 @@ const CANONICAL_COLUMN_NAMES = [
   "publicBookingPublicUrl",
   "publicBookingQrEnabled",
   "ownerUserId",
+  "appLogoDataUrl",
   "cabinetLogoDataUrl",
   "cabinetWatermarkLogoDataUrl",
   "customTreatmentTypes",

@@ -72,6 +72,7 @@ export function createDbConfigWindow() {
       preload: path.join(__dirname, '..', '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', '..', 'assets', 'icon.png')

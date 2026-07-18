@@ -14,11 +14,14 @@ let medicationAutocompleteRepositionBound = false;
 const medicationRemoteSearchCache = new Map();
 const MEDICATION_REMOTE_SEARCH_CACHE_LIMIT = 60;
 const MEDICATION_REMOTE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000;
+const MEDICATION_AUTOCOMPLETE_LIMIT = 10;
 let specialtyMedicationBasesCache = null;
 let prescriptionTemplateBuilderMode = false;
 let editingPrescriptionTemplateId = null;
 let prescriptionTemplatesCache = [];
 let medicationCatalogSettingsCache = [];
+let medicationCatalogSettingsPage = 1;
+const MEDICATION_CATALOG_SETTINGS_PAGE_SIZE = 25;
 
 function resetMedicationSuggestionsInlineStyles(suggestionsDiv) {
   if (!suggestionsDiv) return;
@@ -305,6 +308,7 @@ function mapSpecialtyMedicationSearchResult(entry = {}) {
   return {
     ...normalizeMedicationRecord({
       name: entry.nom_medicament || entry.name || '',
+      genericName: entry.dci || entry.genericName || '',
       dosage: entry.dosage_posologie || entry.defaultDosage || entry.dosage || '',
       intake: entry.prise || entry.defaultIntake || entry.intake || '',
       duration: entry.duree || entry.defaultDuration || entry.duration || '',
@@ -344,15 +348,16 @@ async function getSpecialtyMedicationMatches(normalizedQuery) {
     ? resolveActivePracticeSpecialty(window._packageConfig)
     : (currentUserSpecialty || 'general');
 
+  let apiMatches = [];
   if (window.api?.medication?.searchSpecialtyJson) {
     try {
       const result = await window.api.medication.searchSpecialtyJson({
         specialtyKey,
         term: normalizedQuery,
-        limit: 8
+        limit: MEDICATION_AUTOCOMPLETE_LIMIT
       });
       if (result.success && Array.isArray(result.data)) {
-        return result.data.map(mapSpecialtyMedicationSearchResult).slice(0, 8);
+        apiMatches = result.data.map(mapSpecialtyMedicationSearchResult);
       }
     } catch (error) {
       console.error('Impossible de rechercher dans la base medicaments de specialite:', error);
@@ -360,7 +365,7 @@ async function getSpecialtyMedicationMatches(normalizedQuery) {
   }
 
   if (!window.api?.package?.getLoadedBases) {
-    return [];
+    return apiMatches.slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   }
 
   try {
@@ -369,13 +374,24 @@ async function getSpecialtyMedicationMatches(normalizedQuery) {
       specialtyMedicationBasesCache = result.success && Array.isArray(result.data) ? result.data : [];
     }
 
-    const specialtyBase = specialtyMedicationBasesCache.find((base) => base.key === specialtyKey)
-      || specialtyMedicationBasesCache.find((base) => base.key === 'general');
-
-    return (specialtyBase?.medications || [])
+    const specialtyBase = specialtyMedicationBasesCache.find((base) => base.key === specialtyKey);
+    const generalBase = specialtyMedicationBasesCache.find((base) => base.key === 'general');
+    const fallbackMatches = [
+      ...(specialtyBase?.medications || []),
+      ...(specialtyKey === 'general' ? [] : (generalBase?.medications || []))
+    ]
       .map(mapSpecialtyMedicationSearchResult)
-      .filter((med) => (med.name || '').toLowerCase().startsWith(normalizedQuery))
-      .slice(0, 8);
+      .filter((med) => {
+        const name = (med.name || '').toLowerCase();
+        return name.startsWith(normalizedQuery);
+      });
+    return mergeMedicationSuggestions(apiMatches, fallbackMatches)
+      .sort((left, right) => {
+        const leftName = (left.name || '').toLowerCase();
+        const rightName = (right.name || '').toLowerCase();
+        return leftName.localeCompare(rightName, 'fr');
+      })
+      .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   } catch (error) {
     console.error('Impossible de charger la base medicaments de specialite:', error);
     return [];
@@ -404,18 +420,18 @@ async function searchMedicationSuggestions(query) {
       }
       return (b.lastUsed || '').localeCompare(a.lastUsed || '');
     })
-    .slice(0, 8);
+    .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   const specialtyJsonMatches = await getSpecialtyMedicationMatches(normalizedQuery);
 
   // Only hit the database after 2 chars to keep typing snappy on large datasets.
   if (normalizedQuery.length < 2 || !window.api?.medication?.search) {
-    return mergeMedicationSuggestions(specialtyJsonMatches, localMatches).slice(0, 8);
+    return mergeMedicationSuggestions(specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   }
 
   try {
     const cachedRemote = getCachedRemoteMedicationSearch(normalizedQuery);
     if (cachedRemote) {
-      return mergeMedicationSuggestions(cachedRemote, specialtyJsonMatches, localMatches).slice(0, 8);
+      return mergeMedicationSuggestions(cachedRemote, specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
     }
 
     const result = await window.api.medication.search(normalizedQuery);
@@ -424,7 +440,7 @@ async function searchMedicationSuggestions(query) {
       : [];
 
     setCachedRemoteMedicationSearch(normalizedQuery, fetchedRemoteMatches);
-    return mergeMedicationSuggestions(fetchedRemoteMatches, specialtyJsonMatches, localMatches).slice(0, 8);
+    return mergeMedicationSuggestions(fetchedRemoteMatches, specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   } catch (error) {
     console.error('Impossible de rechercher les medicaments:', error);
     return localMatches;
@@ -822,12 +838,8 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
           return { ...med, suggestionScore: 0 };
         }
         const lowerName = (med.name || '').toLowerCase();
-        const lowerGeneric = (med.genericName || '').toLowerCase();
         let score = 4;
         if (lowerName.startsWith(query)) score = 0;
-        else if (lowerGeneric.startsWith(query)) score = 1;
-        else if (lowerName.includes(query)) score = 2;
-        else if (lowerGeneric.includes(query)) score = 3;
         return { ...med, suggestionScore: score };
       })
       .filter((med) => !query || med.suggestionScore < 4)
@@ -840,11 +852,7 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
         }
         return (b.lastUsed || '').localeCompare(a.lastUsed || '');
       })
-      .slice(0, 6);
-
-    if (!matches.length && query) {
-      matches = savedMeds.slice(0, 6).map((med) => ({ ...med, suggestionScore: 5 }));
-    }
+      .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
 
     if (matches.length === 0) {
       closeSuggestions();
@@ -1342,6 +1350,12 @@ async function loadMedicationCatalogSettings() {
 }
 
 function filterMedicationCatalogSettings() {
+  medicationCatalogSettingsPage = 1;
+  renderMedicationCatalogSettings(document.getElementById('settings-medication-search')?.value || '');
+}
+
+function changeMedicationCatalogSettingsPage(direction) {
+  medicationCatalogSettingsPage += Number(direction) || 0;
   renderMedicationCatalogSettings(document.getElementById('settings-medication-search')?.value || '');
 }
 
@@ -1349,14 +1363,27 @@ function renderMedicationCatalogSettings(searchTerm = '') {
   const container = document.getElementById('settings-medication-catalog-list');
   if (!container) return;
   const term = String(searchTerm || '').trim().toLowerCase();
-  const rows = medicationCatalogSettingsCache.filter((medication) => {
+  const filteredRows = medicationCatalogSettingsCache.filter((medication) => {
     const haystack = `${medication.name || ''} ${medication.genericName || ''}`.toLowerCase();
     return !term || haystack.includes(term);
-  }).slice(0, 100);
-  container.innerHTML = rows.length ? rows.map((medication) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-bottom:1px solid #e2e8f0;">
+  });
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / MEDICATION_CATALOG_SETTINGS_PAGE_SIZE));
+  medicationCatalogSettingsPage = Math.min(totalPages, Math.max(1, medicationCatalogSettingsPage));
+  const startIndex = (medicationCatalogSettingsPage - 1) * MEDICATION_CATALOG_SETTINGS_PAGE_SIZE;
+  const rows = filteredRows.slice(startIndex, startIndex + MEDICATION_CATALOG_SETTINGS_PAGE_SIZE);
+  const listHtml = rows.length ? rows.map((medication) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 4px;border-bottom:1px solid #e2e8f0;">
     <span><strong>${escapePrescriptionHtml(medication.name || '-')}</strong>${medication.genericName ? ` <small style="color:#64748b;">(${escapePrescriptionHtml(medication.genericName)})</small>` : ''}</span>
     ${medication.id ? `<button type="button" class="btn btn-secondary btn-small" onclick="openMedicationEditor('${escapeHtmlAttribute(medication.id)}')">Modifier</button>` : '<small style="color:#64748b;">Base intégrée</small>'}
   </div>`).join('') : '<p class="text-center" style="color:#64748b;">Aucun médicament.</p>';
+  const paginationHtml = filteredRows.length ? `<div class="list-pagination" style="margin-top:12px;">
+    <div class="list-pagination-info">${startIndex + 1}-${Math.min(startIndex + rows.length, filteredRows.length)} / ${filteredRows.length}</div>
+    <div class="pagination-controls">
+      <button type="button" class="btn btn-secondary btn-small" onclick="changeMedicationCatalogSettingsPage(-1)" ${medicationCatalogSettingsPage <= 1 ? 'disabled' : ''}>‹</button>
+      <span>${medicationCatalogSettingsPage} / ${totalPages}</span>
+      <button type="button" class="btn btn-secondary btn-small" onclick="changeMedicationCatalogSettingsPage(1)" ${medicationCatalogSettingsPage >= totalPages ? 'disabled' : ''}>›</button>
+    </div>
+  </div>` : '';
+  container.innerHTML = listHtml + paginationHtml;
 }
 
 async function openMedicationEditor(id = '') {
@@ -1650,9 +1677,13 @@ async function saveSickLeave(e) {
       closeModal('modal-add-sickleave');
       await printSickLeaveDetails(savedSickLeaveId);
       
-      // Refresh sick leaves list
+      // Refresh the correct sick leave tab based on document kind
       if (currentPatientId) {
-        await loadPatientSickLeaves(currentPatientId);
+        if (documentKind === 'workstop') {
+          await loadPatientSickLeaves(currentPatientId, { documentKind: 'workstop', tbodyId: 'details-arrets-tbody', cacheKey: 'workstops' });
+        } else {
+          await loadPatientSickLeaves(currentPatientId, { documentKind: 'certificate', tbodyId: 'details-certificats-tbody', cacheKey: 'certificates' });
+        }
       }
       
       // Refresh consultation view

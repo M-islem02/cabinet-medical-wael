@@ -10,6 +10,7 @@ const write = async (name, operation) => {
 
 export const inventoryApi = Object.freeze({
   getAll: (filters) => call('getAll', () => window.api.inventory.getAll(filters)),
+  getById: (id) => call('getById', () => window.api.inventory.getById(id)),
   getFullStats: () => call('getFullStats', () => window.api.inventory.getFullStats()),
   create: (data) => write('create', () => window.api.inventory.create(data)),
   update: (id, data) => write('update', () => window.api.inventory.update(id, data)),
@@ -32,6 +33,9 @@ export const inventoryApi = Object.freeze({
   createSale: (data) => write('pos.createSale', () => window.api.pos.createSale(data)),
   getSales: (filters) => call('pos.getSales', () => window.api.pos.getSales(filters)),
   getSale: (id) => call('pos.getSaleById', () => window.api.pos.getSaleById(id)),
+  updateSale: (id, data) => write('pos.updateSale', () => window.api.pos.updateSale(id, data)),
+  finalizeSale: (id) => write('pos.finalizeSale', () => window.api.pos.finalizeSale(id)),
+  returnSale: (id, reason) => write('pos.returnSale', () => window.api.pos.returnSale(id, reason)),
   getPatients: (filters) => call('patients.getAll', () => window.api.patient.getAll(filters)),
   printHtml: (payload) => call('print.html', () => window.api.print.html(payload))
 });

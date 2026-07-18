@@ -18,46 +18,42 @@
             </div>
 
             <div class="content">
-                <!-- Étape unique: Entrer une clé -->
+                <!-- Étape unique: installer une licence signée -->
                 <div id="step-activation" class="step active">
-                    <h2>🔐 Activation de Licence</h2>
+                    <h2>Activation de Licence</h2>
                     
                     <div class="info-box">
-                        <p><strong>📋 Première utilisation :</strong></p>
+                        <p><strong>Première utilisation :</strong></p>
                         <small>
-                            Entrez une clé d'essai 7 jours, une clé 1 an, ou une clé illimitée.
-                            <br>Ces clés sont gérées par votre administrateur.
+                            Choisissez le fichier de licence signé fourni par MedCareSO.
+                            <br>Il est lié à ce poste et ne peut pas être copié vers une autre machine.
                             <br>Après activation, connectez-vous avec le compte admin.
                         </small>
                     </div>
+                    <div class="info-box" style="margin-top: 12px;">
+                        <strong>Identifiant de ce poste</strong>
+                        <code id="machine-id-value" style="display:block;overflow-wrap:anywhere;margin-top:6px;">Chargement…</code>
+                        <small>Communiquez cet identifiant à MedCareSO pour recevoir votre fichier de licence.</small>
+                    </div>
 
                     <div class="form-group">
-                        <label for="license-key">Clé de Licence :</label>
-                        <input type="password" id="license-key" placeholder="Clé masquée" class="form-control" autocomplete="off">
-                        <small>La clé saisie reste masquée à l'écran.</small>
+                        <label for="license-key">Fichier de licence :</label>
+                        <input type="text" id="license-key" placeholder="Aucun fichier sélectionné" class="form-control" readonly autocomplete="off">
+                        <small>Le contenu de la licence n’est jamais affiché.</small>
                     </div>
 
                     <div class="button-group" style="margin-top: 12px;">
-                        <button class="btn btn-secondary" type="button" onclick="fillTrialLicenseKey()">Clé essai 7 jours</button>
-                        <button class="btn btn-secondary" type="button" onclick="fillAnnualLicenseKey()">Clé 1 an</button>
-                        <button class="btn btn-secondary" type="button" onclick="fillUnlimitedLicenseKey()">Clé illimitée</button>
+                        <button class="btn btn-secondary" type="button" onclick="chooseLicenseFile()">Choisir le fichier</button>
                     </div>
 
                     <div id="validation-message" class="message hidden"></div>
 
                     <div class="button-group" style="margin-top: 20px;">
                         <button class="btn btn-primary btn-large" onclick="validateAndActivate()">
-                            🔑 Activer la Licence
+                            Activer la Licence
                         </button>
                     </div>
                     
-                    <div class="info-box" style="margin-top: 20px; background: #e8f5e9;">
-                        <p><strong>🔑 Clés disponibles :</strong></p>
-                        <small>
-                            Les clés restent volontairement masquées à l'écran.
-                            <br>Utilisez les boutons rapides ci-dessus pour remplir le champ sans les afficher.
-                        </small>
-                    </div>
                 </div>
 
                 <!-- Étape 2: Succès -->
@@ -68,7 +64,7 @@
                             <path d="M30 40L35 45L50 30" stroke="#4CAF50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </div>
-                    <h2>✅ Licence Activée !</h2>
+                    <h2>Licence Activée</h2>
                     <p id="success-message" class="success-text"></p>
                     
                     <div class="info-box success">

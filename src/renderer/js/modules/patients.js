@@ -62,7 +62,8 @@ function renderPatientsScopeControls() {
   const directoryTab = document.getElementById('patients-directory-tab');
   const fourthHeading = document.querySelector('#patients-table thead th:nth-child(4)');
 
-  if (scopeBar) scopeBar.hidden = !patientsScope?.multiPractitioner;
+  const assistantGlobalDirectory = currentUserRole === 'assistant' && patientsScope?.multiPractitioner;
+  if (scopeBar) scopeBar.hidden = !patientsScope?.multiPractitioner || assistantGlobalDirectory;
   if (doctorWrap) doctorWrap.hidden = !(patientsScope?.assistantDoctorSelectorEnabled && currentUserRole === 'assistant');
   mineTab?.classList.toggle('active', patientsView === 'mine');
   directoryTab?.classList.toggle('active', patientsView === 'directory');
@@ -82,7 +83,11 @@ async function ensurePatientsScope() {
   if (!result.success) throw new Error(result.error || 'Configuration patient indisponible');
   patientsScope = result.data;
   selectedPatientsDoctorId = result.data.selectedDoctorId || '';
-  if (!patientsScope.multiPractitioner) patientsView = 'mine';
+  if (currentUserRole === 'assistant' && patientsScope.multiPractitioner) {
+    patientsView = 'directory';
+  } else if (!patientsScope.multiPractitioner) {
+    patientsView = 'mine';
+  }
   window.activePatientDoctorId = selectedPatientsDoctorId;
   renderPatientsScopeControls();
 }
@@ -219,6 +224,17 @@ function getActivePatientDetailsTabId() {
 async function searchPatients(term = '') {
   try {
     patientsSearchTerm = String(term || '').trim();
+    // Don't load all patients when search is empty — show placeholder instead
+    if (!patientsSearchTerm) {
+      const tbody = document.querySelector('#patients-list tbody') || document.getElementById('patients-tbody');
+      if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center empty-row" style="color:#94a3b8;padding:24px;font-style:italic;">🔍 Saisissez un nom pour rechercher un patient</td></tr>';
+      }
+      patientsFilteredData = [];
+      patientsPagination = { page: 1, pageSize: PATIENTS_PAGE_SIZE, total: 0, totalPages: 1 };
+      renderPatientsPagination();
+      return;
+    }
     await loadPatients(1);
   } catch (error) {
     console.error('❌ Erreur lors de la recherche:', error);
@@ -341,7 +357,10 @@ function setupPatientModalEnhancements() {
 
   const modalPhotoInput = document.getElementById('patient-photo-input');
   if (modalPhotoInput && !modalPhotoInput.dataset.bound) {
-    modalPhotoInput.addEventListener('change', (event) => handlePatientPhotoSelection(event, currentPatientId));
+    modalPhotoInput.addEventListener('change', (event) => {
+      const editingPatientId = document.getElementById('patient-form')?.dataset.editingPatientId || null;
+      handlePatientPhotoSelection(event, editingPatientId);
+    });
     modalPhotoInput.dataset.bound = '1';
   }
 
@@ -445,8 +464,9 @@ function showPatientForm() {
 
   document.getElementById('modal-patient-title').textContent = 'Ajouter un Patient';
   document.getElementById('patient-submit-btn').textContent = 'Sauvegarder';
-  document.getElementById('patient-form').reset();
-  currentPatientId = null;
+  const patientForm = document.getElementById('patient-form');
+  patientForm.reset();
+  delete patientForm.dataset.editingPatientId;
   
   if (currentUserRole === 'assistant') {
     const drContainer = document.getElementById('patient-doctor-selector-container');
@@ -538,7 +558,7 @@ async function editPatient(patientId) {
       const drContainer = document.getElementById('patient-doctor-selector-container');
       if (drContainer) drContainer.style.display = 'none';
 
-      currentPatientId = patientId;
+      document.getElementById('patient-form').dataset.editingPatientId = patientId;
       updatePatientAgeDisplay();
       refreshPatientPhotoUI(patientId, 'modal');
       showModal('modal-patient');
@@ -558,7 +578,7 @@ async function savePatient(e) {
   }
 
   const getValue = (id) => (document.getElementById(id)?.value || '').trim();
-  const editingPatientId = currentPatientId;
+  const editingPatientId = document.getElementById('patient-form')?.dataset.editingPatientId || null;
   const activePatientTabId = getActivePatientDetailsTabId();
   const patientDetailsVisible = document.getElementById('patient-details')?.classList.contains('active') === true;
 
@@ -655,6 +675,7 @@ registerLegacyGlobals('patients', {
   getDefaultPatientAvatarDataUri,
   getPatientPhotoUrl,
   loadPatients,
+  resetSickLeaveFormFields,
   savePatient,
   searchPatients,
   switchPatientsView,

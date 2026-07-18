@@ -9,40 +9,35 @@ function maskLicenseKey(licenseKey) {
   return licenseKey ? '*****' : '-';
 }
 
+let selectedSignedLicenseContent = '';
+
 function setLicenseKeyValue(licenseKey) {
   const input = document.getElementById('license-key');
   if (input) input.value = licenseKey;
 }
 
-function fillTrialLicenseKey() {
-  setLicenseKeyValue('MEDPRO-TRIAL-7JOURS');
-}
-
-function fillAnnualLicenseKey() {
-  setLicenseKeyValue('MEDPRO-ANNUELLE-1AN');
-}
-
-function fillUnlimitedLicenseKey() {
-  setLicenseKeyValue('MEDPRO-ILLIMITEE-ACTIVE');
+async function chooseLicenseFile() {
+  const result = await window.api.license.chooseFile();
+  if (result?.canceled) return;
+  if (!result?.success) {
+    showMessage(document.getElementById('validation-message'), result?.error || 'Licence illisible', 'error');
+    return;
+  }
+  selectedSignedLicenseContent = result.content;
+  setLicenseKeyValue(result.fileName || 'Licence sélectionnée');
 }
 
 async function validateAndActivate() {
-  const licenseKey = document.getElementById('license-key').value.trim().toUpperCase();
+  const licenseKey = selectedSignedLicenseContent;
   const messageEl = document.getElementById('validation-message');
 
   if (!licenseKey) {
-    showMessage(messageEl, '❌ Veuillez entrer la clé de licence', 'error');
-    return;
-  }
-
-  // Vérifier le format général
-  if (!licenseKey.startsWith('MEDPRO-')) {
-    showMessage(messageEl, '❌ Format invalide. La clé doit commencer par MEDPRO-', 'error');
+    showMessage(messageEl, 'Veuillez choisir le fichier de licence', 'error');
     return;
   }
 
   // Afficher le chargement
-  showMessage(messageEl, '⏳ Vérification en cours...', 'loading');
+  showMessage(messageEl, 'Vérification cryptographique en cours...', 'loading');
 
   try {
     // Appeler le backend pour activer
@@ -54,9 +49,9 @@ async function validateAndActivate() {
         `Votre licence a été activée avec succès!`;
       
       document.getElementById('license-info').innerHTML = `
-        <strong>🔑 Clé :</strong> ${maskLicenseKey(licenseKey)}<br>
-        <strong>💻 Status :</strong> Activé<br>
-        <strong>📅 Validité :</strong> ${result.licenseType === 'trial' ? '7 jours' : (result.licenseType === 'annual' ? '1 an' : 'Illimitée')}
+        <strong>Licence :</strong> ${maskLicenseKey(result.licenseId)}<br>
+        <strong>Statut :</strong> Signature vérifiée<br>
+        <strong>Validité :</strong> ${result.expirationDate || 'Illimitée'}
       `;
 
       const nextSteps = document.getElementById('license-next-steps');
@@ -115,15 +110,16 @@ function showMessage(element, message, type = 'info') {
   element.classList.remove('hidden');
 }
 
-window.fillTrialLicenseKey = fillTrialLicenseKey;
-window.fillAnnualLicenseKey = fillAnnualLicenseKey;
-window.fillUnlimitedLicenseKey = fillUnlimitedLicenseKey;
+window.chooseLicenseFile = chooseLicenseFile;
 
 // Focus sur le champ de licence au chargement
 document.addEventListener('DOMContentLoaded', () => {
   const licenseInput = document.getElementById('license-key');
   if (licenseInput) {
     licenseInput.value = '';
-    licenseInput.focus();
   }
+  window.api.license.getMachineId().then((result) => {
+    const target = document.getElementById('machine-id-value');
+    if (target) target.textContent = result?.success ? result.machineId : 'Indisponible';
+  }).catch(() => {});
 });

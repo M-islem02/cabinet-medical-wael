@@ -17,6 +17,11 @@
     "postinstall": "electron-builder install-app-deps",
     "rebuild": "npx @electron/rebuild",
     "build": "electron-builder",
+    "build:secure": "npm run security:manifest && electron-builder",
+    "license:generate-keypair": "node scripts/generate-license-keypair.mjs",
+    "license:install-public-key": "node scripts/install-license-public-key.mjs",
+    "license:sign": "node scripts/sign-license.mjs",
+    "security:manifest": "node scripts/generate-integrity-manifest.mjs",
     "build:dir": "electron-builder --win dir --x64",
     "build:inno": "npm run build:dir && \"C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe\" installer-inno.iss",
     "test:migrations": "node scripts/test-postgres-migrations.mjs",
@@ -45,11 +50,14 @@
     "@electron/rebuild": "^4.0.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.4.0",
-    "electron-rebuild": "^3.2.9"
+    "electron-rebuild": "^3.2.9",
+    "javascript-obfuscator": "^5.5.0"
   },
   "build": {
     "appId": "com.medcareso.app",
     "productName": "MedCareSO",
+    "asar": true,
+    "afterPack": "./scripts/after-pack-obfuscate.cjs",
     "files": [
       "src/**/*",
       "assets/**/*",

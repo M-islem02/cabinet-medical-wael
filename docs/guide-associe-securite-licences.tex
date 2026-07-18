@@ -1,0 +1,104 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\title{MedCareSO\\Guide associé : sécurité, licences et livraison client}
+\author{Procédure interne MedCareSO}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section*{Règle la plus importante}
+La clé privée \texttt{medcareso-license-private.pem} permet de fabriquer une
+licence valide. Elle est l'équivalent du tampon de l'entreprise. Elle ne doit
+jamais être envoyée à un client, ajoutée à GitHub, copiée dans le logiciel ou
+placée dans le dossier \texttt{cabinet}. Une clé publique peut être distribuée;
+une clé privée doit rester dans un coffre chiffré accessible seulement aux
+associés autorisés.
+
+\section{Ce que fait la protection}
+\begin{itemize}
+\item Le client reçoit un fichier de licence JSON signé, et non un code texte.
+\item La licence est liée à l'identifiant unique du PC du cabinet.
+\item L'application vérifie la signature Ed25519, la date d'expiration et
+l'identifiant du PC au démarrage puis régulièrement.
+\item Une version distribuée vérifie également l'intégrité de fichiers
+critiques et masque les outils de développement usuels.
+\item Ces mesures découragent la copie et la modification simple, mais aucun
+logiciel hors ligne ne peut être inviolable à 100\%.
+\end{itemize}
+
+\section{Première configuration, une seule fois}
+Les clés ont déjà été créées par MedCareSO. Si la paire doit être créée sur un
+nouveau poste développeur, utiliser :
+\begin{verbatim}
+npm run license:generate-keypair -- --out-dir /dossier-prive-chiffre/medcareso-keys
+\end{verbatim}
+La clé publique doit être intégrée avant un build client :
+\begin{verbatim}
+npm run license:install-public-key -- --key /dossier-prive-chiffre/medcareso-keys/medcareso-license-public.pem
+\end{verbatim}
+Ne recréez pas une paire de clés sans décision commune : toutes les anciennes
+licences deviendraient invalides si la clé publique est remplacée.
+
+\section{Créer une version à livrer}
+Depuis le dossier du projet, définir le chemin de la clé privée puis construire
+la version protégée :
+\begin{verbatim}
+export MEDCARESO_LICENSE_PRIVATE_KEY_FILE=/dossier-prive-chiffre/medcareso-keys/medcareso-license-private.pem
+npm run build:secure
+\end{verbatim}
+Le résultat est dans \texttt{dist/}. Ne distribuez pas un build normal si une
+version sécurisée est demandée. Testez toujours la version livrée sur un poste
+ou un profil utilisateur propre.
+
+\section{Activer un nouveau cabinet}
+\begin{enumerate}[label=\arabic*.]
+\item Installez MedCareSO chez le cabinet.
+\item Ouvrez l'écran d'activation et récupérez l'\emph{Identifiant de ce poste}.
+\item Gardez cet identifiant avec le nom du cabinet dans votre dossier interne.
+\item Créez le fichier de licence, par exemple pour une année :
+\begin{verbatim}
+npm run license:sign -- \
+ --private-key /dossier-prive-chiffre/medcareso-keys/medcareso-license-private.pem \
+ --machine-id IDENTIFIANT_DU_POSTE \
+ --cabinet "Cabinet Dr. Nom" \
+ --expires 2027-07-18 \
+ --features standard \
+ --out /dossier-sortie/Cabinet-Dr-Nom.medcareso.json
+\end{verbatim}
+\item Envoyez seulement ce fichier \texttt{.medcareso.json} au cabinet.
+\item Le cabinet choisit le fichier dans MedCareSO puis clique sur
+\emph{Activer la licence}.
+\end{enumerate}
+
+\section{Renouvellement et changement de PC}
+Pour renouveler, créez un nouveau fichier signé avec la nouvelle date. Pour un
+nouveau PC, demandez le nouvel identifiant de poste et créez une nouvelle
+licence : l'ancienne licence n'est pas valable sur une autre machine.
+
+\section{Travail à deux et GitHub}
+\begin{itemize}
+\item Partagez le dépôt source et les guides via GitHub.
+\item Partagez la clé privée seulement par un coffre chiffré commun (Bitwarden,
+1Password, coffre VeraCrypt ou support chiffré), jamais par GitHub, WhatsApp ou
+email en clair.
+\item Vérifiez \texttt{git status} avant chaque push. Les dossiers
+\texttt{developer-keys/} et les fichiers \texttt{*.medcareso.json} sont ignorés.
+\item Ne publiez jamais un jeton GitHub dans le terminal, dans une capture ou
+dans une conversation. Révoquez immédiatement tout jeton exposé.
+\end{itemize}
+
+\section*{Checklist avant livraison}
+\begin{enumerate}[label={[\ ]}]
+\item Build créé avec \texttt{npm run build:secure}.
+\item Licence signée pour le bon identifiant de poste.
+\item Fichier de licence testé sur le PC du cabinet.
+\item Aucun fichier privé ou jeton ajouté au dépôt.
+\item Identifiants admin par défaut changés chez le client.
+\item Sauvegardes PostgreSQL protégées et accès réseau limité.
+\end{enumerate}
+\end{document}

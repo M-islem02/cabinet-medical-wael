@@ -8,6 +8,16 @@ import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { normalizeSpecialtyKey, writeMergedSpecialtyMedication, readSpecialtyMedications } from '../specialty-assets.js';
 
+const specialtyMedicationSearchCache = new Map();
+
+function getSpecialtyMedicationSearchBase(specialty) {
+  const key = normalizeSpecialtyKey(specialty);
+  if (!specialtyMedicationSearchCache.has(key)) {
+    specialtyMedicationSearchCache.set(key, readSpecialtyMedications(key).medications);
+  }
+  return specialtyMedicationSearchCache.get(key);
+}
+
 function normalizeMedicationName(name) {
   return String(name || '').trim().toLowerCase();
 }
@@ -22,14 +32,7 @@ function normalizeMedicationSearchText(value) {
 }
 
 function specialtyMedicationMatches(entry, normalizedTerm) {
-  const searchableFields = [
-    entry.nom_medicament,
-    entry.name,
-    entry.nom_commercial,
-    entry.dci,
-    entry.dosage_posologie,
-    entry.forme
-  ];
+  const searchableFields = [entry.nom_medicament, entry.name, entry.nom_commercial];
 
   return searchableFields.some((field) => {
     const normalizedField = normalizeMedicationSearchText(field);
@@ -189,7 +192,8 @@ export function handleMedicationEvents() {
         );
 
         if (data.specialty || data.specialtyKey) {
-          writeMergedSpecialtyMedication(normalizeSpecialtyKey(data.specialty || data.specialtyKey), {
+          const specialtyKey = normalizeSpecialtyKey(data.specialty || data.specialtyKey);
+          writeMergedSpecialtyMedication(specialtyKey, {
             nom_medicament: data.name,
             dosage_posologie: data.defaultDosage,
             prise: data.defaultIntake,
@@ -197,6 +201,7 @@ export function handleMedicationEvents() {
             boites: data.defaultBoxes,
             instructions_observations: data.instructions
           });
+          specialtyMedicationSearchCache.delete(specialtyKey);
         }
 
         return { success: true, id: existingMedication.id, reused: true };
@@ -228,7 +233,8 @@ export function handleMedicationEvents() {
       );
 
       if (data.specialty || data.specialtyKey) {
-        writeMergedSpecialtyMedication(normalizeSpecialtyKey(data.specialty || data.specialtyKey), {
+        const specialtyKey = normalizeSpecialtyKey(data.specialty || data.specialtyKey);
+        writeMergedSpecialtyMedication(specialtyKey, {
           nom_medicament: data.name,
           dosage_posologie: data.defaultDosage,
           prise: data.defaultIntake,
@@ -236,6 +242,7 @@ export function handleMedicationEvents() {
           boites: data.defaultBoxes,
           instructions_observations: data.instructions
         });
+        specialtyMedicationSearchCache.delete(specialtyKey);
       }
 
       return { success: true, id };
@@ -249,7 +256,9 @@ export function handleMedicationEvents() {
     try {
       const specialty = normalizeSpecialtyKey(payload.specialty || payload.specialtyKey || 'general');
       const medication = payload.medication || payload;
-      return writeMergedSpecialtyMedication(specialty, medication);
+      const result = writeMergedSpecialtyMedication(specialty, medication);
+      specialtyMedicationSearchCache.delete(specialty);
+      return result;
     } catch (error) {
       console.error('❌ Erreur ajout médicament JSON spécialité:', error);
       return { success: false, error: error.message };
@@ -265,9 +274,19 @@ export function handleMedicationEvents() {
 
       const specialty = normalizeSpecialtyKey(payload.specialty || payload.specialtyKey || 'general');
       const limit = Math.min(30, Math.max(1, Number(payload.limit) || 10));
-      const { medications } = readSpecialtyMedications(specialty);
-      const matches = medications
+      const specialtyMedications = getSpecialtyMedicationSearchBase(specialty);
+      const generalMedications = specialty === 'general' ? [] : getSpecialtyMedicationSearchBase('general');
+      const mergedMedications = [...specialtyMedications, ...generalMedications].filter((entry, index, list) => {
+        const identity = `${normalizeMedicationSearchText(entry.nom_medicament)}|${normalizeMedicationSearchText(entry.dosage_posologie)}`;
+        return list.findIndex((candidate) => `${normalizeMedicationSearchText(candidate.nom_medicament)}|${normalizeMedicationSearchText(candidate.dosage_posologie)}` === identity) === index;
+      });
+      const matches = mergedMedications
         .filter((entry) => specialtyMedicationMatches(entry, normalizedTerm))
+        .sort((left, right) => {
+          const leftName = normalizeMedicationSearchText(left.nom_medicament);
+          const rightName = normalizeMedicationSearchText(right.nom_medicament);
+          return leftName.localeCompare(rightName, 'fr');
+        })
         .slice(0, limit)
         .map((entry) => ({
           ...entry,

@@ -775,8 +775,29 @@ export function handleWaitingRoomEvents() {
         return { success: false, error: 'ClÃ´ture non autorisÃ©e pour l\'assistant' };
       }
 
-      await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [id]);
+      const request = await queryOne('SELECT data FROM user_notifications WHERE id = ?', [id]);
+      let requestData = {};
+      try {
+        requestData = JSON.parse(request?.data || '{}');
+      } catch (_) {
+        requestData = {};
+      }
+
+      await withTransaction(async () => {
+        await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [id]);
+        if (requestData.planId && requestData.sessionId) {
+          await run(
+            `UPDATE plan_payment_sessions
+             SET status = 'pending', paymentRequestId = NULL
+             WHERE id = ? AND planId = ? AND paymentRequestId = ? AND status = 'requested'`,
+            [requestData.sessionId, requestData.planId, id]
+          );
+        }
+      });
       broadcastRealtimeEvent({ type: 'payment-request:updated', id });
+      if (requestData.planId) {
+        broadcastRealtimeEvent({ type: 'plan:updated', planId: requestData.planId, patientId: requestData.patientId || null });
+      }
       return { success: true };
     } catch (error) {
       console.error('Error dismissing payment request:', error);

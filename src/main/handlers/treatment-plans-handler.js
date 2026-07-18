@@ -275,9 +275,11 @@ export function handleTreatmentPlanEvents() {
         [id]
       );
       const equipment = await query(
-        `SELECT peu.*, i.name as equipmentName 
+        `SELECT peu.*, COALESCE(e.name, i.name) as equipmentName,
+                e.category as equipmentCategory, e.status as equipmentStatus
          FROM plan_equipment_usage peu
          LEFT JOIN inventory i ON peu.inventoryId = i.id
+         LEFT JOIN equipment e ON peu.equipmentId = e.id
          WHERE peu.planId = ? ORDER BY peu.createdAt DESC`,
         [id]
       );
@@ -479,14 +481,19 @@ export function handleTreatmentPlanEvents() {
         [paymentId, plan.patientId, amount, paidDate || now, paymentMethod || 'Espèces', description, notes || null, now, now]
       );
       if (pendingSession) {
+        const pendingRequestId = pendingSession.paymentRequestId || null;
         await run(
           `UPDATE plan_payment_sessions
-           SET scheduledDate = ?, paidDate = ?, paidAmount = ?, status = 'paid', notes = ?, recordedBy = ?, paymentId = ?
+           SET scheduledDate = ?, paidDate = ?, paidAmount = ?, status = 'paid', notes = ?, recordedBy = ?, paymentId = ?, paymentRequestId = NULL
            WHERE id = ?`,
           [scheduledDate || pendingSession.scheduledDate || paidDate || now,
             paidDate || now, amount, notes || pendingSession.notes || null,
             recordedBy || null, paymentId, sessionId]
         );
+        if (pendingRequestId) {
+          await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [pendingRequestId]);
+          broadcastRealtimeEvent({ type: 'payment-request:updated', id: pendingRequestId });
+        }
       } else {
         await run(
           `INSERT INTO plan_payment_sessions
@@ -545,6 +552,7 @@ export function handleTreatmentPlanEvents() {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const resolvedPaidDate = paidDate || now;
       let paymentId = session.paymentId || null;
+      const pendingRequestId = session.paymentRequestId || null;
 
       if (paymentId) {
         await run(
@@ -566,10 +574,15 @@ export function handleTreatmentPlanEvents() {
 
       await run(
         `UPDATE plan_payment_sessions
-         SET paidDate = ?, paidAmount = ?, status = 'paid', notes = ?, recordedBy = ?, paymentId = ?
+         SET paidDate = ?, paidAmount = ?, status = 'paid', notes = ?, recordedBy = ?, paymentId = ?, paymentRequestId = NULL
          WHERE id = ? AND planId = ?`,
         [resolvedPaidDate, amount, notes || session.notes || null, recordedBy || null, paymentId, sessionId, planId]
       );
+
+      if (pendingRequestId) {
+        await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [pendingRequestId]);
+        broadcastRealtimeEvent({ type: 'payment-request:updated', id: pendingRequestId });
+      }
 
       await recalculatePlanTotals(planId);
       broadcastRealtimeEvent({ type: 'plan:payment-recorded', planId, patientId: plan.patientId });
@@ -725,6 +738,7 @@ export function handleTreatmentPlanEvents() {
 
   registerValidatedContractHandler(ipcMain, 'plans', 'requestPayment', async (event, data = {}) => {
     try {
+      return await withTransaction(async () => {
       if (data.planId) {
         await recalculatePlanTotals(data.planId);
       }
@@ -732,7 +746,8 @@ export function handleTreatmentPlanEvents() {
         `SELECT tp.*, p.firstName, p.lastName
          FROM treatment_plans tp
          LEFT JOIN patients p ON p.id = tp.patientId
-         WHERE tp.id = ?`,
+         WHERE tp.id = ?
+         FOR UPDATE OF tp`,
         [data.planId]
       );
       if (!plan) return { success: false, error: 'Plan introuvable' };
@@ -750,12 +765,25 @@ export function handleTreatmentPlanEvents() {
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const patientName = `${plan.firstName || ''} ${plan.lastName || ''}`.trim() || 'Patient';
-      const nextSession = await queryOne(
-        `SELECT sessionNumber FROM plan_payment_sessions
-         WHERE planId = ? AND status != 'paid'
-         ORDER BY sessionNumber ASC LIMIT 1`,
-        [plan.id]
-      );
+      const nextSession = data.sessionId
+        ? await queryOne('SELECT * FROM plan_payment_sessions WHERE id = ? AND planId = ? FOR UPDATE', [data.sessionId, plan.id])
+        : await queryOne(
+          `SELECT * FROM plan_payment_sessions
+           WHERE planId = ? AND status != 'paid'
+           ORDER BY sessionNumber ASC LIMIT 1 FOR UPDATE`,
+          [plan.id]
+        );
+      if (!nextSession) return { success: false, error: 'Séance introuvable' };
+      if (nextSession.status === 'paid' || Number(nextSession.paidAmount || 0) > 0) {
+        return { success: false, error: 'Cette séance est déjà payée' };
+      }
+      if (nextSession.status === 'requested' && nextSession.paymentRequestId) {
+        const existingRequest = await queryOne(
+          'SELECT id FROM user_notifications WHERE id = ? AND isRead = 0',
+          [nextSession.paymentRequestId]
+        );
+        if (existingRequest) return { success: true, id: existingRequest.id, duplicate: true };
+      }
       const sessionLabel = `Séance ${nextSession?.sessionNumber || plan.sessionsCount || 1}/${plan.sessionsCount || nextSession?.sessionNumber || 1}`;
       await run(
         `INSERT INTO user_notifications (id, type, title, message, patientId, fromUserId, toRole, data, createdAt)
@@ -771,17 +799,24 @@ export function handleTreatmentPlanEvents() {
             patientId: plan.patientId,
             patientName,
             planId: plan.id,
+            sessionId: nextSession.id,
             planTitle: plan.title,
-            service: 'Plan de traitement',
+            service: data.service || plan.title || 'Plan de traitement',
             notes: data.notes || `${sessionLabel} — ${plan.title}`,
-            selectedActs: [],
+            selectedActs: Array.isArray(data.selectedActs) ? data.selectedActs : [],
             sessionLabel
           }),
           now
         ]
       );
+      await run(
+        `UPDATE plan_payment_sessions SET status = 'requested', paymentRequestId = ? WHERE id = ?`,
+        [id, nextSession.id]
+      );
       broadcastRealtimeEvent({ type: 'payment-request:new', id, patientId: plan.patientId }, { role: 'assistant' });
+      broadcastRealtimeEvent({ type: 'plan:updated', planId: plan.id, patientId: plan.patientId });
       return { success: true, id };
+      });
     } catch (err) {
       console.error('Error requesting plan payment:', err);
       return { success: false, error: err.message };
@@ -790,13 +825,21 @@ export function handleTreatmentPlanEvents() {
 
   ipcMain.handle('plans:addEquipment', async (event, data) => {
     try {
-      if (!data?.planId || !data?.inventoryId) return { success: false, error: 'planId et inventoryId requis' };
+      if (!data?.planId || (!data?.inventoryId && !data?.equipmentId)) {
+        return { success: false, error: 'Plan et équipement requis' };
+      }
+      const existing = await queryOne(
+        `SELECT id FROM plan_equipment_usage
+         WHERE planId = ? AND ((equipmentId = ? AND ? IS NOT NULL) OR (inventoryId = ? AND ? IS NOT NULL))`,
+        [data.planId, data.equipmentId || null, data.equipmentId || null, data.inventoryId || null, data.inventoryId || null]
+      );
+      if (existing?.id) return { success: true, id: existing.id, existing: true };
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       await run(
-        `INSERT INTO plan_equipment_usage (id, planId, inventoryId, usageDate, notes, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, data.planId, data.inventoryId, now, data.notes || null, now]
+        `INSERT INTO plan_equipment_usage (id, planId, inventoryId, equipmentId, usageDate, notes, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, data.planId, data.inventoryId || null, data.equipmentId || null, now, data.notes || null, now]
       );
       return { success: true, id };
     } catch (err) {

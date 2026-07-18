@@ -14,11 +14,20 @@ import { normalizeSpecialtyKey, parseEnabledSpecialties } from '../specialty-ass
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
 
 function isPractitionerRole(role) {
-  return role === 'doctor' || role === 'dentist';
+  return [
+    'doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute',
+    'orthophoniste', 'nurse'
+  ].includes(role);
 }
 
 function normalizeLegacyRole(role) {
-  return role === 'director' ? 'doctor' : role;
+  const normalized = String(role || '').trim().toLowerCase();
+  const aliases = {
+    director: 'doctor', medecin: 'doctor', 'médecin': 'doctor',
+    dentiste: 'dentist', kine: 'kinesitherapeute', 'kiné': 'kinesitherapeute',
+    infirmier: 'nurse', infirmiere: 'nurse', 'infirmière': 'nurse'
+  };
+  return aliases[normalized] || normalized;
 }
 
 async function resolveAllowedDoctorSpecialty(requestedSpecialty) {
@@ -378,10 +387,11 @@ export function handleUserEvents() {
       const requestedAdmin = !!requestingUser.isSuperAdmin
         && (userData.isAdmin === true || userData.isAdmin === 1 || userData.isAdmin === '1');
       
-      const validRoles = ['doctor', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
-      const role = normalizeLegacyRole(validRoles.includes(userData.role) ? userData.role : 'doctor');
+      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+      const normalizedRequestedRole = normalizeLegacyRole(userData.role);
+      const role = validRoles.includes(normalizedRequestedRole) ? normalizedRequestedRole : 'doctor';
       const newUserIsAdmin = requestedAdmin && isPractitionerRole(role) ? 1 : 0;
-      const specialtyCheck = isPractitionerRole(role)
+      const specialtyCheck = ['doctor', 'dentist'].includes(role)
         ? await resolveAllowedDoctorSpecialty(userData.specialty)
         : { success: true, specialty: null };
       if (!specialtyCheck.success) {
@@ -404,6 +414,13 @@ export function handleUserEvents() {
           now
         ]
       );
+      if (newUserIsAdmin) {
+        await run(
+          `UPDATE users SET isAdmin = FALSE
+           WHERE id <> ? AND COALESCE(isSuperAdmin, FALSE) = FALSE`,
+          [id]
+        );
+      }
 
       console.log(`✅ Utilisateur ajouté: ${userData.username} (role: ${role}, isAdmin: ${newUserIsAdmin})`);
 
@@ -483,8 +500,11 @@ export function handleUserEvents() {
         return { success: false, error: 'Seul le super administrateur peut modifier un médecin admin' };
       }
 
-      const validRoles = ['doctor', 'assistant'];
-      const requestedRole = normalizeLegacyRole(validRoles.includes(payload.role) ? payload.role : targetUser.role);
+      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+      const normalizedPayloadRole = normalizeLegacyRole(payload.role);
+      const requestedRole = validRoles.includes(normalizedPayloadRole)
+        ? normalizedPayloadRole
+        : normalizeLegacyRole(targetUser.role);
 
       const username = String(payload.username || '').trim();
       if (!username.length) {
@@ -538,6 +558,13 @@ export function handleUserEvents() {
          WHERE id = ?`,
         updateValues
       );
+      if (normalizedIsAdmin) {
+        await run(
+          `UPDATE users SET isAdmin = FALSE
+           WHERE id <> ? AND COALESCE(isSuperAdmin, FALSE) = FALSE`,
+          [payload.userId]
+        );
+      }
 
       return { success: true };
     } catch (error) {

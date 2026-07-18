@@ -80,6 +80,9 @@ function normalizeMedicationIdentity(value) {
 export function mapSpecialtyMedication(entry = {}) {
   return {
     nom_medicament: entry.nom_medicament || entry.name || '',
+    dci: entry.dci || entry.genericName || '',
+    forme: entry.forme || entry.dosageForm || '',
+    conditionnement: entry.conditionnement || '',
     dosage_posologie: entry.dosage_posologie || entry.defaultDosage || entry.dosage || '',
     prise: entry.prise || entry.defaultIntake || entry.intake || '',
     duree: entry.duree || entry.defaultDuration || entry.duration || '',

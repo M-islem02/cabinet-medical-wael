@@ -14,8 +14,12 @@ import {
   deactivateLicense,
   checkLicenseAtStartup,
   generateLicenseKeys,
-  getLicenseStatus
+  getLicenseStatus,
+  getMachineFingerprint,
+  startLicenseMonitor,
+  stopLicenseMonitor
 } from './license-manager.js';
+import { verifyApplicationIntegrity } from './security/integrity-service.js';
 import {
   clearLoginSession,
   getCurrentBootTimeMs,
@@ -283,6 +287,7 @@ function performShutdownCleanup() {
   }
 
   shutdownCleanupStarted = true;
+  stopLicenseMonitor();
   stopRealtimeServer();
   stopPublicBookingServer();
   closeDatabase();
@@ -330,6 +335,7 @@ function createMainWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
@@ -368,6 +374,7 @@ function createLicenseWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
@@ -413,6 +420,7 @@ function createSetupWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
@@ -455,6 +463,7 @@ function createClientConfigWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
@@ -500,6 +509,7 @@ function createLoginWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       enableRemoteModule: false
     },
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
@@ -691,8 +701,30 @@ function setupIPCHandlers() {
     return validateLicense(licenseKey);
   });
 
+  ipcMain.handle('license:get-machine-id', async () => ({
+    success: true,
+    machineId: await getMachineFingerprint()
+  }));
+
   ipcMain.handle('license:activate', (event, licenseKey) => {
     return activateLicense(licenseKey);
+  });
+
+  ipcMain.handle('license:choose-file', async (event) => {
+    const owner = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const result = await dialog.showOpenDialog(owner || undefined, {
+      title: 'Choisir une licence MedCareSO signée',
+      properties: ['openFile'],
+      filters: [{ name: 'Licence MedCareSO', extensions: ['json', 'medcareso'] }]
+    });
+    if (result.canceled || !result.filePaths?.[0]) return { success: false, canceled: true };
+    try {
+      const content = fs.readFileSync(result.filePaths[0], 'utf8');
+      JSON.parse(content);
+      return { success: true, content, fileName: path.basename(result.filePaths[0]) };
+    } catch (_) {
+      return { success: false, error: 'Le fichier sélectionné n’est pas une licence JSON valide.' };
+    }
   });
 
   ipcMain.handle('license:deactivate', (event, licenseKey) => {
@@ -1330,15 +1362,14 @@ function setupIPCHandlers() {
         const totalCapacity = 3;
         const chairOccupancy = Math.min(100, Math.round((Number(activeConsultingPatients?.count || 0) / totalCapacity) * 100));
 
-        // Equipment occupancy rate
+        // Equipment occupancy rate (real equipment module, not inventory articles)
         const totalEquipments = await queryOne(
-          `SELECT COUNT(*) as count FROM inventory 
-           WHERE category IN ('Équipements de rééducation', 'Mobilier médical', 'Équipement') AND isActive = 1`
+          `SELECT COUNT(*) as count FROM equipment WHERE isActive = TRUE`
         );
         const equipmentsInUse = await queryOne(
-          `SELECT COUNT(DISTINCT inventoryId) as count FROM plan_equipment_usage pe
+          `SELECT COUNT(DISTINCT equipmentId) as count FROM plan_equipment_usage pe
            JOIN treatment_plans tp ON tp.id = pe.planId
-           WHERE tp.status = 'active'`
+           WHERE tp.status = 'active' AND pe.equipmentId IS NOT NULL`
         );
         const totalEquip = Number(totalEquipments?.count || 0);
         const inUseEquip = Number(equipmentsInUse?.count || 0);
@@ -1347,8 +1378,8 @@ function setupIPCHandlers() {
         // Alerts
         // Low Stock
         const lowStock = await query(
-          `SELECT id, name, quantity, minQuantity, unit FROM inventory 
-           WHERE quantity <= minQuantity AND isActive = 1`
+          `SELECT id, name, quantity, minQuantity, unit FROM inventory
+           WHERE quantity <= minQuantity AND isActive = TRUE`
         );
 
         // Expiring Soon (30 days)
@@ -1358,17 +1389,18 @@ function setupIPCHandlers() {
           `SELECT l.id, i.name, l.lotNumber, l.expirationDate, l.remainingQuantity 
            FROM inventory_lots l
            JOIN inventory i ON i.id = l.inventoryId
-           WHERE l.expirationDate <= ? AND l.remainingQuantity > 0 AND l.isActive = 1`,
+           WHERE l.expirationDate <= ? AND l.remainingQuantity > 0 AND l.isActive = TRUE`,
           [thirtyDaysOut]
         ) : [];
 
-        // Equipment maintenance needed (stock older than 180 days)
-        const halfYearAgo = moment().subtract(180, 'days').format('YYYY-MM-DD');
+        // Equipment maintenance needed
         const maintenanceLots = await query(
-          `SELECT id, name, createdAt FROM inventory 
-           WHERE category IN ('Équipements de rééducation', 'Mobilier médical', 'Équipement') 
-             AND createdAt <= ? AND isActive = 1`,
-          [halfYearAgo]
+          `SELECT id, name, nextMaintenanceDate, status FROM equipment
+           WHERE isActive = TRUE
+             AND (status IN ('maintenance', 'out_of_service')
+               OR nextMaintenanceDate IS NULL
+               OR nextMaintenanceDate <= CURRENT_DATE)
+           ORDER BY nextMaintenanceDate NULLS FIRST`
         );
 
         result.operationals = {
@@ -1388,7 +1420,9 @@ function setupIPCHandlers() {
             maintenanceLots: maintenanceLots.map(item => ({
               id: item.id,
               name: item.name,
-              message: `Équipement en stock depuis le ${moment(item.createdAt).format('DD/MM/YYYY')}. Maintenance recommandée.`
+              message: item.nextMaintenanceDate
+                ? `Maintenance prévue le ${moment(item.nextMaintenanceDate).format('DD/MM/YYYY')}.`
+                : `Aucune maintenance n’est planifiée pour cet équipement.`
             }))
           }
         };
@@ -1604,8 +1638,48 @@ app.on('ready', async () => {
     return;
   }
 
+  const integrity = await verifyApplicationIntegrity();
+  if (!integrity.valid) {
+    await dialog.showMessageBox({
+      type: 'error',
+      title: 'MedCareSO — contrôle de sécurité',
+      message: 'L’intégrité de l’application ne peut pas être confirmée.',
+      detail: integrity.reason || 'Installez une version officielle de MedCareSO.'
+    });
+    app.quit();
+    return;
+  }
+
   setupIPCHandlers();
   await initializeApp();
+  startLicenseMonitor((result) => {
+    BrowserWindow.getAllWindows().forEach((window) => {
+      try { window.webContents.send('license-warning', { reason: result.reason || 'Licence non valide' }); } catch (_) {}
+    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+      if (!loginWindow || loginWindow.isDestroyed()) createLoginWindow();
+      else loginWindow.show();
+    }
+  });
+});
+
+app.on('web-contents-created', (_event, contents) => {
+  if (app.isPackaged) {
+    contents.on('devtools-opened', () => {
+      try { contents.closeDevTools(); } catch (_) {}
+    });
+    contents.on('before-input-event', (event, input) => {
+      const key = String(input.key || '').toLowerCase();
+      if (key === 'f12' || ((input.control || input.meta) && input.shift && key === 'i')) {
+        event.preventDefault();
+      }
+    });
+  }
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.on('will-navigate', (event, targetUrl) => {
+    if (!/^(file:|data:|about:blank)/.test(String(targetUrl))) event.preventDefault();
+  });
 });
 
 app.on('window-all-closed', () => {

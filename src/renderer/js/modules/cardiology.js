@@ -335,7 +335,7 @@ async function initCardiology(force = false) {
   if (!selector) return;
   switchCardiologyTab(cardiologyCurrentTab || 'summary');
   if (selector.dataset.initialized === '1' && !force) {
-    if (!cardiologyState.patientId && currentPatientId) {
+    if (currentPatientId && String(cardiologyState.patientId || '') !== String(currentPatientId)) {
       selector.value = currentPatientId;
       await loadCardiologyPatient(currentPatientId);
     }
@@ -345,7 +345,7 @@ async function initCardiology(force = false) {
   selector.dataset.initialized = '1';
   await refreshCardiologyPatientList();
 
-  const initialPatientId = selector.value || currentPatientId || '';
+  const initialPatientId = currentPatientId || selector.value || '';
   if (initialPatientId) {
     selector.value = initialPatientId;
     await loadCardiologyPatient(initialPatientId);
@@ -356,6 +356,9 @@ async function initCardiology(force = false) {
 
 async function selectCardiologyPatient(patientId) {
   await loadCardiologyPatient(patientId);
+  if (patientId && cardiologyState.patient && typeof window.setSelectedPatient === 'function') {
+    await window.setSelectedPatient(patientId, { patient: cardiologyState.patient, source: 'cardiology' });
+  }
 }
 
 async function saveCardiologyProfile() {
@@ -583,8 +586,8 @@ async function openViewedCardiologyProfileInWorkspace() {
     showSection('cardiology');
   }
 
-  if (typeof currentPatientId !== 'undefined') {
-    currentPatientId = patientId;
+  if (typeof window.setSelectedPatient === 'function') {
+    await window.setSelectedPatient(patientId, { source: 'cardiology-profile' });
   }
 
   const selector = document.getElementById('cardiology-patient-selector');
@@ -635,7 +638,7 @@ refreshCardiologyPatientList = async function() {
 
   if (typeof window.attachLazyPatientSearchToSelect === 'function') {
     window.attachLazyPatientSearchToSelect('cardiology-patient-selector', {
-      selectedPatientId: cardiologyState.patientId || currentPatientId || '',
+      selectedPatientId: currentPatientId || cardiologyState.patientId || '',
       placeholder: 'Tapez la premiere lettre du patient...',
       emptyMessage: 'Tapez la premiere lettre du patient',
       loadingMessage: 'Recherche des patients...',

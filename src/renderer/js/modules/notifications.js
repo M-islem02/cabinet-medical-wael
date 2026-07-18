@@ -38,7 +38,16 @@ function handleRealtimeEvent(payload = {}) {
   }
 
   if (payload.type === 'payment-request:updated') {
-    if (typeof loadPendingPaymentRequests === 'function') loadPendingPaymentRequests();
+    // Refresh in order: first invalidate pending requests, then render the paid
+    // transaction. This prevents a stale pending row appearing beside it.
+    void (async () => {
+      if (typeof loadPendingPaymentRequests === 'function') await loadPendingPaymentRequests();
+      const paymentsSection = document.getElementById('payments');
+      if (paymentsSection?.classList.contains('active')) {
+        if (typeof loadPayments === 'function') await loadPayments(null, { forcePending: true });
+        if (typeof loadPaymentStats === 'function') await loadPaymentStats();
+      }
+    })();
     return;
   }
 

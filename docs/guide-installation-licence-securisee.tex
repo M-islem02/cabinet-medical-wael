@@ -1,0 +1,126 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\title{MedCareSO\\Guide d'installation et de licence sécurisée}
+\author{Procédure développeur et cabinet client}
+\date{\today}
+\begin{document}
+\maketitle
+
+\section*{But et limites}
+MedCareSO est une application hors ligne. Aucune protection ne rend un logiciel
+local impossible à modifier, mais cette procédure rend la copie de licence et
+la falsification beaucoup plus coûteuses. La sécurité principale est une
+licence JSON signée Ed25519 : la clé privée reste uniquement chez MedCareSO et
+l'application client contient seulement la clé publique.
+
+\section{Préparation unique chez MedCareSO}
+\begin{enumerate}[label=\arabic*.]
+  \item Sur un poste développeur sûr, créez une paire de clés :
+\begin{verbatim}
+npm run license:generate-keypair -- --out-dir /chemin/sur/disque-chiffre/medcareso
+\end{verbatim}
+  \item Conservez \texttt{medcareso-license-private.pem} dans un coffre chiffré.
+  Ne l'envoyez jamais à un client, ne le placez jamais dans le dépôt Git, dans
+  \texttt{assets}, ou dans le dossier de l'application.
+  \item Installez uniquement la clé publique dans le code de la version à
+  distribuer :
+\begin{verbatim}
+npm run license:install-public-key -- --key /chemin/sur/disque-chiffre/medcareso/medcareso-license-public.pem
+\end{verbatim}
+  \item Créez le paquet client signé. La variable pointe vers la clé privée
+  stockée hors du dépôt :
+\begin{verbatim}
+export MEDCARESO_LICENSE_PRIVATE_KEY_FILE=/chemin/sur/disque-chiffre/medcareso/medcareso-license-private.pem
+npm run build:secure
+\end{verbatim}
+Cette commande crée un manifeste d'intégrité signé puis le paquet Electron
+ASAR. Une version client ne doit pas être distribuée avec \texttt{npm run build}
+simple.
+\end{enumerate}
+
+\section{Installation chez un nouveau cabinet}
+\begin{enumerate}[label=\arabic*.]
+  \item Installez la version officielle construite avec \texttt{build:secure}.
+  \item Démarrez MedCareSO. La fenêtre d'activation affiche l'\emph{Identifiant
+  de ce poste} (empreinte SHA-256). Copiez exactement cette valeur et
+  communiquez-la au développeur.
+  \item Ne donnez pas de clé texte au cabinet. Le cabinet doit recevoir un
+  fichier \texttt{.medcareso.json} signé.
+  \item Chez MedCareSO, signez le fichier avec l'empreinte reçue. Exemple pour
+  un abonnement se terminant le 18 juillet 2027 :
+\begin{verbatim}
+npm run license:sign -- \
+  --private-key /chemin/sur/disque-chiffre/medcareso/medcareso-license-private.pem \
+  --machine-id EMPREINTE_RECUE \
+  --cabinet "Cabinet Dr. Exemple" \
+  --expires 2027-07-18 \
+  --features standard \
+  --out /chemin/partage/Cabinet-Dr-Exemple.medcareso.json
+\end{verbatim}
+Pour une licence sans expiration, retirez \texttt{--expires}.
+  \item Transmettez le fichier au cabinet par un canal convenu (clé USB,
+  messagerie chiffrée ou portail client). Le fichier ne contient pas la clé
+  privée.
+  \item Dans MedCareSO, cliquez sur \emph{Choisir le fichier}, sélectionnez la
+  licence, puis \emph{Activer la licence}. La signature, l'empreinte de la
+  machine et l'expiration sont vérifiées avant l'enregistrement.
+\end{enumerate}
+
+\section{Renouvellement, changement de PC et incident}
+\begin{itemize}
+  \item Pour migrer une installation existante, connectez-vous une dernière fois
+  avec le super administrateur, relevez l'identifiant du poste, puis installez
+  le nouveau fichier signé. Les anciens codes texte ne sont plus acceptés.
+  \item Pour renouveler un abonnement, demandez à nouveau l'identifiant du
+  poste et signez un nouveau fichier avec une nouvelle date d'expiration.
+  \item Pour un changement de PC, l'empreinte change. Créez donc un nouveau
+  fichier pour le nouveau poste. Désactivez l'ancien fichier dans l'application
+  si le PC est encore disponible.
+  \item Une réinstallation de MedCareSO ne réinitialise pas la licence : elle
+  est stockée dans les données utilisateur du système, hors du dossier
+  d'installation.
+  \item Si l'horloge système est remontée avant la dernière utilisation connue,
+  l'application demande une intervention. Corrigez l'heure du système et
+  contactez MedCareSO si le problème persiste.
+\end{itemize}
+
+\section{Protections présentes dans cette version}
+\begin{itemize}
+  \item \textbf{Electron :} isolation de contexte, Node désactivé dans le
+  renderer, sandbox activée pour toutes les fenêtres, DevTools et raccourcis
+  d'inspection désactivés dans les versions empaquetées.
+  \item \textbf{Licence :} signature Ed25519 vérifiée dans le process principal,
+  empreinte machine, vérification au démarrage et toutes les dix minutes,
+  détection simple de retour arrière de l'horloge.
+  \item \textbf{Intégrité :} les fichiers principaux sont hachés SHA-256 lors du
+  build et le manifeste est signé. Une modification détectée bloque le
+  démarrage de la version empaquetée.
+  \item \textbf{Données :} cette version exploite PostgreSQL, pas SQLite ;
+  SQLCipher ne s'applique donc pas. Utilisez un utilisateur PostgreSQL dédié,
+  un mot de passe long, un pare-feu limitant PostgreSQL au réseau du cabinet,
+  TLS si la base traverse un réseau, et des sauvegardes chiffrées.
+\end{itemize}
+
+\section{Obfuscation et exploitation}
+La commande \texttt{build:secure} obfusque après l'empaquetage uniquement les
+modules de licence et d'intégrité dans \texttt{app.asar}; le dépôt reste donc
+lisible et aucun code obfusqué n'est commité. Ne stockez ni mot de passe de
+base, ni clé privée, ni secret API dans le renderer. Testez toujours
+l'installateur sur un PC vierge avant livraison.
+
+\section*{Checklist avant remise client}
+\begin{enumerate}[label={[\ ]}]
+  \item Clé privée uniquement dans un coffre développeur.
+  \item Clé publique installée dans le build.
+  \item \texttt{MEDCARESO\_LICENSE\_PRIVATE\_KEY\_FILE} défini pour \texttt{build:secure}.
+  \item Installateur généré, signature de licence vérifiée sur le poste client.
+  \item Sauvegarde PostgreSQL chiffrée et accès réseau restreint.
+  \item Identifiants administrateur par défaut modifiés.
+\end{enumerate}
+\end{document}

@@ -33,7 +33,8 @@ function normalizeSickLeaveListRequest(payload) {
       pageSize: Math.min(100, toPositiveInt(payload.pageSize, 10)),
       startDate: String(payload.startDate || '').trim(),
       endDate: String(payload.endDate || '').trim(),
-      paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.startDate !== undefined || payload.endDate !== undefined
+      documentKind: payload.documentKind === 'workstop' ? 'workstop' : payload.documentKind === 'certificate' ? 'certificate' : '',
+      paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.startDate !== undefined || payload.endDate !== undefined || payload.documentKind !== undefined
     };
   }
 
@@ -43,6 +44,7 @@ function normalizeSickLeaveListRequest(payload) {
     pageSize: 10,
     startDate: '',
     endDate: '',
+    documentKind: '',
     paginated: false
   };
 }
@@ -193,7 +195,11 @@ export function handleSickLeaveEvents() {
       }
 
       const sickLeave = await queryOne(
-        'SELECT * FROM sick_leaves WHERE id = ?',
+        `SELECT sl.*, p.firstName AS patientFirstName, p.lastName AS patientLastName,
+                p.dateOfBirth AS patientDateOfBirth
+         FROM sick_leaves sl
+         LEFT JOIN patients p ON p.id = sl.patientId
+         WHERE sl.id = ?`,
         [sickLeaveId]
       );
 

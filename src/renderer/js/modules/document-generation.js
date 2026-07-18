@@ -1398,9 +1398,16 @@ async function printRapportDocument() {
 async function runInvoicePrintPipeline(state) {
   try {
     if (state.consultationId) {
-      await generateInvoice(state.consultationId, { documentData: state.data, silentSuccess: true });
+      await generateInvoice(state.consultationId, {
+        documentData: state.data,
+        silentSuccess: true,
+        onEdit: state.documentId ? () => editPatientFacture(state.documentId) : null
+      });
     } else {
-      await generateInvoiceFromPatientDocument(state.patientId, state.data, { silentSuccess: true });
+      await generateInvoiceFromPatientDocument(state.patientId, state.data, {
+        silentSuccess: true,
+        onEdit: state.documentId ? () => editPatientFacture(state.documentId) : null
+      });
     }
 
     if (state.documentId) {
@@ -1427,9 +1434,16 @@ async function runInvoicePrintPipeline(state) {
 async function runRapportPrintPipeline(state) {
   try {
     if (state.consultationId) {
-      await generateReport(state.consultationId, { documentData: state.data, silentSuccess: true });
+      await generateReport(state.consultationId, {
+        documentData: state.data,
+        silentSuccess: true,
+        onEdit: state.documentId ? () => editPatientRapport(state.documentId) : null
+      });
     } else {
-      await generateReportFromPatientDocument(state.patientId, state.data, { silentSuccess: true });
+      await generateReportFromPatientDocument(state.patientId, state.data, {
+        silentSuccess: true,
+        onEdit: state.documentId ? () => editPatientRapport(state.documentId) : null
+      });
     }
 
     if (state.documentId) {
@@ -1465,7 +1479,7 @@ async function generateInvoice(consultationId, options = {}) {
         ?parseDocumentPayload(docResult.data.payload)
         : getDefaultFactureData({ consultation, settings: cachedSettings });
     }
-    await renderInvoiceDocument({ patient, invoiceData });
+    await renderInvoiceDocument({ patient, invoiceData, onEdit: options.onEdit || null });
     if (!options.silentSuccess) {
       showNotification("Facture prete a l'impression", 'success');
     }
@@ -1489,7 +1503,7 @@ async function generateInvoiceFromPatientDocument(patientId, documentData, optio
         ?parseDocumentPayload(docResult.data.payload)
         : getDefaultFactureData({ consultation: null, settings: cachedSettings });
     }
-    await renderInvoiceDocument({ patient: patientResult.data, invoiceData });
+    await renderInvoiceDocument({ patient: patientResult.data, invoiceData, onEdit: options.onEdit || null });
     if (!options.silentSuccess) {
       showNotification("Facture prete a l'impression", 'success');
     }
@@ -1516,7 +1530,8 @@ async function generateReport(consultationId, options = {}) {
       patient,
       rapportData: normalizedData,
       dateHint: consultation.consultationDate || consultation.updatedAt || consultation.createdAt,
-      consultation
+      consultation,
+      onEdit: options.onEdit || null
     });
     if (!options.silentSuccess) {
       showNotification("Rapport pret a l'impression", 'success');
@@ -1546,7 +1561,13 @@ async function generateReportFromPatientDocument(patientId, documentData, option
       }
     }
     const normalizedData = normalizeRapportPayload(rapportData, { patient: patientResult.data });
-    await renderRapportDocument({ patient: patientResult.data, rapportData: normalizedData, dateHint, consultation: null });
+    await renderRapportDocument({
+      patient: patientResult.data,
+      rapportData: normalizedData,
+      dateHint,
+      consultation: null,
+      onEdit: options.onEdit || null
+    });
     if (!options.silentSuccess) {
       showNotification("Rapport pret a l'impression", 'success');
     }
@@ -2729,4 +2750,3 @@ window.applyBonPourPreset = applyBonPourPreset;
 window.clearBonPourForm = clearBonPourForm;
 window.applyOrientationPreset = applyOrientationPreset;
 window.clearOrientationForm = clearOrientationForm;
-

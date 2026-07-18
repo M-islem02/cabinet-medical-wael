@@ -164,9 +164,11 @@ contextBridge.exposeInMainWorld('api', {
     validate: (licenseKey) => ipcRenderer.invoke('license:validate', licenseKey),
     activate: (licenseKey) => ipcRenderer.invoke('license:activate', licenseKey),
     deactivate: (licenseKey) => ipcRenderer.invoke('license:deactivate', licenseKey),
+    chooseFile: () => ipcRenderer.invoke('license:choose-file'),
     generateKeys: (payload) => ipcRenderer.invoke('license:generate-keys', payload),
     activated: () => ipcRenderer.invoke('license:activated'),
     getStatus: () => ipcRenderer.invoke('license:getStatus'),
+    getMachineId: () => ipcRenderer.invoke('license:get-machine-id'),
     showLicenseWindow: () => ipcRenderer.invoke('license:showLicenseWindow')
   },
 
@@ -280,6 +282,8 @@ contextBridge.exposeInMainWorld('api', {
   // API Paramètres
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
+    chooseAppLogo: () => ipcRenderer.invoke('settings:chooseAppLogo'),
+    claimPracticeAdmin: () => ipcRenderer.invoke('settings:claimPracticeAdmin'),
     save: (data) => ipcRenderer.invoke('settings:save', data),
     update: (data) => ipcRenderer.invoke('settings:update', data),
     listPrinters: () => ipcRenderer.invoke('settings:listPrinters'),
@@ -408,6 +412,9 @@ contextBridge.exposeInMainWorld('api', {
     createSale: (data) => ipcRenderer.invoke('pos:createSale', data),
     getSales: (filters) => ipcRenderer.invoke('pos:getSales', filters),
     getSaleById: (id) => ipcRenderer.invoke('pos:getSaleById', id),
+    updateSale: (id, data) => ipcRenderer.invoke('pos:updateSale', id, data),
+    finalizeSale: (id) => ipcRenderer.invoke('pos:finalizeSale', id),
+    returnSale: (id, reason) => ipcRenderer.invoke('pos:returnSale', id, reason),
     getSalesReports: (filters) => ipcRenderer.invoke('pos:getSalesReports', filters)
   },
 
@@ -421,7 +428,10 @@ contextBridge.exposeInMainWorld('api', {
     addMaintenance: (data) => ipcRenderer.invoke('equipment:addMaintenance', data),
     getAlerts: (days) => ipcRenderer.invoke('equipment:getAlerts', days),
     requestMaintenance: (id, reason) => ipcRenderer.invoke('equipment:requestMaintenance', id, reason),
-    linkToPlan: (data) => ipcRenderer.invoke('equipment:linkToPlan', data)
+    clearMaintenanceRequest: (id) => ipcRenderer.invoke('equipment:clearMaintenanceRequest', id),
+    linkToPlan: (data) => ipcRenderer.invoke('equipment:linkToPlan', data),
+    getForConsultation: (consultationId) => ipcRenderer.invoke('equipment:getForConsultation', consultationId),
+    syncConsultation: (consultationId, equipmentIds) => ipcRenderer.invoke('equipment:syncConsultation', consultationId, equipmentIds)
   },
 
   // API Analyses médicales

@@ -6,8 +6,10 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, dialog } from 'electron';
 import { exec } from 'child_process';
+import fs from 'fs/promises';
+import path from 'path';
 import { syncPublicBookingServerWithSettings } from '../services/public-booking-service.js';
 import { getCurrentSettingsOwnerUserId, getScopedSettings, getScopedSettingsId } from '../services/settings-scope-service.js';
 
@@ -44,10 +46,89 @@ function normalizeDocumentTypeColors(rawValue) {
 function normalizeDocumentStyleVariant(value) {
   const raw = String(value || '').trim();
   if (raw === 'modern') return 'gradient-header';
-  return ['classic', 'sidebar', 'gradient-header', 'minimal'].includes(raw) ? raw : 'classic';
+  return [
+    'classic', 'sidebar', 'gradient-header', 'minimal',
+    'letterhead', 'dental-letterhead', 'professional-center',
+    'executive', 'clinical-grid', 'wave'
+  ].includes(raw) ? raw : 'classic';
 }
 
 export function handleSettingsEvents() {
+  ipcMain.handle('settings:chooseAppLogo', async () => {
+    try {
+      const ownerWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+      const result = await dialog.showOpenDialog(ownerWindow, {
+        title: 'Choisir le logo de l’application',
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg'] }]
+      });
+      if (result.canceled || !result.filePaths?.[0]) return { success: false, canceled: true };
+
+      const filePath = result.filePaths[0];
+      const buffer = await fs.readFile(filePath);
+      if (buffer.length > 5 * 1024 * 1024) {
+        return { success: false, error: 'Logo trop lourd (maximum 5 Mo)' };
+      }
+      const extension = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp', '.svg': 'image/svg+xml'
+      };
+      const mimeType = mimeTypes[extension];
+      if (!mimeType) return { success: false, error: 'Format de logo non pris en charge' };
+      return {
+        success: true,
+        dataUrl: `data:${mimeType};base64,${buffer.toString('base64')}`,
+        fileName: path.basename(filePath)
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('settings:claimPracticeAdmin', async () => {
+    try {
+      const current = global.currentUser || {};
+      const practitionerRoles = [
+        'doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute',
+        'orthophoniste', 'nurse'
+      ];
+      const roleAliases = {
+        medecin: 'doctor', 'médecin': 'doctor', dentiste: 'dentist',
+        kine: 'kinesitherapeute', 'kiné': 'kinesitherapeute',
+        infirmier: 'nurse', infirmiere: 'nurse', 'infirmière': 'nurse'
+      };
+      const rawRole = String(current.role || '').trim().toLowerCase();
+      const normalizedRole = roleAliases[rawRole] || rawRole;
+      if (!current.id || !practitionerRoles.includes(normalizedRole)) {
+        return { success: false, error: 'Seul un praticien actif peut administrer le cabinet' };
+      }
+      if (current.isSuperAdmin) {
+        return { success: false, error: 'Le super administrateur ne peut pas devenir médecin administrateur' };
+      }
+      if (current.isAdmin) return { success: true, claimed: false };
+
+      const existingAdmin = await queryOne(
+        `SELECT id, fullName FROM users
+         WHERE isActive = TRUE AND isAdmin = TRUE AND COALESCE(isSuperAdmin, FALSE) = FALSE
+         LIMIT 1`
+      );
+      if (existingAdmin?.id) {
+        return {
+          success: false,
+          error: `Accès réservé au médecin administrateur${existingAdmin.fullName ? ` (${existingAdmin.fullName})` : ''}`
+        };
+      }
+
+      await run('UPDATE users SET isAdmin = TRUE, role = ? WHERE id = ? AND isActive = TRUE', [normalizedRole, current.id]);
+      global.currentUser = { ...current, role: normalizedRole, isAdmin: true };
+      return { success: true, claimed: true };
+    } catch (error) {
+      console.error('Erreur lors de la récupération du rôle administrateur:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Récupérer les paramètres
   ipcMain.handle('settings:get', async () => {
     try {
@@ -79,7 +160,7 @@ export function handleSettingsEvents() {
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
                doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
            WHERE id = ?`,
           [
             settingsData.cabinetName,
@@ -104,6 +185,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
+            settingsData.appLogoDataUrl || null,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
@@ -119,8 +201,8 @@ export function handleSettingsEvents() {
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature,
             preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -146,6 +228,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
+            settingsData.appLogoDataUrl || null,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
@@ -178,7 +261,7 @@ export function handleSettingsEvents() {
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
                doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
            WHERE id = ?`,
           [
             settingsData.cabinetName,
@@ -203,6 +286,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
+            settingsData.appLogoDataUrl || null,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
@@ -218,8 +302,8 @@ export function handleSettingsEvents() {
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature,
             preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -245,6 +329,7 @@ export function handleSettingsEvents() {
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
             settingsData.publicBookingQrEnabled === false ? 0 : 1,
+            settingsData.appLogoDataUrl || null,
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,

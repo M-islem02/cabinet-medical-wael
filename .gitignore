@@ -43,6 +43,11 @@ logs/
 # Licenses
 licenses/*.json
 licenses/*.csv
+developer-keys/
+*.medcareso.json
+docs/*.aux
+docs/*.log
+docs/*.out
 
 # Operating system
 .DS_Store

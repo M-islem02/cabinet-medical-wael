@@ -283,10 +283,9 @@ async function loadMedicalImagingDevices() {
 async function setMedicalImagingPatient(patientId) {
   medicalImagingState.selectedPatientId = patientId || '';
   if (patientId) {
-    currentPatientId = patientId;
     const patient = medicalImagingState.patients.find((item) => String(item.id) === String(patientId));
-    if (patient) {
-      currentPatientData = patient;
+    if (typeof window.setSelectedPatient === 'function') {
+      await window.setSelectedPatient(patientId, { patient: patient || null, source: 'medical-imaging' });
     }
   }
   await loadMedicalImagingRecords(patientId);
@@ -509,14 +508,8 @@ setMedicalImagingPatient = async function(patientId) {
   }
 
   if (patientId) {
-    currentPatientId = patientId;
-    try {
-      const result = await window.api.patient.getById(patientId);
-      if (result?.success && result.data) {
-        currentPatientData = result.data;
-      }
-    } catch (error) {
-      console.error('Error loading imaging patient:', error);
+    if (typeof window.setSelectedPatient === 'function') {
+      await window.setSelectedPatient(patientId, { source: 'medical-imaging' });
     }
   }
 

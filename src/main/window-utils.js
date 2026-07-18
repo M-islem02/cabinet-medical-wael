@@ -1,4 +1,4 @@
-import { screen } from 'electron';
+import { app, screen } from 'electron';
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -130,6 +130,21 @@ export function applyWindowPresentation(browserWindow, {
   browserWindow.setMenuBarVisibility(false);
   lockWindowZoom(browserWindow);
   keepWindowOnTop(browserWindow, alwaysOnTop);
+
+  // Development tools are useful while developing but must not be an entry
+  // point on customer workstations. This is deliberately only enforced in a
+  // packaged application so the development workflow stays intact.
+  if (app.isPackaged) {
+    browserWindow.webContents.on('devtools-opened', () => {
+      try { browserWindow.webContents.closeDevTools(); } catch (_) {}
+    });
+    browserWindow.webContents.on('before-input-event', (event, input) => {
+      const key = String(input.key || '').toLowerCase();
+      const isDevToolsShortcut = key === 'f12' ||
+        ((input.control || input.meta) && input.shift && key === 'i');
+      if (isDevToolsShortcut) event.preventDefault();
+    });
+  }
 
   browserWindow.once('ready-to-show', () => {
     const { workArea } = screen.getDisplayMatching(browserWindow.getBounds());

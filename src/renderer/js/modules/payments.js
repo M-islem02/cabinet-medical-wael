@@ -43,7 +43,8 @@ const paymentListState = {
   total: 0,
   totalPages: 1,
   filters: {},
-  isLoading: false
+  isLoading: false,
+  reloadAfterCurrent: false
 };
 
 const pendingPaymentRequestsCache = {
@@ -52,9 +53,35 @@ const pendingPaymentRequestsCache = {
   ttlMs: 10000
 };
 
+const completedPaymentRequestIds = new Set();
+
 function setPendingPaymentRequestsCache(items) {
-  pendingPaymentRequestsCache.items = Array.isArray(items) ? items : [];
+  pendingPaymentRequestsCache.items = (Array.isArray(items) ? items : [])
+    .filter((request) => !completedPaymentRequestIds.has(String(request.id)));
   pendingPaymentRequestsCache.loadedAt = Date.now();
+}
+
+function markPaymentRequestCompletedLocally(requestId) {
+  const normalizedId = String(requestId || '');
+  if (!normalizedId) return;
+
+  completedPaymentRequestIds.add(normalizedId);
+  setPendingPaymentRequestsCache(
+    pendingPaymentRequestsCache.items.filter((request) => String(request.id) !== normalizedId)
+  );
+
+  document.querySelectorAll('.payment-request-card[data-id]').forEach((card) => {
+    if (String(card.dataset.id) === normalizedId) card.remove();
+  });
+  document.querySelectorAll('.pending-payment-row[data-request-id]').forEach((row) => {
+    if (String(row.dataset.requestId) === normalizedId) row.remove();
+  });
+
+  const requestsContainer = document.getElementById('payment-requests-list');
+  if (requestsContainer && !requestsContainer.querySelector('.payment-request-card')) {
+    requestsContainer.innerHTML = '<p class="empty-message">Aucune demande de paiement en attente</p>';
+  }
+  updatePaymentRequestBadge(pendingPaymentRequestsCache.items.length);
 }
 
 async function getPendingPaymentRequestsCached(force = false) {
@@ -499,7 +526,7 @@ function buildPendingPaymentRow(request) {
     : (data.notes || 'Paiement demandé par le médecin, en attente d\'encaissement.');
 
   return `
-    <tr class="pending-payment-row">
+    <tr class="pending-payment-row" data-request-id="${request.id}">
       <td>${createdAt}</td>
       <td>${data.patientName || '-'}</td>
       <td>${requestRef}</td>
@@ -675,12 +702,12 @@ async function savePayment() {
 
       // Mark payment request as complete if exists
       if (!editId && requestId) {
-        await window.api.paymentRequest.complete(requestId);
-        delete modal.dataset.requestId;
-        // Reload payment requests for doctor & assistant
-        if (typeof loadPendingPaymentRequests === 'function') {
-          loadPendingPaymentRequests();
+        const completionResult = await window.api.paymentRequest.complete(requestId);
+        if (!completionResult?.success) {
+          throw new Error(completionResult?.error || 'Impossible de clôturer la demande de paiement');
         }
+        markPaymentRequestCompletedLocally(requestId);
+        delete modal.dataset.requestId;
       }
 
       closeModal('modal-add-payment');
@@ -689,8 +716,9 @@ async function savePayment() {
       // Refresh payment section if currently viewing it
       const paymentsSection = document.getElementById('payments');
       if (paymentsSection && paymentsSection.classList.contains('active')) {
-        loadPayments();
-        loadPaymentStats();
+        await loadPendingPaymentRequests();
+        await loadPayments(null, { forcePending: true });
+        await loadPaymentStats();
       }
 
       // Refresh dental tab if currently viewing it
@@ -975,16 +1003,18 @@ async function sendPaymentRequestToAssistant(patientId, patientName, amount, con
  */
 async function openPaymentRequestModal(patientId, defaults = {}) {
   try {
-    const patientResult = await window.api.patient.getById(patientId);
-    if (!patientResult.success) {
-      showNotification('Erreur lors du chargement du patient', 'error');
-      return;
+    let patientName = String(defaults.patientName || '').trim();
+    if (!patientName) {
+      const patientResult = await window.api.patient.getById(patientId);
+      if (!patientResult.success) {
+        showNotification('Erreur lors du chargement du patient: ' + (patientResult.error || 'patient inaccessible'), 'error');
+        return;
+      }
+      patientName = `${patientResult.data.firstName || ''} ${patientResult.data.lastName || ''}`.trim();
     }
 
-    const patient = patientResult.data;
-
     document.getElementById('payment-request-patient-id').value = patientId;
-    document.getElementById('payment-request-patient-name').value = `${patient.firstName} ${patient.lastName}`;
+    document.getElementById('payment-request-patient-name').value = patientName;
     populatePaymentServiceSelect('payment-request-service', defaults.service || 'consultation');
     wirePaymentServiceAutoAmount('payment-request-service', 'payment-request-amount');
     wirePaymentServiceActDefaults('payment-request-service', 'payment-request-acts-grid', 'payment-request-acts');
@@ -994,9 +1024,17 @@ async function openPaymentRequestModal(patientId, defaults = {}) {
     document.getElementById('payment-request-amount').value = defaults.amount || '';
     document.getElementById('payment-request-notes').value = stripPaymentActsFromNotes(defaults.notes || '');
     document.getElementById('modal-payment-request').dataset.consultationId = defaults.consultationId || '';
+    document.getElementById('modal-payment-request').dataset.planId = defaults.planId || '';
+    document.getElementById('modal-payment-request').dataset.planSessionId = defaults.planSessionId || '';
     syncPaymentAmountFromService('payment-request-service', 'payment-request-amount', !defaults.amount);
 
     showModal('modal-payment-request');
+    if (defaults.planId) {
+      // The treatment-plan editor uses its own high overlay layer. Keep the
+      // reused payment modal and its backdrop above that editor.
+      document.getElementById('modal-backdrop')?.style.setProperty('z-index', '10029', 'important');
+      document.getElementById('modal-payment-request')?.style.setProperty('z-index', '10030', 'important');
+    }
   } catch (error) {
     console.error('Error opening payment request modal:', error);
     showNotification('Erreur', 'error');
@@ -1014,6 +1052,8 @@ async function submitPaymentRequest() {
   const service = getPaymentServiceLabel(serviceValue);
   const freeNotes = document.getElementById('payment-request-notes').value;
   const consultationId = document.getElementById('modal-payment-request')?.dataset?.consultationId || null;
+  const planId = document.getElementById('modal-payment-request')?.dataset?.planId || '';
+  const planSessionId = document.getElementById('modal-payment-request')?.dataset?.planSessionId || '';
   const selectedActs = getSelectedPaymentRequestActs();
   const normalizedSelectedActs = selectedActs.length ? selectedActs : [resolvePaymentActValue(serviceValue)];
 
@@ -1024,15 +1064,31 @@ async function submitPaymentRequest() {
 
   const notes = buildPaymentNotesWithActs(freeNotes, normalizedSelectedActs);
 
-  const success = await sendPaymentRequestToAssistant(
-    patientId,
-    patientName,
-    amount,
-    consultationId,
-    notes,
-    service,
-    normalizedSelectedActs
-  );
+  let success;
+  if (planId) {
+    const result = await window.api.plans.requestPayment({
+      planId,
+      sessionId: planSessionId || null,
+      amount,
+      notes,
+      service,
+      selectedActs: normalizedSelectedActs,
+      doctorId: typeof currentUserId !== 'undefined' ? currentUserId : null
+    });
+    success = result?.success === true;
+    showNotification(success ? 'Demande de paiement envoyée à l’assistante' : `Erreur: ${result?.error || 'Envoi impossible'}`, success ? 'success' : 'error');
+    if (success && typeof loadTreatmentPlans === 'function') loadTreatmentPlans();
+  } else {
+    success = await sendPaymentRequestToAssistant(
+      patientId,
+      patientName,
+      amount,
+      consultationId,
+      notes,
+      service,
+      normalizedSelectedActs
+    );
+  }
 
   if (success) {
     closeModal('modal-payment-request');
@@ -1110,8 +1166,9 @@ async function collectPayment(requestId, patientId, amount) {
       if (!confirm(`Encaisser ${formatMoneyDZD(data.amount || amount || 0)} pour ${data.sessionLabel || data.planTitle || 'ce plan'} ?`)) {
         return;
       }
-      const result = await window.api.plans.addPaymentSession({
+        const result = await window.api.plans.addPaymentSession({
         planId: data.planId,
+        sessionId: data.sessionId || null,
         paidAmount: data.amount || amount || 0,
         paidDate: new Date().toISOString().split('T')[0],
         paymentMethod: 'Espèces',
@@ -1119,10 +1176,15 @@ async function collectPayment(requestId, patientId, amount) {
         recordedBy: typeof currentUserId !== 'undefined' ? currentUserId : null
       });
       if (result.success) {
-        await window.api.paymentRequest.complete(requestId);
+        const completionResult = await window.api.paymentRequest.complete(requestId);
+        if (!completionResult?.success) {
+          throw new Error(completionResult?.error || 'Impossible de clôturer la demande de paiement');
+        }
+        markPaymentRequestCompletedLocally(requestId);
         showNotification(result.autoClosed ? 'Paiement encaissé — plan terminé' : 'Paiement de plan encaissé', 'success');
         await loadPendingPaymentRequests();
-        if (typeof loadPayments === 'function') loadPayments();
+        if (typeof loadPayments === 'function') await loadPayments(null, { forcePending: true });
+        if (typeof loadPaymentStats === 'function') await loadPaymentStats();
         return;
       }
       showNotification('Erreur: ' + (result.error || 'Impossible d’encaisser'), 'error');
@@ -1336,6 +1398,7 @@ async function openPaymentDetails(paymentId) {
 loadPayments = async function (filters = null, options = {}) {
   try {
     if (paymentListState.isLoading) {
+      paymentListState.reloadAfterCurrent = true;
       return;
     }
 
@@ -1370,7 +1433,7 @@ loadPayments = async function (filters = null, options = {}) {
 
     const [result, pendingRequests] = await Promise.all([
       window.api.payment.getAll(requestFilters),
-      getPendingPaymentRequestsCached()
+      getPendingPaymentRequestsCached(options.forcePending === true)
     ]);
 
     const payments = result.success ? (result.data || []) : [];
@@ -1435,6 +1498,10 @@ loadPayments = async function (filters = null, options = {}) {
     if (refreshButton) {
       refreshButton.disabled = false;
       refreshButton.textContent = 'Actualiser';
+    }
+    if (paymentListState.reloadAfterCurrent) {
+      paymentListState.reloadAfterCurrent = false;
+      queueMicrotask(() => loadPayments(null, { forcePending: true }));
     }
   }
 };

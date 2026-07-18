@@ -149,6 +149,7 @@ async function loadPatientFactures(patientId, options = {}) {
           <td>${escapeHTML(montant)}</td>
           <td>
             <div class="table-actions" style="display:flex; gap:6px;">
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="printPatientFacture('${f.id}')">👁️</button>
               <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Modifier" onclick="editPatientFacture('${f.id}')">✏️</button>
               <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPatientFacture('${f.id}')">🖨️</button>
               <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePatientDocument('${f.id}', 'facture')">🗑️</button>
@@ -251,7 +252,9 @@ async function printPatientFacture(documentId) {
     const payload = parseDocumentPayload(doc.payload);
     
     // Use the existing generateInvoice but pass patient-level data
-    await generateInvoiceFromPatientDocument(doc.patientId, payload);
+    await generateInvoiceFromPatientDocument(doc.patientId, payload, {
+      onEdit: () => editPatientFacture(documentId)
+    });
   } catch (error) {
     console.error('Error printing facture:', error);
     showNotification('Erreur d\'impression', 'error');
@@ -417,7 +420,9 @@ async function printPatientRapport(documentId) {
     const doc = docResult.data;
     const payload = parseDocumentPayload(doc.payload);
     
-    await generateReportFromPatientDocument(doc.patientId, payload);
+    await generateReportFromPatientDocument(doc.patientId, payload, {
+      onEdit: () => editPatientRapport(documentId)
+    });
   } catch (error) {
     console.error('Error printing rapport:', error);
     showNotification('Erreur d\'impression', 'error');
@@ -442,7 +447,7 @@ function handleRapportRowAction(action, documentId) {
   if (!documentId) return;
   switch (action) {
     case 'view':
-      viewPatientRapport(documentId);
+      printPatientRapport(documentId);
       break;
     case 'edit':
       editPatientRapport(documentId);
@@ -522,7 +527,8 @@ async function loadPatientBonPour(patientId, options = {}) {
           <td>${examCount} examen(s)</td>
           <td>
             <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-primary" title="Voir/Modifier" onclick="viewBonPour('${bp.id}')">Voir</button>
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="reprintBonPour('${bp.id}')">👁️</button>
+              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="viewBonPour('${bp.id}')">✏️</button>
               <button class="btn btn-tiny btn-secondary" title="Reimprimer" onclick="reprintBonPour('${bp.id}')">Imprimer</button>
               <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deleteBonPour('${bp.id}')">Supprimer</button>
             </div>
@@ -600,7 +606,8 @@ async function reprintBonPour(documentId) {
         dateLabel: payload.date ? new Date(payload.date).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
         patient: patient,
         documentType: 'bonpour',
-        pages: [pageContent]
+        pages: [pageContent],
+        onEdit: () => viewBonPour(documentId)
       });
     }
     
@@ -745,7 +752,8 @@ async function loadPatientOrientations(patientId, options = {}) {
           <td title="${escapeHTML(motif)}">${escapeHTML(motifShort)}</td>
           <td>
             <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-primary" title="Voir/Modifier" onclick="viewOrientation('${o.id}')">Voir</button>
+              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="reprintOrientation('${o.id}')">👁️</button>
+              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="viewOrientation('${o.id}')">✏️</button>
               <button class="btn btn-tiny btn-secondary" title="Reimprimer" onclick="reprintOrientation('${o.id}')">Imprimer</button>
               <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deleteOrientation('${o.id}')">Supprimer</button>
             </div>
@@ -822,7 +830,8 @@ async function reprintOrientation(documentId) {
         dateLabel: payload.date ? new Date(payload.date).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
         patient: patient,
         documentType: 'orientation',
-        pages: [pageContent]
+        pages: [pageContent],
+        onEdit: () => viewOrientation(documentId)
       });
     }
     

@@ -85,7 +85,9 @@ export function handlePrintEvents() {
       autoHideMenuBar: true,
       backgroundColor: '#ffffff',
       webPreferences: {
-        sandbox: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
         backgroundThrottling: false
       }
     });
@@ -199,7 +201,9 @@ export function handlePrintEvents() {
       autoHideMenuBar: true,
       backgroundColor: '#ffffff',
       webPreferences: {
-        sandbox: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
         backgroundThrottling: false
       }
     });

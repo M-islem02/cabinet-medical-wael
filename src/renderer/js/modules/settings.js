@@ -10,9 +10,14 @@ const DEFAULT_DOCUMENT_TYPE_COLORS = {
   consultation: '#ef4444',
   generic: '#1a8c7e'
 };
-const DOCUMENT_STYLE_VARIANTS = new Set(['classic', 'sidebar', 'gradient-header', 'minimal']);
+const DOCUMENT_STYLE_VARIANTS = new Set([
+  'classic', 'sidebar', 'gradient-header', 'minimal',
+  'letterhead', 'dental-letterhead', 'professional-center',
+  'executive', 'clinical-grid', 'wave'
+]);
 
 let activeSettingsPage = 'general';
+let selectedSignedLicenseContent = '';
 
 function ensureSettingsAdminCardsVisibility() {
   const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
@@ -116,11 +121,20 @@ function updateDocumentStylePreview() {
   const accent = normalizeHexColor(document.getElementById('document-primary-color')?.value, '#1a8c7e');
   const style = normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value);
   const opacity = Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5));
+  const logoDataUrl = document.getElementById('cabinet-logo-data')?.value || '';
   preview.dataset.style = style;
   preview.style.setProperty('--preview-accent', accent);
   preview.style.setProperty('--preview-accent-soft', mixHexColor(accent, '#ffffff', 0.35));
   preview.style.setProperty('--preview-on-accent', getReadableTextColor(accent));
   preview.style.setProperty('--preview-watermark-opacity', (opacity / 100).toFixed(2));
+  preview.querySelectorAll('.preview-logo').forEach((logo) => {
+    const hasLogo = logoDataUrl.startsWith('data:image/');
+    logo.textContent = hasLogo ? '' : 'LOGO';
+    logo.style.backgroundImage = hasLogo ? `url("${logoDataUrl}")` : '';
+    logo.style.backgroundPosition = hasLogo ? 'center' : '';
+    logo.style.backgroundRepeat = hasLogo ? 'no-repeat' : '';
+    logo.style.backgroundSize = hasLogo ? 'contain' : '';
+  });
 }
 
 function parseDocumentTypeColors(rawValue) {
@@ -176,6 +190,32 @@ function updateCabinetLogoPreview(logoDataUrl = '') {
   if (placeholder) {
     placeholder.style.display = safeLogo ? 'none' : 'flex';
   }
+
+  updateDocumentStylePreview();
+}
+
+function updateAppLogoPreview(logoDataUrl = '') {
+  const hiddenField = document.getElementById('app-logo-data');
+  const previewImg = document.getElementById('app-logo-preview');
+  const placeholder = document.getElementById('app-logo-placeholder');
+  const safeLogo = typeof logoDataUrl === 'string' && logoDataUrl.startsWith('data:image/') ? logoDataUrl : '';
+
+  if (hiddenField) hiddenField.value = safeLogo;
+  if (previewImg) {
+    if (safeLogo) {
+      previewImg.src = safeLogo;
+      previewImg.style.display = 'block';
+    } else {
+      previewImg.removeAttribute('src');
+      previewImg.style.display = 'none';
+    }
+  }
+  if (placeholder) placeholder.style.display = safeLogo ? 'none' : 'flex';
+
+  document.querySelectorAll('.app-brand-logo').forEach((logo) => {
+    logo.src = safeLogo || (typeof getDefaultAppBrandLogoSrc === 'function' ? getDefaultAppBrandLogoSrc() : 'assets/logo.png');
+    logo.classList.toggle('app-brand-logo-custom', Boolean(safeLogo));
+  });
 }
 
 function updateCabinetWatermarkLogoPreview(logoDataUrl = '') {
@@ -208,6 +248,22 @@ function clearCabinetLogo() {
   updateCabinetLogoPreview('');
   const fileInput = document.getElementById('cabinet-logo-file');
   if (fileInput) fileInput.value = '';
+}
+
+function clearAppLogo() {
+  updateAppLogoPreview('');
+  updateAppLogoSelectionStatus('');
+  const fileInput = document.getElementById('app-logo-file');
+  if (fileInput) fileInput.value = '';
+}
+
+function updateAppLogoSelectionStatus(fileName = '') {
+  const status = document.getElementById('app-logo-selection-status');
+  if (!status) return;
+  status.textContent = fileName
+    ? `${fileName} sélectionné. Cliquez sur « Enregistrer le logo » pour le conserver.`
+    : 'Logo MedCareSO sélectionné. Cliquez sur « Enregistrer le logo » pour confirmer.';
+  status.classList.toggle('has-selection', Boolean(fileName));
 }
 
 function clearCabinetWatermarkLogo() {
@@ -246,6 +302,74 @@ async function handleCabinetLogoChange(event) {
   } catch (error) {
     console.error('Error reading logo file:', error);
     showNotification('Impossible de lire le fichier logo', 'error');
+  }
+}
+
+async function handleAppLogoChange(event) {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) {
+    showNotification('Le logo de l’application doit être une image', 'error');
+    event.target.value = '';
+    return;
+  }
+  if (file.size > MAX_LOGO_FILE_SIZE) {
+    showNotification('Logo trop lourd (max 2 MB)', 'error');
+    event.target.value = '';
+    return;
+  }
+  try {
+    updateAppLogoPreview(await readFileAsBase64(file));
+    updateAppLogoSelectionStatus(file.name);
+  } catch (error) {
+    console.error('Error reading application logo:', error);
+    showNotification('Impossible de lire le logo de l’application', 'error');
+  }
+}
+
+async function ensurePracticeAdminAccess() {
+  if (currentUserIsAdmin) return true;
+  const claimResult = await window.api.settings.claimPracticeAdmin();
+  if (!claimResult?.success) {
+    showNotification(claimResult?.error || 'Accès réservé au médecin administrateur', 'warning');
+    return false;
+  }
+  currentUserIsAdmin = true;
+  localStorage.setItem('currentUserIsAdmin', 'true');
+  document.body.classList.add('doctor-admin-mode');
+  if (typeof updateAdminUI === 'function') updateAdminUI();
+  ensureSettingsAdminCardsVisibility();
+  if (claimResult.claimed) {
+    showNotification('Administration du cabinet restaurée pour ce compte praticien', 'success');
+  }
+  return true;
+}
+
+async function chooseApplicationLogo() {
+  try {
+    if (!await ensurePracticeAdminAccess()) return;
+    const result = await window.api.settings.chooseAppLogo();
+    if (result?.canceled) return;
+    if (!result?.success || !result.dataUrl) {
+      throw new Error(result?.error || 'Impossible de choisir ce logo');
+    }
+    updateAppLogoPreview(result.dataUrl);
+    updateAppLogoSelectionStatus(result.fileName || 'Logo');
+  } catch (error) {
+    showNotification(error.message || 'Impossible de choisir le logo', 'error');
+  }
+}
+
+async function useBundledTransparentAppLogo() {
+  try {
+    const response = await fetch('../../assets/app-logo-tooth-transparent.png');
+    if (!response.ok) throw new Error('Logo introuvable');
+    const blob = await response.blob();
+    updateAppLogoPreview(await readFileAsBase64(blob));
+    updateAppLogoSelectionStatus('Logo dent transparent');
+  } catch (error) {
+    console.error('Error loading bundled application logo:', error);
+    showNotification('Impossible de charger le logo dent transparent', 'error');
   }
 }
 
@@ -470,6 +594,7 @@ async function loadSettings() {
       documentHideSignatureEl.checked = s.documentHideSignature === 1 || s.documentHideSignature === true;
     }
     updateCabinetLogoPreview(s.cabinetLogoDataUrl || '');
+    updateAppLogoPreview(s.appLogoDataUrl || '');
     updateCabinetWatermarkLogoPreview(s.cabinetWatermarkLogoDataUrl || '');
     updateDocumentStylePreview();
 
@@ -552,6 +677,7 @@ function buildSettingsPayload({
       ? Boolean(document.getElementById('document-hide-signature')?.checked)
       : Boolean(existing.documentHideSignature),
     cabinetLogoDataUrl: includePractice ? document.getElementById('cabinet-logo-data')?.value || '' : (existing.cabinetLogoDataUrl || ''),
+    appLogoDataUrl: includePractice ? document.getElementById('app-logo-data')?.value || '' : (existing.appLogoDataUrl || ''),
     cabinetWatermarkLogoDataUrl: includePractice ? document.getElementById('cabinet-watermark-logo-data')?.value || '' : (existing.cabinetWatermarkLogoDataUrl || ''),
     preferredPrinter: includeDevices ? document.getElementById('preferred-printer')?.value || '' : (existing.preferredPrinter || ''),
     preferredScanner: includeDevices ? document.getElementById('preferred-scanner')?.value || '' : (existing.preferredScanner || ''),
@@ -576,6 +702,7 @@ async function persistSettings(settingsData, successMessage = 'Parametres enregi
     const result = await window.api.settings.save(settingsData);
     if (result.success) {
       cachedSettings = { ...(cachedSettings || {}), ...settingsData };
+      if (typeof refreshAppBrandLogo === 'function') refreshAppBrandLogo();
       if (typeof refreshDocumentEditorLogos === 'function') {
         refreshDocumentEditorLogos();
       }
@@ -624,6 +751,7 @@ async function saveSettings() {
     documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5)),
     documentHideSignature: Boolean(document.getElementById('document-hide-signature')?.checked),
     cabinetLogoDataUrl: document.getElementById('cabinet-logo-data')?.value || '',
+    appLogoDataUrl: document.getElementById('app-logo-data')?.value || '',
     cabinetWatermarkLogoDataUrl: document.getElementById('cabinet-watermark-logo-data')?.value || '',
     preferredPrinter: document.getElementById('preferred-printer')?.value || '',
     preferredScanner: document.getElementById('preferred-scanner')?.value || '',
@@ -659,10 +787,7 @@ async function savePracticeSettings() {
     showNotification('Le super administrateur ne peut pas modifier les informations medicales du cabinet.', 'warning');
     return { success: false };
   }
-  if (!currentUserIsAdmin) {
-    showNotification('Accès réservé au médecin admin', 'warning');
-    return { success: false };
-  }
+  if (!await ensurePracticeAdminAccess()) return { success: false };
 
   return persistSettings(
     buildSettingsPayload({
@@ -718,9 +843,8 @@ async function loadLicenseStatus() {
     if (!status || !status.hasActiveLicense) {
       licenseInfo.innerHTML = `
         <p><strong>Aucune licence active.</strong></p>
-        <p>${escapeHTML(status?.message || 'Connectez-vous avec le super administrateur pour activer une clé.')}</p>
-        <p><strong>Clés disponibles:</strong> <code>*****</code></p>
-        <p>Utilisez les boutons <strong>5 jours</strong>, <strong>7 jours</strong>, <strong>15 jours</strong>, <strong>1 an</strong> ou <strong>illimitée</strong> pour remplir le champ sans afficher la clé.</p>
+        <p>${escapeHTML(status?.message || 'Connectez-vous avec le super administrateur pour installer une licence signée.')}</p>
+        <p>Choisissez le fichier de licence fourni par MedCareSO.</p>
       `;
       return;
     }
@@ -752,34 +876,23 @@ async function loadLicenseStatus() {
 }
 
 function formatLicenseTypeLabel(status = {}) {
-  if (status.licenseType === 'trial' || status.licenseType === 'duration') {
-    return `Essai ${status.durationDays || 7} jours`;
+  return status.licenseType === 'subscription' ? 'Abonnement signé' : 'Licence signée illimitée';
+}
+
+async function chooseSignedLicenseFile() {
+  if (!currentUserIsSuperAdmin) {
+    showNotification('Accès réservé au super administrateur', 'error');
+    return;
   }
-  return status.licenseType === 'annual' ? '1 an' : 'Illimitée';
-}
-
-function fillDurationLicenseKey(days = 7) {
+  const result = await window.api.license.chooseFile();
+  if (result?.canceled) return;
+  if (!result?.success) {
+    showNotification(result?.error || 'Impossible de lire la licence', 'error');
+    return;
+  }
+  selectedSignedLicenseContent = result.content;
   const input = document.getElementById('license-key-input');
-  const keyMap = {
-    5: 'MEDPRO-TRIAL-5JOURS',
-    7: 'MEDPRO-TRIAL-7JOURS',
-    15: 'MEDPRO-TRIAL-15JOURS'
-  };
-  if (input) input.value = keyMap[Number(days)] || keyMap[7];
-}
-
-function fillTrialLicenseKey() {
-  fillDurationLicenseKey(7);
-}
-
-function fillUnlimitedLicenseKey() {
-  const input = document.getElementById('license-key-input');
-  if (input) input.value = 'MEDPRO-ILLIMITEE-ACTIVE';
-}
-
-function fillAnnualLicenseKey() {
-  const input = document.getElementById('license-key-input');
-  if (input) input.value = 'MEDPRO-ANNUELLE-1AN';
+  if (input) input.value = result.fileName || 'Licence sélectionnée';
 }
 
 async function disableCurrentLicense() {
@@ -818,27 +931,21 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
   }
 
   const input = document.getElementById('license-key-input');
-  const licenseKey = input?.value?.trim()?.toUpperCase();
-
-  if (!licenseKey) {
-    showNotification('Veuillez entrer une clé de licence', 'error');
+  if (!selectedSignedLicenseContent) {
+    showNotification('Choisissez le fichier de licence signé', 'error');
     return;
   }
 
   try {
-    const result = await window.api.license.activate(licenseKey);
+    const result = await window.api.license.activate(selectedSignedLicenseContent);
     if (!result.success) {
       showNotification(result.reason || 'Activation impossible', 'error');
       return;
     }
 
     if (input) input.value = '';
-    showNotification(
-      result.licenseType === 'trial' || result.licenseType === 'duration'
-        ? `Licence ${result.durationDays || 7} jours activée`
-        : (result.licenseType === 'annual' ? 'Licence 1 an activée' : 'Licence illimitée activée'),
-      'success'
-    );
+    selectedSignedLicenseContent = '';
+    showNotification('Licence signée activée', 'success');
     await loadLicenseStatus();
   } catch (error) {
     console.error('Error activating license:', error);
@@ -846,10 +953,7 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
   }
 });
 
-window.fillTrialLicenseKey = fillTrialLicenseKey;
-window.fillDurationLicenseKey = fillDurationLicenseKey;
-window.fillAnnualLicenseKey = fillAnnualLicenseKey;
-window.fillUnlimitedLicenseKey = fillUnlimitedLicenseKey;
+window.chooseSignedLicenseFile = chooseSignedLicenseFile;
 window.disableCurrentLicense = disableCurrentLicense;
 window.handleCabinetWatermarkLogoChange = handleCabinetWatermarkLogoChange;
 window.clearCabinetWatermarkLogo = clearCabinetWatermarkLogo;
@@ -1368,6 +1472,10 @@ window.copyPublicBookingLink = copyPublicBookingLink;
 window.printPublicBookingQr = printPublicBookingQr;
 window.handleCabinetLogoChange = handleCabinetLogoChange;
 window.clearCabinetLogo = clearCabinetLogo;
+window.handleAppLogoChange = handleAppLogoChange;
+window.chooseApplicationLogo = chooseApplicationLogo;
+window.clearAppLogo = clearAppLogo;
+window.useBundledTransparentAppLogo = useBundledTransparentAppLogo;
 window.saveSettings = savePracticeSettings;
 window.savePracticeSettings = savePracticeSettings;
 window.savePeripheralSettings = savePeripheralSettings;

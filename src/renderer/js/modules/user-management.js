@@ -48,10 +48,29 @@ function populateManagedRoleOptions(selectedRole = 'doctor') {
 
   roleSelect.innerHTML = `
     <option value="doctor">👨‍⚕️ Médecin</option>
+    <option value="dentist">Dentiste</option>
+    <option value="kinesitherapeute">Kinésithérapeute</option>
+    <option value="ergotherapeute">Ergothérapeute</option>
+    <option value="orthophoniste">Orthophoniste</option>
+    <option value="nurse">Infirmier(ère)</option>
     <option value="assistant">🧑‍💼 Assistant(e)</option>
   `;
 
-  roleSelect.value = selectedRole === 'assistant' ? 'assistant' : 'doctor';
+  const available = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'assistant'];
+  roleSelect.value = available.includes(selectedRole) ? selectedRole : 'doctor';
+}
+
+function updateAccountAdminChoice() {
+  const group = document.getElementById('new-user-admin-group');
+  const checkbox = document.getElementById('new-user-is-admin');
+  const role = document.getElementById('new-user-role')?.value || 'doctor';
+  const practitionerRoles = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+  const canAssign = isCurrentUserSuperAdmin();
+  if (group) group.style.display = canAssign ? '' : 'none';
+  if (checkbox) {
+    checkbox.disabled = !canAssign || !practitionerRoles.includes(role);
+    if (!practitionerRoles.includes(role)) checkbox.checked = false;
+  }
 }
 
 function populateSpecialtyOptions(selectedSpecialty = '') {
@@ -120,6 +139,9 @@ function prepareUserFormForCreate({ focus = false } = {}) {
   setUserFormMode('create');
   populateManagedRoleOptions('doctor');
   populateSpecialtyOptions();
+  const adminCheckbox = document.getElementById('new-user-is-admin');
+  if (adminCheckbox) adminCheckbox.checked = false;
+  updateAccountAdminChoice();
 
   ['new-user-password', 'new-user-confirm-password'].forEach((inputId) => {
     const input = document.getElementById(inputId);
@@ -144,15 +166,15 @@ function prepareUserFormForCreate({ focus = false } = {}) {
 
 function renderUserRoleBadge(user) {
   if (user.isSuperAdmin) {
-    return '<span style="background: #111827; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: bold;">👑 SUPER ADMIN</span>';
+    return '<span class="account-role-badge account-role-superadmin">SUPER ADMIN</span>';
   }
 
   if (user.role === 'admin') {
-    return '<span style="background: #dc2626; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: bold;">🔑 ADMIN</span>';
+    return '<span class="account-role-badge account-role-admin">ADMIN</span>';
   }
 
   if (user.role === 'assistant') {
-    return '<span style="background: #16a34a; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">💼 ASSISTANT</span>';
+    return '<span class="account-role-badge account-role-assistant">ASSISTANT</span>';
   }
 
   const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
@@ -160,9 +182,9 @@ function renderUserRoleBadge(user) {
     : null;
   const roleLabel = specialtyMeta?.doctorBadgeLabel || (user.role === 'dentist' ? 'DENTISTE' : 'MÉDECIN');
   if (user.isAdmin) {
-    return `<span style="background: #0f172a; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">👨‍⚕️ ${roleLabel} ADMIN</span>`;
+    return `<span class="account-role-badge account-role-admin">${roleLabel} ADMIN</span>`;
   }
-  return `<span style="background: #2563eb; color: white; padding: 5px 12px; border-radius: 4px; font-size: 14px;">👨‍⚕️ ${roleLabel}</span>`;
+  return `<span class="account-role-badge account-role-practitioner">${roleLabel}</span>`;
 }
 
 async function loadUsersList() {
@@ -204,19 +226,19 @@ async function loadUsersList() {
         </td>
         <td style="padding: 15px; text-align: center;">
           ${canManageAccounts() ? `
-            <div style="display: flex; gap: 8px; justify-content: center;">
+            <div class="account-row-actions">
               ${canManageUser ? `
                 <button class="btn btn-sm btn-primary" onclick="openEditUserModal('${user.id}')" style="padding: 8px 12px; font-size: 14px;">
-                  ✏️ Modifier
+                  Modifier
                 </button>
                 <button class="btn btn-sm btn-warning" onclick="toggleUserStatus('${user.id}')" style="padding: 8px 12px; font-size: 14px;">
-                  ${user.isActive ? '🚫 Désactiver' : '✅ Activer'}
+                  ${user.isActive ? 'Désactiver' : 'Activer'}
                 </button>
                 <button class="btn btn-sm btn-info" onclick="resetAssistantPassword('${user.id}', '${user.username}')" style="padding: 8px 12px; font-size: 14px;">
-                  🔑 Changer MDP
+                  Mot de passe
                 </button>
                 <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')" style="padding: 8px 12px; font-size: 14px;">
-                  🗑️ Supprimer
+                  Supprimer
                 </button>
               ` : `<span style="color: #64748b; font-size: 14px;">${isOwnAccount ? 'Mon compte' : 'Protégé'}</span>`}
             </div>
@@ -256,7 +278,7 @@ async function openEditUserModal(userId) {
     }
 
     const user = result.data;
-    const editableRole = user.role === 'assistant' ? 'assistant' : (user.isAdmin ? 'doctor_admin' : 'doctor');
+    const editableRole = user.role || 'doctor';
 
     document.getElementById('add-user-form').reset();
     setUserFormMode('edit', user);
@@ -264,6 +286,8 @@ async function openEditUserModal(userId) {
     populateSpecialtyOptions(user.specialty || '');
 
     document.getElementById('new-user-role').value = editableRole;
+    const adminCheckbox = document.getElementById('new-user-is-admin');
+    if (adminCheckbox) adminCheckbox.checked = Boolean(user.isAdmin);
     document.getElementById('new-user-fullname').value = user.fullName || '';
     document.getElementById('new-user-phone').value = user.phone || '';
     document.getElementById('new-username').value = user.username || '';
@@ -271,6 +295,7 @@ async function openEditUserModal(userId) {
     if (typeof window.toggleSpecialtyField === 'function') {
       window.toggleSpecialtyField();
     }
+    updateAccountAdminChoice();
 
     showModal('modal-add-user');
   } catch (error) {
@@ -293,16 +318,9 @@ function updateAddUserRolePresentation(role) {
     return;
   }
 
-  if (role === 'doctor_admin') {
-    badge.textContent = 'Médecin admin';
-    heading.textContent = 'Accès cabinet complet';
-    summary.textContent = 'Le médecin admin voit les dossiers, rendez-vous, consultations et paiements de tout le cabinet.';
-    return;
-  }
-
-  badge.textContent = 'Compte médecin';
-  heading.textContent = 'Accès médecin';
-  summary.textContent = 'Le compte médecin voit uniquement ses dossiers et ses paiements du jour.';
+  badge.textContent = 'Compte praticien';
+  heading.textContent = 'Accès praticien';
+  summary.textContent = 'Le métier reste séparé de l’autorisation « Administrateur du cabinet ».';
 }
 
 // Global function for form interactivity
@@ -312,7 +330,7 @@ window.toggleSpecialtyField = function() {
   const specialtySelect = document.getElementById('new-user-specialty');
   
   if (group) {
-    if (role === 'doctor' || role === 'doctor_admin') {
+    if (role === 'doctor' || role === 'dentist') {
       const availableSpecialties = typeof getAvailablePracticeSpecialties === 'function'
         ? getAvailablePracticeSpecialties()
         : [{ key: 'general', label: 'Médecin généraliste' }];
@@ -331,6 +349,7 @@ window.toggleSpecialtyField = function() {
   }
 
   updateAddUserRolePresentation(role);
+  updateAccountAdminChoice();
 };
 
 async function addUser(event) {
@@ -350,8 +369,8 @@ async function addUser(event) {
   const editingUserId = document.getElementById('editing-user-id')?.value || '';
   const roleSelect = document.getElementById('new-user-role');
   const selectedRole = roleSelect ? roleSelect.value : 'doctor';
-  const role = selectedRole === 'doctor_admin' ? 'doctor' : selectedRole;
-  const isDoctorAdmin = selectedRole === 'doctor_admin';
+  const role = selectedRole;
+  const isDoctorAdmin = Boolean(document.getElementById('new-user-is-admin')?.checked);
   const isEditMode = formMode === 'edit';
   const createAnother = !isEditMode && event.submitter?.id === 'user-form-submit-and-add-btn';
   const submitBtn = document.getElementById('user-form-submit-btn');
@@ -374,7 +393,7 @@ async function addUser(event) {
   try {
     let specialty = '';
     const spSelect = document.getElementById('new-user-specialty');
-    if (role === 'doctor' && spSelect) {
+    if ((role === 'doctor' || role === 'dentist') && spSelect) {
       const availableSpecialties = typeof getAvailablePracticeSpecialties === 'function'
         ? getAvailablePracticeSpecialties()
         : [{ key: 'general' }];

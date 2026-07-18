@@ -7,12 +7,16 @@ const PATIENT_RECORD_PAGE_SIZES = {
   consultations: 5,
   prescriptions: 5,
   sickLeaves: 5,
+  certificates: 5,
+  workstops: 5,
   appointments: 5
 };
 const patientRecordPagination = {
   consultations: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.consultations, total: 0, totalPages: 1 },
   prescriptions: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.prescriptions, total: 0, totalPages: 1 },
   sickLeaves: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.sickLeaves, total: 0, totalPages: 1 },
+  certificates: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.certificates, total: 0, totalPages: 1 },
+  workstops: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.workstops, total: 0, totalPages: 1 },
   appointments: { page: 1, pageSize: PATIENT_RECORD_PAGE_SIZES.appointments, total: 0, totalPages: 1 }
 };
 
@@ -54,7 +58,7 @@ function updatePatientRecordPagination(sectionKey, pagination = null) {
 
 function buildPatientRecordPaginationRow(sectionKey, colspan) {
   const pagination = patientRecordPagination[sectionKey];
-  if (!pagination || pagination.totalPages <= 1) {
+  if (!pagination || pagination.total <= 0) {
     return '';
   }
 
@@ -93,6 +97,12 @@ async function changePatientRecordPage(sectionKey, direction) {
   }
   if (sectionKey === 'sickLeaves') {
     await loadPatientSickLeaves(currentPatientId, { page: nextPage });
+  }
+  if (sectionKey === 'certificates') {
+    await loadPatientSickLeaves(currentPatientId, { page: nextPage, documentKind: 'certificate', tbodyId: 'details-certificats-tbody', cacheKey: 'certificates' });
+  }
+  if (sectionKey === 'workstops') {
+    await loadPatientSickLeaves(currentPatientId, { page: nextPage, documentKind: 'workstop', tbodyId: 'details-arrets-tbody', cacheKey: 'workstops' });
   }
   if (sectionKey === 'appointments') {
     updatePatientRecordPagination('appointments', {
@@ -633,6 +643,13 @@ async function persistConsultationDraft(options = {}) {
     }
 
     const savedConsultationId = editId || result.id;
+    const selectedEquipmentIds = Array.from(
+      document.querySelectorAll('#consultation-equipment-list input[type="checkbox"]:checked')
+    ).map(input => input.value);
+    const equipmentSync = await window.api.equipment.syncConsultation(savedConsultationId, selectedEquipmentIds);
+    if (equipmentSync?.success === false) {
+      showNotification('Consultation enregistrée, mais les équipements n’ont pas pu être associés', 'warning');
+    }
     const attachmentCount = formData.attachments ? formData.attachments.length : 0;
     form.dataset.editId = savedConsultationId;
     currentConsultationId = savedConsultationId;
@@ -1229,8 +1246,7 @@ async function showPatientDetails(patientId) {
     });
     if (result.success) {
       const patient = result.data;
-      currentPatientId = patientId;
-      currentPatientData = patient;
+      await setSelectedPatient(patientId, { patient, source: 'patient-details' });
       renderImmediateMedicalSummary(patient);
       void renderPatientAssignedMedecins(patient);
 
@@ -1382,8 +1398,8 @@ function switchTab(tabId) {
   // Load Data
   if (tabId === 'tab-consultations') loadPatientConsultations(currentPatientId);
   if (tabId === 'tab-prescriptions') loadPatientPrescriptions(currentPatientId);
-  if (tabId === 'tab-certificats') loadPatientSickLeaves(currentPatientId, { documentKind: 'certificate', tbodyId: 'details-certificats-tbody' });
-  if (tabId === 'tab-arrets') loadPatientSickLeaves(currentPatientId, { documentKind: 'workstop', tbodyId: 'details-arrets-tbody' });
+  if (tabId === 'tab-certificats') loadPatientSickLeaves(currentPatientId, { documentKind: 'certificate', tbodyId: 'details-certificats-tbody', cacheKey: 'certificates' });
+  if (tabId === 'tab-arrets') loadPatientSickLeaves(currentPatientId, { documentKind: 'workstop', tbodyId: 'details-arrets-tbody', cacheKey: 'workstops' });
   if (tabId === 'tab-factures') loadPatientFactures(currentPatientId);
   if (tabId === 'tab-rapports') loadPatientRapports(currentPatientId);
   if (tabId === 'tab-bonpour') loadPatientBonPour(currentPatientId);
@@ -1480,7 +1496,7 @@ function renderPatientConsultations() {
         <td>${paymentStatus}</td>
         <td>
           <div class="table-actions consultation-table-actions">
-            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" title="Voir la consultation" aria-label="Voir la consultation" data-tooltip="Voir la consultation" onclick="viewConsultationDetails('${c.id}')">&#128065;&#65039;</button>
+            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" title="Aperçu de la consultation" aria-label="Aperçu de la consultation" data-tooltip="Aperçu de la consultation" onclick="printConsultationDetails('${c.id}')">&#128065;&#65039;</button>
             <button class="btn btn-tiny btn-warning consultation-action-chip consultation-action-chip-icon" title="Demander un paiement" aria-label="Demander un paiement" data-tooltip="Demander un paiement" onclick="openPaymentRequestFromConsultationRecord('${c.id}')">&#128176;</button>
             <button class="btn btn-tiny btn-info consultation-action-chip consultation-action-chip-icon" title="Modifier la consultation" aria-label="Modifier la consultation" data-tooltip="Modifier la consultation" onclick="editConsultation('${c.id}')">&#9998;&#65039;</button>
             <button class="btn btn-tiny btn-primary consultation-action-chip consultation-action-chip-icon" title="Imprimer la consultation" aria-label="Imprimer la consultation" data-tooltip="Imprimer la consultation" onclick="printConsultationDetails('${c.id}')">&#128424;&#65039;</button>
@@ -1553,8 +1569,30 @@ async function openNewConsultationModal() {
   
   // Setup kiné checkbox behavior
   setupKineCheckboxBehavior();
+  await loadConsultationEquipmentPicker();
   
   showModal('modal-consultation');
+}
+
+async function loadConsultationEquipmentPicker(consultationId = '') {
+  const container = document.getElementById('consultation-equipment-list');
+  if (!container) return;
+  container.innerHTML = '<span class="care-equipment-empty">Chargement...</span>';
+  try {
+    const [allResult, selectedResult] = await Promise.all([
+      window.api.equipment.getAll({}),
+      consultationId ? window.api.equipment.getForConsultation(consultationId) : Promise.resolve({ success: true, data: [] })
+    ]);
+    const items = allResult?.success ? (allResult.data || []) : [];
+    const selected = new Set((selectedResult?.success ? selectedResult.data : []).map(item => String(item.equipmentId)));
+    container.innerHTML = items.length ? items.map(item => `
+      <label class="care-equipment-option">
+        <input type="checkbox" value="${escapeHTML(item.id)}" ${selected.has(String(item.id)) ? 'checked' : ''}>
+        <span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.assignedRoom || 'Salle non définie')} · ${escapeHTML(item.status || '')}</small></span>
+      </label>`).join('') : '<span class="care-equipment-empty">Aucun équipement enregistré.</span>';
+  } catch (error) {
+    container.innerHTML = '<span class="care-equipment-empty">Impossible de charger les équipements.</span>';
+  }
 }
 
 // Setup kiné checkbox to show/hide kiné selection
@@ -1890,6 +1928,7 @@ async function viewConsultationDetails(consultationId) {
       const modalFooter = document.querySelector('#modal-view-consultation .modal-footer');
       modalFooter.innerHTML = `
         <div style="display:flex; flex-wrap:wrap; width:100%; gap:10px; justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeModal('modal-view-consultation'); editConsultation('${consultationId}')">✏️ Modifier</button>
           <button class="btn btn-primary" onclick="printConsultationDetails('${consultationId}')">🖨️ Imprimer</button>
           <button class="btn btn-primary" onclick="openAddPrescriptionFromConsultation()">💊 Ordonnance</button>
           <button class="btn" onclick="closeModal('modal-view-consultation')">Fermer</button>
@@ -2218,6 +2257,7 @@ async function editConsultation(consultationId) {
       }
       
       setConsultationEditorMode(true);
+      await loadConsultationEquipmentPicker(consultationId);
       
       showModal('modal-consultation');
     }
@@ -2303,7 +2343,7 @@ function renderPatientPrescriptions() {
         <td>${escapeHTML(`${medCount} médicament${medCount > 1 ? 's' : ''}`)}</td>
         <td>
           <div class="table-actions" style="display:flex; flex-wrap:wrap; gap:6px;">
-            <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Voir" onclick="viewPrescription('${p.id}')">👁️</button>
+            <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu de l'ordonnance" onclick="printPrescriptionDetails('${p.id}')">👁️</button>
             <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPrescriptionDetails('${p.id}')">🖨️</button>
             <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="editPrescription('${p.id}')">✏️</button>
             <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePrescription('${p.id}')">🗑️</button>
@@ -2448,19 +2488,22 @@ async function editPrescription(prescriptionId) {
 async function loadPatientSickLeaves(patientId, options = {}) {
   const documentKind = options.documentKind || null;
   const tbodyId = options.tbodyId || 'details-sickleaves-tbody';
+  // Use dedicated cache key for certificates vs arrêts to avoid shared-cache bug
+  const cacheKey = options.cacheKey || (documentKind === 'certificate' ? 'certificates' : documentKind === 'workstop' ? 'workstops' : 'sickLeaves');
+  const paginationKey = patientRecordPagination[cacheKey] ? cacheKey : 'sickLeaves';
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   if (!patientId) {
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Sélectionnez un patient</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Sélectionnez un patient</td></tr>';
     return;
   }
 
-  if (!Array.isArray(patientRecordsCache.sickLeaves) || !patientRecordsCache.sickLeaves.length) {
+  if (!Array.isArray(patientRecordsCache[cacheKey]) || !patientRecordsCache[cacheKey].length) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Chargement...</td></tr>';
   }
   try {
-    const currentPagination = patientRecordPagination.sickLeaves;
+    const currentPagination = patientRecordPagination[paginationKey];
     const filters = getPatientRecordsDateFilter();
     const result = await window.api.sickleave.getByPatient({
       patientId,
@@ -2471,25 +2514,36 @@ async function loadPatientSickLeaves(patientId, options = {}) {
       documentKind,
       paginated: true
     });
-    patientRecordsCache.sickLeaves = result.success && Array.isArray(result.data) ? result.data : [];
-    updatePatientRecordPagination('sickLeaves', result.pagination);
+    const records = result.success && Array.isArray(result.data) ? result.data : [];
+    patientRecordsCache[cacheKey] = documentKind
+      ? records.filter((record) => {
+          const recordKind = record.documentKind === 'workstop' ? 'workstop' : 'certificate';
+          return recordKind === documentKind;
+        })
+      : records;
+    updatePatientRecordPagination(paginationKey, result.pagination);
   } catch (error) {
     console.error('Error loading sick leaves:', error);
-    patientRecordsCache.sickLeaves = [];
-    updatePatientRecordPagination('sickLeaves', null);
-    showNotification('Erreur lors du chargement des certificats médicaux', 'error');
+    patientRecordsCache[cacheKey] = [];
+    updatePatientRecordPagination(paginationKey, null);
+    const label = documentKind === 'workstop' ? 'arrêts de travail' : 'certificats médicaux';
+    showNotification(`Erreur lors du chargement des ${label}`, 'error');
   }
 
-  renderPatientSickLeaves(tbodyId);
+  renderPatientSickLeaves(tbodyId, cacheKey, paginationKey);
 }
 
-function renderPatientSickLeaves(tbodyId) {
+function renderPatientSickLeaves(tbodyId, cacheKey, paginationKey) {
+  const resolvedCacheKey = cacheKey || 'sickLeaves';
+  const resolvedPaginationKey = paginationKey || resolvedCacheKey;
   const tbody = document.getElementById(tbodyId || 'details-sickleaves-tbody');
   if (!tbody) return;
 
-  const data = Array.isArray(patientRecordsCache.sickLeaves) ? patientRecordsCache.sickLeaves : [];
+  const data = Array.isArray(patientRecordsCache[resolvedCacheKey]) ? patientRecordsCache[resolvedCacheKey] : [];
+  const isWorkstop = resolvedCacheKey === 'workstops';
+  const emptyLabel = isWorkstop ? 'Aucun arrêt de travail' : 'Aucun certificat médical';
   if (!data.length) {
-  tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Aucun certificat médical</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center empty-row">${emptyLabel}</td></tr>`;
     return;
   }
 
@@ -2499,41 +2553,36 @@ function renderPatientSickLeaves(tbodyId) {
     const duration = startDate && endDate ? (Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1) : '-';
     const startLabel = startDate ? startDate.toLocaleDateString('fr-FR') : '-';
     const endLabel = endDate ? endDate.toLocaleDateString('fr-FR') : '-';
-  const diagnosisFull = (s.diagnosis || '').trim();
-  const truncated = diagnosisFull.length > 220 ? `${diagnosisFull.slice(0, 220).trim()}…` : diagnosisFull;
-  const displayDiagnosis = formatRichTextHtml(truncated || '-');
-  const tooltipRaw = (diagnosisFull || '-').replace(/\s+/g, ' ').trim();
-  const tooltipText = escapeHTML(tooltipRaw || 'Certificat médical');
-  const rawId = String(s.id || '');
-  const safeIdAttr = escapeHTML(rawId);
-  const inlineIdArg = JSON.stringify(rawId);
+    const documentLabel = isWorkstop ? 'Arrêt de travail' : 'Certificat médical';
+    const rawId = String(s.id || '');
+    const safeIdAttr = escapeHTML(rawId);
 
     return `
       <tr>
         <td>${escapeHTML(startLabel)}</td>
         <td>${escapeHTML(endLabel)}</td>
         <td>${escapeHTML(duration === '-' ? '-' : `${duration} jour${duration > 1 ? 's' : ''}`)}</td>
-        <td class="multiline-cell" title="${tooltipText}">${displayDiagnosis}</td>
+        <td>${escapeHTML(documentLabel)}</td>
         <td>
           <div class="table-actions" style="display:flex; flex-wrap:nowrap; gap:6px; align-items:center;">
-            <button type="button" class="btn btn-tiny btn-secondary consultation-action-chip-icon" data-sickleave-action="view" data-id="${safeIdAttr}" title="Voir le certificat" onclick="handleSickLeaveRowAction('view', ${inlineIdArg})">👁️</button>
-            <button type="button" class="btn btn-tiny btn-primary consultation-action-chip-icon" data-sickleave-action="print" data-id="${safeIdAttr}" title="Imprimer" onclick="handleSickLeaveRowAction('print', ${inlineIdArg})">🖨️</button>
-            <button type="button" class="btn btn-tiny btn-info consultation-action-chip-icon" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier" onclick="handleSickLeaveRowAction('edit', ${inlineIdArg})">✏️</button>
-            <button type="button" class="btn btn-tiny btn-danger consultation-action-chip-icon" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer" onclick="handleSickLeaveRowAction('delete', ${inlineIdArg})">🗑️</button>
+            <button type="button" class="btn btn-tiny btn-secondary consultation-action-chip-icon" data-sickleave-action="view" data-id="${safeIdAttr}" title="Aperçu">👁️</button>
+            <button type="button" class="btn btn-tiny btn-primary consultation-action-chip-icon" data-sickleave-action="print" data-id="${safeIdAttr}" title="Imprimer">🖨️</button>
+            <button type="button" class="btn btn-tiny btn-info consultation-action-chip-icon" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier">✏️</button>
+            <button type="button" class="btn btn-tiny btn-danger consultation-action-chip-icon" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer">🗑️</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
 
-  tbody.innerHTML = rowsHtml + buildPatientRecordPaginationRow('sickLeaves', 5);
+  tbody.innerHTML = rowsHtml + buildPatientRecordPaginationRow(resolvedPaginationKey, 5);
 }
 
 function handleSickLeaveRowAction(action, id) {
   if (!action || !id) return;
   switch (action) {
     case 'view':
-      viewSickLeaveDetails(id);
+      printSickLeaveDetails(id);
       break;
     case 'print':
       printSickLeaveDetails(id);
@@ -2563,10 +2612,17 @@ function handleSickLeaveTableClick(event) {
 async function editSickLeave(sickLeaveId) {
   try {
     const result = await window.api.sickleave.getById(sickLeaveId);
+    if (!result?.success || !result.data) {
+      showNotification(result?.error || 'Document médical introuvable', 'error');
+      return;
+    }
     if (result.success) {
       const sickLeave = result.data;
 
-      resetSickLeaveFormFields();
+      if (typeof window.resetSickLeaveFormFields !== 'function') {
+        throw new Error('Formulaire de document médical indisponible');
+      }
+      window.resetSickLeaveFormFields();
 
       const form = document.getElementById('sickleave-form');
       if (form) {
@@ -2607,8 +2663,12 @@ async function editSickLeave(sickLeaveId) {
         updateSickLeavePreview();
       }
 
+      // Set document kind from the record so the save path knows which type this is
+      const docKind = sickLeave.documentKind === 'workstop' ? 'workstop' : 'certificate';
+      if (form) form.dataset.documentKind = docKind;
+
       const modalTitle = document.querySelector('#modal-add-sickleave .modal-header h2');
-      if (modalTitle) modalTitle.textContent = '✏️ Modifier le certificat médical';
+      if (modalTitle) modalTitle.textContent = docKind === 'workstop' ? '✏️ Modifier l\'arrêt de travail' : '✏️ Modifier le certificat médical';
 
       showModal('modal-add-sickleave');
     }
@@ -2620,14 +2680,22 @@ async function editSickLeave(sickLeaveId) {
 
 // Delete sick leave
 async function deleteSickLeave(sickLeaveId) {
-  if (!confirm('Êtes-vous sûr de vouloir supprimer ce certificat médical ?')) return;
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce document médical ?')) return;
   
   try {
     const result = await window.api.sickleave.delete(sickLeaveId);
     if (result.success) {
-      showNotification('✅ Certificat médical supprimé', 'success');
+      showNotification('✅ Document supprimé', 'success');
       if (currentPatientId) {
-        await loadPatientSickLeaves(currentPatientId);
+        // Refresh the active sick-leave tab (certificats or arrêts) with correct cache key
+        const activeTab = document.querySelector('#patient-details .tab-content.active');
+        if (activeTab?.id === 'tab-arrets') {
+          await loadPatientSickLeaves(currentPatientId, { documentKind: 'workstop', tbodyId: 'details-arrets-tbody', cacheKey: 'workstops' });
+        } else if (activeTab?.id === 'tab-certificats') {
+          await loadPatientSickLeaves(currentPatientId, { documentKind: 'certificate', tbodyId: 'details-certificats-tbody', cacheKey: 'certificates' });
+        } else {
+          await loadPatientSickLeaves(currentPatientId);
+        }
       }
     } else {
       showNotification('❌ Erreur: ' + result.error, 'error');
@@ -2648,7 +2716,11 @@ function addSickLeaveToConsultation(consultationId) {
 
 function openNewSickLeaveModal() {
   if (!currentPatientId) return;
-  resetSickLeaveFormFields({ prefillDates: true });
+  if (typeof window.resetSickLeaveFormFields !== 'function') {
+    showNotification('Formulaire de document médical indisponible', 'error');
+    return;
+  }
+  window.resetSickLeaveFormFields({ prefillDates: true });
   showModal('modal-add-sickleave');
 }
 
@@ -2697,7 +2769,8 @@ function formatAppointmentTicketTime(appointment) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function buildAppointmentTicketHtml(appointment, settings = {}, shareData = null) {
+function buildAppointmentTicketHtml(appointment, settings = {}, shareData = null, options = {}) {
+  const autoPrint = options.autoPrint !== false;
   const patientName = escapeHTML(appointment.patientName || `${appointment.firstName || ''} ${appointment.lastName || ''}`.trim() || 'Patient');
   const cabinetName = escapeHTML(cleanTextValue(settings.cabinetName, 'Cabinet medical'));
   const cabinetPhone = escapeHTML(cleanTextValue(settings.cabinetPhone, DEFAULT_APPOINTMENT_TICKET_PHONE));
@@ -2930,11 +3003,11 @@ function buildAppointmentTicketHtml(appointment, settings = {}, shareData = null
           Impression automatique du ticket de rendez-vous
         </div>
       </div>
-      <script>
+      ${autoPrint ? `<script>
         window.onload = () => {
           setTimeout(() => window.print(), 300);
         };
-      </script>
+      </script>` : ''}
     </body>
   </html>`;
 }
@@ -2980,6 +3053,41 @@ async function printAppointmentTicket(appointmentRef) {
   } catch (error) {
     console.error('Error printing appointment ticket:', error);
     showNotification('Erreur lors de l\'impression du ticket', 'error');
+    return false;
+  }
+}
+
+async function previewAppointmentTicket(appointmentRef) {
+  try {
+    let appointment = appointmentRef;
+    if (!appointment || typeof appointment === 'string') {
+      const appointmentResult = await window.api.appointment.getById(appointmentRef);
+      if (!appointmentResult.success || !appointmentResult.data) {
+        showNotification('Impossible de charger le rendez-vous', 'error');
+        return false;
+      }
+      appointment = appointmentResult.data;
+    }
+    const settingsResult = await window.api.settings.get();
+    const settings = settingsResult.success ? (settingsResult.data || {}) : {};
+    const shareDataResult = window.api.publicBooking
+      ? await window.api.publicBooking.getShareData()
+      : { success: false };
+    const shareData = shareDataResult.success ? shareDataResult.data : null;
+    const openPreview = sharedPrintScope?.openPreparedPrintWindow;
+    if (typeof openPreview !== 'function') {
+      showNotification('Aperçu du rendez-vous indisponible', 'error');
+      return false;
+    }
+    return openPreview(buildAppointmentTicketHtml(appointment, settings, shareData, { autoPrint: false }), {
+      pageSize: 'A5',
+      documentTitle: 'Ticket RDV',
+      printerType: 'thermal',
+      printerName: settings.preferredThermalPrinter || ''
+    });
+  } catch (error) {
+    console.error('Error previewing appointment ticket:', error);
+    showNotification('Erreur lors de l’aperçu du rendez-vous', 'error');
     return false;
   }
 }
@@ -3031,6 +3139,7 @@ function renderPatientAppointmentsLegacy() {
         <td><span class="appointment-status-pill appointment-status-pill-${statusKey}">${escapeHTML(status)}</span></td>
         <td>
           <div class="table-actions consultation-table-actions">
+            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" onclick="previewAppointmentTicket('${a.id}')" title="Aperçu du ticket">👁️</button>
             <button class="btn btn-tiny btn-primary consultation-action-chip" onclick="printAppointmentTicket('${a.id}')" title="Imprimer le ticket du rendez-vous">Ticket</button>
             <button class="btn btn-tiny btn-danger consultation-action-chip" onclick="deleteAppointment('${a.id}')" title="Supprimer le rendez-vous">Supprimer</button>
           </div>
@@ -3741,7 +3850,6 @@ window.openConsultationScanner = openConsultationScanner;
 function goToPatientDentalFromConsultation(patientId) {
   if (!patientId) return;
   // Make sure we're in patient details
-  currentPatientId = patientId;
   showPatientDetails(patientId);
   setTimeout(() => { switchTab('tab-dental'); }, 300);
 }

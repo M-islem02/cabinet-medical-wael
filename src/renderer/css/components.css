@@ -304,7 +304,9 @@ table td,
 }
 
 .document-style-preview .preview-sidebar,
-.document-style-preview .preview-gradient {
+.document-style-preview .preview-gradient,
+.document-style-preview .preview-dental-mark,
+.document-style-preview .preview-professional-patient {
   display: none;
 }
 
@@ -451,6 +453,180 @@ table td,
 .document-style-preview[data-style="minimal"] .preview-title {
   color: #111827;
   letter-spacing: 0.02em;
+}
+
+.document-style-preview[data-style="letterhead"] .preview-page {
+  border-top: 7px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="letterhead"] .preview-classic-header {
+  padding: 4px 8px 12px;
+  border-bottom: 1px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="letterhead"] .preview-logo {
+  border-radius: 50%;
+  color: var(--preview-accent);
+}
+
+.document-style-preview[data-style="letterhead"] .preview-title {
+  text-align: center;
+  border-bottom: 3px solid var(--preview-accent);
+  padding-bottom: 7px;
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-page {
+  border-top: 6px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-classic-header {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr;
+  align-items: start;
+  border-bottom: 3px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-dental-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--preview-accent);
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-dental-mark svg {
+  width: 62px;
+  height: 62px;
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-logo {
+  justify-self: end;
+  border-radius: 50%;
+  color: var(--preview-accent);
+}
+
+.document-style-preview[data-style="dental-letterhead"] .preview-title {
+  text-align: center;
+  color: var(--preview-accent);
+  border-bottom: 3px solid var(--preview-accent);
+  padding-bottom: 7px;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-page {
+  border-top: 6px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="professional-center"] .preview-classic-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  border-bottom: 3px solid var(--preview-accent);
+}
+
+.document-style-preview[data-style="professional-center"] .preview-logo {
+  grid-column: 2;
+  justify-self: center;
+  width: 58px;
+  height: 58px;
+  color: var(--preview-accent);
+  border: 0;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-professional-patient {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 2px solid var(--preview-accent-soft);
+  text-align: right;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-professional-patient strong {
+  color: var(--preview-accent);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-professional-patient span {
+  color: #111827;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-professional-patient small {
+  color: #64748b;
+  font-size: 9px;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-patient {
+  display: none;
+}
+
+.document-style-preview[data-style="professional-center"] .preview-title {
+  text-align: center;
+  color: #111827;
+}
+
+.document-style-preview[data-style="executive"] .preview-classic-header {
+  margin: -18px -18px 16px;
+  padding: 18px;
+  border: 0;
+  background: #111827;
+}
+
+.document-style-preview[data-style="executive"] .preview-classic-header .preview-doctor,
+.document-style-preview[data-style="executive"] .preview-classic-header .preview-meta,
+.document-style-preview[data-style="executive"] .preview-classic-header .preview-logo {
+  color: #ffffff;
+}
+
+.document-style-preview[data-style="executive"] .preview-title {
+  color: #111827;
+  border-left: 5px solid var(--preview-accent);
+  padding-left: 10px;
+}
+
+.document-style-preview[data-style="clinical-grid"] .preview-main {
+  background-image: linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.document-style-preview[data-style="clinical-grid"] .preview-classic-header,
+.document-style-preview[data-style="clinical-grid"] .preview-patient {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--preview-accent);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.document-style-preview[data-style="clinical-grid"] .preview-title {
+  display: inline-block;
+  padding: 7px 12px;
+  color: var(--preview-on-accent);
+  background: var(--preview-accent);
+  border-radius: 7px;
+}
+
+.document-style-preview[data-style="wave"] .preview-classic-header {
+  margin: -18px -18px 20px;
+  padding: 18px 18px 28px;
+  border: 0;
+  border-bottom-right-radius: 90px 34px;
+  color: var(--preview-on-accent);
+  background: linear-gradient(135deg, var(--preview-accent), var(--preview-accent-soft));
+}
+
+.document-style-preview[data-style="wave"] .preview-classic-header .preview-doctor,
+.document-style-preview[data-style="wave"] .preview-classic-header .preview-meta,
+.document-style-preview[data-style="wave"] .preview-classic-header .preview-logo {
+  color: var(--preview-on-accent);
+}
+
+.document-style-preview[data-style="wave"] .preview-title {
+  text-align: center;
+  color: var(--preview-accent);
 }
 
 .plans-workspace {

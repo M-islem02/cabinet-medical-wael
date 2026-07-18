@@ -2,8 +2,8 @@ const sharedPrintScope = typeof window !== "undefined" ?window : globalThis
 
 function getDocumentLogoHTML() {
   const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : '';
-  const appLogoSrc = typeof getAppBrandLogoSrc === 'function' ?getAppBrandLogoSrc() : 'assets/logo.png';
-  const safeSrc = String(logoDataUrl || appLogoSrc).replace(/"/g, '&quot;');
+  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ?getDefaultAppBrandLogoSrc() : 'assets/logo.png';
+  const safeSrc = String(logoDataUrl || documentFallbackLogo).replace(/"/g, '&quot;');
   return `
     <div class="logo-circle">
       <img src="${safeSrc}" alt="Logo du cabinet">
@@ -14,8 +14,8 @@ function getDocumentLogoHTML() {
 function getDocumentWatermarkHTML(layout = getPrintLayout("A5"), opacityPercent = 5) {
   const watermarkDataUrl = typeof getCabinetWatermarkLogoDataUrl === 'function' ?getCabinetWatermarkLogoDataUrl() : '';
   const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : '';
-  const appLogoSrc = typeof getAppBrandLogoSrc === 'function' ?getAppBrandLogoSrc() : 'assets/logo.png';
-  const source = String(watermarkDataUrl || logoDataUrl || appLogoSrc || '').trim();
+  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ?getDefaultAppBrandLogoSrc() : 'assets/logo.png';
+  const source = String(watermarkDataUrl || logoDataUrl || documentFallbackLogo || '').trim();
   if (!source) return '';
 
   const safeSrc = source.replace(/"/g, '&quot;');
@@ -98,7 +98,11 @@ function resolveDocumentWatermarkOpacity(settings = {}) {
 function resolveDocumentStyleVariant(settings = {}) {
   const raw = String(settings?.documentStyleVariant || '').trim();
   if (raw === 'modern') return 'gradient-header';
-  return ['classic', 'sidebar', 'gradient-header', 'minimal'].includes(raw) ? raw : 'classic';
+  return [
+    'classic', 'sidebar', 'gradient-header', 'minimal',
+    'letterhead', 'dental-letterhead', 'professional-center',
+    'executive', 'clinical-grid', 'wave'
+  ].includes(raw) ? raw : 'classic';
 }
 
 function scalePtValue(value, factor = 1) {
@@ -385,7 +389,22 @@ function buildPrintableHtml(opts = {}) {
             </div>
           </div>
         </div>
+        <div class="dental-header-mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100" role="img">
+            <path d="M50 13C39 6 24 7 19 22c-5 16 5 27 9 42 5 21 12 30 19 9l3-16 3 16c7 21 14 12 19-9 4-15 14-26 9-42C76 7 61 6 50 13Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M76 11l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" fill="currentColor"/>
+          </svg>
+          <span>SOINS DENTAIRES</span>
+        </div>
         <div class="logo-container">${getDocumentLogoHTML()}</div>
+        <div class="professional-patient-info">
+          <div class="professional-patient-label">DOSSIER PATIENT</div>
+          <div class="professional-patient-name">${patientLast.toUpperCase()} ${patientFirst.toUpperCase()}</div>
+          <div class="professional-patient-meta">
+            <span>${ageLabel === "-" ? "Âge non renseigné" : `Âge : ${ageLabel} ans`}</span>
+            <span>Émis le ${dateText}</span>
+          </div>
+        </div>
       </div>
       <div class="header-meta">
         
@@ -600,6 +619,12 @@ function generateHtmlDocument(bodyContent, options = {}) {
           display: flex;
           align-items: center;
           justify-content: center;
+        }
+        .dental-header-mark {
+          display: none;
+        }
+        .professional-patient-info {
+          display: none;
         }
         .logo-circle {
           width: 100%;
@@ -1284,6 +1309,359 @@ function generateHtmlDocument(bodyContent, options = {}) {
           border-color: var(--doc-primary);
           background: transparent;
         }
+
+        body[data-document-style="letterhead"] .page {
+          border-top: 3mm solid var(--doc-primary);
+          padding-top: ${layout.pageSize === 'A4' ? '8mm' : '6mm'};
+        }
+        body[data-document-style="letterhead"] .page-header {
+          position: relative;
+          padding-bottom: 5mm;
+        }
+        body[data-document-style="letterhead"] .header-divider {
+          height: 0.45mm;
+          background: var(--doc-primary);
+          box-shadow: 0 1.6mm 0 var(--doc-primary-soft);
+        }
+        body[data-document-style="letterhead"] .logo-container {
+          border: 0.5mm solid var(--doc-primary);
+          border-radius: 50%;
+          padding: 1.5mm;
+        }
+        body[data-document-style="letterhead"] .title-section {
+          text-align: center;
+          margin-top: 5mm;
+        }
+        body[data-document-style="letterhead"] .doc-title::after {
+          content: "";
+          width: 52mm;
+          height: 0.7mm;
+          margin-top: 2mm;
+          background: var(--doc-primary);
+        }
+        body[data-document-style="letterhead"] .page-footer {
+          border-top: 0.8mm solid var(--doc-primary);
+          padding-top: 2mm;
+        }
+
+        body[data-document-style="dental-letterhead"] .page {
+          padding-top: 7mm;
+          border-top: 1.2mm solid var(--doc-primary);
+        }
+        body[data-document-style="dental-letterhead"] .page-header {
+          position: relative;
+          min-height: 37mm;
+          padding-bottom: 5mm;
+        }
+        body[data-document-style="dental-letterhead"] .header-top {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 30mm minmax(0, 1fr);
+          align-items: start;
+          gap: 5mm;
+        }
+        body[data-document-style="dental-letterhead"] .doctor-info {
+          grid-column: 1;
+          min-width: 0;
+        }
+        body[data-document-style="dental-letterhead"] .dental-header-mark {
+          grid-column: 2;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: var(--doc-primary);
+        }
+        body[data-document-style="dental-letterhead"] .dental-header-mark svg {
+          width: 24mm;
+          height: 24mm;
+        }
+        body[data-document-style="dental-letterhead"] .dental-header-mark span {
+          margin-top: -1mm;
+          font-size: 6.5pt;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+        }
+        body[data-document-style="dental-letterhead"] .logo-container {
+          display: none;
+        }
+        body[data-document-style="dental-letterhead"] .patient-line-inline {
+          position: absolute;
+          top: 2mm;
+          right: 0;
+          width: 34%;
+          margin: 0;
+          padding: 3mm;
+          border-left: 0.35mm solid var(--doc-primary-soft);
+        }
+        body[data-document-style="dental-letterhead"] .patient-line-main {
+          display: block;
+        }
+        body[data-document-style="dental-letterhead"] .patient-field {
+          display: block;
+          margin: 0 0 2mm;
+        }
+        body[data-document-style="dental-letterhead"] .patient-separator {
+          display: none;
+        }
+        body[data-document-style="dental-letterhead"] .header-divider {
+          height: 0.75mm;
+          border-radius: 999px;
+          background: var(--doc-primary);
+        }
+        body[data-document-style="dental-letterhead"] .title-section {
+          margin: 4mm 0 6mm;
+          text-align: center;
+        }
+        body[data-document-style="dental-letterhead"] .doc-title {
+          color: var(--doc-primary);
+          letter-spacing: 0.12em;
+        }
+        body[data-document-style="dental-letterhead"] .doc-title::after {
+          content: "";
+          width: 62mm;
+          height: 0.7mm;
+          margin-top: 2mm;
+          background: var(--doc-primary);
+        }
+        body[data-document-style="dental-letterhead"] .page-footer {
+          border-bottom: 1mm solid var(--doc-primary);
+          padding-bottom: 2mm;
+        }
+
+        body[data-document-style="professional-center"] .page {
+          --professional-blue: #2d6798;
+          --professional-ink: #17263a;
+          --professional-muted: #60758b;
+          --professional-line: #b7cfe0;
+          border-top: 1.1mm solid var(--professional-blue);
+          padding-top: ${layout.pageSize === 'A4' ? '8mm' : '6mm'};
+        }
+        body[data-document-style="professional-center"] .page-header {
+          min-height: 32mm;
+          padding: 0 0 5mm;
+        }
+        body[data-document-style="professional-center"] .header-top {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(24mm, 32mm) minmax(0, 1fr);
+          align-items: start;
+          gap: 5mm;
+        }
+        body[data-document-style="professional-center"] .doctor-info {
+          grid-column: 1;
+          min-width: 0;
+          padding-top: 2mm;
+        }
+        body[data-document-style="professional-center"] .doctor-name {
+          color: var(--professional-ink);
+          letter-spacing: 0.035em;
+        }
+        body[data-document-style="professional-center"] .doctor-specialty {
+          color: var(--professional-muted);
+          text-transform: none;
+        }
+        body[data-document-style="professional-center"] .header-meta-inline {
+          margin-top: 1.3mm;
+          color: var(--professional-ink);
+        }
+        body[data-document-style="professional-center"] .header-meta-inline .meta-separator,
+        body[data-document-style="professional-center"] .header-meta-inline .meta-item:last-child {
+          display: none;
+        }
+        body[data-document-style="professional-center"] .patient-line-inline {
+          display: none;
+        }
+        body[data-document-style="professional-center"] .logo-container {
+          grid-column: 2;
+          grid-row: 1;
+          justify-self: center;
+          width: ${layout.logoSize};
+          height: ${layout.logoSize};
+          max-width: 27mm;
+          max-height: 27mm;
+          padding: 0;
+        }
+        body[data-document-style="professional-center"] .professional-patient-info {
+          grid-column: 3;
+          grid-row: 1;
+          display: block;
+          min-width: 0;
+          margin-top: 2mm;
+          padding: 0;
+          border: 0;
+          text-align: right;
+        }
+        body[data-document-style="professional-center"] .professional-patient-label {
+          margin-bottom: 1.1mm;
+          color: var(--professional-blue);
+          font-size: ${layout.metaFont};
+          font-weight: 800;
+          letter-spacing: 0.12em;
+        }
+        body[data-document-style="professional-center"] .professional-patient-name {
+          color: var(--professional-ink);
+          font-size: ${layout.doctorSpecialtyFont};
+          font-weight: 800;
+          line-height: 1.25;
+          overflow-wrap: anywhere;
+        }
+        body[data-document-style="professional-center"] .professional-patient-meta {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 0.8mm;
+          margin-top: 1.2mm;
+          color: var(--professional-muted);
+          font-size: ${layout.metaFont};
+          line-height: 1.35;
+        }
+        body[data-document-style="professional-center"] .header-divider {
+          height: 0.65mm;
+          margin-top: 0;
+          border: 0;
+          border-radius: 999px;
+          background: var(--professional-blue);
+        }
+        body[data-document-style="professional-center"] .title-section {
+          margin: 4mm 0 6mm;
+          text-align: center;
+        }
+        body[data-document-style="professional-center"] .doc-title {
+          color: var(--professional-ink);
+          letter-spacing: 0.1em;
+        }
+        body[data-document-style="professional-center"] .doc-title::after {
+          content: "";
+          width: 34mm;
+          height: 0.55mm;
+          margin-top: 2mm;
+          border-radius: 999px;
+          background: var(--professional-blue);
+        }
+        body[data-document-style="professional-center"] .page-footer {
+          padding-top: 2mm;
+          border-top: 0.35mm solid var(--professional-line);
+        }
+        body[data-document-style="professional-center"] .footer-divider {
+          border-color: var(--professional-line);
+        }
+        body[data-document-style="professional-center"] .footer-sign,
+        body[data-document-style="professional-center"] .medication-item .med-name,
+        body[data-document-style="professional-center"] .medication-item .med-quantity {
+          color: var(--professional-blue);
+        }
+
+        body[data-document-style="executive"] .page {
+          padding: 0;
+          border: 0.35mm solid #111827;
+        }
+        body[data-document-style="executive"] .page-header {
+          margin: 0;
+          padding: 8mm 9mm 7mm;
+          color: #ffffff;
+          background: #111827;
+        }
+        body[data-document-style="executive"] .doctor-name,
+        body[data-document-style="executive"] .doctor-specialty,
+        body[data-document-style="executive"] .meta-label,
+        body[data-document-style="executive"] .meta-value,
+        body[data-document-style="executive"] .patient-label,
+        body[data-document-style="executive"] .patient-value,
+        body[data-document-style="executive"] .patient-separator,
+        body[data-document-style="executive"] .meta-separator {
+          color: #ffffff;
+        }
+        body[data-document-style="executive"] .header-divider { display: none; }
+        body[data-document-style="executive"] .page-body {
+          padding: 8mm 9mm 5mm;
+        }
+        body[data-document-style="executive"] .page-footer {
+          margin: 0 9mm 7mm;
+        }
+        body[data-document-style="executive"] .title-section {
+          text-align: left;
+          border-left: 1.4mm solid var(--doc-primary);
+          padding-left: 4mm;
+        }
+        body[data-document-style="executive"] .doc-title {
+          color: #111827;
+          letter-spacing: 0.06em;
+        }
+
+        body[data-document-style="clinical-grid"] .page {
+          background-image: linear-gradient(rgba(15, 23, 42, 0.022) 0.25mm, transparent 0.25mm), linear-gradient(90deg, rgba(15, 23, 42, 0.022) 0.25mm, transparent 0.25mm);
+          background-size: 6mm 6mm;
+        }
+        body[data-document-style="clinical-grid"] .page-header,
+        body[data-document-style="clinical-grid"] .content-box,
+        body[data-document-style="clinical-grid"] .rapport-meta-item,
+        body[data-document-style="clinical-grid"] .info-item {
+          background: rgba(255, 255, 255, 0.96);
+          border: 0.3mm solid var(--doc-primary);
+          border-radius: 2.5mm;
+        }
+        body[data-document-style="clinical-grid"] .page-header {
+          padding: 5mm;
+        }
+        body[data-document-style="clinical-grid"] .header-divider { display: none; }
+        body[data-document-style="clinical-grid"] .title-section {
+          text-align: left;
+          margin-top: 5mm;
+        }
+        body[data-document-style="clinical-grid"] .doc-title {
+          display: inline-block;
+          padding: 2.2mm 4mm;
+          border-radius: 2mm;
+          color: var(--doc-on-primary);
+          background: var(--doc-primary);
+          letter-spacing: 0.04em;
+        }
+        body[data-document-style="clinical-grid"] .page-footer {
+          background: rgba(255, 255, 255, 0.94);
+          padding: 2mm;
+          border-radius: 2mm;
+        }
+
+        body[data-document-style="wave"] .page {
+          padding: 0;
+        }
+        body[data-document-style="wave"] .page-header {
+          position: relative;
+          margin: 0;
+          padding: 8mm 9mm 13mm;
+          overflow: hidden;
+          color: var(--doc-on-primary);
+          background: linear-gradient(135deg, var(--doc-primary), var(--doc-primary-soft));
+          border-bottom-right-radius: 42mm 13mm;
+        }
+        body[data-document-style="wave"] .doctor-name,
+        body[data-document-style="wave"] .doctor-specialty,
+        body[data-document-style="wave"] .meta-label,
+        body[data-document-style="wave"] .meta-value,
+        body[data-document-style="wave"] .patient-label,
+        body[data-document-style="wave"] .patient-value,
+        body[data-document-style="wave"] .patient-separator,
+        body[data-document-style="wave"] .meta-separator {
+          color: var(--doc-on-primary);
+        }
+        body[data-document-style="wave"] .header-divider { display: none; }
+        body[data-document-style="wave"] .page-body {
+          padding: 7mm 9mm 5mm;
+        }
+        body[data-document-style="wave"] .page-footer {
+          margin: 0 9mm 7mm;
+        }
+        body[data-document-style="wave"] .title-section {
+          text-align: center;
+          margin-top: 2mm;
+        }
+        body[data-document-style="wave"] .doc-title::after {
+          content: "";
+          width: 30mm;
+          height: 0.7mm;
+          margin-top: 2mm;
+          border-radius: 999px;
+          background: var(--doc-primary);
+        }
       </style>
     </head>
     <body data-document-type="${documentType}" data-document-style="${styleVariant}">
@@ -1312,6 +1690,22 @@ function ensurePreviewMessageBridge() {
       return
     }
 
+    if (data?.type === 'edit') {
+      const editAction = sharedPrintScope.__pendingPreviewEditAction
+      if (typeof editAction !== 'function') return
+      try {
+        if (sharedPrintScope.__documentPreviewWindow && !sharedPrintScope.__documentPreviewWindow.closed) {
+          sharedPrintScope.__documentPreviewWindow.close()
+        }
+        window.focus()
+        await editAction()
+      } catch (error) {
+        console.error('Preview edit error:', error)
+        showNotification('Impossible d’ouvrir le document en modification', 'error')
+      }
+      return
+    }
+
     if (data?.type === 'close-preview') {
       try {
         if (sharedPrintScope.__documentPreviewWindow && !sharedPrintScope.__documentPreviewWindow.closed) {
@@ -1322,8 +1716,7 @@ function ensurePreviewMessageBridge() {
   })
 }
 
-function buildPreviewShellHtml(previewUrl = '') {
-  const safePreviewUrl = String(previewUrl || '').replace(/"/g, '&quot;')
+function buildPreviewShellHtml(canEdit = false) {
   return `<!DOCTYPE html>
   <html lang="fr">
   <head>
@@ -1366,12 +1759,13 @@ function buildPreviewShellHtml(previewUrl = '') {
     <div class="preview-bar">
       <div class="preview-title">Aperçu exact du document (A5/A4)</div>
       <div class="preview-actions">
+        ${canEdit ? `<button class="preview-btn" onclick="window.opener && window.opener.postMessage({ source: 'medcare-print-preview', type: 'edit' }, '*')">Modifier</button>` : ''}
         <button class="preview-btn preview-btn-primary" onclick="window.opener && window.opener.postMessage({ source: 'medcare-print-preview', type: 'print' }, '*')">Imprimer</button>
         <button class="preview-btn" onclick="window.opener && window.opener.postMessage({ source: 'medcare-print-preview', type: 'close-preview' }, '*'); window.close();">Fermer</button>
       </div>
     </div>
     <div class="preview-body">
-      <iframe class="preview-frame" src="${safePreviewUrl}"></iframe>
+      <iframe id="document-preview-frame" class="preview-frame" title="Aperçu du document"></iframe>
     </div>
     <script>
       window.addEventListener('keydown', function (e) {
@@ -1387,7 +1781,7 @@ function buildPreviewShellHtml(previewUrl = '') {
   </html>`
 }
 
-function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Document médical', printerType = 'standard', printerName = '', duplexMode = 'longEdge', windowFeatures = "width=980,height=1100" } = {}) {
+function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Document médical', printerType = 'standard', printerName = '', duplexMode = 'longEdge', windowFeatures = "width=980,height=1100", onEdit = null } = {}) {
   ensurePreviewMessageBridge()
 
   const printWindow = window.open("", "medcare-print-preview", windowFeatures)
@@ -1400,16 +1794,6 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
     return false
   }
 
-  try {
-    const oldUrl = sharedPrintScope.__documentPreviewBlobUrl
-    if (oldUrl) {
-      URL.revokeObjectURL(oldUrl)
-    }
-  } catch (_) {}
-
-  const blob = new Blob([String(html || '')], { type: 'text/html;charset=utf-8' })
-  const previewUrl = URL.createObjectURL(blob)
-  sharedPrintScope.__documentPreviewBlobUrl = previewUrl
   sharedPrintScope.__pendingPreviewPrintPayload = {
     html,
     pageSize,
@@ -1418,13 +1802,32 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
     printerName,
     duplexMode
   }
+  sharedPrintScope.__pendingPreviewEditAction = typeof onEdit === 'function' ? onEdit : null
 
-  printWindow.document.write(buildPreviewShellHtml(previewUrl))
+  printWindow.document.write(buildPreviewShellHtml(Boolean(sharedPrintScope.__pendingPreviewEditAction)))
   printWindow.document.close()
   try {
+    const previewFrame = printWindow.document.getElementById('document-preview-frame')
+    if (!previewFrame) throw new Error('Cadre d’aperçu introuvable')
+    // Blob URLs created in the main renderer are not consistently readable by
+    // Electron popup frames. srcdoc transfers the complete document directly.
+    previewFrame.srcdoc = String(html || '')
     printWindow.document.title = `Aperçu - ${documentTitle}`
     printWindow.focus()
-  } catch (_) {}
+  } catch (error) {
+    console.error('Unable to render document preview:', error)
+    try {
+      const previewFrame = printWindow.document.getElementById('document-preview-frame')
+      const frameDocument = previewFrame?.contentDocument
+      if (frameDocument) {
+        frameDocument.open()
+        frameDocument.write(String(html || ''))
+        frameDocument.close()
+      }
+    } catch (fallbackError) {
+      console.error('Document preview fallback failed:', fallbackError)
+    }
+  }
   sharedPrintScope.__documentPreviewWindow = printWindow
   return true
 }
@@ -1469,7 +1872,8 @@ async function openPrintDocument(opts = {}, pageSize = "A5") {
       documentTitle: opts?.title || "Document médical",
       printerType: opts?.printerType || 'standard',
       printerName: opts?.printerName || (cachedSettings?.preferredPrinter || ''),
-      duplexMode: opts?.duplexMode || (String(pageSize || 'A5').toUpperCase() === 'A5' ? 'longEdge' : undefined)
+      duplexMode: opts?.duplexMode || (String(pageSize || 'A5').toUpperCase() === 'A5' ? 'longEdge' : undefined),
+      onEdit: opts?.onEdit || null
     })
     if (!opened) {
       await printHtmlDocument({
@@ -1481,7 +1885,7 @@ async function openPrintDocument(opts = {}, pageSize = "A5") {
         duplexMode: opts?.duplexMode || (String(pageSize || 'A5').toUpperCase() === 'A5' ? 'longEdge' : undefined)
       })
     } else if (typeof showNotification === 'function') {
-      showNotification("Aperçu ouvert. Cliquez sur Imprimer dans la popup.", "success")
+      showNotification(`Aperçu ouvert. Cliquez sur ${opts?.onEdit ? 'Modifier ou Imprimer' : 'Imprimer'} dans la popup.`, "success")
     }
   } catch (error) {
     console.error('Error opening print document:', error)
@@ -1729,7 +2133,8 @@ async function printPrescriptionDetails(prescriptionId) {
       patient,
       documentType: 'prescription',
       pages: pageContents,
-      duplexMode: pageContents.length > 1 ? 'longEdge' : 'simplex'
+      duplexMode: pageContents.length > 1 ? 'longEdge' : 'simplex',
+      onEdit: () => editPrescription(idToUse)
     })
   } catch (error) {
     console.error('Error printing prescription:', error)
@@ -1738,6 +2143,8 @@ async function printPrescriptionDetails(prescriptionId) {
 }
 
 function renderSickLeaveModal(sickLeave, patient) {
+  const isWorkstop = sickLeave.documentKind === 'workstop'
+  const documentLabel = isWorkstop ? 'Arrêt de travail' : 'Certificat médical'
   const startDateObj = sickLeave.startDate ?new Date(sickLeave.startDate) : null
   const endDateObj = sickLeave.endDate ?new Date(sickLeave.endDate) : null
   const createdDateObj = sickLeave.createdAt ?new Date(sickLeave.createdAt) : new Date()
@@ -1755,7 +2162,7 @@ function renderSickLeaveModal(sickLeave, patient) {
   if (container) {
     container.innerHTML = `
       <div class="info-box">
-        <h3 style="color: var(--primary-color); margin-bottom: 8px;">Certificat médical</h3>
+        <h3 style="color: var(--primary-color); margin-bottom: 8px;">${documentLabel}</h3>
         <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
       </div>
       <div class="consultation-section">
@@ -1777,6 +2184,9 @@ function renderSickLeaveModal(sickLeave, patient) {
       </div>
     `
   }
+
+  const modalTitle = document.querySelector('#modal-view-sickleave .modal-header h2')
+  if (modalTitle) modalTitle.textContent = `🏥 Détails - ${documentLabel}`
 
   const printBtn = document.getElementById('btn-print-sickleave')
   if (printBtn) {
@@ -1800,8 +2210,16 @@ async function viewSickLeaveDetails(sickLeaveId) {
     const sickLeave = result.data
 
     const patResult = await window.api.patient.getById(sickLeave.patientId)
-    if (!patResult.success) throw new Error('Patient introuvable')
-    const patient = patResult.data
+    const cachedPatient = (typeof currentPatientData !== 'undefined' && String(currentPatientData?.id || '') === String(sickLeave.patientId || ''))
+      ? currentPatientData
+      : null
+    const patient = patResult.success ? patResult.data : (cachedPatient || {
+      id: sickLeave.patientId,
+      firstName: sickLeave.patientFirstName || '',
+      lastName: sickLeave.patientLastName || '',
+      dateOfBirth: sickLeave.patientDateOfBirth || null
+    })
+    if (!patient.firstName && !patient.lastName) throw new Error('Patient introuvable')
 
     sharedPrintScope.currentSickLeaveId = sickLeaveId
     sharedPrintScope.currentSickLeaveDetails = sickLeave
@@ -1818,23 +2236,36 @@ async function printSickLeaveDetails(sickLeaveId) {
   try {
     const idToUse = sickLeaveId || sharedPrintScope.currentSickLeaveId || null
     if (!idToUse) {
-      showNotification('Aucun certificat médical sélectionné', 'error')
+      showNotification('Aucun document médical sélectionné', 'error')
       return
     }
 
     let sickLeave = sharedPrintScope.currentSickLeaveDetails
     if (!sickLeave || sickLeave.id !== idToUse) {
       const result = await window.api.sickleave.getById(idToUse)
-      if (!result.success) throw new Error('Certificat introuvable')
+      if (!result.success) throw new Error('Document introuvable')
       sickLeave = result.data
     }
 
     let patient = sharedPrintScope.currentSickLeavePatient
     if (!patient || patient.id !== sickLeave.patientId) {
       const patResult = await window.api.patient.getById(sickLeave.patientId)
-      if (!patResult.success) throw new Error('Patient introuvable')
-      patient = patResult.data
+      const cachedPatient = (typeof currentPatientData !== 'undefined' && String(currentPatientData?.id || '') === String(sickLeave.patientId || ''))
+        ? currentPatientData
+        : null
+      patient = patResult.success ? patResult.data : (cachedPatient || {
+        id: sickLeave.patientId,
+        firstName: sickLeave.patientFirstName || '',
+        lastName: sickLeave.patientLastName || '',
+        dateOfBirth: sickLeave.patientDateOfBirth || null
+      })
+      if (!patient.firstName && !patient.lastName) throw new Error('Patient introuvable')
     }
+
+    const isWorkstop = sickLeave.documentKind === 'workstop'
+    const docTitle = isWorkstop ? 'ARRET DE TRAVAIL' : 'CERTIFICAT MEDICAL'
+    const docSubtitle = isWorkstop ? 'Arrêt de travail' : 'Certificat médical'
+    const docContentTitle = isWorkstop ? 'Motif de l\'arrêt' : 'Texte du certificat'
 
     const startDateObj = new Date(sickLeave.startDate)
     const endDateObj = new Date(sickLeave.endDate)
@@ -1858,7 +2289,7 @@ async function printSickLeaveDetails(sickLeaveId) {
         </div>
       </div>
       <div class="content-box">
-        <h3>Texte du certificat</h3>
+        <h3>${docContentTitle}</h3>
         <div class="content-text">${diagnosis}</div>
       </div>
       ${notesText ?`
@@ -1870,17 +2301,18 @@ async function printSickLeaveDetails(sickLeaveId) {
     `
 
     await openA5PrintDocument({
-      title: 'CERTIFICAT MEDICAL',
-      subtitle: 'Certificat medical',
+      title: docTitle,
+      subtitle: docSubtitle,
       dateLabel: formatPrintingDocumentDateLabel(createdDateObj),
       patient,
       bodyContentHtml: pageContent,
-      documentType: 'certificate',
-      pages: [pageContent]
+      documentType: isWorkstop ? 'workstop' : 'certificate',
+      pages: [pageContent],
+      onEdit: () => editSickLeave(idToUse)
     })
   } catch (error) {
     console.error('Error printing sick leave:', error)
-    showNotification('Erreur lors de l\'impression du certificat', 'error')
+    showNotification('Erreur lors de l\'impression du document médical', 'error')
   }
 }
 
@@ -2089,7 +2521,7 @@ function buildSpecialtyReportSections({ specialtyKey, specialtyMeta, consultatio
   return blocks.filter((block) => String(block.content || '').trim())
 }
 
-async function renderInvoiceDocument({ patient, invoiceData }) {
+async function renderInvoiceDocument({ patient, invoiceData, onEdit = null }) {
   const normalized = normalizeInvoicePrintData(invoiceData || {})
   const dateLabel = formatPrintingDocumentDateLabel(normalized.invoiceDate)
 
@@ -2177,7 +2609,8 @@ async function renderInvoiceDocument({ patient, invoiceData }) {
     patient,
     bodyContentHtml: printableInvoiceContent,
     documentType: 'invoice',
-    pages: [printableInvoiceContent]
+    pages: [printableInvoiceContent],
+    onEdit
   })
 }
 
@@ -2703,7 +3136,7 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
     </html>`
 }
 
-async function renderRapportDocument({ patient, rapportData, dateHint, consultation }) {
+async function renderRapportDocument({ patient, rapportData, dateHint, consultation, onEdit = null }) {
   const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
     ?getPracticeSpecialtyMeta(rapportData?.specialtyKey || rapportData?.specialtyLabel)
     : { report: { typeLabel: 'Rapport medical', defaultMotif: 'Rapport medical', objectTitle: 'Objet du rapport', contextTitle: 'Contexte clinique', findingsTitle: 'Constatations cliniques', careTitle: 'Prise en charge', conclusionTitle: 'Conclusion et recommandations', printTitle: 'COMPTE RENDU', printSubtitle: 'Rapport de consultation' } };
@@ -2746,7 +3179,8 @@ async function renderRapportDocument({ patient, rapportData, dateHint, consultat
     patient,
     bodyContentHtml: pageContent,
     documentType: 'rapport',
-    pages: [pageContent]
+    pages: [pageContent],
+    onEdit
   })
 }
 
@@ -2853,7 +3287,8 @@ async function printConsultationDetails(consultationId) {
       dateLabel,
       patient,
       documentType: 'consultation',
-      pages: pageContents.length > 0 ?pageContents : [sections.join('')]
+      pages: pageContents.length > 0 ?pageContents : [sections.join('')],
+      onEdit: () => editConsultation(consultationId)
     })
 
     if (typeof showNotification === 'function') {
@@ -2873,6 +3308,7 @@ sharedPrintScope.buildA4Html = buildA4Html
 sharedPrintScope.generateHtmlDocument = generateHtmlDocument
 sharedPrintScope.openA5PrintDocument = openA5PrintDocument
 sharedPrintScope.openA4PrintDocument = openA4PrintDocument
+sharedPrintScope.openPreparedPrintWindow = openPreparedPrintWindow
 sharedPrintScope.renderPrescriptionModal = renderPrescriptionModal
 sharedPrintScope.viewPrescriptionDetails = viewPrescriptionDetails
 sharedPrintScope.printPrescriptionDetails = printPrescriptionDetails

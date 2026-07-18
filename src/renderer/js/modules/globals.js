@@ -6,6 +6,7 @@ console.log('✅ Main.js script loaded successfully');
 
 let currentPatientId = null;
 let currentPatientData = null;
+let selectedPatientRequestVersion = 0;
 let currentPage = 'dashboard';
 let currentUserId = null;
 let currentUserIsAdmin = false;
@@ -18,6 +19,43 @@ let pendingConsultationData = null;
 let sickLeaveRestDaysDirty = false;
 let cachedSettings = null;
 let factureTotalEditedManually = false;
+
+async function setSelectedPatient(patientId, { patient = null, source = 'unknown' } = {}) {
+  const normalizedPatientId = String(patientId || '').trim();
+  if (!normalizedPatientId) return currentPatientData;
+
+  const requestVersion = ++selectedPatientRequestVersion;
+  let selectedPatient = patient;
+
+  if (!selectedPatient && String(currentPatientId || '') === normalizedPatientId && currentPatientData) {
+    selectedPatient = currentPatientData;
+  }
+
+  if (!selectedPatient) {
+    try {
+      const result = await window.api.patient.getById({
+        patientId: normalizedPatientId,
+        includeConsultations: false
+      });
+      if (!result?.success || !result.data) return null;
+      selectedPatient = result.data;
+    } catch (error) {
+      console.error('Error selecting patient:', error);
+      return null;
+    }
+  }
+
+  if (requestVersion !== selectedPatientRequestVersion) return null;
+
+  currentPatientId = selectedPatient.id || normalizedPatientId;
+  currentPatientData = selectedPatient;
+  window.dispatchEvent(new CustomEvent('medcare:patient-selected', {
+    detail: { patientId: currentPatientId, patient: selectedPatient, source }
+  }));
+  return selectedPatient;
+}
+
+window.setSelectedPatient = setSelectedPatient;
 
 function hasMojibakeText(value) {
   return /\u00C3|\u00E2\u20AC|\u00F0\u0178|\u00C5\u201C|\u00EF\u00B8\u008F|�/.test(String(value || ''));
@@ -550,16 +588,22 @@ function getCabinetWatermarkLogoDataUrl() {
   return logo;
 }
 
-function getAppBrandLogoSrc() {
+function getCustomAppLogoDataUrl() {
+  const logo = (cachedSettings && cachedSettings.appLogoDataUrl) || '';
+  if (typeof logo !== 'string' || !logo.startsWith('data:image/')) return '';
+  return logo;
+}
+
+function getDefaultAppBrandLogoSrc() {
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(window._packageConfig)
     : 'general';
   const userSpecialty = normalizePracticeSpecialtyKey(currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || '');
   const specialtyLogoMap = {
     general: 'assets/logo.png',
-    mpr: 'assets/MPR.png',
-    cardiology: 'assets/Cardiologue.png',
-    dentistry: 'assets/Dentiste.png'
+    mpr: '../../assets/MPR.png',
+    cardiology: '../../assets/Cardiologue.png',
+    dentistry: '../../assets/Dentiste.png'
   };
   if (specialtyLogoMap[activeSpecialty]) {
     return specialtyLogoMap[activeSpecialty];
@@ -571,9 +615,21 @@ function getAppBrandLogoSrc() {
   return 'assets/logo.png';
 }
 
+function getAppBrandLogoSrc() {
+  return getCustomAppLogoDataUrl() || getDefaultAppBrandLogoSrc();
+}
+
+function refreshAppBrandLogo() {
+  const logoSrc = getAppBrandLogoSrc();
+  document.querySelectorAll('.app-brand-logo').forEach((logo) => {
+    logo.src = logoSrc;
+    logo.classList.toggle('app-brand-logo-custom', Boolean(getCustomAppLogoDataUrl()));
+  });
+}
+
 function getDocumentEditorLogoHTML() {
   const logoDataUrl = getCabinetLogoDataUrl();
-  const logoSrc = logoDataUrl || getAppBrandLogoSrc();
+  const logoSrc = logoDataUrl || getDefaultAppBrandLogoSrc();
   return `<img src="${escapeHTML(logoSrc)}" alt="Logo du cabinet">`;
 }
 
@@ -588,6 +644,8 @@ const patientRecordsCache = {
   consultations: [],
   prescriptions: [],
   sickLeaves: [],
+  certificates: [],
+  workstops: [],
   appointments: []
 };
 const documentModalState = {
