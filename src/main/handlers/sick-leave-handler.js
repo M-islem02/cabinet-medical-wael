@@ -71,8 +71,8 @@ export function handleSickLeaveEvents() {
 
       await run(
         `INSERT INTO sick_leaves
-         (id, patientId, consultationId, startDate, endDate, numberOfDays, diagnosis, cim10Code, allowedOutings, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, patientId, consultationId, startDate, endDate, numberOfDays, diagnosis, cim10Code, allowedOutings, documentKind, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           sickLeaveData.patientId,
@@ -83,6 +83,7 @@ export function handleSickLeaveEvents() {
           toNullIfEmpty(sickLeaveData.diagnosis),
           toNullIfEmpty(sickLeaveData.cim10Code),
           sickLeaveData.allowedOutings ? 1 : 0,
+          sickLeaveData.documentKind === 'workstop' ? 'workstop' : 'certificate',
           now,
           now
         ]
@@ -104,6 +105,11 @@ export function handleSickLeaveEvents() {
       const request = normalizeSickLeaveListRequest(payload);
       const whereParts = ['patientId = ?'];
       const params = [request.patientId];
+
+      if (request.documentKind === 'workstop' || request.documentKind === 'certificate') {
+        whereParts.push('documentKind = ?');
+        params.push(request.documentKind);
+      }
 
       if (request.startDate) {
         whereParts.push('DATE(startDate) >= DATE(?)');
@@ -215,7 +221,7 @@ export function handleSickLeaveEvents() {
 
       await run(
         `UPDATE sick_leaves
-         SET startDate = ?, endDate = ?, numberOfDays = ?, diagnosis = ?, cim10Code = ?, allowedOutings = ?, updatedAt = ?
+         SET startDate = ?, endDate = ?, numberOfDays = ?, diagnosis = ?, cim10Code = ?, allowedOutings = ?, documentKind = ?, updatedAt = ?
          WHERE id = ?`,
         [
           sickLeaveData.startDate,
@@ -224,6 +230,7 @@ export function handleSickLeaveEvents() {
           toNullIfEmpty(sickLeaveData.diagnosis),
           toNullIfEmpty(sickLeaveData.cim10Code),
           sickLeaveData.allowedOutings ? 1 : 0,
+          sickLeaveData.documentKind === 'workstop' ? 'workstop' : 'certificate',
           now,
           sickLeaveId
         ]

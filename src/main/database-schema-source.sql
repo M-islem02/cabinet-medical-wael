@@ -188,6 +188,7 @@ CREATE TABLE IF NOT EXISTS sick_leaves (
       diagnosis TEXT,
       cim10Code TEXT,
       allowedOutings BOOLEAN DEFAULT FALSE,
+      documentKind VARCHAR(20) DEFAULT 'certificate',
       generatedPDF LONGBLOB,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

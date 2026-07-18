@@ -1290,7 +1290,8 @@ function switchTab(tabId) {
   // Load Data
   if (tabId === 'tab-consultations') loadPatientConsultations(currentPatientId);
   if (tabId === 'tab-prescriptions') loadPatientPrescriptions(currentPatientId);
-  if (tabId === 'tab-sickleaves') loadPatientSickLeaves(currentPatientId);
+  if (tabId === 'tab-certificats') loadPatientSickLeaves(currentPatientId, { documentKind: 'certificate', tbodyId: 'details-certificats-tbody' });
+  if (tabId === 'tab-arrets') loadPatientSickLeaves(currentPatientId, { documentKind: 'workstop', tbodyId: 'details-arrets-tbody' });
   if (tabId === 'tab-factures') loadPatientFactures(currentPatientId);
   if (tabId === 'tab-rapports') loadPatientRapports(currentPatientId);
   if (tabId === 'tab-bonpour') loadPatientBonPour(currentPatientId);
@@ -2283,7 +2284,9 @@ async function editPrescription(prescriptionId) {
 // --- Sick Leaves ---
 
 async function loadPatientSickLeaves(patientId, options = {}) {
-  const tbody = document.getElementById('details-sickleaves-tbody');
+  const documentKind = options.documentKind || null;
+  const tbodyId = options.tbodyId || 'details-sickleaves-tbody';
+  const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
 
   if (!patientId) {
@@ -2303,6 +2306,7 @@ async function loadPatientSickLeaves(patientId, options = {}) {
       pageSize: currentPagination.pageSize,
       startDate: filters.start,
       endDate: filters.end,
+      documentKind,
       paginated: true
     });
     patientRecordsCache.sickLeaves = result.success && Array.isArray(result.data) ? result.data : [];
@@ -2314,11 +2318,11 @@ async function loadPatientSickLeaves(patientId, options = {}) {
     showNotification('Erreur lors du chargement des certificats médicaux', 'error');
   }
 
-  renderPatientSickLeaves();
+  renderPatientSickLeaves(tbodyId);
 }
 
-function renderPatientSickLeaves() {
-  const tbody = document.getElementById('details-sickleaves-tbody');
+function renderPatientSickLeaves(tbodyId) {
+  const tbody = document.getElementById(tbodyId || 'details-sickleaves-tbody');
   if (!tbody) return;
 
   const data = Array.isArray(patientRecordsCache.sickLeaves) ? patientRecordsCache.sickLeaves : [];

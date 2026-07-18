@@ -1292,7 +1292,8 @@
                             <button class="tab-btn active"
                                 onclick="switchTab('tab-consultations')">Consultations</button>
                             <button class="tab-btn" onclick="switchTab('tab-prescriptions')">Ordonnances</button>
-                            <button class="tab-btn" onclick="switchTab('tab-sickleaves')">Certificats</button>
+                            <button class="tab-btn" onclick="switchTab('tab-certificats')">Certificat médical</button>
+                            <button class="tab-btn" onclick="switchTab('tab-arrets')">Arrêt de travail</button>
                             <button class="tab-btn" onclick="switchTab('tab-factures')">Factures</button>
                             <button class="tab-btn" onclick="switchTab('tab-rapports')">Rapports</button>
                             <button class="tab-btn" onclick="switchTab('tab-bonpour')">Demandes</button>
@@ -1354,11 +1355,30 @@
                             </table>
                         </div>
 
-                        <div id="tab-sickleaves" class="tab-content">
-                            <div style="margin-bottom: 15px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <div id="tab-certificats" class="tab-content">
+                            <div style="margin-bottom: 15px;">
                                 <button class="btn btn-primary btn-small" onclick="showSickLeaveForm()">+ Nouveau
                                     certificat</button>
-                                <button class="btn btn-secondary btn-small" onclick="showWorkStopForm()">+ Nouvel arrêt
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Début</th>
+                                        <th>Date Fin</th>
+                                        <th>Durée</th>
+                                        <th>Motif</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="details-certificats-tbody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="tab-arrets" class="tab-content">
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn btn-primary btn-small" onclick="showWorkStopForm()">+ Nouvel arrêt
                                     de travail</button>
                             </div>
                             <table class="table">
@@ -1367,11 +1387,11 @@
                                         <th>Date Début</th>
                                         <th>Date Fin</th>
                                         <th>Durée</th>
-                                        <th>Arrêt / certificat</th>
+                                        <th>Motif</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="details-sickleaves-tbody">
+                                <tbody id="details-arrets-tbody">
                                     <!-- Populated by JS -->
                                 </tbody>
                             </table>

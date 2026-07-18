@@ -1350,6 +1350,7 @@ async function saveSickLeave(e) {
       diagnosis,
       numberOfDays,
       allowedOutings,
+      documentKind,
       cim10Code: JSON.stringify(templateFields)
     };
     

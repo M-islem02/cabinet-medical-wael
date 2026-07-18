@@ -72,6 +72,7 @@ function buildIndexStatements() {
 function buildCompatibilityStatements() {
   return [
     'ALTER TABLE package_config ADD COLUMN IF NOT EXISTS cabinetType VARCHAR(20)',
+    "ALTER TABLE sick_leaves ADD COLUMN IF NOT EXISTS documentKind VARCHAR(20) DEFAULT 'certificate'",
     'ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS treatmentType VARCHAR(100)',
     "ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS specialty VARCHAR(100) DEFAULT 'dentistry'",
     'ALTER TABLE treatment_plans ADD COLUMN IF NOT EXISTS totalCost NUMERIC(10,2) DEFAULT 0',
