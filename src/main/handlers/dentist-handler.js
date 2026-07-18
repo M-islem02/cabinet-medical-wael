@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { query, queryOne, run } from '../database-unified.js';
+import { query, queryOne, run, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { broadcastRealtimeEvent } from '../realtime-server.js';
@@ -16,6 +16,15 @@ const ALLOWED_TRANSITIONS = {
   completed:   [],
   cancelled:   []
 };
+
+async function recordDentalToothSnapshot(data, recordedAt) {
+  await run(
+    `INSERT INTO dental_teeth_history
+       (id, patientId, toothNumber, status, surfaces, notes, recordedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [uuidv4(), data.patientId, data.toothNumber, data.status || 'healthy', data.surfaces || null, data.notes || null, recordedAt]
+  );
+}
 
 async function runWithFallback(primarySql, primaryParams, fallbackSql, fallbackParams = primaryParams) {
   try {
@@ -99,7 +108,7 @@ export function handleDentistEvents() {
   ipcMain.handle('dental:getSchemaAtDate', async (event, patientId, date) => {
     try {
       if (!patientId || !date) return { success: false, error: 'Patient et date requis' };
-      const [teeth, treatments] = await Promise.all([
+      const [teeth, treatments, history] = await Promise.all([
         query(
           `SELECT * FROM dental_teeth
            WHERE patientId = ? AND updatedAt < (CAST(? AS DATE) + INTERVAL '1 day')
@@ -116,9 +125,18 @@ export function handleDentistEvents() {
              AND treatmentDate < (CAST(? AS DATE) + INTERVAL '1 day')
            ORDER BY toothNumber, treatmentDate DESC, createdAt DESC`,
           [patientId, date]
+        ),
+        query(
+          `SELECT DISTINCT ON (toothNumber)
+                  toothNumber, status, surfaces, notes, recordedAt
+           FROM dental_teeth_history
+           WHERE patientId = ?
+             AND recordedAt < (CAST(? AS DATE) + INTERVAL '1 day')
+           ORDER BY toothNumber, recordedAt DESC`,
+          [patientId, date]
         )
       ]);
-      return { success: true, data: { teeth: teeth || [], treatments: treatments || [] } };
+      return { success: true, data: { teeth: teeth || [], treatments: treatments || [], history: history || [] } };
     } catch (error) {
       console.error('Error loading historical dental schema:', error);
       return { success: false, error: error.message };
@@ -128,24 +146,27 @@ export function handleDentistEvents() {
   ipcMain.handle('dental:saveTooth', async (event, data) => {
     try {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      const existing = await queryOne(
-        'SELECT id FROM dental_teeth WHERE patientId = ? AND toothNumber = ?',
-        [data.patientId, data.toothNumber]
-      );
+      await withTransaction(async () => {
+        const existing = await queryOne(
+          'SELECT id FROM dental_teeth WHERE patientId = ? AND toothNumber = ?',
+          [data.patientId, data.toothNumber]
+        );
 
-      if (existing) {
-        await run(`
-          UPDATE dental_teeth SET 
-            status = ?, surfaces = ?, notes = ?, updatedAt = ?
-          WHERE id = ?
-        `, [data.status, data.surfaces, data.notes, now, existing.id]);
-      } else {
-        const id = uuidv4();
-        await run(`
-          INSERT INTO dental_teeth (id, patientId, toothNumber, status, surfaces, notes, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [id, data.patientId, data.toothNumber, data.status, data.surfaces, data.notes, now]);
-      }
+        if (existing) {
+          await run(`
+            UPDATE dental_teeth SET
+              status = ?, surfaces = ?, notes = ?, updatedAt = ?
+            WHERE id = ?
+          `, [data.status, data.surfaces, data.notes, now, existing.id]);
+        } else {
+          const id = uuidv4();
+          await run(`
+            INSERT INTO dental_teeth (id, patientId, toothNumber, status, surfaces, notes, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `, [id, data.patientId, data.toothNumber, data.status, data.surfaces, data.notes, now]);
+        }
+        await recordDentalToothSnapshot(data, now);
+      });
 
       // Broadcast tooth update for real-time chart refresh
       broadcastRealtimeEvent({
@@ -165,24 +186,27 @@ export function handleDentistEvents() {
   ipcMain.handle('dental:saveMultipleTeeth', async (event, patientId, teethData) => {
     try {
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      for (const tooth of teethData) {
-        const existing = await queryOne(
-          'SELECT id FROM dental_teeth WHERE patientId = ? AND toothNumber = ?',
-          [patientId, tooth.toothNumber]
-        );
-        if (existing) {
-          await run(`
-            UPDATE dental_teeth SET status = ?, surfaces = ?, notes = ?, updatedAt = ?
-            WHERE id = ?
-          `, [tooth.status, tooth.surfaces, tooth.notes, now, existing.id]);
-        } else {
-          const id = uuidv4();
-          await run(`
-            INSERT INTO dental_teeth (id, patientId, toothNumber, status, surfaces, notes, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-          `, [id, patientId, tooth.toothNumber, tooth.status, tooth.surfaces, tooth.notes, now]);
+      await withTransaction(async () => {
+        for (const tooth of teethData) {
+          const existing = await queryOne(
+            'SELECT id FROM dental_teeth WHERE patientId = ? AND toothNumber = ?',
+            [patientId, tooth.toothNumber]
+          );
+          if (existing) {
+            await run(`
+              UPDATE dental_teeth SET status = ?, surfaces = ?, notes = ?, updatedAt = ?
+              WHERE id = ?
+            `, [tooth.status, tooth.surfaces, tooth.notes, now, existing.id]);
+          } else {
+            const id = uuidv4();
+            await run(`
+              INSERT INTO dental_teeth (id, patientId, toothNumber, status, surfaces, notes, updatedAt)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [id, patientId, tooth.toothNumber, tooth.status, tooth.surfaces, tooth.notes, now]);
+          }
+          await recordDentalToothSnapshot({ ...tooth, patientId }, now);
         }
-      }
+      });
       return { success: true };
     } catch (error) {
       console.error('Error saving multiple teeth:', error);

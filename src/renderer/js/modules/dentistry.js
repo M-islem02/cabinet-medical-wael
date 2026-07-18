@@ -997,6 +997,13 @@ async function showDentalHistoricalSchema(dayKey) {
           notes: tooth.notes || dentalHistoricalTeethData[tooth.toothNumber]?.notes || ''
         };
       });
+      (schemaResult.data.history || []).forEach(function(tooth) {
+        dentalHistoricalTeethData[tooth.toothNumber] = {
+          status: tooth.status || 'healthy',
+          surfaces: tooth.surfaces || '',
+          notes: tooth.notes || ''
+        };
+      });
     }
   } catch (error) {
     console.error('Unable to reconstruct complete historical schema:', error);

@@ -25,7 +25,7 @@ let lastEndOfDayRunDate = null;
 const SYNC_TABLES = [
   'patients', 'consultations', 'appointments', 'payments', 'prescriptions',
   'documents', 'expenses', 'inventory', 'medication_records', 'settings', 'licenses',
-  'dental_records', 'dental_teeth', 'dental_treatments', 'dental_plans', 'dental_xrays',
+  'dental_records', 'dental_teeth', 'dental_teeth_history', 'dental_treatments', 'dental_plans', 'dental_xrays',
   'treatment_plans', 'plan_payment_sessions'
 ];
 
