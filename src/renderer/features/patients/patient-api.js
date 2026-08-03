@@ -13,5 +13,6 @@ export const patientApi = Object.freeze({
   create(data) { return call('create', () => window.api.patient.create(data)); },
   update(id, data) { return call('update', () => window.api.patient.update(id, data)); },
   delete(id) { return call('delete', () => window.api.patient.delete(id)); },
+  getAppointments(patientId) { return call('appointments.getByPatient', () => window.api.appointment.getByPatient(patientId)); },
   getUsers(filters = {}) { return call('users.getAll', () => window.api.user.getAll(filters)); }
 });

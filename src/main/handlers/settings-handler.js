@@ -159,7 +159,7 @@ export function handleSettingsEvents() {
         await run(
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
-               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
+               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
                publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
            WHERE id = ?`,
           [
@@ -182,6 +182,7 @@ export function handleSettingsEvents() {
             settingsData.preferredPrinter || null,
             settingsData.preferredScanner || null,
             settingsData.preferredThermalPrinter || null,
+            settingsData.autoPrintAppointmentTicket ? 1 : 0,
             settingsData.publicBookingEnabled ? 1 : 0,
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
@@ -201,9 +202,9 @@ export function handleSettingsEvents() {
         await run(
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
-            preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
+            preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
             publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -226,6 +227,7 @@ export function handleSettingsEvents() {
             settingsData.preferredPrinter || null,
             settingsData.preferredScanner || null,
             settingsData.preferredThermalPrinter || null,
+            settingsData.autoPrintAppointmentTicket ? 1 : 0,
             settingsData.publicBookingEnabled ? 1 : 0,
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,

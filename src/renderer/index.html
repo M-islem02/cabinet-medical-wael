@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
-    <title>MedCareSO v2.1.1</title>
+    <title>MedCareSO v1.1.1</title>
     <script>
         // Prevent sidebar/layout flicker before JS modules load.
         try {
@@ -593,10 +593,6 @@
                         <div class="feature-main-tabs" role="tablist" aria-label="Dossier dentaire">
                             <button type="button" class="dental-tab-btn feature-tab-btn active" data-tab="chart"
                                 onclick="switchDentalTab('chart')">Schéma dentaire</button>
-                            <button type="button" class="dental-tab-btn feature-tab-btn" data-tab="treatments"
-                                onclick="switchDentalTab('treatments')">Traitements</button>
-                            <button type="button" class="dental-tab-btn feature-tab-btn" data-tab="plans"
-                                onclick="switchDentalTab('plans')">Plans de traitement</button>
                         </div>
 
                         <!-- CHART Tab -->
@@ -632,48 +628,6 @@
                                                     ici.</p>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="dental-tab-treatments" class="dental-tab-content" style="display: none;">
-                            <div class="card dental-panel-card">
-                                <div class="card-header dental-panel-header">
-                                    <div>
-                                        <span class="dental-panel-kicker">Suivi clinique</span>
-                                        <h3>Traitements dentaires du patient</h3>
-                                    </div>
-                                    <button type="button" class="btn btn-primary btn-small"
-                                        onclick="openTreatmentModal()">+ Nouveau traitement</button>
-                                </div>
-                                <div class="dental-panel-body" id="dental-treatments-list">
-                                    <div class="dental-empty-state">
-                                        <h4>Sélectionnez un patient</h4>
-                                        <p>Les traitements dentaires apparaîtront ici.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="dental-tab-plans" class="dental-tab-content" style="display: none;">
-                            <div class="card dental-panel-card">
-                                <div class="card-header dental-panel-header">
-                                    <div>
-                                        <span class="dental-panel-kicker">Organisation des soins</span>
-                                        <h3>Plans de traitement dentaires</h3>
-                                    </div>
-                                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                        <button type="button" class="btn btn-secondary btn-small"
-                                            onclick="showSection('treatment-plans')">Tous les plans</button>
-                                        <button type="button" class="btn btn-primary btn-small"
-                                            onclick="openDentalPlanModal()">+ Nouveau plan dentaire</button>
-                                    </div>
-                                </div>
-                                <div class="dental-panel-body" id="dental-plans-list">
-                                    <div class="dental-empty-state">
-                                        <h4>Sélectionnez un patient</h4>
-                                        <p>Les plans dentaires apparaîtront ici.</p>
                                     </div>
                                 </div>
                             </div>
@@ -1017,10 +971,28 @@
                                 <button type="button" id="patients-directory-tab" class="patients-view-tab"
                                     onclick="switchPatientsView('directory')">Répertoire global</button>
                             </div>
-                            <label id="patients-doctor-scope-wrap" class="patients-doctor-scope" hidden>
-                                <span>Médecin</span>
-                                <select id="patients-doctor-scope" class="form-control" onchange="changePatientsDoctorScope(this.value)"></select>
+                            <label id="patients-list-filter-wrap" class="patients-doctor-scope patients-scope-field" hidden>
+                                <span>Afficher</span>
+                                <select id="patients-list-filter" class="form-control" onchange="changePatientsListFilter(this.value)">
+                                    <option value="">Cabinet — tous les patients</option>
+                                </select>
                             </label>
+                            <label id="patients-doctor-scope-wrap" class="patients-doctor-scope patients-scope-field" hidden>
+                                <span>Ajouter à</span>
+                                <div class="searchable-select-container patients-doctor-picker">
+                                    <input type="search" id="patients-doctor-search" class="form-control searchable-select-input"
+                                        placeholder="Rechercher un médecin..." autocomplete="off" aria-label="Rechercher un médecin">
+                                    <div id="patients-doctor-dropdown" class="searchable-select-dropdown"></div>
+                                </div>
+                                <select id="patients-doctor-scope" hidden aria-hidden="true"></select>
+                            </label>
+                            <div id="patients-assignment-actions" class="patients-assignment-actions" hidden>
+                                <span id="patients-selection-count" class="patients-selection-count">0 sélectionné</span>
+                                <button type="button" id="patients-assign-selected-btn" class="btn btn-primary btn-small"
+                                    onclick="assignSelectedPatientsToCurrentDoctor()" disabled>
+                                    Ajouter à la liste du médecin
+                                </button>
+                            </div>
                         </div>
                         <div class="patients-toolbar">
                             <div class="patients-search-wrap">
@@ -3463,6 +3435,11 @@
                                     <small style="display:block;margin-top:6px;color:#64748b;">
                                         Utilisée pour les tickets et impressions thermiques uniquement.
                                     </small>
+                                    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-weight:600;">
+                                        <input type="checkbox" id="auto-print-appointment-ticket">
+                                        Imprimer automatiquement le ticket après un RDV
+                                    </label>
+                                    <small style="display:block;margin-top:4px;color:#64748b;">L’impression est silencieuse sur l’imprimante thermique choisie. Désactivez cette option pour enregistrer le RDV sans imprimer.</small>
                                 </div>
                             </div>
 
@@ -4239,7 +4216,10 @@
                     <textarea id="appointment-notes" class="form-control" rows="2"></textarea>
                 </div>
 
-                <input type="checkbox" id="appointment-print-ticket" checked hidden>
+                <label class="appointment-print-ticket-option">
+                    <input type="checkbox" id="appointment-print-ticket">
+                    Imprimer le ticket après l’enregistrement
+                </label>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary"
@@ -4269,6 +4249,41 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary"
                     onclick="closeModal('modal-daily-appointments')">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-patient-appointment-history" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <div>
+                    <h2 id="patient-appointment-history-title">Historique des rendez-vous</h2>
+                    <p class="modal-subtitle">Tous les rendez-vous de ce patient, sans quitter la liste des patients.</p>
+                </div>
+                <button class="close-btn" onclick="closeModal('modal-patient-appointment-history')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="patient-appointment-history-table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Heure</th>
+                                <th>Type</th>
+                                <th>Motif</th>
+                                <th>Statut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patient-appointment-history-tbody">
+                            <tr><td colspan="6" class="text-center">Chargement...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-patient-appointment-history')">Fermer</button>
+                <button type="button" class="btn btn-primary" onclick="openAppointmentForHistoryPatient()">+ Nouveau RDV</button>
             </div>
         </div>
     </div>

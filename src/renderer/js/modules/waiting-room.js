@@ -4,6 +4,7 @@
 let waitingRoomData = [];
 let waitingRoomRefreshInterval = null;
 let lastWaitingSnapshot = {};
+let waitingRoomDoctorIds = [];
 const WAITING_ROOM_PAGE_SIZE = 8;
 const waitingRoomPages = {
   waiting: 1,
@@ -106,7 +107,8 @@ async function openAddToWaitingRoomModal() {
           placeholder: 'Tapez la premiere lettre du patient...',
           emptyMessage: 'Tapez la premiere lettre du patient',
           loadingMessage: 'Recherche des patients...',
-          noResultsMessage: 'Aucun patient trouvé. Ajoutez-le d’abord dans la section Patients.'
+          noResultsMessage: 'Aucun patient trouvé. Ajoutez-le d’abord dans la section Patients.',
+          onSelect: selectWaitingDoctorForPatient
         }
       );
     }
@@ -127,12 +129,32 @@ async function openAddToWaitingRoomModal() {
   }
 }
 
+function selectWaitingDoctorForPatient(patient) {
+  const doctorSelect = document.getElementById('waiting-doctor-select');
+  if (!doctorSelect || doctorSelect.disabled) return;
+
+  const rawIds = patient?.assignedPractitionerIds;
+  const assignedDoctorIds = (Array.isArray(rawIds) ? rawIds : String(rawIds || '').split(','))
+    .map((id) => String(id || '').trim())
+    .filter((id) => id && waitingRoomDoctorIds.includes(id));
+  const primaryDoctorId = String(patient?.primaryDoctorId || '').trim();
+  if (!assignedDoctorIds.length && primaryDoctorId && waitingRoomDoctorIds.includes(primaryDoctorId)) {
+    assignedDoctorIds.push(primaryDoctorId);
+  }
+  if (!assignedDoctorIds.length) return;
+
+  const randomIndex = Math.floor(Math.random() * assignedDoctorIds.length);
+  doctorSelect.value = assignedDoctorIds[randomIndex];
+}
+
 async function loadWaitingDoctorOptions() {
   const doctorSelect = document.getElementById('waiting-doctor-select');
   if (!doctorSelect) return;
 
+  waitingRoomDoctorIds = [];
   const isPractitioner = currentUserRole === 'doctor' || currentUserRole === 'dentist';
   if (isPractitioner) {
+    waitingRoomDoctorIds = [String(currentUserId)];
     doctorSelect.innerHTML = `<option value="${currentUserId}">Moi (${currentUsername || 'Praticien'})</option>`;
     doctorSelect.value = currentUserId;
     doctorSelect.disabled = true;
@@ -149,6 +171,7 @@ async function loadWaitingDoctorOptions() {
       if (!user || user.isSuperAdmin || !user.isActive) return false;
       return user.role === 'doctor' || user.role === 'dentist';
     });
+    waitingRoomDoctorIds = doctors.map((doctor) => String(doctor.id));
 
     if (!doctors.length) {
       doctorSelect.innerHTML = '<option value="">Aucun médecin disponible</option>';
@@ -171,6 +194,7 @@ async function loadWaitingDoctorOptions() {
       doctorSelect.value = activeDoctorId;
     }
   } catch (error) {
+    waitingRoomDoctorIds = [];
     console.error('Error loading doctors list for waiting room:', error);
     doctorSelect.innerHTML = '<option value="">Erreur chargement médecins</option>';
   }

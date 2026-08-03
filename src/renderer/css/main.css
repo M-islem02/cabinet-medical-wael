@@ -11106,6 +11106,24 @@ body.assistant-mode #payment-requests-section {
   color: #c83b4d;
 }
 
+.patient-appointment-history-table-wrap {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+
+.patient-appointment-history-table-wrap .table {
+  margin: 0;
+}
+
+.patient-appointment-history-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+}
+
 .calendar-layout {
   grid-template-columns: 1fr;
   gap: 16px;
@@ -16774,13 +16792,16 @@ td button {
 }
 
 .patients-scope-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  position: relative;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: auto minmax(250px, 0.8fr) minmax(300px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
   margin-bottom: 14px;
-  padding-bottom: 14px;
+  padding: 12px 4px 16px;
   border-bottom: 1px solid #e4ebf2;
+  overflow: visible;
 }
 
 .patients-scope-bar[hidden] {
@@ -16813,11 +16834,18 @@ td button {
 
 .patients-doctor-scope {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
   color: #536579;
   font-size: 13px;
   font-weight: 700;
+}
+
+.patients-scope-field > span {
+  display: block;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .patients-doctor-scope[hidden] {
@@ -16825,8 +16853,83 @@ td button {
 }
 
 .patients-doctor-scope .form-control {
-  min-width: 220px;
+  width: 100%;
+  min-width: 0;
   height: 40px;
+}
+
+#patients-list-filter {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: normal;
+}
+
+.patients-doctor-picker {
+  width: 100%;
+  min-width: 0;
+  z-index: 60;
+}
+
+.patients-doctor-picker .searchable-select-dropdown {
+  top: calc(100% + 4px);
+  max-height: 220px;
+  border: 1px solid rgba(20, 93, 160, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 18px 36px rgba(15, 37, 63, 0.20);
+}
+
+.patients-doctor-picker .searchable-select-option {
+  display: block;
+  width: 100%;
+  border: 0;
+  text-align: left;
+  background: transparent;
+}
+
+.patients-doctor-picker .searchable-select-option.selected {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+
+.patients-assignment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  justify-content: flex-end;
+}
+
+.patients-assignment-actions[hidden] {
+  display: none;
+}
+
+.patients-selection-count,
+.patient-assignment-checkbox {
+  color: #536579;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.patients-toolbar {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1250px) {
+  .patients-scope-bar {
+    grid-template-columns: auto minmax(230px, 1fr) minmax(260px, 1fr);
+  }
+
+  .patients-assignment-actions {
+    grid-column: 2 / -1;
+  }
+}
+
+.patient-assignment-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
 }
 
 .medical-overview {

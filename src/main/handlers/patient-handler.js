@@ -90,7 +90,8 @@ function normalizePatientListRequest(payload = null) {
         searchTerm: '',
         page: 1,
         pageSize: 15,
-        doctorId: ''
+        doctorId: '',
+        filterDoctorId: ''
       };
   }
 
@@ -99,8 +100,12 @@ function normalizePatientListRequest(payload = null) {
     searchTerm: String(payload.searchTerm || '').trim(),
     medecinId: String(payload.medecinId || payload.doctorId || '').trim(),
     page: toPositiveInt(payload.page, 1),
-    pageSize: Math.min(100, toPositiveInt(payload.pageSize, 15)),
-    doctorId: String(payload.doctorId || '').trim()
+    // The assistant's cabinet directory can contain the whole practice list.
+    // Keep a sensible upper bound while allowing a 101-patient directory to be
+    // reviewed and assigned without splitting it across tiny pages.
+    pageSize: Math.min(500, toPositiveInt(payload.pageSize, 15)),
+    doctorId: String(payload.doctorId || '').trim(),
+    filterDoctorId: String(payload.filterDoctorId || '').trim()
   };
 }
 
@@ -316,6 +321,9 @@ export function handlePatientEvents() {
 
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
+      const normalizedFirstName = String(patientData.firstName || '').trim().toLocaleLowerCase('fr');
+      const normalizedLastName = String(patientData.lastName || '').trim().toLocaleLowerCase('fr');
+      const normalizedDateOfBirth = String(patientData.dateOfBirth || '').trim();
       
       let primaryDoctorId = null;
       const createdByUserId = userContext.userId || null;
@@ -344,7 +352,21 @@ export function handlePatientEvents() {
         }
       }
 
-      await withTransaction(async () => {
+      const creationResult = await withTransaction(async () => {
+        if (normalizedFirstName && normalizedLastName && normalizedDateOfBirth) {
+          const identityKey = `${normalizedLastName}|${normalizedFirstName}|${normalizedDateOfBirth}`;
+          await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`patient-identity:${identityKey}`]);
+          const duplicate = await queryOne(
+            `SELECT id FROM patients
+             WHERE LOWER(BTRIM(firstName)) = ?
+               AND LOWER(BTRIM(lastName)) = ?
+               AND dateOfBirth = ?
+             LIMIT 1`,
+            [normalizedFirstName, normalizedLastName, normalizedDateOfBirth]
+          );
+          if (duplicate) return { duplicateId: duplicate.id };
+        }
+
         await run(
           `INSERT INTO patients
          (id, firstName, lastName, primaryDoctorId, createdByUserId, dateOfBirth, gender, socialSecurityNumber, email, phone, 
@@ -382,7 +404,16 @@ export function handlePatientEvents() {
             [id, primaryDoctorId, createdByUserId]
           );
         }
+        return { duplicateId: '' };
       });
+
+      if (creationResult?.duplicateId) {
+        return {
+          success: false,
+          error: 'Un patient avec le même nom, prénom et la même date de naissance existe déjà',
+          duplicatePatientId: creationResult.duplicateId
+        };
+      }
 
       return { success: true, id: id };
     } catch (error) {
@@ -405,7 +436,7 @@ export function handlePatientEvents() {
       }
 
       const scope = await resolvePatientScope(userContext, request.doctorId);
-      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
+      if (userContext.isPractitioner && scope.doctorId) {
         whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = p.id AND pp.practitionerId = ?)');
         params.push(scope.doctorId);
       }
@@ -555,14 +586,24 @@ export function handlePatientEvents() {
       if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
       const scope = await resolvePatientScope(userContext, request.doctorId);
       const params = [];
-      let searchClause = '';
+      const whereParts = [];
       if (request.searchTerm) {
         const pattern = `%${request.searchTerm}%`;
-        searchClause = `WHERE (p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.phone ILIKE ? OR p.email ILIKE ?)`;
+        whereParts.push('(p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.phone ILIKE ? OR p.email ILIKE ?)');
         params.push(pattern, pattern, pattern, pattern);
       }
 
-      const totalRow = await queryOne(`SELECT COUNT(*) AS total FROM patients p ${searchClause}`, params);
+      if (request.filterDoctorId) {
+        if (!scope.practitioners.some((doctor) => doctor.id === request.filterDoctorId)) {
+          return { success: false, error: 'Médecin de filtrage introuvable ou inactif' };
+        }
+        whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners filtered_pp WHERE filtered_pp.patientId = p.id AND filtered_pp.practitionerId = ?)');
+        params.push(request.filterDoctorId);
+      }
+
+      const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+      const totalRow = await queryOne(`SELECT COUNT(*) AS total FROM patients p ${whereClause}`, params);
       const pagination = buildPaginationMeta(totalRow?.total || 0, request.page, request.pageSize);
       const currentPage = Math.min(pagination.page, pagination.totalPages);
       const offset = (currentPage - 1) * pagination.pageSize;
@@ -573,7 +614,7 @@ export function handlePatientEvents() {
          FROM patients p
          LEFT JOIN patient_practitioners pp ON pp.patientId = p.id
          LEFT JOIN users u ON u.id = pp.practitionerId
-         ${searchClause}
+         ${whereClause}
          GROUP BY p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone
          ORDER BY p.lastName, p.firstName
          LIMIT ? OFFSET ?`,
@@ -677,13 +718,23 @@ export function handlePatientEvents() {
       const whereParts = ['(firstName ILIKE ? OR lastName ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)'];
       const params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern];
       const scope = await resolvePatientScope(userContext, request.doctorId);
-      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
+      if (userContext.isPractitioner && scope.doctorId) {
         whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
         params.push(scope.doctorId);
       }
 
       const patients = await query(
-        `SELECT * FROM patients
+        `SELECT patients.*,
+                COALESCE((
+                  SELECT STRING_AGG(pp.practitionerId, ',')
+                  FROM patient_practitioners pp
+                  JOIN users practitioner ON practitioner.id = pp.practitionerId
+                  WHERE pp.patientId = patients.id
+                    AND practitioner.role IN ('doctor', 'dentist')
+                    AND COALESCE(practitioner.isActive, TRUE) = TRUE
+                    AND COALESCE(practitioner.isSuperAdmin, FALSE) = FALSE
+                ), '') AS assignedPractitionerIds
+         FROM patients
          WHERE ${whereParts.join(' AND ')}
          ORDER BY lastName, firstName
          LIMIT ?`,
@@ -720,10 +771,26 @@ export function handlePatientEvents() {
           return { success: false, error: 'Accès refusé: patient non rattaché à votre compte médecin' };
         }
       } else if (userContext.isAssistant) {
-        const scope = await resolvePatientScope(userContext, patientData.scopeDoctorId);
-        if (!(await patientIsAssigned(patientId, scope.doctorId))) {
-          return { success: false, error: 'Accès refusé: patient absent de la liste du médecin sélectionné' };
-        }
+        // Assistants use the cabinet directory for contact administration. They
+        // may update identity/contact fields but never clinical information.
+        const patient = await queryOne('SELECT id FROM patients WHERE id = ?', [patientId]);
+        if (!patient) return { success: false, error: 'Patient non trouvé' };
+        const now = moment().format('YYYY-MM-DD HH:mm:ss');
+        await run(
+          `UPDATE patients
+           SET firstName = ?, lastName = ?, dateOfBirth = ?, gender = ?, email = ?, phone = ?,
+               address = ?, city = ?, zipCode = ?, emergencyContact = ?, emergencyPhone = ?, updatedAt = ?
+           WHERE id = ?`,
+          [
+            toNullIfEmpty(patientData.firstName), toNullIfEmpty(patientData.lastName),
+            toNullIfEmpty(patientData.dateOfBirth), toNullIfEmpty(patientData.gender),
+            toNullIfEmpty(patientData.email), toNullIfEmpty(patientData.phone),
+            toNullIfEmpty(patientData.address), toNullIfEmpty(patientData.city),
+            toNullIfEmpty(patientData.zipCode), toNullIfEmpty(patientData.emergencyContact),
+            toNullIfEmpty(patientData.emergencyPhone), now, patientId
+          ]
+        );
+        return { success: true };
       }
 
       const now = moment().format('YYYY-MM-DD HH:mm:ss');

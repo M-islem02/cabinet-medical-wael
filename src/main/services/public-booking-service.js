@@ -11,6 +11,7 @@ import { broadcastRealtimeEvent } from '../realtime-server.js';
 import { resolvePublicPractitioner } from './public-practitioner-selection.js';
 
 let bookingServer = null;
+let publicBookingSchemaPromise = null;
 let bookingServerState = {
   running: false,
   enabled: false,
@@ -75,24 +76,26 @@ function generateBookingToken() {
 }
 
 async function ensurePublicBookingSchema() {
-  const statements = [
-    'ALTER TABLE settings ADD COLUMN preferredThermalPrinter TEXT',
-    'ALTER TABLE settings ADD COLUMN publicBookingEnabled INTEGER DEFAULT 0',
-    'ALTER TABLE settings ADD COLUMN publicBookingPort INTEGER DEFAULT 4580',
-    'ALTER TABLE settings ADD COLUMN publicBookingToken VARCHAR(255)',
-    'ALTER TABLE settings ADD COLUMN publicBookingPublicUrl TEXT',
-    'ALTER TABLE settings ADD COLUMN publicBookingQrEnabled INTEGER DEFAULT 1',
-    "ALTER TABLE appointments ADD COLUMN bookingSource VARCHAR(30) DEFAULT 'manual'",
-    'ALTER TABLE appointments ADD COLUMN bookingCode VARCHAR(100)'
-  ];
+  if (!publicBookingSchemaPromise) {
+    publicBookingSchemaPromise = (async () => {
+      const statements = [
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS preferredThermalPrinter TEXT',
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS publicBookingEnabled INTEGER DEFAULT 0',
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS publicBookingPort INTEGER DEFAULT 4580',
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS publicBookingToken VARCHAR(255)',
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS publicBookingPublicUrl TEXT',
+        'ALTER TABLE settings ADD COLUMN IF NOT EXISTS publicBookingQrEnabled INTEGER DEFAULT 1',
+        "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS bookingSource VARCHAR(30) DEFAULT 'manual'",
+        'ALTER TABLE appointments ADD COLUMN IF NOT EXISTS bookingCode VARCHAR(100)'
+      ];
 
-  for (const sql of statements) {
-    try {
-      await run(sql);
-    } catch (_) {
-      // Column already exists
-    }
+      for (const sql of statements) await run(sql);
+    })().catch((error) => {
+      publicBookingSchemaPromise = null;
+      throw error;
+    });
   }
+  return publicBookingSchemaPromise;
 }
 
 async function ensureBookingToken(settingsRow) {

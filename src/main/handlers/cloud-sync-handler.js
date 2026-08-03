@@ -21,6 +21,7 @@ let syncInProgress = false;
 let syncConfig = null;
 let endOfDayInterval = null;
 let lastEndOfDayRunDate = null;
+let cloudSyncSchemaPromise = null;
 
 const SYNC_TABLES = [
   'patients', 'consultations', 'appointments', 'payments', 'prescriptions',
@@ -1056,25 +1057,27 @@ function defaultSyncConfig() {
 }
 
 async function ensureCloudSyncSchema() {
-  const alterStatements = [
-    'ALTER TABLE cloud_sync_config ADD COLUMN dailyBackupEnabled INTEGER DEFAULT 1',
-    "ALTER TABLE cloud_sync_config ADD COLUMN dailyBackupTime TEXT DEFAULT '23:55'",
-    'ALTER TABLE cloud_sync_config ADD COLUMN autoPushEndOfDay INTEGER DEFAULT 0',
-    'ALTER TABLE cloud_sync_config ADD COLUMN telegramEnabled INTEGER DEFAULT 0',
-    "ALTER TABLE cloud_sync_config ADD COLUMN telegramBotToken TEXT DEFAULT ''",
-    "ALTER TABLE cloud_sync_config ADD COLUMN telegramChatId TEXT DEFAULT ''",
-    "ALTER TABLE cloud_sync_config ADD COLUMN backupDirectory TEXT DEFAULT ''",
-    'ALTER TABLE cloud_sync_config ADD COLUMN backupEncryptionEnabled INTEGER DEFAULT 0',
-    "ALTER TABLE cloud_sync_config ADD COLUMN backupPassphrase TEXT DEFAULT ''"
-  ];
+  if (!cloudSyncSchemaPromise) {
+    cloudSyncSchemaPromise = (async () => {
+      const alterStatements = [
+        'ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS dailyBackupEnabled INTEGER DEFAULT 1',
+        "ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS dailyBackupTime TEXT DEFAULT '23:55'",
+        'ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS autoPushEndOfDay INTEGER DEFAULT 0',
+        'ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS telegramEnabled INTEGER DEFAULT 0',
+        "ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS telegramBotToken TEXT DEFAULT ''",
+        "ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS telegramChatId TEXT DEFAULT ''",
+        "ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS backupDirectory TEXT DEFAULT ''",
+        'ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS backupEncryptionEnabled INTEGER DEFAULT 0',
+        "ALTER TABLE cloud_sync_config ADD COLUMN IF NOT EXISTS backupPassphrase TEXT DEFAULT ''"
+      ];
 
-  for (const sql of alterStatements) {
-    try {
-      await run(sql);
-    } catch (_) {
-      // Column probably already exists
-    }
+      for (const sql of alterStatements) await run(sql);
+    })().catch((error) => {
+      cloudSyncSchemaPromise = null;
+      throw error;
+    });
   }
+  return cloudSyncSchemaPromise;
 }
 
 // ========== SYNC CONFIG ==========

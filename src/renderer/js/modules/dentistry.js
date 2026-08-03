@@ -737,8 +737,6 @@ function switchDentalTab(tabName) {
   var target = document.getElementById('dental-tab-' + tabName);
   if (target) target.style.display = 'block';
   if (tabName === 'chart') renderDentalChart();
-  if (tabName === 'treatments' && dentalSelectedPatientId) loadDentalTreatments(dentalSelectedPatientId);
-  if (tabName === 'plans' && dentalSelectedPatientId) loadDentalPlans(dentalSelectedPatientId);
 }
 
 // ========== TREATMENTS ==========
@@ -1008,23 +1006,56 @@ async function showDentalHistoricalSchema(dayKey) {
   } catch (error) {
     console.error('Unable to reconstruct complete historical schema:', error);
   }
-  var currentTeethData = dentalTeethData;
-  var currentTreatmentsCache = dentalTreatmentsCache;
-  dentalTeethData = dentalHistoricalTeethData;
-  dentalTreatmentsCache = {};
-  renderDentalChart();
-  dentalTeethData = currentTeethData;
-  dentalTreatmentsCache = currentTreatmentsCache;
 
-  renderDentalDayHistoryPanel(group);
-  var panel = document.getElementById('dental-tooth-detail');
-  if (panel) {
-    panel.innerHTML =
-      '<div class="dental-detail-head"><div><span>Schéma historique</span><h3>' + dentalEscapeHtml(group.dayLabel) + '</h3><p>Consultation en lecture seule</p></div></div>' +
-      '<div class="dental-current-status" style="background:#eff6ff;border-color:#93c5fd;color:#1d4ed8"><strong>Historique</strong><span>' + group.items.length + ' acte(s) · ' + (group.teeth.length || 0) + ' dent(s)</span></div>' +
-      '<button type="button" class="btn btn-primary" style="width:100%;margin-top:14px" onclick="showCurrentDentalSchema()">Revenir au schéma actuel</button>';
-  }
+  // Build modal with historical chart
+  var currentTeethData = dentalTeethData;
+  dentalTeethData = dentalHistoricalTeethData;
+  var positions = getToothPositions();
+  var teethSvg = renderAllTeeth(positions);
+  dentalTeethData = currentTeethData;
+
+  var existing = document.getElementById('dental-historical-modal');
+  if (existing) existing.remove();
+
+  var html =
+    '<div id="dental-historical-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10001;display:flex;align-items:center;justify-content:center">' +
+      '<div style="background:#fff;border-radius:18px;padding:24px;width:min(920px,94vw);max-height:92vh;overflow-y:auto;box-shadow:0 18px 60px rgba(0,0,0,.26)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+          '<div>' +
+            '<span style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6366f1">Schéma historique</span>' +
+            '<h3 style="margin:4px 0 0;font-size:24px;color:#1e293b;font-weight:900">' + dentalEscapeHtml(group.dayLabel) + '</h3>' +
+            '<p style="margin:2px 0 0;color:#64748b;font-size:15px">' + group.items.length + ' acte(s) · ' + (group.teeth.length || 0) + ' dent(s) · Consultation en lecture seule</p>' +
+          '</div>' +
+          '<button onclick="closeDentalHistoricalModal()" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;width:42px;height:42px;font-size:24px;cursor:pointer;color:#64748b;line-height:1">×</button>' +
+        '</div>' +
+        '<svg class="dental-svg" viewBox="0 0 800 500" style="width:100%;height:auto;max-height:420px;margin:10px 0">' +
+          '<defs>' +
+            '<filter id="tSh" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="rgba(15,23,42,0.18)"/></filter>' +
+            '<linearGradient id="gU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffdce4"/><stop offset="52%" stop-color="#f8b7c4"/><stop offset="100%" stop-color="#f09cac"/></linearGradient>' +
+            '<linearGradient id="gL" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#ffdce4"/><stop offset="52%" stop-color="#f8b7c4"/><stop offset="100%" stop-color="#f09cac"/></linearGradient>' +
+          '</defs>' +
+          '<text x="55" y="252" font-size="18" font-weight="700" fill="#d1d5db" text-anchor="middle">D</text>' +
+          '<text x="745" y="252" font-size="18" font-weight="700" fill="#d1d5db" text-anchor="middle">G</text>' +
+          '<line x1="400" y1="28" x2="400" y2="480" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="5,4" opacity="0.4"/>' +
+          '<path d="M 90,165 Q 110,28 400,18 Q 690,28 710,165" fill="url(#gU)" stroke="#d4818f" stroke-width="1.2" opacity="0.22"/>' +
+          '<path d="M 120,335 Q 140,468 400,478 Q 660,468 680,335" fill="url(#gL)" stroke="#d4818f" stroke-width="1.2" opacity="0.22"/>' +
+          '<path d="M 90,195 Q 250,210 400,214 Q 550,210 710,195" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
+          '<path d="M 120,305 Q 260,292 400,288 Q 540,292 680,305" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
+          teethSvg +
+        '</svg>' +
+        '<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px">' +
+          '<button type="button" class="btn btn-primary" onclick="closeDentalHistoricalModal()">Revenir au schéma actuel</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.insertAdjacentHTML('beforeend', html);
   renderDentalPatientHistoryCards();
+}
+
+function closeDentalHistoricalModal() {
+  dentalSelectedHistoryDayKey = null;
+  var modal = document.getElementById('dental-historical-modal');
+  if (modal) modal.remove();
 }
 
 function showCurrentDentalSchema() {
@@ -1514,6 +1545,7 @@ registerLegacyGlobals('dentistry', {
   changeDentalHistoryPage,
   changeToothStatus,
   closeDentalDetail,
+  closeDentalHistoricalModal,
   closeDentalTreatmentModal,
   deleteDentalPlan,
   deleteDentalTreatment,

@@ -3232,14 +3232,16 @@ function renderPatientAppointments() {
   tbody.innerHTML = rowsHtml + buildPatientRecordPaginationRow('appointments', 5);
 }
 
-function openNewAppointmentModal() {
+async function openNewAppointmentModal() {
   if (!currentPatientId) return;
   document.getElementById('appointment-form').reset();
   document.getElementById('appointment-patientId').value = currentPatientId;
   document.getElementById('appointment-date').valueAsDate = new Date();
   const printTicketCheckbox = document.getElementById('appointment-print-ticket');
   if (printTicketCheckbox) {
-    printTicketCheckbox.checked = true;
+    const settingsResult = await window.api.settings.get();
+    const settings = settingsResult?.success ? settingsResult.data || {} : {};
+    printTicketCheckbox.checked = settings.autoPrintAppointmentTicket === true || settings.autoPrintAppointmentTicket === 1;
   }
   showModal('modal-appointment');
 }
@@ -3280,7 +3282,7 @@ async function saveAppointment(e) {
     reason: document.getElementById('appointment-reason').value,
     notes: document.getElementById('appointment-notes').value
   };
-  const shouldPrintTicket = true;
+  const shouldPrintTicket = document.getElementById('appointment-print-ticket')?.checked === true;
 
   try {
     const result = await window.api.appointment.create(formData);

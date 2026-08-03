@@ -597,6 +597,10 @@ async function loadSettings() {
     if (documentShowBarcodeEl) {
       documentShowBarcodeEl.checked = s.documentShowBarcode !== 0 && s.documentShowBarcode !== false;
     }
+    const autoPrintAppointmentTicketEl = document.getElementById('auto-print-appointment-ticket');
+    if (autoPrintAppointmentTicketEl) {
+      autoPrintAppointmentTicketEl.checked = s.autoPrintAppointmentTicket === 1 || s.autoPrintAppointmentTicket === true;
+    }
     updateCabinetLogoPreview(s.cabinetLogoDataUrl || '');
     updateAppLogoPreview(s.appLogoDataUrl || '');
     updateCabinetWatermarkLogoPreview(s.cabinetWatermarkLogoDataUrl || '');
@@ -689,6 +693,9 @@ function buildSettingsPayload({
     preferredPrinter: includeDevices ? document.getElementById('preferred-printer')?.value || '' : (existing.preferredPrinter || ''),
     preferredScanner: includeDevices ? document.getElementById('preferred-scanner')?.value || '' : (existing.preferredScanner || ''),
     preferredThermalPrinter: includeDevices ? document.getElementById('preferred-thermal-printer')?.value || '' : (existing.preferredThermalPrinter || ''),
+    autoPrintAppointmentTicket: includeDevices
+      ? Boolean(document.getElementById('auto-print-appointment-ticket')?.checked)
+      : Boolean(existing.autoPrintAppointmentTicket),
     publicBookingEnabled: includePublicBooking ? Boolean(document.getElementById('public-booking-enabled')?.checked) : Boolean(existing.publicBookingEnabled),
     publicBookingPort: includePublicBooking
       ? (parseInt(document.getElementById('public-booking-port')?.value, 10) || Number(existing.publicBookingPort) || 4580)
@@ -764,6 +771,7 @@ async function saveSettings() {
     preferredPrinter: document.getElementById('preferred-printer')?.value || '',
     preferredScanner: document.getElementById('preferred-scanner')?.value || '',
     preferredThermalPrinter: document.getElementById('preferred-thermal-printer')?.value || '',
+    autoPrintAppointmentTicket: Boolean(document.getElementById('auto-print-appointment-ticket')?.checked),
     publicBookingEnabled: document.getElementById('public-booking-enabled')?.checked || false,
     publicBookingPort: parseInt(document.getElementById('public-booking-port')?.value, 10) || 4580,
     publicBookingPublicUrl: document.getElementById('public-booking-public-url')?.value?.trim() || '',

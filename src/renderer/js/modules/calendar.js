@@ -1342,7 +1342,9 @@ async function openNewAppointmentModal(date = null, time = null) {
 
     const printTicketCheckbox = document.getElementById('appointment-print-ticket');
     if (printTicketCheckbox) {
-      printTicketCheckbox.checked = true;
+      const settingsResult = await window.api.settings.get();
+      const settings = settingsResult?.success ? settingsResult.data || {} : {};
+      printTicketCheckbox.checked = settings.autoPrintAppointmentTicket === true || settings.autoPrintAppointmentTicket === 1;
     }
 
     try {

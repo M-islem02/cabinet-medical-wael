@@ -7,6 +7,7 @@ import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
 
 // ========== PATIENTS ==========
 const PATIENTS_PAGE_SIZE = 15;
+const ASSISTANT_DIRECTORY_PAGE_SIZE = 500;
 let patientsFilteredData = [];
 let patientsSearchTerm = '';
 let patientsPagination = {
@@ -19,6 +20,9 @@ let patientsCurrentPage = 1;
 let patientsView = 'mine';
 let patientsScope = null;
 let selectedPatientsDoctorId = '';
+let patientsListFilterDoctorId = '';
+let selectedPatientIds = new Set();
+let appointmentHistoryPatientId = '';
 
 function isDirectorUser() {
   return false;
@@ -49,8 +53,14 @@ function renderPatientsRows(patients) {
     onDelete: deletePatient,
     onAttach: attachPatientToCurrentDoctor,
     onDetach: detachPatientFromCurrentDoctor,
+    onToggleSelection: togglePatientSelection,
+    onAppointment: openAppointmentForPatient,
+    onAppointmentsHistory: showPatientAppointmentHistory,
     directory: patientsView === 'directory',
-    multiPractitioner: patientsScope?.multiPractitioner === true
+    multiPractitioner: patientsScope?.multiPractitioner === true,
+    selectable: currentUserRole === 'assistant' && patientsView === 'directory' && patientsScope?.multiPractitioner === true,
+    assistantActions: currentUserRole === 'assistant' && patientsView === 'directory',
+    selectedPatientIds
   });
 }
 
@@ -58,13 +68,28 @@ function renderPatientsScopeControls() {
   const scopeBar = document.getElementById('patients-scope-bar');
   const doctorWrap = document.getElementById('patients-doctor-scope-wrap');
   const doctorSelect = document.getElementById('patients-doctor-scope');
+  const doctorSearch = document.getElementById('patients-doctor-search');
+  const listFilterWrap = document.getElementById('patients-list-filter-wrap');
+  const listFilter = document.getElementById('patients-list-filter');
   const mineTab = document.getElementById('patients-my-list-tab');
   const directoryTab = document.getElementById('patients-directory-tab');
+  const assignmentActions = document.getElementById('patients-assignment-actions');
+  const selectionCount = document.getElementById('patients-selection-count');
+  const assignSelectedButton = document.getElementById('patients-assign-selected-btn');
   const fourthHeading = document.querySelector('#patients-table thead th:nth-child(4)');
 
-  const assistantGlobalDirectory = currentUserRole === 'assistant' && patientsScope?.multiPractitioner;
-  if (scopeBar) scopeBar.hidden = !patientsScope?.multiPractitioner || assistantGlobalDirectory;
-  if (doctorWrap) doctorWrap.hidden = !(patientsScope?.assistantDoctorSelectorEnabled && currentUserRole === 'assistant');
+  const assistantDirectoryMode = currentUserRole === 'assistant' && patientsScope?.multiPractitioner;
+  if (scopeBar) scopeBar.hidden = !patientsScope?.multiPractitioner;
+  if (listFilterWrap) listFilterWrap.hidden = !assistantDirectoryMode;
+  if (doctorWrap) {
+    doctorWrap.hidden = !(assistantDirectoryMode && (patientsScope?.practitioners?.length || 0) > 0);
+  }
+  if (mineTab && assistantDirectoryMode) mineTab.hidden = true;
+  if (directoryTab && assistantDirectoryMode) directoryTab.textContent = 'Tous les patients';
+  const showAssignmentActions = assistantDirectoryMode && patientsView === 'directory';
+  if (assignmentActions) assignmentActions.hidden = !showAssignmentActions;
+  if (selectionCount) selectionCount.textContent = `${selectedPatientIds.size} sélectionné${selectedPatientIds.size === 1 ? '' : 's'}`;
+  if (assignSelectedButton) assignSelectedButton.disabled = selectedPatientIds.size === 0 || !selectedPatientsDoctorId;
   mineTab?.classList.toggle('active', patientsView === 'mine');
   directoryTab?.classList.toggle('active', patientsView === 'directory');
   if (fourthHeading) fourthHeading.textContent = patientsView === 'directory' ? 'Médecins' : 'Numéro SS';
@@ -75,19 +100,83 @@ function renderPatientsScopeControls() {
       return `<option value="${doctor.id}">${name}</option>`;
     }).join('');
     doctorSelect.value = selectedPatientsDoctorId;
+    const selectedDoctor = patientsScope.practitioners.find((doctor) => doctor.id === selectedPatientsDoctorId);
+    if (doctorSearch && document.activeElement !== doctorSearch) {
+      doctorSearch.value = formatPractitionerName(selectedDoctor);
+    }
+    setupDoctorSearch();
   }
+
+  if (listFilter && patientsScope?.practitioners) {
+    listFilter.replaceChildren();
+    const cabinetOption = document.createElement('option');
+    cabinetOption.value = '';
+    cabinetOption.textContent = 'Cabinet — tous les patients';
+    listFilter.appendChild(cabinetOption);
+    patientsScope.practitioners.forEach((doctor) => {
+      const option = document.createElement('option');
+      option.value = doctor.id;
+      option.textContent = formatPractitionerName(doctor);
+      listFilter.appendChild(option);
+    });
+    listFilter.value = patientsListFilterDoctorId;
+  }
+}
+
+function formatPractitionerName(doctor) {
+  if (!doctor) return '';
+  const name = String(doctor.fullName || '').trim() || String(doctor.username || '').trim();
+  return name ? `Dr. ${name}` : 'Médecin';
+}
+
+function renderDoctorSearchResults(query = '') {
+  const dropdown = document.getElementById('patients-doctor-dropdown');
+  if (!dropdown || !patientsScope?.practitioners) return;
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+  const doctors = patientsScope.practitioners.filter((doctor) => {
+    const searchable = `${doctor.fullName || ''} ${doctor.username || ''}`.toLocaleLowerCase();
+    return !normalizedQuery || searchable.includes(normalizedQuery);
+  });
+  dropdown.replaceChildren();
+  if (!doctors.length) {
+    dropdown.appendChild(Object.assign(document.createElement('div'), {
+      className: 'searchable-select-no-results', textContent: 'Aucun médecin trouvé'
+    }));
+  } else {
+    doctors.forEach((doctor) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = `searchable-select-option${doctor.id === selectedPatientsDoctorId ? ' selected' : ''}`;
+      option.textContent = formatPractitionerName(doctor);
+      option.addEventListener('mousedown', (event) => event.preventDefault());
+      option.addEventListener('click', async () => {
+        const search = document.getElementById('patients-doctor-search');
+        if (search) search.value = formatPractitionerName(doctor);
+        dropdown.classList.remove('active');
+        await changePatientsDoctorScope(doctor.id);
+      });
+      dropdown.appendChild(option);
+    });
+  }
+  dropdown.classList.add('active');
+}
+
+function setupDoctorSearch() {
+  const search = document.getElementById('patients-doctor-search');
+  const dropdown = document.getElementById('patients-doctor-dropdown');
+  if (!search || !dropdown || search.dataset.bound) return;
+  search.addEventListener('input', () => renderDoctorSearchResults(search.value));
+  search.addEventListener('focus', () => renderDoctorSearchResults(search.value));
+  search.addEventListener('blur', () => setTimeout(() => dropdown.classList.remove('active'), 150));
+  search.dataset.bound = '1';
 }
 
 async function ensurePatientsScope() {
   const result = await patientApi.getScope({ doctorId: selectedPatientsDoctorId });
   if (!result.success) throw new Error(result.error || 'Configuration patient indisponible');
   patientsScope = result.data;
-  selectedPatientsDoctorId = result.data.selectedDoctorId || '';
-  if (currentUserRole === 'assistant' && patientsScope.multiPractitioner) {
-    patientsView = 'directory';
-  } else if (!patientsScope.multiPractitioner) {
-    patientsView = 'mine';
-  }
+  if (!selectedPatientsDoctorId) selectedPatientsDoctorId = result.data.selectedDoctorId || '';
+  if (currentUserRole === 'assistant' && result.data.multiPractitioner) patientsView = 'directory';
   window.activePatientDoctorId = selectedPatientsDoctorId;
   renderPatientsScopeControls();
 }
@@ -95,6 +184,7 @@ async function ensurePatientsScope() {
 async function switchPatientsView(view) {
   patientsView = view === 'directory' ? 'directory' : 'mine';
   patientsSearchTerm = '';
+  selectedPatientIds.clear();
   const search = document.getElementById('patients-search');
   if (search) search.value = '';
   renderPatientsScopeControls();
@@ -103,7 +193,14 @@ async function switchPatientsView(view) {
 
 async function changePatientsDoctorScope(doctorId) {
   selectedPatientsDoctorId = doctorId || '';
+  selectedPatientIds.clear();
   window.activePatientDoctorId = selectedPatientsDoctorId;
+  await loadPatients(1);
+}
+
+async function changePatientsListFilter(doctorId) {
+  patientsListFilterDoctorId = doctorId || '';
+  selectedPatientIds.clear();
   await loadPatients(1);
 }
 
@@ -111,6 +208,120 @@ async function attachPatientToCurrentDoctor(patientId) {
   const result = await patientApi.attach({ patientId, doctorId: selectedPatientsDoctorId });
   if (!result.success) return showNotification(`Erreur: ${result.error}`, 'error');
   showNotification('Patient ajouté à la liste', 'success');
+  await loadPatients(patientsCurrentPage);
+}
+
+async function openAppointmentForPatient(patientId) {
+  const patient = await window.setSelectedPatient?.(patientId, { source: 'patients-directory' });
+  if (!patient) return showNotification('Impossible de sélectionner ce patient', 'error');
+  await window.openNewAppointmentModal?.();
+}
+
+async function showPatientAppointmentHistory(patientId) {
+  const modal = document.getElementById('modal-patient-appointment-history');
+  const title = document.getElementById('patient-appointment-history-title');
+  const tbody = document.getElementById('patient-appointment-history-tbody');
+  if (!modal || !tbody) return;
+
+  appointmentHistoryPatientId = patientId;
+  tbody.innerHTML = '<tr><td colspan="6" class="text-center">Chargement...</td></tr>';
+  showModal('modal-patient-appointment-history');
+
+  try {
+    const [patientResult, appointmentsResult] = await Promise.all([
+      patientApi.getById(patientId),
+      patientApi.getAppointments(patientId)
+    ]);
+    if (!appointmentsResult.success) throw new Error(appointmentsResult.error || 'Chargement impossible');
+
+    const patient = patientResult.success ? patientResult.data : null;
+    if (title) {
+      const name = `${patient?.lastName || ''} ${patient?.firstName || ''}`.trim();
+      title.textContent = name ? `Rendez-vous de ${name}` : 'Historique des rendez-vous';
+    }
+
+    const appointments = Array.isArray(appointmentsResult.data) ? appointmentsResult.data : [];
+    tbody.replaceChildren();
+    if (!appointments.length) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 6;
+      cell.className = 'text-center empty-row';
+      cell.textContent = 'Aucun rendez-vous pour ce patient';
+      row.appendChild(cell);
+      tbody.appendChild(row);
+      return;
+    }
+
+    const statusLabels = {
+      scheduled: 'Planifié', pending: 'En attente', confirmed: 'Confirmé',
+      completed: 'Terminé', cancelled: 'Annulé', no_show: 'Absent'
+    };
+    appointments.forEach((appointment) => {
+      const row = document.createElement('tr');
+      const statusKey = String(appointment.status || 'scheduled').toLowerCase();
+      const values = [
+        appointment.date ? formatDateToDDMMYYYY(appointment.date) : '-',
+        appointment.time || '-',
+        appointment.type || 'Consultation',
+        appointment.reason || '-'
+      ];
+      values.forEach((value) => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+
+      const statusCell = document.createElement('td');
+      const status = document.createElement('span');
+      status.className = `appointment-status-pill appointment-status-pill-${statusKey.replace(/[^a-z0-9_-]/g, '-')}`;
+      status.textContent = statusLabels[statusKey] || appointment.status || 'Planifié';
+      statusCell.appendChild(status);
+      row.appendChild(statusCell);
+
+      const actionCell = document.createElement('td');
+      const ticketButton = document.createElement('button');
+      ticketButton.type = 'button';
+      ticketButton.className = 'btn btn-small btn-secondary';
+      ticketButton.textContent = 'Ticket';
+      ticketButton.addEventListener('click', () => window.printAppointmentTicket?.(appointment.id));
+      actionCell.appendChild(ticketButton);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+    });
+  } catch (error) {
+    console.error('Erreur historique RDV patient:', error);
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center empty-row">Impossible de charger les rendez-vous</td></tr>';
+    showNotification(error.message || 'Erreur lors du chargement des rendez-vous', 'error');
+  }
+}
+
+async function openAppointmentForHistoryPatient() {
+  if (!appointmentHistoryPatientId) return;
+  closeModal('modal-patient-appointment-history');
+  await openAppointmentForPatient(appointmentHistoryPatientId);
+}
+
+function togglePatientSelection(patientId, isSelected) {
+  if (isSelected) selectedPatientIds.add(patientId);
+  else selectedPatientIds.delete(patientId);
+  renderPatientsScopeControls();
+}
+
+async function assignSelectedPatientsToCurrentDoctor() {
+  const patientIds = [...selectedPatientIds];
+  if (!selectedPatientsDoctorId || !patientIds.length) return;
+
+  const results = await Promise.all(patientIds.map((patientId) => (
+    patientApi.attach({ patientId, doctorId: selectedPatientsDoctorId })
+  )));
+  const failed = results.filter((result) => !result.success);
+  if (failed.length) {
+    showNotification(`Erreur: ${failed[0].error || 'certains patients n’ont pas été ajoutés'}`, 'error');
+  } else {
+    showNotification(`${patientIds.length} patient${patientIds.length === 1 ? '' : 's'} ajouté${patientIds.length === 1 ? '' : 's'} à la liste du médecin`, 'success');
+  }
+  selectedPatientIds.clear();
   await loadPatients(patientsCurrentPage);
 }
 
@@ -197,12 +408,16 @@ async function loadPatients(page = 1) {
   try {
     await ensurePatientsScope();
     const loader = patientsView === 'directory' ? patientApi.getDirectory : patientApi.getAll;
+    const pageSize = patientsView === 'directory' && currentUserRole === 'assistant'
+      ? ASSISTANT_DIRECTORY_PAGE_SIZE
+      : PATIENTS_PAGE_SIZE;
     const result = await loader({
       searchTerm: patientsSearchTerm,
       page,
-      pageSize: PATIENTS_PAGE_SIZE,
+      pageSize,
       paginated: true,
-      doctorId: selectedPatientsDoctorId
+      doctorId: selectedPatientsDoctorId,
+      filterDoctorId: patientsListFilterDoctorId
     });
 
     if (result.success && patientState.isCurrent(requestVersion)) {
@@ -662,12 +877,17 @@ setupPatientModalEnhancements();
 
 registerLegacyGlobals('patients', {
   changePatientsDoctorScope,
+  changePatientsListFilter,
   changePatientsPage,
+  assignSelectedPatientsToCurrentDoctor,
   deletePatient,
   editPatient,
   getDefaultPatientAvatarDataUri,
   getPatientPhotoUrl,
   loadPatients,
+  openAppointmentForPatient,
+  openAppointmentForHistoryPatient,
+  showPatientAppointmentHistory,
   resetSickLeaveFormFields,
   savePatient,
   searchPatients,

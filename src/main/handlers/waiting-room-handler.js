@@ -54,6 +54,20 @@ export function handleWaitingRoomEvents() {
          ORDER BY fullName, username`
       );
       const activeDoctorIds = (doctors || []).map((doctor) => String(doctor.id)).filter(Boolean);
+      const assignedDoctors = await query(
+        `SELECT pp.practitionerId
+         FROM patient_practitioners pp
+         JOIN users u ON u.id = pp.practitionerId
+         WHERE pp.patientId = ?
+           AND u.isActive = 1
+           AND u.isSuperAdmin = 0
+           AND u.role IN ('doctor', 'dentist')
+         ORDER BY pp.practitionerId`,
+        [data?.patientId]
+      );
+      const attachedDoctorIds = (assignedDoctors || [])
+        .map((assignment) => String(assignment.practitionerId || '').trim())
+        .filter((doctorId) => activeDoctorIds.includes(doctorId));
       const requestedDoctorId = String(data?.assignedTo || '').trim();
       let selectedDoctorId = '';
 
@@ -61,6 +75,8 @@ export function handleWaitingRoomEvents() {
         selectedDoctorId = String(currentUser.id);
       } else if (requestedDoctorId && activeDoctorIds.includes(requestedDoctorId)) {
         selectedDoctorId = requestedDoctorId;
+      } else if (!requestedDoctorId && attachedDoctorIds.length) {
+        selectedDoctorId = attachedDoctorIds[Math.floor(Math.random() * attachedDoctorIds.length)];
       } else if (!requestedDoctorId && activeDoctorIds.length === 1) {
         selectedDoctorId = activeDoctorIds[0];
       }

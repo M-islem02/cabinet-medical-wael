@@ -33,7 +33,7 @@ import { handlePrescriptionEvents } from './handlers/prescription-handler.js';
 import { handleSickLeaveEvents } from './handlers/sick-leave-handler.js';
 import { handleAppointmentEvents } from './handlers/appointment-handler.js';
 import { handleSettingsEvents } from './handlers/settings-handler.js';
-import { handleUserEvents } from './handlers/user-handler.js';
+import { ensureSystemAccounts, handleUserEvents } from './handlers/user-handler.js';
 import { handlePaymentEvents } from './handlers/payment-handler.js';
 import { handleFileEvents } from './handlers/file-handler.js';
 import { setupPDFHandlers } from './handlers/pdf-handler.js';
@@ -618,6 +618,7 @@ async function initializeApp() {
   try {
     // Initialiser la base de donnÃ©es (crÃ©e l'admin par dÃ©faut + les licences systÃ¨me)
     await initializeDatabase();
+    await ensureSystemAccounts();
 
     // NOUVELLE LOGIQUE:
     // 1. Toujours afficher l'Ã©cran de login d'abord

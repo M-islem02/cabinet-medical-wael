@@ -202,6 +202,56 @@ export function loadConfig() {
   return normalizePostgresConfig(DEFAULT_POSTGRES_CONFIG);
 }
 
+function canBootstrapDefaultLocalDatabase(config) {
+  const host = String(config.host || '').trim().toLowerCase();
+  const configPath = path.join(app.getPath('userData'), 'database-config.json');
+  return !fs.existsSync(configPath)
+    && (host === 'localhost' || host === '127.0.0.1' || host === '::1')
+    && config.database === DEFAULT_POSTGRES_CONFIG.database
+    && config.user === DEFAULT_POSTGRES_CONFIG.user;
+}
+
+async function bootstrapDefaultLocalDatabase(config) {
+  const maintenancePool = new Pool({
+    host: config.host,
+    port: config.port,
+    user: 'postgres',
+    password: config.password,
+    database: 'postgres',
+    ssl: config.ssl,
+    max: 1,
+    connectionTimeoutMillis: 10000
+  });
+
+  try {
+    const roleResult = await maintenancePool.query(
+      'SELECT 1 FROM pg_roles WHERE rolname = $1',
+      [config.user]
+    );
+    if (!roleResult.rowCount) {
+      const createRole = await maintenancePool.query(
+        "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', $1, $2) AS sql",
+        [config.user, config.password]
+      );
+      await maintenancePool.query(createRole.rows[0].sql);
+    }
+
+    const databaseResult = await maintenancePool.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [config.database]
+    );
+    if (!databaseResult.rowCount) {
+      const createDatabase = await maintenancePool.query(
+        "SELECT format('CREATE DATABASE %I OWNER %I ENCODING %L', $1, $2, 'UTF8') AS sql",
+        [config.database, config.user]
+      );
+      await maintenancePool.query(createDatabase.rows[0].sql);
+    }
+  } finally {
+    await maintenancePool.end();
+  }
+}
+
 function convertPlaceholders(sql) {
   let index = 0;
   let inSingle = false;
@@ -423,7 +473,7 @@ export async function initializeDatabase() {
   // The database and application role are provisioned manually before the
   // software is installed. Network clients must never require access to the
   // PostgreSQL maintenance database just to start MedCareSO.
-  pool = new Pool({
+  const createApplicationPool = () => new Pool({
     host: dbConfig.host,
     port: dbConfig.port,
     user: dbConfig.user,
@@ -435,11 +485,30 @@ export async function initializeDatabase() {
     connectionTimeoutMillis: 10000
   });
 
-  const client = await pool.connect();
+  pool = createApplicationPool();
+  let client;
   try {
+    client = await pool.connect();
+    await client.query('SELECT 1');
+  } catch (connectionError) {
+    await pool.end().catch(() => {});
+    pool = null;
+    if (!canBootstrapDefaultLocalDatabase(dbConfig)) throw connectionError;
+
+    try {
+      await bootstrapDefaultLocalDatabase(dbConfig);
+    } catch (bootstrapError) {
+      throw new Error(
+        'Initialisation PostgreSQL automatique impossible. Lors de l’installation de PostgreSQL, ' +
+        `utilisez le mot de passe ${DEFAULT_POSTGRES_CONFIG.password} pour le compte postgres. ` +
+        `Détail: ${bootstrapError.message}`
+      );
+    }
+    pool = createApplicationPool();
+    client = await pool.connect();
     await client.query('SELECT 1');
   } finally {
-    client.release();
+    client?.release();
   }
 
   await runPostgreSqlMigrations(pool);

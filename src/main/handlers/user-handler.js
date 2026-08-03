@@ -147,6 +147,12 @@ async function repairSystemAccount(username) {
   return id;
 }
 
+export async function ensureSystemAccounts() {
+  for (const username of Object.keys(SYSTEM_ACCOUNT_DEFAULTS)) {
+    await repairSystemAccount(username);
+  }
+}
+
 async function findUserForLogin(username, password) {
   const passwordHash = hashPassword(password);
   let user = await queryOne(
