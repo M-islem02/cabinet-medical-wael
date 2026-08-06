@@ -1511,6 +1511,103 @@ document.addEventListener('DOMContentLoaded', () => {
   updateDocumentStylePreview();
 });
 
+let lastSettingsGeneratedTokenResult = null;
+
+async function useCurrentMachineIdInSettings() {
+  try {
+    const res = await window.api.license.getMachineId();
+    if (res?.success) {
+      document.getElementById('settings-gen-device-id').value = res.machineId;
+    }
+  } catch (_) {}
+}
+
+function setSettingsPresetDuration(months) {
+  const expiryInput = document.getElementById('settings-gen-expiry');
+  if (!expiryInput) return;
+  if (months === 0) {
+    expiryInput.value = '';
+    return;
+  }
+  const now = new Date();
+  now.setMonth(now.getMonth() + months);
+  expiryInput.value = now.toISOString().split('T')[0];
+}
+
+async function generateClientTokenInSettings() {
+  const deviceId = document.getElementById('settings-gen-device-id')?.value?.trim();
+  const clientName = document.getElementById('settings-gen-client-name')?.value?.trim();
+  const expiryDate = document.getElementById('settings-gen-expiry')?.value;
+  const resultBox = document.getElementById('settings-gen-result');
+  const outputArea = document.getElementById('settings-gen-output');
+
+  if (!deviceId) {
+    showNotification('Veuillez entrer le Device ID du client', 'error');
+    return;
+  }
+
+  try {
+    const res = await window.api.license.generateClientToken({
+      machineId: deviceId,
+      cabinetName: clientName || 'Cabinet Médical',
+      expiresAt: expiryDate || null
+    });
+
+    if (res && res.success) {
+      lastSettingsGeneratedTokenResult = res;
+      outputArea.value = res.jsonContent;
+      resultBox.style.display = 'block';
+      showNotification('⚡ Licence client générée avec succès!', 'success');
+    } else {
+      showNotification('Erreur: ' + (res?.error || 'Échec de génération'), 'error');
+    }
+  } catch (err) {
+    console.error('Erreur génération licence:', err);
+    showNotification('Erreur: ' + err.message, 'error');
+  }
+}
+
+async function copySettingsGeneratedToken() {
+  if (!lastSettingsGeneratedTokenResult?.jsonContent) return;
+  try {
+    await navigator.clipboard.writeText(lastSettingsGeneratedTokenResult.jsonContent);
+    showNotification('📋 Token de licence copié !', 'success');
+  } catch (_) {
+    showNotification('Utilisez Ctrl+C pour copier la licence', 'warning');
+  }
+}
+
+async function saveSettingsGeneratedFile() {
+  if (!lastSettingsGeneratedTokenResult?.jsonContent) return;
+  try {
+    const filename = `licence_${(lastSettingsGeneratedTokenResult.cabinetName || 'client').replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    const res = await window.api.license.saveToFile({
+      jsonContent: lastSettingsGeneratedTokenResult.jsonContent,
+      defaultFilename: filename
+    });
+    if (res?.success) {
+      showNotification(`💾 Fichier enregistré sous : ${res.filePath}`, 'success');
+    }
+  } catch (err) {
+    showNotification('Erreur sauvegarde: ' + err.message, 'error');
+  }
+}
+
+async function activateSettingsGeneratedLocally() {
+  if (!lastSettingsGeneratedTokenResult?.jsonContent) return;
+  try {
+    const res = await window.api.license.activate(lastSettingsGeneratedTokenResult.jsonContent);
+    if (res?.success) {
+      showNotification('✅ Licence activée sur ce poste avec succès !', 'success');
+      loadLicenseStatus();
+    } else {
+      showNotification('Erreur d\'activation: ' + (res?.reason || res?.error), 'error');
+    }
+  } catch (err) {
+    showNotification('Erreur: ' + err.message, 'error');
+  }
+}
+
 window.refreshDeviceOptions = refreshDeviceOptions;
 window.loadPublicBookingShareData = loadPublicBookingShareData;
 window.copyPublicBookingLink = copyPublicBookingLink;
@@ -1525,3 +1622,9 @@ window.saveSettings = savePracticeSettings;
 window.savePracticeSettings = savePracticeSettings;
 window.savePeripheralSettings = savePeripheralSettings;
 window.savePublicBookingSettings = savePublicBookingSettings;
+window.useCurrentMachineIdInSettings = useCurrentMachineIdInSettings;
+window.setSettingsPresetDuration = setSettingsPresetDuration;
+window.generateClientTokenInSettings = generateClientTokenInSettings;
+window.copySettingsGeneratedToken = copySettingsGeneratedToken;
+window.saveSettingsGeneratedFile = saveSettingsGeneratedFile;
+window.activateSettingsGeneratedLocally = activateSettingsGeneratedLocally;

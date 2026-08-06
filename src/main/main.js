@@ -19,6 +19,7 @@ import {
   startLicenseMonitor,
   stopLicenseMonitor
 } from './license-manager.js';
+import { generateClientLicenseToken } from './services/license-generator-service.js';
 import { verifyApplicationIntegrity } from './security/integrity-service.js';
 import {
   clearLoginSession,
@@ -398,6 +399,42 @@ function createLicenseWindow() {
 }
 
 /**
+ * Crée la fenêtre autonome du générateur de licence
+ */
+function createStandaloneLicenseGeneratorWindow() {
+  const bounds = getResponsiveWindowBounds({
+    width: 600,
+    height: 750,
+    minWidth: 500,
+    minHeight: 600,
+    marginX: 60,
+    marginY: 60
+  });
+
+  const genWindow = new BrowserWindow({
+    ...bounds,
+    title: 'MedCareSO — Générateur de Licence Client (Ed25519)',
+    resizable: true,
+    show: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'preload-bundled.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    },
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
+  });
+
+  genWindow.loadFile(path.join(__dirname, '..', 'renderer', 'license.html'), { hash: 'generator' });
+  setupHotReload(genWindow);
+
+  genWindow.on('closed', () => {
+    app.quit();
+  });
+}
+
+/**
  * CrÃ©e la fenÃªtre de setup initial
  */
 function createSetupWindow() {
@@ -659,10 +696,14 @@ async function initializeApp() {
   }
 }
 
+let ipcHandlersInitialized = false;
+
 /**
  * Initialise les gestionnaires IPC
  */
 function setupIPCHandlers() {
+  if (ipcHandlersInitialized) return;
+  ipcHandlersInitialized = true;
   startRealtimeServer();
 
   // ========== HANDLERS CONFIG DB ==========
@@ -730,6 +771,30 @@ function setupIPCHandlers() {
 
   ipcMain.handle('license:generate-keys', (event, payload) => {
     return generateLicenseKeys(payload || {});
+  });
+
+  ipcMain.handle('license:generateClientToken', async (event, payload) => {
+    try {
+      return generateClientLicenseToken(payload || {});
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('license:saveToFile', async (event, { jsonContent, defaultFilename = 'licence.medcareso.json' }) => {
+    const owner = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const result = await dialog.showSaveDialog(owner || undefined, {
+      title: 'Enregistrer le fichier de licence client',
+      defaultPath: defaultFilename,
+      filters: [{ name: 'Licence MedCareSO', extensions: ['json', 'medcareso'] }]
+    });
+    if (result.canceled || !result.filePath) return { success: false, canceled: true };
+    try {
+      fs.writeFileSync(result.filePath, jsonContent, 'utf8');
+      return { success: true, filePath: result.filePath };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   });
 
   // AprÃ¨s activation rÃ©ussie de la licence
@@ -1632,6 +1697,22 @@ app.on('ready', async () => {
       process.argv[databaseTestArgIndex + 2]
     );
     app.exit(result.success ? 0 : 1);
+    return;
+  }
+
+  const isLicenseGeneratorRequested = process.argv.some(arg => 
+    arg === '--license' || 
+    arg === '--license-generator' || 
+    arg === '--generator' || 
+    arg === '--licence' || 
+    arg === '-l'
+  );
+
+  setupIPCHandlers();
+
+  if (isLicenseGeneratorRequested) {
+    console.log('⚡ Mode Générateur de Licence autonome activé.');
+    createStandaloneLicenseGeneratorWindow();
     return;
   }
 

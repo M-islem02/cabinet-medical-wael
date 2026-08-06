@@ -1,4 +1,5 @@
-import { app } from 'electron';
+import electron from 'electron';
+const app = electron.app || electron;
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';

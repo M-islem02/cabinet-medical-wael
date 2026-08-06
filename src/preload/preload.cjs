@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('api', {
     deactivate: (licenseKey) => ipcRenderer.invoke('license:deactivate', licenseKey),
     chooseFile: () => ipcRenderer.invoke('license:choose-file'),
     generateKeys: (payload) => ipcRenderer.invoke('license:generate-keys', payload),
+    generateClientToken: (payload) => ipcRenderer.invoke('license:generateClientToken', payload),
+    saveToFile: (payload) => ipcRenderer.invoke('license:saveToFile', payload),
     activated: () => ipcRenderer.invoke('license:activated'),
     getStatus: () => ipcRenderer.invoke('license:getStatus'),
     getMachineId: () => ipcRenderer.invoke('license:get-machine-id'),

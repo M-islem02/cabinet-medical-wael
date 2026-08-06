@@ -6,7 +6,9 @@
 import pg from 'pg';
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
+import os from 'os';
+import electron from 'electron';
+const app = electron.app || electron;
 import { startLocalPostgres, stopLocalPostgres } from './postgres-local-service.js';
 import { getCanonicalColumnNameMap } from './database-schema-postgresql.js';
 import { runPostgreSqlMigrations } from './database/migration-runner.js';
@@ -191,7 +193,8 @@ export function normalizePostgresConfig(config = {}) {
 }
 
 export function loadConfig() {
-  const configPath = path.join(app.getPath('userData'), 'database-config.json');
+  const userDataDir = app?.getPath ? app.getPath('userData') : path.join(os.homedir(), '.config', 'physiocare');
+  const configPath = path.join(userDataDir, 'database-config.json');
 
   if (fs.existsSync(configPath)) {
     const configData = fs.readFileSync(configPath, 'utf-8');

@@ -3,21 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedCareSO - Activation de Licence</title>
+    <title>MedCareSO - Activation & Génération de Licence</title>
     <link rel="stylesheet" href="css/license.css">
+    <style>
+        .license-tabs {
+            display: flex;
+            background: #f0f2f5;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+        .license-tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 600;
+            color: #595959;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .license-tab-btn.active {
+            background: #ffffff;
+            color: #1677ff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+        .quick-presets {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .preset-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: 1px solid #d9d9d9;
+            background: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .preset-btn:hover {
+            border-color: #1677ff;
+            color: #1677ff;
+        }
+        .token-box {
+            background: #1e1e1e;
+            color: #4ec9b0;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 8px;
+        }
+    </style>
 </head>
 <body>
     <div class="license-container">
         <div class="license-box">
             <div class="header">
                 <div class="logo">
-                    <img src="assets/logo.png" alt="Logo" style="width: 60px; height: 60px; object-fit: contain;">
+                    <img src="assets/logo.png" alt="Logo" style="width: 50px; height: 50px; object-fit: contain;">
                 </div>
                 <h1>MedCareSO</h1>
-                <p class="subtitle">Gestion de Cabinet Médical</p>
+                <p class="subtitle">Gestion de Cabinet & Licence Système</p>
             </div>
 
             <div class="content">
+                <!-- Navigation Onglets -->
+                <div class="license-tabs">
+                    <button id="tab-btn-activation" class="license-tab-btn active" onclick="switchTab('activation')">
+                        🔓 Activer une licence
+                    </button>
+                    <button id="tab-btn-generator" class="license-tab-btn" onclick="switchTab('generator')">
+                        ⚡ Générateur Client Token
+                    </button>
+                </div>
+
                 <!-- Étape unique: installer une licence signée -->
                 <div id="step-activation" class="step active">
                     <h2>Activation de Licence</h2>
@@ -27,33 +94,81 @@
                         <small>
                             Choisissez le fichier de licence signé fourni par MedCareSO.
                             <br>Il est lié à ce poste et ne peut pas être copié vers une autre machine.
-                            <br>Après activation, connectez-vous avec le compte admin.
                         </small>
                     </div>
-                    <div class="info-box" style="margin-top: 12px;">
-                        <strong>Identifiant de ce poste</strong>
-                        <code id="machine-id-value" style="display:block;overflow-wrap:anywhere;margin-top:6px;">Chargement…</code>
-                        <small>Communiquez cet identifiant à MedCareSO pour recevoir votre fichier de licence.</small>
+                    <div class="info-box" style="margin-top: 10px;">
+                        <strong>Identifiant de ce poste (Device ID)</strong>
+                        <code id="machine-id-value" style="display:block;overflow-wrap:anywhere;margin-top:6px;user-select:all;color:#1677ff;">Chargement…</code>
+                        <small>Communiquez cet identifiant à l'éditeur pour recevoir votre fichier de licence.</small>
                     </div>
 
                     <div class="form-group">
                         <label for="license-key">Fichier de licence :</label>
                         <input type="text" id="license-key" placeholder="Aucun fichier sélectionné" class="form-control" readonly autocomplete="off">
-                        <small>Le contenu de la licence n’est jamais affiché.</small>
                     </div>
 
-                    <div class="button-group" style="margin-top: 12px;">
-                        <button class="btn btn-secondary" type="button" onclick="chooseLicenseFile()">Choisir le fichier</button>
+                    <div class="button-group" style="margin-top: 10px;">
+                        <button class="btn btn-secondary" type="button" onclick="chooseLicenseFile()">📁 Choisir le fichier</button>
                     </div>
 
                     <div id="validation-message" class="message hidden"></div>
 
                     <div class="button-group" style="margin-top: 20px;">
-                        <button class="btn btn-primary btn-large" onclick="validateAndActivate()">
+                        <button class="btn btn-primary btn-large btn-block" onclick="validateAndActivate()">
                             Activer la Licence
                         </button>
                     </div>
-                    
+                </div>
+
+                <!-- Onglet Générateur de Licence Client -->
+                <div id="step-generator" class="step">
+                    <h2>Générateur de Licence Client</h2>
+                    <p style="font-size:12px;margin-bottom:12px;">Saisissez le Device ID transmis par le client pour générer une licence signée valide.</p>
+
+                    <div class="form-group">
+                        <label for="gen-device-id">1. Device ID du client (Machine ID) *</label>
+                        <div style="display:flex;gap:6px;">
+                            <input type="text" id="gen-device-id" placeholder="Collez l'ID de la machine cliente ici" class="form-control" style="font-size:12px;">
+                            <button class="btn btn-secondary" type="button" onclick="useCurrentMachineId()" title="Utiliser l'ID de cette machine">Poste Actuel</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gen-client-name">2. Nom du Client / Cabinet *</label>
+                        <input type="text" id="gen-client-name" placeholder="Ex: Cabinet Médical Dr. Benali" class="form-control" value="Cabinet Médical">
+                    </div>
+
+                    <div class="form-group">
+                        <label>3. Durée / Date d'expiration *</label>
+                        <input type="date" id="gen-expiry-date" class="form-control">
+                        <div class="quick-presets">
+                            <button type="button" class="preset-btn" onclick="setPresetDuration(1)">1 Mois</button>
+                            <button type="button" class="preset-btn" onclick="setPresetDuration(3)">3 Mois</button>
+                            <button type="button" class="preset-btn" onclick="setPresetDuration(6)">6 Mois</button>
+                            <button type="button" class="preset-btn" onclick="setPresetDuration(12)">1 An</button>
+                            <button type="button" class="preset-btn" onclick="setPresetDuration(0)">Illimitée</button>
+                        </div>
+                    </div>
+
+                    <div id="gen-message" class="message hidden"></div>
+
+                    <div class="button-group" style="margin-top: 15px;">
+                        <button class="btn btn-primary btn-large btn-block" onclick="generateClientToken()">
+                            ⚡ Générer le Token Client
+                        </button>
+                    </div>
+
+                    <!-- Affichage du Token Généré -->
+                    <div id="gen-result-box" style="display:none;margin-top:15px;border-top:1px solid #eee;padding-top:12px;">
+                        <label style="font-weight:600;font-size:12px;color:#1677ff;">Token de licence signé généré :</label>
+                        <div id="gen-token-output" class="token-box"></div>
+
+                        <div class="button-group" style="margin-top:10px;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" type="button" onclick="copyGeneratedToken()" style="flex:1;">📋 Copier Token</button>
+                            <button class="btn btn-primary" type="button" onclick="saveGeneratedFile()" style="flex:1;">💾 Enregistrer (.json)</button>
+                            <button class="btn btn-secondary" type="button" onclick="activateGeneratedLocally()" style="flex:1;">✅ Activer Ici</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Étape 2: Succès -->

@@ -156,7 +156,7 @@ export function handleWaitingRoomEvents() {
       const params = [today];
       let practitionerFilter = '';
       if (isRestrictedPractitioner) {
-        practitionerFilter = ' AND w.assignedTo = ?';
+        practitionerFilter = ' AND (w.assignedTo = ? OR w.assignedTo IS NULL OR w.assignedTo = \'\')';
         params.push(String(currentUser.id));
       }
 
@@ -189,7 +189,7 @@ export function handleWaitingRoomEvents() {
         : '';
       const existing = await queryOne(
         `SELECT id FROM waiting_room
-         WHERE id = ?${restrictedDoctorId ? ' AND assignedTo = ?' : ''}
+         WHERE id = ?${restrictedDoctorId ? ' AND (assignedTo = ? OR assignedTo IS NULL OR assignedTo = \'\')' : ''}
          FOR UPDATE`,
         restrictedDoctorId ? [id, restrictedDoctorId] : [id]
       );
@@ -220,7 +220,7 @@ export function handleWaitingRoomEvents() {
         ? String(currentUser.id)
         : '';
       await run(
-        `DELETE FROM waiting_room WHERE id = ?${restrictedDoctorId ? ' AND assignedTo = ?' : ''}`,
+        `DELETE FROM waiting_room WHERE id = ?${restrictedDoctorId ? ' AND (assignedTo = ? OR assignedTo IS NULL OR assignedTo = \'\')' : ''}`,
         restrictedDoctorId ? [id, restrictedDoctorId] : [id]
       );
       return { success: true };

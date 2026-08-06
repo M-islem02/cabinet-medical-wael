@@ -22,6 +22,8 @@
     "license:generate-keypair": "node scripts/generate-license-keypair.mjs",
     "license:install-public-key": "node scripts/install-license-public-key.mjs",
     "license:sign": "node scripts/sign-license.mjs",
+    "license:generator": "node scripts/start-electron.cjs --license",
+    "license:gen": "node scripts/start-electron.cjs --license",
     "security:manifest": "node scripts/generate-integrity-manifest.mjs",
     "build:dir": "electron-builder --win dir --x64",
     "build:inno": "npm run build:dir && \"C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe\" installer-inno.iss",
