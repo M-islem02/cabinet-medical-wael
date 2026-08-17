@@ -16,7 +16,7 @@ const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
 function isPractitionerRole(role) {
   return [
     'doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute',
-    'orthophoniste', 'nurse'
+    'orthophoniste', 'nurse', 'test'
   ].includes(role);
 }
 
@@ -98,6 +98,7 @@ function getDefaultColorForRole(role) {
     ergotherapeute: '#06b6d4',
     orthophoniste: '#f59e0b',
     nurse: '#10b981',
+    test: '#6366f1',
     assistant: '#6b7280'
   };
   return colors[role] || '#6b7280';
@@ -393,13 +394,13 @@ export function handleUserEvents() {
       const requestedAdmin = !!requestingUser.isSuperAdmin
         && (userData.isAdmin === true || userData.isAdmin === 1 || userData.isAdmin === '1');
       
-      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'test'];
       const normalizedRequestedRole = normalizeLegacyRole(userData.role);
       const role = validRoles.includes(normalizedRequestedRole) ? normalizedRequestedRole : 'doctor';
       const newUserIsAdmin = requestedAdmin && isPractitionerRole(role) ? 1 : 0;
       const specialtyCheck = ['doctor', 'dentist'].includes(role)
         ? await resolveAllowedDoctorSpecialty(userData.specialty)
-        : { success: true, specialty: null };
+        : { success: true, specialty: userData.specialty || null };
       if (!specialtyCheck.success) {
         return { success: false, error: specialtyCheck.error };
       }
@@ -506,7 +507,7 @@ export function handleUserEvents() {
         return { success: false, error: 'Seul le super administrateur peut modifier un médecin admin' };
       }
 
-      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+      const validRoles = ['doctor', 'dentist', 'assistant', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'test'];
       const normalizedPayloadRole = normalizeLegacyRole(payload.role);
       const requestedRole = validRoles.includes(normalizedPayloadRole)
         ? normalizedPayloadRole
@@ -524,7 +525,7 @@ export function handleUserEvents() {
 
       const specialty = (requestedRole === 'doctor' || requestedRole === 'dentist')
         ? await resolveAllowedDoctorSpecialty(payload.specialty)
-        : null;
+        : { success: true, specialty: payload.specialty || null };
       if (specialty && !specialty.success) {
         return { success: false, error: specialty.error };
       }

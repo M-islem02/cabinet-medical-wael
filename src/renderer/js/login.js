@@ -2,6 +2,54 @@
  * Script de connexion
  */
 
+const SAVED_CREDENTIALS_KEY = 'medcareso_saved_credentials';
+const CREDENTIALS_VALIDITY_MS = 24 * 60 * 60 * 1000; // 24 heures
+
+function loadSavedCredentials() {
+  try {
+    const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (data && data.savedAt && (Date.now() - Number(data.savedAt) < CREDENTIALS_VALIDITY_MS)) {
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      const rememberCheckbox = document.getElementById('remember-credentials');
+      const submitButton = document.querySelector('#login-form button[type="submit"]');
+
+      if (usernameInput && data.username) usernameInput.value = data.username;
+      if (passwordInput && data.password) passwordInput.value = data.password;
+      if (rememberCheckbox) rememberCheckbox.checked = true;
+      if (submitButton) {
+        submitButton.focus();
+      }
+      return true;
+    } else {
+      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      return false;
+    }
+  } catch (e) {
+    console.warn('Erreur lors de la lecture des identifiants mémorisés:', e);
+    localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    return false;
+  }
+}
+
+function persistCredentials(username, password, remember) {
+  try {
+    if (remember) {
+      localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({
+        username,
+        password,
+        savedAt: Date.now()
+      }));
+    } else {
+      localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    }
+  } catch (e) {
+    console.warn('Erreur lors de l\'enregistrement des identifiants:', e);
+  }
+}
+
 // Charger le statut de la licence au démarrage
 window.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -49,7 +97,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     }
   } catch (error) {
-    setLoginButtonState(submitButton, false);
     console.error('Erreur lors de la vérification de la licence:', error);
   }
 
@@ -65,8 +112,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Focus sur le champ username
-  document.getElementById('username')?.focus();
+  // Charger les identifiants enregistrés s'ils ont moins de 24h
+  const hasSaved = loadSavedCredentials();
+  if (!hasSaved) {
+    document.getElementById('username')?.focus();
+  }
 });
 
 // Soumettre le formulaire de connexion
@@ -76,6 +126,7 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
   const messageEl = document.getElementById('login-message');
   const usernameInput = document.getElementById('username');
   const passwordInput = document.getElementById('password');
+  const rememberCheckbox = document.getElementById('remember-credentials');
   const submitButton = document.querySelector('#login-form button[type="submit"]');
   const username = usernameInput.value.trim();
   const password = passwordInput.value;
@@ -96,6 +147,9 @@ document.getElementById('login-form')?.addEventListener('submit', async (e) => {
     }
     
     if (result.success) {
+      // Sauvegarder ou effacer les identifiants selon l'option mémoriser (24h)
+      persistCredentials(username, password, rememberCheckbox ? rememberCheckbox.checked : false);
+
       if (result.needsLicenseManagement) {
         showMessage(messageEl, '🔑 Connexion administrateur réussie. Ouvrir Paramètres > Licence pour activer une clé.', 'success');
 

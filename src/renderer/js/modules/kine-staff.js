@@ -190,6 +190,9 @@ async function saveKineStaff(event) {
     
     // Immediately reload the kiné staff list
     await loadKineStaff();
+    if (typeof loadKineSelectOptions === 'function') {
+      await loadKineSelectOptions(true);
+    }
     
   } catch (error) {
     console.error('❌ Error saving kiné:', error);
@@ -205,7 +208,10 @@ async function deleteKineStaff(kineId) {
   
   try {
     await window.api.kineStaff.delete(kineId);
-    loadKineStaff();
+    await loadKineStaff();
+    if (typeof loadKineSelectOptions === 'function') {
+      await loadKineSelectOptions(true);
+    }
     showNotification('Kinésithérapeute supprimé', 'success');
   } catch (error) {
     console.error('Error deleting kiné:', error);
@@ -412,6 +418,7 @@ function showInfoModal(title, content) {
 }
 
 // Make functions global
+window.initKineStaff = initKineStaff;
 window.loadKineStaff = loadKineStaff;
 window.openKineStaffModal = openKineStaffModal;
 window.editKineStaff = editKineStaff;

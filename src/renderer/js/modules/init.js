@@ -1,5 +1,5 @@
 const APP_ZOOM_STORAGE_KEY = 'medcareso_app_zoom_factor';
-const APP_ZOOM_DEFAULT = 0.9;
+const APP_ZOOM_DEFAULT = 1.0;
 const APP_ZOOM_MIN = 0.75;
 const APP_ZOOM_MAX = 1.4;
 const APP_ZOOM_STEP = 0.05;
@@ -43,7 +43,12 @@ function updateAppZoomControls(value) {
 }
 
 function getStoredAppZoom() {
-  return clampAppZoom(localStorage.getItem(APP_ZOOM_STORAGE_KEY) || APP_ZOOM_DEFAULT);
+  const stored = localStorage.getItem(APP_ZOOM_STORAGE_KEY);
+  if (stored === '0.9') {
+    localStorage.setItem(APP_ZOOM_STORAGE_KEY, String(APP_ZOOM_DEFAULT));
+    return clampAppZoom(APP_ZOOM_DEFAULT);
+  }
+  return clampAppZoom(stored || APP_ZOOM_DEFAULT);
 }
 
 function setupAppZoomControls() {
@@ -117,7 +122,14 @@ async function initializeLegacyApplication() {
     const normalizeUiRole = (role) => role === 'director' ? 'doctor' : (role || 'doctor');
     if (typeof repairUiMojibake === 'function') {
       repairUiMojibake(document.body);
-      const observer = new MutationObserver(() => repairUiMojibake(document.body));
+      let mojibakeRepairTimer = null;
+      const observer = new MutationObserver(() => {
+        clearTimeout(mojibakeRepairTimer);
+        mojibakeRepairTimer = setTimeout(() => {
+          mojibakeRepairTimer = null;
+          repairUiMojibake(document.body);
+        }, 120);
+      });
       observer.observe(document.body, {
         childList: true,
         subtree: true,
@@ -344,13 +356,14 @@ async function applyPackageRestrictions() {
     const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(config)
       : 'general';
+    const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
     
     document.querySelectorAll('.btn-ai-report, .btn-ai-chat, [onclick*="openAIReportGenerator"], [onclick*="openAIChatbot"]').forEach(btn => {
       btn.style.display = 'none';
     });
     
     // Hide dentistry tab in patient-details when feature is disabled
-    if (config.featureDentistry === 0 || activeSpecialty !== 'dentistry') {
+    if (config.featureDentistry === 0 || (activeSpecialty !== 'dentistry' && !isTestAccount)) {
       // Hide the dental tab button in patient details
       const dentalTabBtn = document.querySelector('.tab-btn[onclick*="tab-dental"]');
       if (dentalTabBtn) {
@@ -380,7 +393,7 @@ async function applyPackageRestrictions() {
     }
     
     // Hide rehabilitation tab/section elements when feature is disabled
-    if (config.featureRehabilitation === 0 || activeSpecialty !== 'mpr') {
+    if (config.featureRehabilitation === 0 || (activeSpecialty !== 'mpr' && !isTestAccount)) {
       // Hide rehab-related buttons in patient details
       document.querySelectorAll('[onclick*="rehabilitation"], [onclick*="rehab"]').forEach(btn => {
         if (!btn.classList.contains('nav-item')) {
@@ -391,7 +404,7 @@ async function applyPackageRestrictions() {
     }
     
     // Hide kiné staff elements when feature is disabled
-    if (config.featureKineStaff === 0 || activeSpecialty !== 'mpr') {
+    if (config.featureKineStaff === 0 || (activeSpecialty !== 'mpr' && !isTestAccount)) {
       // Hide kiné-related buttons and elements
       document.querySelectorAll('[onclick*="kine"], [data-section="kine-staff"]').forEach(el => {
         el.style.display = 'none';
@@ -446,18 +459,20 @@ function setSectionFeatureVisibility(sectionId, enabled) {
 function applyMprDependencyRestrictions(config = window._packageConfig || null) {
   if (!config) return;
 
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(config)
     : 'general';
-  const mprEnabled = activeSpecialty === 'mpr' && isFeatureEnabled(config, 'featureRehabilitation', true);
-  const dentistryEnabled = activeSpecialty === 'dentistry' && isFeatureEnabled(config, 'featureDentistry', false);
-  const cardiologyEnabled = activeSpecialty === 'cardiology' && isFeatureEnabled(config, 'featureCardiology', false);
+  const mprEnabled = isTestAccount || (activeSpecialty === 'mpr' && isFeatureEnabled(config, 'featureRehabilitation', true));
+  const dentistryEnabled = isTestAccount || (activeSpecialty === 'dentistry' && isFeatureEnabled(config, 'featureDentistry', false));
+  const cardiologyEnabled = isTestAccount || (activeSpecialty === 'cardiology' && isFeatureEnabled(config, 'featureCardiology', false));
   window._mprFeatureEnabled = mprEnabled;
   window._activeSpecialtyKey = activeSpecialty;
 
   setSectionFeatureVisibility('rehabilitation', mprEnabled);
-  setSectionFeatureVisibility('kine-staff', mprEnabled && isFeatureEnabled(config, 'featureKineStaff', true));
-  setSectionFeatureVisibility('daily-summary', mprEnabled && isFeatureEnabled(config, 'featureDailySummary', true));
+  setSectionFeatureVisibility('kine-staff', isTestAccount || (mprEnabled && isFeatureEnabled(config, 'featureKineStaff', true)));
+  setSectionFeatureVisibility('daily-summary', isTestAccount || (mprEnabled && isFeatureEnabled(config, 'featureDailySummary', true)));
   setSectionFeatureVisibility('dentistry', dentistryEnabled);
   setSectionFeatureVisibility('cardiology', cardiologyEnabled);
 
@@ -487,17 +502,17 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
     'act-osteopathie'
   ].forEach((inputId) => {
     const input = document.getElementById(inputId);
-    if (input && !mprEnabled) {
+    if (input && !mprEnabled && !isTestAccount) {
       input.checked = false;
     }
     const label = input?.closest('.checkbox-label');
     if (label) {
-      label.style.display = mprEnabled ? '' : 'none';
+      label.style.display = (mprEnabled || isTestAccount) ? '' : 'none';
     }
   });
 
   const kineSelection = document.getElementById('kine-selection');
-  if (kineSelection && !mprEnabled) {
+  if (kineSelection && !mprEnabled && !isTestAccount) {
     kineSelection.style.display = 'none';
   }
 
@@ -506,6 +521,8 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
 function applyPackageRestrictionsFromCache(config = window._packageConfig || null) {
   if (currentUserRole === 'director') return;
   if (!config) return;
+
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
 
   const featureToSection = {
     featureWaitingRoom: 'waiting-room',
@@ -517,7 +534,7 @@ function applyPackageRestrictionsFromCache(config = window._packageConfig || nul
   };
 
   Object.entries(featureToSection).forEach(([featureKey, sectionId]) => {
-    const enabled = isFeatureEnabled(config, featureKey, true);
+    const enabled = isTestAccount || isFeatureEnabled(config, featureKey, true);
     setSectionFeatureVisibility(sectionId, enabled);
   });
 
@@ -528,19 +545,24 @@ function enforceDoctorPackageNav() {
   const config = window._packageConfig || null;
   if (!config) return;
 
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+
   // Reset then re-apply only allowed doctor nav according to package.
   document.querySelectorAll('.nav-item').forEach((item) => {
-    if (!item.classList.contains('admin-only')) {
+    if (isTestAccount || !item.classList.contains('admin-only')) {
       item.style.display = '';
+      item.classList.remove('hidden', 'feature-disabled');
     }
   });
 
   applyPackageRestrictionsFromCache(config);
 
-  // Never show admin-only links in doctor mode.
-  document.querySelectorAll('.nav-item.admin-only').forEach((item) => {
-    item.style.display = 'none';
-  });
+  // Never show admin-only links in doctor mode unless superadmin or test account.
+  if (!isTestAccount && !currentUserIsSuperAdmin) {
+    document.querySelectorAll('.nav-item.admin-only').forEach((item) => {
+      item.style.display = 'none';
+    });
+  }
 }
 
 function enforceDirectorMode() {
@@ -582,10 +604,11 @@ function updateUserDisplay() {
       'ergotherapeute': { bg: '#06b6d4', label: 'ERGO' },
       'orthophoniste': { bg: '#f59e0b', label: 'ORTHO' },
       'nurse': { bg: '#10b981', label: 'INFIRMIER' },
-      'assistant': { bg: '#6b7280', label: 'ASSISTANT' }
+      'assistant': { bg: '#6b7280', label: 'ASSISTANT' },
+      'test': { bg: '#6366f1', label: 'TEST / DÉMO' }
     };
     
-    const roleInfo = roleBadges[currentUserRole] || { bg: '#6b7280', label: currentUserRole.toUpperCase() };
+    const roleInfo = roleBadges[currentUserRole] || { bg: '#6366f1', label: currentUserRole.toUpperCase() };
     const roleBadge = `<span style="background: ${roleInfo.bg}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">${roleInfo.label}</span>`;
     
     doctorNameEl.innerHTML = `${currentUsername} ${roleBadge}`;
@@ -846,6 +869,9 @@ function enforceAdminMode() {
  * Assistants cannot: view consultations, prescriptions, medical records, statistics
  */
 function enforceAssistantMode() {
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+  if (isTestAccount) return;
+
   console.log('🔒 Enforcing assistant mode restrictions');
   
   // Add assistant-mode class to body for CSS-based hiding

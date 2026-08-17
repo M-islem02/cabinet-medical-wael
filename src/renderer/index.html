@@ -142,7 +142,7 @@
                     <button type="button" class="zoom-control-btn" id="app-zoom-out" title="Zoom arrière (Ctrl -)"
                         aria-label="Zoom arrière">−</button>
                     <button type="button" class="zoom-reset-btn" id="app-zoom-reset"
-                        title="Réinitialiser le zoom (Ctrl 0)" aria-label="Réinitialiser le zoom">90%</button>
+                        title="Réinitialiser le zoom (Ctrl 0)" aria-label="Réinitialiser le zoom">100%</button>
                     <button type="button" class="zoom-control-btn" id="app-zoom-in" title="Zoom avant (Ctrl +)"
                         aria-label="Zoom avant">+</button>
                     <button type="button" class="zoom-control-btn app-refresh-btn" id="app-refresh-btn"
@@ -410,21 +410,19 @@
                 <section id="rehabilitation" class="section doctor-only">
                     <div class="section-header rehab-header">
                         <div class="section-heading-block">
-                            <span class="section-eyebrow">Suivi Fonctionnel</span>
                             <h2>♿ Rééducation MPR</h2>
-                            <p class="section-subtitle">Bilans, plans et progression du patient dans une interface plus
-                                clinique, plus lisible et plus sérieuse.</p>
+                            <p class="section-subtitle">Bilans fonctionnels, plans de soins et suivi de la progression clinique.</p>
                         </div>
                     </div>
 
                     <div class="feature-shell rehab-shell">
                         <!-- Patient Selection Card -->
-                        <div class="card feature-hero feature-hero-rehab">
+                        <div class="feature-hero feature-hero-rehab">
                             <div class="feature-hero-content">
                                 <div class="feature-hero-layout">
                                     <div>
-                                        <span class="feature-hero-label">Patient en suivi</span>
-                                        <h3 class="feature-hero-title">👤 Rééducation du patient</h3>
+                                        <span class="feature-hero-label">Patient sélectionné</span>
+                                        <h3 class="feature-hero-title">👤 Dossier de rééducation</h3>
                                         <p id="rehab-current-patient-display" class="feature-hero-patient">
                                             Aucun patient sélectionné
                                         </p>
@@ -443,7 +441,7 @@
                         </div>
 
                         <!-- Main Tabs Navigation -->
-                        <div class="card feature-tabs-shell">
+                        <div class="feature-tabs-shell">
                             <div class="feature-tabs-wrap">
                                 <div class="rehab-main-tabs feature-main-tabs">
                                     <button class="rehab-tab-btn feature-tab-btn active" data-tab="bilans"
@@ -589,23 +587,17 @@
                 <!-- ===================== DENTISTRY SECTION ===================== -->
                 <section id="dentistry" class="section doctor-only">
                     <div class="feature-shell dental-shell">
-
-                        <div class="feature-main-tabs" role="tablist" aria-label="Dossier dentaire">
-                            <button type="button" class="dental-tab-btn feature-tab-btn active" data-tab="chart"
-                                onclick="switchDentalTab('chart')">Schéma dentaire</button>
-                        </div>
-
                         <!-- CHART Tab -->
                         <div id="dental-tab-chart" class="dental-tab-content" style="display: block;">
                             <div class="card dental-panel-card dental-chart-card">
                                 <div class="card-header dental-panel-header">
-                                    <h3>Schéma dentaire interactif</h3>
+                                    <h3>🦷 Odontogramme Clinique</h3>
                                 </div>
                                 <div class="dental-panel-body">
                                     <div class="dental-chart-layout">
                                         <aside class="dental-patient-picker-card">
                                             <span class="dental-panel-kicker">Patient</span>
-                                            <h4>Choisir malade</h4>
+                                            <h4>Dossier</h4>
                                             <span id="dental-current-patient-display" class="dental-current-patient-chip">Aucun patient sélectionné</span>
                                             <select id="dental-patient-selector"
                                                 class="feature-patient-selector dental-patient-select"
@@ -618,14 +610,13 @@
                                                 <input type="date" id="dental-history-date-filter" onchange="setDentalHistoryDateFilter(this.value)">
                                             </label>
                                             <div id="dental-patient-history-cards" class="dental-history-cards-empty">
-                                                Sélectionnez un malade pour voir l'historique.
+                                                Sélectionnez un patient pour afficher son historique.
                                             </div>
                                         </aside>
                                         <div id="dental-chart-container">
                                             <div class="dental-empty-state">
                                                 <h4>Sélectionnez un patient</h4>
-                                                <p style="font-size: 18px; margin: 10px 0;">Le schéma clinique apparaîtra
-                                                    ici.</p>
+                                                <p style="font-size: 14px; margin: 6px 0; color: rgba(0, 0, 0, 0.45);">L'odontogramme clinique interactif apparaîtra ici.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -673,20 +664,18 @@
                 <section id="cardiology" class="section doctor-only">
                     <div class="section-header cardio-header">
                         <div class="section-heading-block">
-                            <span class="section-eyebrow">Cardiologie</span>
                             <h2>💓 Cardiologie</h2>
-                            <p class="section-subtitle">Bilan cardiovasculaire structuré, suivi patient et génération
-                                rapide du rapport cardiologique.</p>
+                            <p class="section-subtitle">Bilan cardiovasculaire structuré, suivi et génération du rapport médical.</p>
                         </div>
                     </div>
 
                     <div class="feature-shell cardiology-shell">
-                        <div class="card feature-hero feature-hero-cardiology">
+                        <div class="feature-hero feature-hero-cardiology">
                             <div class="feature-hero-content">
                                 <div class="feature-hero-layout">
                                     <div>
-                                        <span class="feature-hero-label">Patient cardio</span>
-                                        <h3 class="feature-hero-title">Rapport cardiologique assisté</h3>
+                                        <span class="feature-hero-label">Patient sélectionné</span>
+                                        <h3 class="feature-hero-title">Dossier cardiovasculaire</h3>
                                         <p id="cardiology-current-patient-display" class="feature-hero-patient">Aucun
                                             patient sélectionné</p>
                                     </div>
@@ -699,7 +688,7 @@
                                         <button class="btn feature-hero-refresh"
                                             onclick="refreshCardiologyPatientList()">⟳</button>
                                         <button class="btn btn-primary" onclick="openCardiologyReportWorkspace()">📄
-                                            Rapport cardio</button>
+                                            Générer rapport</button>
                                     </div>
                                 </div>
                             </div>
@@ -739,7 +728,7 @@
                         <div class="cardiology-grid">
                             <div class="card cardiology-panel cardiology-panel-form">
                                 <div class="card-header">
-                                    <h3>Données du rapport cardiologique</h3>
+                                    <h3>Données du bilan clinique</h3>
                                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                                         <button class="btn btn-outline" type="button"
                                             onclick="resetCardiologyProfile()">Réinitialiser</button>
@@ -1133,16 +1122,6 @@
                                 <div class="calendar-panel-card categories-section">
                                     <div class="section-header-small">
                                         <h4>Catégories</h4>
-                                        <button class="btn-small btn-link" onclick="openCategoryModal()">+
-                                            Ajouter</button>
-                                    </div>
-                                    <div id="calendar-category-form" class="calendar-category-form hidden">
-                                        <input type="text" id="calendar-category-name" class="form-control"
-                                            placeholder="Nouvelle catégorie">
-                                        <input type="color" id="calendar-category-color"
-                                            class="calendar-category-color-input" value="#0f5fa8">
-                                        <button class="btn btn-primary btn-small" type="button"
-                                            onclick="saveAppointmentCategory()">Enregistrer</button>
                                     </div>
                                     <div id="categories-list" class="categories-list">
                                         <div class="category-item">
@@ -1166,6 +1145,15 @@
                                             <span>Ergothérapie</span>
                                         </div>
                                     </div>
+                                    <div id="calendar-category-form" class="calendar-category-form hidden">
+                                        <input type="text" id="calendar-category-name" class="form-control"
+                                            placeholder="Nouvelle catégorie">
+                                        <input type="color" id="calendar-category-color"
+                                            class="calendar-category-color-input" value="#0f5fa8">
+                                        <button class="btn btn-primary btn-small" type="button"
+                                            onclick="saveAppointmentCategory()">Enregistrer</button>
+                                    </div>
+                                    <button class="btn btn-secondary btn-small category-add-bottom-btn" style="width: 100%; margin-top: 10px;" onclick="openCategoryModal()">+ Ajouter une catégorie</button>
                                 </div>
                             </aside>
 
@@ -3595,6 +3583,30 @@
                             </div>
                         </div>
 
+                        <!-- Interface Text Size Card -->
+                        <div class="settings-card" data-settings-page="general" id="appearance-settings-card">
+                            <h3>🎚️ Taille du texte de l'interface</h3>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Ajustez la taille du texte
+                                dans toute l'application (menus, tableaux, formulaires, boutons).</p>
+
+                            <div class="form-group">
+                                <label for="app-text-scale">Taille du texte</label>
+                                <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                                    <input type="range" id="app-text-scale" min="75" max="140" step="5" value="100"
+                                        style="flex:1; min-width:180px; height:36px;">
+                                    <span id="app-text-scale-label"
+                                        style="min-width:52px; font-weight:700; font-size:16px; color:#0f766e;">100%</span>
+                                </div>
+                                <small class="settings-field-help">La modification s'applique immédiatement à toute
+                                    l'application et est conservée.</small>
+                            </div>
+
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="resetInterfaceTextScale()">Rétablir la taille par défaut</button>
+                            </div>
+                        </div>
+
                         <!-- Change Password Card - All Users -->
                         <div class="settings-card" data-settings-page="general">
                             <h3>🔐 Changer mon mot de passe</h3>
@@ -5042,7 +5054,13 @@
                                 <select id="new-user-role" name="role" class="form-control" required
                                     onchange="toggleSpecialtyField()">
                                     <option value="doctor">👨‍⚕️ Médecin</option>
+                                    <option value="dentist">Dentiste</option>
+                                    <option value="kinesitherapeute">Kinésithérapeute</option>
+                                    <option value="ergotherapeute">Ergothérapeute</option>
+                                    <option value="orthophoniste">Orthophoniste</option>
+                                    <option value="nurse">Infirmier(ère)</option>
                                     <option value="assistant">🧑‍💼 Assistant(e)</option>
+                                    <option value="test">🧪 Compte Test / Démo (Tous les modules)</option>
                                 </select>
                             </div>
 

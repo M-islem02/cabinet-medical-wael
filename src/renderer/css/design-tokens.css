@@ -1,103 +1,508 @@
+/* ==========================================================================
+   ANT DESIGN (v5) SPECIFICATION - MEDCARESO
+   Official Ant Design v5 Design Language & Component Tokens
+   https://ant.design/
+   ========================================================================== */
+
 :root {
-  --color-bg: #ffffff;
+  /* Ant Design v5 Primary Color Palette (Daybreak Blue) */
+  --ant-primary: #1677ff;
+  --ant-primary-hover: #4096ff;
+  --ant-primary-active: #0958d9;
+  --ant-primary-bg: #e6f4ff;
+  --ant-primary-bg-hover: #bae0ff;
+  --ant-primary-border: #91caff;
+  --ant-primary-border-hover: #69b1ff;
+
+  /* Aliases for codebase compatibility */
+  --primary-color: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-light: #e6f4ff;
+  --primary-subtle: #f0f7ff;
+  --primary-dark: #0958d9;
+  --color-accent: #1677ff;
+  --color-accent-hover: #4096ff;
+  --color-accent-light: #e6f4ff;
+
+  /* Ant Design Functional Colors */
+  --ant-success: #52c41a;
+  --ant-success-hover: #73d13d;
+  --ant-success-bg: #f6ffed;
+  --ant-success-border: #b7eb8f;
+  --color-success: #52c41a;
+  --color-success-bg: #f6ffed;
+  --color-success-border: #b7eb8f;
+
+  --ant-warning: #faad14;
+  --ant-warning-hover: #ffc53d;
+  --ant-warning-bg: #fffbe6;
+  --ant-warning-border: #ffe58f;
+  --color-warning: #faad14;
+  --color-warning-bg: #fffbe6;
+  --color-warning-border: #ffe58f;
+
+  --ant-error: #ff4d4f;
+  --ant-error-hover: #ff7875;
+  --ant-error-bg: #fff2f0;
+  --ant-error-border: #ffccc7;
+  --color-danger: #ff4d4f;
+  --color-danger-bg: #fff2f0;
+  --color-danger-border: #ffccc7;
+
+  --ant-info: #1677ff;
+  --ant-info-bg: #e6f4ff;
+  --ant-info-border: #91caff;
+  --color-info: #1677ff;
+  --color-info-bg: #e6f4ff;
+  --color-info-border: #91caff;
+
+  /* Ant Design Neutral & Text Colors */
+  --ant-text: rgba(0, 0, 0, 0.88);
+  --ant-text-secondary: rgba(0, 0, 0, 0.65);
+  --ant-text-tertiary: rgba(0, 0, 0, 0.45);
+  --ant-text-quaternary: rgba(0, 0, 0, 0.25);
+  --ant-text-disabled: rgba(0, 0, 0, 0.25);
+  --ant-text-heading: rgba(0, 0, 0, 0.88);
+  --color-text: rgba(0, 0, 0, 0.88);
+  --color-heading: rgba(0, 0, 0, 0.88);
+  --color-text-muted: rgba(0, 0, 0, 0.45);
+  --color-text-soft: rgba(0, 0, 0, 0.25);
+
+  /* Ant Design Background Colors */
+  --ant-bg-layout: #f5f5f5;
+  --ant-bg-container: #ffffff;
+  --ant-bg-elevated: #ffffff;
+  --ant-bg-spotlight: rgba(0, 0, 0, 0.85);
+  --color-bg: #f5f5f5;
   --color-surface: #ffffff;
-  --color-bg-subtle: #f8fafc;
-  --color-bg-hover: #f3f4f6;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-text-soft: #94a3b8;
-  --color-heading: #1f2937;
-  --color-border: #e5e7eb;
-  --color-border-strong: #d1d5db;
-  --color-accent: #0f766e;
-  --color-accent-hover: #115e59;
-  --color-success: #16a34a;
-  --color-success-bg: #f0fdf4;
-  --color-warning: #d97706;
-  --color-warning-bg: #fffbeb;
-  --color-danger: #dc2626;
-  --color-danger-bg: #fef2f2;
-  --radius: 8px;
-  --radius-sm: 6px;
+  --sidebar-bg: #ffffff;
+  --color-bg-subtle: #fafafa;
+  --color-bg-hover: rgba(0, 0, 0, 0.04);
+
+  /* Ant Design Border & Line Colors */
+  --ant-border: #d9d9d9;
+  --ant-border-secondary: #f0f0f0;
+  --color-border: #f0f0f0;
+  --color-border-subtle: #f0f0f0;
+  --color-border-strong: #d9d9d9;
+  --color-border-focus: #4096ff;
+
+  /* Ant Design v5 Shadows */
+  --ant-shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  --ant-shadow-btn-primary: 0 2px 0 rgba(5, 145, 255, 0.1);
+  --ant-shadow-btn-default: 0 2px 0 rgba(0, 0, 0, 0.02);
+  --ant-shadow-dropdown: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+  --ant-shadow-modal: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+
+  --shadow-xs: var(--ant-shadow-btn-default);
+  --shadow-sm: var(--ant-shadow-card);
+  --shadow-md: var(--ant-shadow-dropdown);
+  --shadow-lg: var(--ant-shadow-modal);
+  --shadow-xl: var(--ant-shadow-modal);
+
+  /* Ant Design v5 Shape & Radius */
+  --ant-radius-xs: 2px;
+  --ant-radius-sm: 4px;
+  --ant-radius-base: 6px;
+  --ant-radius-lg: 8px;
+  --ant-radius-full: 9999px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius: 6px;
+
+  /* Spacing */
+  --spacing-xxs: 2px;
   --spacing-xs: 4px;
   --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 20px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
   --spacing-xl: 32px;
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-size-xs: 12px;
+  --font-size-small: 12px;
+  --font-size-label: 14px;
+  --font-size-body: 14px;
+  --font-size-section: 16px;
+  --font-size-lg: 16px;
+  --font-size-h2: 20px;
   --font-size-h1: 24px;
   --font-size-title: var(--font-size-h1);
-  --font-size-section: 14px;
-  --font-size-stat: 30px;
-  --font-size-label: 13px;
-  --font-size-body: 14px;
-  --font-size-small: 12px;
-  --shadow-none: none;
+  --font-size-stat: 24px;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --topbar-height: 64px;
+  --ant-control-height: 32px;
+  --ant-control-height-sm: 24px;
+  --ant-control-height-lg: 40px;
 }
 
-body {
-  color: var(--color-text);
+/* ==========================================================================
+   GLOBAL APP RESET & TYPOGRAPHY
+   ========================================================================== */
+
+html, body {
+  background-color: var(--ant-bg-layout);
+  color: var(--ant-text);
+  font-family: var(--font-family);
   font-size: var(--font-size-body);
+  line-height: 1.5714285714285714;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.section-title,
-.page-title,
-.dashboard-title,
-.patient-details-title,
-h1 {
-  font-size: var(--font-size-h1) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
-  color: var(--color-heading) !important;
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--ant-bg-layout);
 }
 
-.card h2,
-.card h3,
-.section-header h2,
-.section-header h3,
-.stat-card h3,
-.settings-card h3,
-.admin-panel h3,
-.panel-title,
-.feature-card h3 {
-  font-size: var(--font-size-section) !important;
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-  color: var(--color-heading) !important;
+/* ==========================================================================
+   ANT DESIGN SIDER / SIDEBAR MENU
+   ========================================================================== */
+
+.sidebar {
+  width: var(--sidebar-width) !important;
+  min-width: var(--sidebar-width) !important;
+  max-width: var(--sidebar-width) !important;
+  height: 100vh !important;
+  background: #ffffff !important;
+  border-right: 1px solid #f0f0f0 !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  z-index: 100 !important;
+  transition: width 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
-.stat-value,
-.stat-number,
-.metric-value,
-[id^="stat-adv-"],
-.dashboard-stat-value {
-  font-size: var(--font-size-stat) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0 !important;
+.sidebar-header {
+  min-height: var(--topbar-height) !important;
+  max-height: var(--topbar-height) !important;
+  padding: 0 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+  flex-shrink: 0 !important;
 }
 
-.stat-label,
-.metric-label,
-.card-label,
-.section-subtitle,
-.patient-summary-label {
-  font-size: var(--font-size-label) !important;
+.sidebar-header .logo {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.app-brand-logo {
+  max-height: 36px !important;
+  width: auto !important;
+  max-width: 140px !important;
+  object-fit: contain !important;
+  filter: none !important;
+}
+
+.nav-menu {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 8px 4px !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+}
+
+.nav-menu::-webkit-scrollbar {
+  width: 4px;
+}
+.nav-menu::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+/* Ant Design Menu Item */
+.nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  padding: 0 16px !important;
+  margin: 2px 8px !important;
+  border-radius: 8px !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
-  color: var(--color-text-muted) !important;
+  text-decoration: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  user-select: none !important;
+  cursor: pointer !important;
 }
 
-small,
-.small,
-.badge,
-.metadata,
-.patient-meta,
-.date-text {
-  font-size: var(--font-size-small) !important;
+.nav-item .icon {
+  font-size: 16px !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+  transition: color 0.2s !important;
 }
 
-* {
+.nav-item .label {
+  font-size: 14px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.nav-item:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  transform: none !important;
+}
+
+.nav-item:hover .icon {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+/* Ant Design Menu Item Selected */
+.nav-item.active,
+.nav-item.active:hover {
+  background: #e6f4ff !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  border: none !important;
+  transform: none !important;
+}
+
+.nav-item.active .icon {
+  color: #1677ff !important;
+  transform: none !important;
+}
+
+.nav-item.active::before {
+  display: none !important;
+}
+
+.nav-item .badge {
+  margin-left: auto !important;
+  padding: 0 6px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  border-radius: 999px !important;
+  background: #1677ff !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+/* Sidebar Footer Profile (Ant Design Sider Footer) */
+.sidebar-footer {
+  flex-shrink: 0 !important;
+  padding: 12px 14px !important;
+  border-top: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.user-info {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  background: #fafafa !important;
+  border: 1px solid #f0f0f0 !important;
+}
+
+.avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: #1677ff !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  flex-shrink: 0 !important;
   box-shadow: none !important;
 }
+
+.user-details {
+  min-width: 0 !important;
+  flex: 1 !important;
+}
+
+.user-name {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.license-status {
+  font-size: 11px !important;
+  color: #52c41a !important;
+  font-weight: 500 !important;
+}
+
+.sidebar-footer .btn-danger {
+  width: 100% !important;
+  height: 30px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: #ff4d4f !important;
+  border: 1px solid #ffccc7 !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.sidebar-footer .btn-danger:hover {
+  background: #fff2f0 !important;
+  border-color: #ff7875 !important;
+  color: #ff7875 !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN HEADER / TOPBAR
+   ========================================================================== */
+
+.main-content {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  background: var(--ant-bg-layout) !important;
+  min-width: 0 !important;
+}
+
+.topbar {
+  min-height: var(--topbar-height) !important;
+  max-height: var(--topbar-height) !important;
+  padding: 0 24px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  flex-shrink: 0 !important;
+  z-index: 50 !important;
+}
+
+.topbar-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+.topbar h2,
+#page-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 !important;
+}
+
+.sidebar-toggle-btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  font-size: 14px !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+.sidebar-toggle-btn:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.topbar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.zoom-control-btn,
+.zoom-reset-btn {
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  border-radius: 6px !important;
+  border: 1px solid #d9d9d9 !important;
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+.zoom-control-btn:hover,
+.zoom-reset-btn:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.content-area {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 24px !important;
+  min-height: 0 !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN CARD (v5)
+   ========================================================================== */
 
 .card,
 .stat-card,
@@ -106,7 +511,6 @@ small,
 .settings-card,
 .admin-panel,
 .patient-card,
-.patient-summary-card,
 .patient-details-card,
 .equipment-card,
 .inventory-card,
@@ -114,227 +518,744 @@ small,
 .statistics-card,
 .treatment-plan-card,
 .plan-card,
-.modal-content,
 .dental-card,
 .agenda-card,
 .waiting-card,
 .feature-card {
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: none !important;
-  padding: var(--spacing-lg) !important;
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  padding: 20px 24px !important;
+  margin-bottom: 20px !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
-.stats-grid,
-.dashboard-stats,
-.inventory-stats,
-.equipment-stats,
-.payment-stats,
-.statistics-summary,
-#stats-financial-container,
-.patient-details-overview {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
-  gap: var(--spacing-lg) !important;
-  border: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
+.card:hover {
+  border-color: #f0f0f0 !important;
 }
 
-.stats-grid > *,
-.dashboard-stats > *,
-.inventory-stats > *,
-.equipment-stats > *,
-.payment-stats > *,
-.statistics-summary > *,
-#stats-financial-container > *,
-.patient-details-overview > * {
-  background: var(--color-surface) !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: var(--radius) !important;
-  padding: var(--spacing-lg) !important;
+.card-header,
+.section-header,
+.panel-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
 }
+
+.card-header h2,
+.card-header h3,
+.section-header h2,
+.section-header h3,
+.panel-header h3 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Redundant Eyebrow tags hidden for clean Ant Design hierarchy */
+.section-eyebrow {
+  display: none !important;
+}
+
+.section-heading-block h2 {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 0 4px 0 !important;
+}
+
+.section-subtitle {
+  font-size: 14px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 0 !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN BUTTONS (v5)
+   ========================================================================== */
 
 .btn,
-button.btn,
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  border-radius: var(--radius-sm) !important;
-  padding: 8px 14px;
-  font-size: var(--font-size-body) !important;
-  font-weight: 600 !important;
-  cursor: pointer;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+button.btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 4px 15px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  font-family: var(--font-family) !important;
+  cursor: pointer !important;
+  border: 1px solid #d9d9d9 !important;
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  text-decoration: none !important;
+  user-select: none !important;
+}
+
+.btn:hover,
+button.btn:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.btn:active,
+button.btn:active {
+  color: #0958d9 !important;
+  border-color: #0958d9 !important;
 }
 
 .btn-primary,
 button.btn-primary {
-  border: 1px solid var(--color-accent) !important;
-  background: var(--color-accent) !important;
-  color: #fff !important;
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1) !important;
 }
 
 .btn-primary:hover,
 button.btn-primary:hover {
-  background: var(--color-accent-hover) !important;
-  border-color: var(--color-accent-hover) !important;
+  background: #4096ff !important;
+  border-color: #4096ff !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:active,
+button.btn-primary:active {
+  background: #0958d9 !important;
+  border-color: #0958d9 !important;
 }
 
 .btn-secondary,
 button.btn-secondary,
 .btn-outline,
 .btn-light {
-  border: 1px solid var(--color-border-strong) !important;
-  background: #fff !important;
-  color: var(--color-heading) !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+.btn-secondary:hover,
+button.btn-secondary:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
 }
 
 .btn-danger,
-button.btn-danger,
-.delete-btn,
-.danger-btn {
-  border: 0 !important;
-  background: transparent !important;
-  color: var(--color-danger) !important;
-  padding-inline: 8px !important;
+button.btn-danger {
+  background: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 0 rgba(255, 38, 5, 0.06) !important;
 }
 
-.tabs,
+.btn-danger:hover,
+button.btn-danger:hover {
+  background: #ff7875 !important;
+  border-color: #ff7875 !important;
+}
+
+.btn-sm,
+.btn-small {
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 7px !important;
+  font-size: 12px !important;
+  border-radius: 4px !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN INPUT & SELECT (v5)
+   ========================================================================== */
+
+.form-control,
+select.form-control,
+input[type="text"].form-control,
+input[type="number"].form-control,
+input[type="tel"].form-control,
+input[type="email"].form-control,
+input[type="date"].form-control,
+input[type="password"].form-control,
+textarea.form-control {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 4px 11px !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  font-size: 14px !important;
+  font-family: var(--font-family) !important;
+  transition: all 0.2s !important;
+  box-shadow: none !important;
+}
+
+.form-control:hover {
+  border-color: #4096ff !important;
+}
+
+.form-control:focus {
+  border-color: #4096ff !important;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1) !important;
+  outline: 0 !important;
+}
+
+textarea.form-control {
+  height: auto !important;
+  min-height: 80px !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN SEGMENTED / TABS (v5)
+   ========================================================================== */
+
+.feature-tabs-shell {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-bottom: 16px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+.feature-tabs-wrap {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.feature-main-tabs,
+.rehab-main-tabs,
 .tabs-nav,
 .tab-buttons,
-.feature-tabs,
-.inventory-tabs,
-.equipment-tabs,
-.payment-tabs,
-.settings-page-nav,
-.patient-tabs {
+.patients-view-tabs {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  padding: 3px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  margin: 0 auto 16px auto !important;
+}
+
+.feature-tab-btn,
+.rehab-tab-btn,
+.dental-tab-btn,
+.patients-view-tab {
+  flex: 0 0 auto !important;
+  border: none !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  padding: 6px 20px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.feature-tab-btn:hover,
+.rehab-tab-btn:hover,
+.patients-view-tab:hover {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+.feature-tab-btn.active,
+.rehab-tab-btn.active,
+.dental-tab-btn.active,
+.patients-view-tab.active {
+  background: #ffffff !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN STATISTIC (v5)
+   ========================================================================== */
+
+.stats-row,
+.stats-grid,
+.dashboard-stats,
+.dashboard-grid,
+.rehab-stat-grid,
+.inventory-stats,
+.equipment-stats,
+.payment-stats {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 16px !important;
+  margin-bottom: 20px !important;
+}
+
+.card-stat,
+.stat-value,
+.stat-number {
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  line-height: 1.2 !important;
+  margin: 4px 0 !important;
+  font-family: var(--font-family) !important;
+}
+
+.card-footer,
+.stat-label {
+  font-size: 13px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 0 !important;
+}
+
+/* Dashboard Specific Layout */
+.dashboard-intro {
   display: flex !important;
   align-items: center !important;
-  gap: var(--spacing-sm) !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  border-bottom: 1px solid var(--color-border) !important;
-  scrollbar-width: thin;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 20px 24px !important;
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  margin-bottom: 20px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
 }
 
-.tabs button,
-.tabs-nav button,
-.tab-buttons button,
-.feature-tab-btn,
-.inventory-tabs button,
-.equipment-tabs button,
-.payment-tabs button,
-.settings-page-tab,
-.patient-tabs button {
-  flex: 0 0 auto;
-  border: 0 !important;
-  border-bottom: 2px solid transparent !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--color-text-muted) !important;
-  font-size: var(--font-size-body) !important;
+.dashboard-eyebrow {
+  font-size: 12px !important;
+  color: #1677ff !important;
+  margin: 0 0 2px 0 !important;
+  font-weight: 500 !important;
+}
+
+.dashboard-intro h1 {
+  font-size: 20px !important;
   font-weight: 600 !important;
-  padding: 10px 8px !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 0 4px 0 !important;
 }
 
-.tabs button.active,
-.tabs-nav button.active,
-.tab-buttons button.active,
-.feature-tab-btn.active,
-.inventory-tabs button.active,
-.equipment-tabs button.active,
-.payment-tabs button.active,
-.settings-page-tab.active,
-.patient-tabs button.active {
-  color: var(--color-accent) !important;
-  border-bottom-color: var(--color-accent) !important;
+#dashboard-summary-text {
+  font-size: 14px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 0 !important;
 }
 
-table,
-.data-table,
-.patients-table,
-.inventory-table,
-.payments-table,
-.table-clean {
-  width: 100%;
-  border-collapse: collapse !important;
-  font-size: var(--font-size-body) !important;
+.dashboard-refresh-action {
+  height: 32px !important;
+  padding: 4px 15px !important;
+  border-radius: 6px !important;
+  border: 1px solid #d9d9d9 !important;
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.2s !important;
 }
 
-thead th,
-table th,
-.data-table th,
-.patients-table th,
-.inventory-table th,
-.payments-table th,
-.table-clean th {
-  background: transparent !important;
-  color: var(--color-text-muted) !important;
-  font-size: var(--font-size-small) !important;
-  font-weight: 700 !important;
+.dashboard-refresh-action:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.welcome-box {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 24px !important;
+  background: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  border-radius: 8px !important;
+  margin-bottom: 20px !important;
+}
+
+.welcome-box h2 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 0 4px 0 !important;
+}
+
+.welcome-box p {
+  font-size: 14px !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+  margin: 0 !important;
+}
+
+/* ==========================================================================
+   REHABILITATION (MPR) & SPECIALTY HERO ALIGNMENT
+   ========================================================================== */
+
+.feature-hero,
+.feature-hero-rehab,
+.feature-hero-cardiology,
+.feature-hero-dentistry {
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  padding: 12px 18px !important;
+  margin-bottom: 14px !important;
+  border-radius: 8px !important;
+}
+
+.feature-hero-layout {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  flex-wrap: wrap !important;
+}
+
+.feature-hero-label {
+  font-size: 11.5px !important;
+  color: #1677ff !important;
+  font-weight: 500 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
 }
 
-table td,
-table th,
-.data-table td,
-.data-table th,
-.patients-table td,
-.patients-table th,
-.inventory-table td,
-.inventory-table th,
-.payments-table td,
-.payments-table th,
-.table-clean td,
-.table-clean th {
-  border-bottom: 1px solid var(--color-border) !important;
+.feature-hero-title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 2px 0 0 0 !important;
+}
+
+.feature-hero-patient {
+  font-size: 13px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 2px 0 0 0 !important;
+}
+
+.feature-hero-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+}
+
+.feature-patient-selector {
+  min-width: 240px !important;
+  width: 260px !important;
+  max-width: 320px !important;
+  height: 32px !important;
+  flex: 0 0 auto !important;
+}
+
+.feature-hero-refresh {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  cursor: pointer !important;
+  font-size: 14px !important;
+  flex: 0 0 auto !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.2s !important;
+}
+
+.feature-hero-refresh:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+/* Ant Design Panel Cards */
+.rehab-panel-card {
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  padding: 0 !important;
+  margin-bottom: 16px !important;
+  overflow: hidden !important;
+}
+
+.rehab-panel-header {
+  padding: 12px 18px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background: #ffffff !important;
+  margin-bottom: 0 !important;
+}
+
+.rehab-panel-header h3 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 !important;
+}
+
+.rehab-panel-body {
+  padding: 16px 18px !important;
+  background: #ffffff !important;
+}
+
+/* Ant Design KPI Stats Cards */
+.rehab-stat-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 14px !important;
+  margin-bottom: 16px !important;
+}
+
+.rehab-stat-card {
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.rehab-stat-card .card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 !important;
+  margin-bottom: 4px !important;
+  border: none !important;
+}
+
+.rehab-stat-card .card-header h3 {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 0 !important;
+}
+
+.rehab-stat-card .card-stat {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  line-height: 1.2 !important;
+  margin: 2px 0 !important;
+}
+
+.rehab-stat-card .card-footer {
+  font-size: 12px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 0 !important;
+}
+
+/* Ant Design Evaluation Scales Cards */
+.rehab-scale-card {
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  padding: 14px 18px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  margin-bottom: 16px !important;
+}
+
+.rehab-scale-card .card-header {
+  padding: 0 0 10px 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  margin-bottom: 12px !important;
+}
+
+.rehab-scales-grid {
+  display: grid !important;
+  grid-template-columns: repeat(6, 1fr) !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+}
+
+@media (max-width: 1200px) {
+  .rehab-scales-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+.rehab-scale-item {
+  background: #fafafa !important;
+  border: 1px solid #f0f0f0 !important;
+  border-left: 3px solid #1677ff !important;
+  border-radius: 6px !important;
   padding: 10px 12px !important;
+  box-shadow: none !important;
+  transition: all 0.2s !important;
 }
 
-tbody tr:nth-child(even),
-tbody tr:nth-child(odd) {
-  background: transparent !important;
+.rehab-scale-item:hover {
+  background: #ffffff !important;
+  border-color: #d9d9d9 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
-td.amount,
-th.amount,
-td[data-type="amount"],
-.amount-cell,
-.text-right {
-  text-align: right !important;
+.rehab-scale-danger { border-left-color: #ff4d4f !important; }
+.rehab-scale-primary { border-left-color: #1677ff !important; }
+.rehab-scale-success { border-left-color: #52c41a !important; }
+.rehab-scale-violet { border-left-color: #722ed1 !important; }
+.rehab-scale-warning { border-left-color: #faad14 !important; }
+.rehab-scale-cyan { border-left-color: #13c2c2 !important; }
+
+.rehab-scale-item strong {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  display: block !important;
 }
 
-.empty-state,
-.dental-empty-state,
-.statistics-list-empty,
-.no-data,
-.empty-list {
+.rehab-scale-item p {
+  font-size: 11.5px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  margin: 3px 0 0 !important;
+  line-height: 1.3 !important;
+}
+
+/* Ant Design Empty State */
+.rehab-empty-state,
+.empty-state {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: var(--spacing-sm) !important;
-  min-height: 120px;
-  padding: var(--spacing-xl) !important;
-  border: 1px dashed var(--color-border-strong) !important;
-  border-radius: var(--radius) !important;
-  background: var(--color-bg-subtle) !important;
-  color: var(--color-text-muted) !important;
+  padding: 28px 16px !important;
   text-align: center !important;
+  background: #fafafa !important;
+  border: 1px dashed #d9d9d9 !important;
+  border-radius: 6px !important;
+  color: rgba(0, 0, 0, 0.45) !important;
+  min-height: 120px !important;
 }
 
-.document-actions .btn,
-.patient-document-button,
-.document-btn {
-  border: 1px solid var(--color-border-strong) !important;
-  background: #fff !important;
-  color: var(--color-heading) !important;
+.rehab-empty-state p {
+  margin: 4px 0 !important;
+  font-size: 13.5px !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN TABLE (v5)
+   ========================================================================== */
+
+table.table,
+.data-table,
+.patients-table,
+.payments-table,
+.inventory-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 14px !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid #f0f0f0 !important;
+}
+
+table.table thead th,
+.data-table thead th {
+  background: #fafafa !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  text-align: left !important;
+}
+
+table.table tbody td,
+.data-table tbody td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  vertical-align: middle !important;
+  background: #ffffff !important;
+}
+
+table.table tbody tr:hover td,
+.data-table tbody tr:hover td {
+  background: #fafafa !important;
+}
+
+/* ==========================================================================
+   ANT DESIGN MODAL (v5)
+   ========================================================================== */
+
+.modal-overlay,
+.modal {
+  backdrop-filter: blur(2px) !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.modal-content,
+.modal-container {
+  border-radius: 8px !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #f0f0f0 !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.modal-header {
+  padding: 16px 24px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+}
+
+.modal-header h2,
+.modal-header h3 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 !important;
+}
+
+.modal-body {
+  padding: 24px !important;
+}
+
+.modal-footer {
+  padding: 12px 20px !important;
+  border-top: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
 }

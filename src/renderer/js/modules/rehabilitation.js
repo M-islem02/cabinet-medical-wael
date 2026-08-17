@@ -44,23 +44,6 @@ async function initRehabilitation() {
   }
 
   rehabModuleInitialized = true;
-  return;
-  console.log('🏥 Initializing rehabilitation module...');
-  
-  // Load patients list for selector
-  await refreshRehabPatientList();
-  
-  // Load medical scales
-  await loadMedicalScales();
-  
-  // If a patient was previously selected, reload their data
-  if (rehabSelectedPatientId) {
-    await loadRehabDataForPatient(rehabSelectedPatientId);
-  }
-  
-  // Update stats
-  await updateRehabGlobalStats();
-  
   console.log('✅ Rehabilitation module initialized');
 }
 
@@ -2233,18 +2216,30 @@ async function refreshRehabPatientList() {
     const select = document.getElementById('rehab-patient-selector');
     if (!select) return;
 
-    if (typeof window.attachLazyPatientSearchToSelect === 'function') {
-      window.attachLazyPatientSearchToSelect('rehab-patient-selector', {
-        selectedPatientId: (typeof currentPatientId !== 'undefined' && currentPatientId) || rehabSelectedPatientId || '',
-        placeholder: 'Tapez la premiere lettre du patient...',
-        emptyMessage: 'Tapez la premiere lettre du patient',
-        loadingMessage: 'Recherche des patients...',
-        noResultsMessage: 'Aucun patient commence par cette recherche',
-        restoreCommittedOnBlur: true
-      });
+    const result = await window.api.patient.getAll();
+    const patients = Array.isArray(result?.data)
+      ? result.data
+      : (Array.isArray(result) ? result : []);
+
+    const currentValue = (typeof currentPatientId !== 'undefined' && currentPatientId) || rehabSelectedPatientId || select.value || '';
+    select.innerHTML = '<option value="">-- Sélectionner un patient --</option>';
+
+    patients.forEach(patient => {
+      const name = `${patient.lastName || patient.nom || ''} ${patient.firstName || patient.prenom || ''}`.trim() || patient.name || 'Patient';
+      const phone = patient.phone || patient.telephone ? ` (${patient.phone || patient.telephone})` : '';
+      const selected = String(patient.id) === String(currentValue) ? 'selected' : '';
+      const opt = document.createElement('option');
+      opt.value = patient.id;
+      opt.textContent = `${name}${phone}`;
+      if (selected) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    if (currentValue) {
+      select.value = currentValue;
     }
 
-    rehabModalPatientsCache = [];
+    rehabModalPatientsCache = patients;
     rehabPatientListLoaded = true;
   } catch (error) {
     console.error('Error refreshing patient list:', error);
@@ -2252,93 +2247,28 @@ async function refreshRehabPatientList() {
 }
 
 async function ensureRehabModalPatients() {
+  if (rehabModalPatientsCache.length) return rehabModalPatientsCache;
+  await refreshRehabPatientList();
   return rehabModalPatientsCache;
 }
 
-function ensureRehabPatientSearchField(selectId) {
-  const field = document.getElementById(selectId);
-  if (!field) {
-    return null;
-  }
-
-  if (field.tagName !== 'SELECT' || selectId === 'rehab-patient-selector') {
-    return field;
-  }
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'searchable-select-container';
-
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.id = selectId.replace('-select', '-search');
-  searchInput.className = 'form-control searchable-select-input';
-  searchInput.placeholder = 'Tapez la premiere lettre du patient...';
-  searchInput.autocomplete = 'off';
-
-  const hiddenInput = document.createElement('input');
-  hiddenInput.type = 'hidden';
-  hiddenInput.id = selectId;
-  if (field.hasAttribute('required')) {
-    hiddenInput.required = true;
-  }
-
-  const dropdown = document.createElement('div');
-  dropdown.id = selectId.replace('-select', '-dropdown');
-  dropdown.className = 'searchable-select-dropdown';
-
-  wrapper.appendChild(searchInput);
-  wrapper.appendChild(hiddenInput);
-  wrapper.appendChild(dropdown);
-
-  field.replaceWith(wrapper);
-  return hiddenInput;
-}
-
 function fillRehabPatientSelect(selectId, selectedId = '') {
-  const field = ensureRehabPatientSearchField(selectId);
-  if (!field) {
-    return;
-  }
+  const select = document.getElementById(selectId);
+  if (!select) return;
 
-  if (selectId === 'rehab-patient-selector' && typeof window.attachLazyPatientSearchToSelect === 'function') {
-    window.attachLazyPatientSearchToSelect(selectId, {
-      selectedPatientId: selectedId || '',
-      placeholder: 'Tapez la premiere lettre du patient...',
-      emptyMessage: 'Tapez la premiere lettre du patient',
-      loadingMessage: 'Recherche des patients...',
-      noResultsMessage: 'Aucun patient commence par cette recherche',
-      clearOnInput: true
+  select.innerHTML = '<option value="">-- Sélectionner un patient --</option>';
+  if (Array.isArray(rehabModalPatientsCache)) {
+    rehabModalPatientsCache.forEach(patient => {
+      const name = `${patient.lastName || patient.nom || ''} ${patient.firstName || patient.prenom || ''}`.trim() || patient.name || 'Patient';
+      const selected = String(patient.id) === String(selectedId) ? 'selected' : '';
+      const opt = document.createElement('option');
+      opt.value = patient.id;
+      opt.textContent = name;
+      if (selected) opt.selected = true;
+      select.appendChild(opt);
     });
-    return;
   }
-
-  if (typeof window.initSearchablePatientSelect === 'function') {
-    window.initSearchablePatientSelect(
-      selectId.replace('-select', '-search'),
-      selectId,
-      selectId.replace('-select', '-dropdown'),
-      {
-        selectedPatientId: selectedId || '',
-        placeholder: 'Tapez la premiere lettre du patient...',
-        emptyMessage: 'Tapez la premiere lettre du patient',
-        loadingMessage: 'Recherche des patients...',
-        noResultsMessage: 'Aucun patient commence par cette recherche',
-        clearOnInput: true
-      }
-    );
-    return;
-  }
-
-  field.innerHTML = '<option value="">-- Selectionner un patient --</option>';
 }
-
-const originalSelectRehabPatient = selectRehabPatient;
-selectRehabPatient = async function(patientId) {
-  if (typeof window.setLazyPatientFieldValue === 'function') {
-    window.setLazyPatientFieldValue('rehab-patient-selector', patientId || '');
-  }
-  return originalSelectRehabPatient(patientId);
-};
 
 function createEvaluationModal() {
   const modalHtml = `

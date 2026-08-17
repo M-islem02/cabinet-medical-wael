@@ -543,11 +543,73 @@ function printPublicBookingQr() {
   }, { once: true });
 }
 
+function getInterfaceTextScalePercent() {
+  const storageKey = (typeof APP_ZOOM_STORAGE_KEY !== 'undefined') ? APP_ZOOM_STORAGE_KEY : 'medcareso_app_zoom_factor';
+  const raw = Number(localStorage.getItem(storageKey));
+  let factor = Number.isFinite(raw) ? raw : 1;
+  if (typeof clampAppZoom === 'function') {
+    factor = clampAppZoom(factor);
+  } else {
+    factor = Math.min(1.4, Math.max(0.75, factor));
+  }
+  return Math.round(factor * 100);
+}
+
+function loadInterfaceTextScale() {
+  const slider = document.getElementById('app-text-scale');
+  const label = document.getElementById('app-text-scale-label');
+  if (!slider) return;
+  const percent = getInterfaceTextScalePercent();
+  slider.value = String(percent);
+  if (label) label.textContent = `${percent}%`;
+}
+
+async function applyInterfaceTextScale() {
+  const slider = document.getElementById('app-text-scale');
+  if (!slider) return;
+  const percent = Number(slider.value) || 100;
+  if (typeof applyAppZoom === 'function') {
+    await applyAppZoom(percent / 100);
+  } else {
+    const storageKey = (typeof APP_ZOOM_STORAGE_KEY !== 'undefined') ? APP_ZOOM_STORAGE_KEY : 'medcareso_app_zoom_factor';
+    const safe = Math.min(1.4, Math.max(0.75, percent / 100));
+    localStorage.setItem(storageKey, String(safe));
+  }
+  loadInterfaceTextScale();
+}
+
+async function resetInterfaceTextScale() {
+  const slider = document.getElementById('app-text-scale');
+  if (!slider) return;
+  const defaultZoom = (typeof APP_ZOOM_DEFAULT !== 'undefined') ? APP_ZOOM_DEFAULT : 1;
+  if (typeof applyAppZoom === 'function') {
+    await applyAppZoom(defaultZoom);
+  } else {
+    const storageKey = (typeof APP_ZOOM_STORAGE_KEY !== 'undefined') ? APP_ZOOM_STORAGE_KEY : 'medcareso_app_zoom_factor';
+    localStorage.setItem(storageKey, String(defaultZoom));
+  }
+  loadInterfaceTextScale();
+}
+
+function setupInterfaceTextScaleControls() {
+  const slider = document.getElementById('app-text-scale');
+  if (!slider) return;
+  if (slider.dataset.textScaleBound === 'true') return;
+  slider.dataset.textScaleBound = 'true';
+  slider.addEventListener('input', () => { applyInterfaceTextScale(); });
+  slider.addEventListener('change', () => { applyInterfaceTextScale(); });
+}
+
+window.applyInterfaceTextScale = applyInterfaceTextScale;
+window.resetInterfaceTextScale = resetInterfaceTextScale;
+
 async function loadSettings() {
   try {
     const result = await window.api.settings.get();
     const s = result.success && result.data ? result.data : {};
     cachedSettings = s;
+    setupInterfaceTextScaleControls();
+    loadInterfaceTextScale();
     document.getElementById('cabinet-name').value = s.cabinetName || '';
     document.getElementById('cabinet-address').value = s.cabinetAddress || '';
     document.getElementById('cabinet-phone').value = s.cabinetPhone || DEFAULT_CABINET_PHONE;

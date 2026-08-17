@@ -54,9 +54,10 @@ function populateManagedRoleOptions(selectedRole = 'doctor') {
     <option value="orthophoniste">Orthophoniste</option>
     <option value="nurse">Infirmier(ère)</option>
     <option value="assistant">🧑‍💼 Assistant(e)</option>
+    <option value="test">🧪 Compte Test / Démo (Tous les modules)</option>
   `;
 
-  const available = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'assistant'];
+  const available = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'assistant', 'test'];
   roleSelect.value = available.includes(selectedRole) ? selectedRole : 'doctor';
 }
 
@@ -64,7 +65,7 @@ function updateAccountAdminChoice() {
   const group = document.getElementById('new-user-admin-group');
   const checkbox = document.getElementById('new-user-is-admin');
   const role = document.getElementById('new-user-role')?.value || 'doctor';
-  const practitionerRoles = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse'];
+  const practitionerRoles = ['doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute', 'orthophoniste', 'nurse', 'test'];
   const canAssign = isCurrentUserSuperAdmin();
   if (group) group.style.display = canAssign ? '' : 'none';
   if (checkbox) {

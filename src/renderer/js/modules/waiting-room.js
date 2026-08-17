@@ -79,13 +79,21 @@ function toggleUnpaidDetails() {
  */
 async function loadKineOptions() {
   try {
+    if (typeof loadKineSelectOptions === 'function') {
+      await loadKineSelectOptions(true);
+      return;
+    }
     const kines = await window.api.kineStaff.getAll();
     const select = document.getElementById('consultation-kine');
     if (select) {
+      const previousValue = select.value;
       select.innerHTML = '<option value="">-- Sélectionner un kiné --</option>';
-      kines.forEach(kine => {
-        select.innerHTML += `<option value="${kine.id}">${kine.firstName} ${kine.lastName}</option>`;
+      (kines || []).forEach(kine => {
+        select.innerHTML += `<option value="${kine.id}">${kine.firstName} ${kine.lastName} - ${kine.sessionPrice || 0} DZD/séance</option>`;
       });
+      if (previousValue) {
+        select.value = previousValue;
+      }
     }
   } catch (error) {
     console.error('Error loading kiné options:', error);

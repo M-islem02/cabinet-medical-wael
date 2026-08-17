@@ -15,7 +15,6 @@ const medicationRemoteSearchCache = new Map();
 const MEDICATION_REMOTE_SEARCH_CACHE_LIMIT = 60;
 const MEDICATION_REMOTE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000;
 const MEDICATION_AUTOCOMPLETE_LIMIT = 10;
-let specialtyMedicationBasesCache = null;
 let prescriptionTemplateBuilderMode = false;
 let editingPrescriptionTemplateId = null;
 let prescriptionTemplatesCache = [];
@@ -364,38 +363,7 @@ async function getSpecialtyMedicationMatches(normalizedQuery) {
     }
   }
 
-  if (!window.api?.package?.getLoadedBases) {
-    return apiMatches.slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
-  }
-
-  try {
-    if (!specialtyMedicationBasesCache) {
-      const result = await window.api.package.getLoadedBases();
-      specialtyMedicationBasesCache = result.success && Array.isArray(result.data) ? result.data : [];
-    }
-
-    const specialtyBase = specialtyMedicationBasesCache.find((base) => base.key === specialtyKey);
-    const generalBase = specialtyMedicationBasesCache.find((base) => base.key === 'general');
-    const fallbackMatches = [
-      ...(specialtyBase?.medications || []),
-      ...(specialtyKey === 'general' ? [] : (generalBase?.medications || []))
-    ]
-      .map(mapSpecialtyMedicationSearchResult)
-      .filter((med) => {
-        const name = (med.name || '').toLowerCase();
-        return name.startsWith(normalizedQuery);
-      });
-    return mergeMedicationSuggestions(apiMatches, fallbackMatches)
-      .sort((left, right) => {
-        const leftName = (left.name || '').toLowerCase();
-        const rightName = (right.name || '').toLowerCase();
-        return leftName.localeCompare(rightName, 'fr');
-      })
-      .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
-  } catch (error) {
-    console.error('Impossible de charger la base medicaments de specialite:', error);
-    return [];
-  }
+  return apiMatches.slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
 }
 
 async function searchMedicationSuggestions(query) {
@@ -823,41 +791,42 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
   const renderSuggestions = async (rawQuery = '') => {
     const query = rawQuery.trim().toLowerCase();
     const requestId = ++medicationSearchRequestId;
-    const savedMeds = await searchMedicationSuggestions(query);
-    if (requestId !== medicationSearchRequestId) {
-      return;
-    }
-    if (!savedMeds.length) {
-      closeSuggestions();
-      return;
-    }
+    try {
+      const savedMeds = await searchMedicationSuggestions(query);
+      if (requestId !== medicationSearchRequestId) {
+        return;
+      }
+      if (!savedMeds.length) {
+        closeSuggestions();
+        return;
+      }
 
-    let matches = savedMeds
-      .map((med) => {
-        if (!query) {
-          return { ...med, suggestionScore: 0 };
-        }
-        const lowerName = (med.name || '').toLowerCase();
-        let score = 4;
-        if (lowerName.startsWith(query)) score = 0;
-        return { ...med, suggestionScore: score };
-      })
-      .filter((med) => !query || med.suggestionScore < 4)
-      .sort((a, b) => {
-        if (a.suggestionScore !== b.suggestionScore) {
-          return a.suggestionScore - b.suggestionScore;
-        }
-        if ((b.usageCount || 0) !== (a.usageCount || 0)) {
-          return (b.usageCount || 0) - (a.usageCount || 0);
-        }
-        return (b.lastUsed || '').localeCompare(a.lastUsed || '');
-      })
-      .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
+      let matches = savedMeds
+        .map((med) => {
+          if (!query) {
+            return { ...med, suggestionScore: 0 };
+          }
+          const lowerName = (med.name || '').toLowerCase();
+          let score = 4;
+          if (lowerName.startsWith(query)) score = 0;
+          return { ...med, suggestionScore: score };
+        })
+        .filter((med) => !query || med.suggestionScore < 4)
+        .sort((a, b) => {
+          if (a.suggestionScore !== b.suggestionScore) {
+            return a.suggestionScore - b.suggestionScore;
+          }
+          if ((b.usageCount || 0) !== (a.usageCount || 0)) {
+            return (b.usageCount || 0) - (a.usageCount || 0);
+          }
+          return (b.lastUsed || '').localeCompare(a.lastUsed || '');
+        })
+        .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
 
-    if (matches.length === 0) {
-      closeSuggestions();
-      return;
-    }
+      if (matches.length === 0) {
+        closeSuggestions();
+        return;
+      }
 
     if (activeMedicationAutocomplete && activeMedicationAutocomplete.input !== input) {
       closeActiveAutocomplete();
@@ -919,6 +888,12 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
 
     suggestionsDiv.style.display = 'block';
     positionPortaledMedicationSuggestions(instance);
+    } catch (error) {
+      console.error('Erreur affichage suggestions médicament:', error);
+      if (requestId === medicationSearchRequestId) {
+        closeSuggestions();
+      }
+    }
   };
 
   const scheduleRender = () => {

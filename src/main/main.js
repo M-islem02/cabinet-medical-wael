@@ -227,7 +227,7 @@ let licenseWindow = null;
 let setupWindow = null;
 let loginWindow = null;
 let shutdownCleanupStarted = false;
-const DEFAULT_APP_ZOOM = 0.9;
+const DEFAULT_APP_ZOOM = 1.0;
 
 function clampAppZoom(value) {
   const zoom = Number(value);

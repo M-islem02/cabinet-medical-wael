@@ -627,36 +627,4 @@ window.resetCardiologyProfile = resetCardiologyProfile;
 window.openCardiologyReportWorkspace = openCardiologyReportWorkspace;
 window.switchCardiologyTab = switchCardiologyTab;
 window.viewCardiologyProfile = viewCardiologyProfile;
-window.openViewedCardiologyProfileInWorkspace = openViewedCardiologyProfileInWorkspace;
-
-// ========== LAZY PATIENT SEARCH OVERRIDES ==========
-
-const originalRefreshCardiologyPatientList = refreshCardiologyPatientList;
-refreshCardiologyPatientList = async function() {
-  const selector = document.getElementById('cardiology-patient-selector');
-  if (!selector) return;
-
-  if (typeof window.attachLazyPatientSearchToSelect === 'function') {
-    window.attachLazyPatientSearchToSelect('cardiology-patient-selector', {
-      selectedPatientId: currentPatientId || cardiologyState.patientId || '',
-      placeholder: 'Tapez la premiere lettre du patient...',
-      emptyMessage: 'Tapez la premiere lettre du patient',
-      loadingMessage: 'Recherche des patients...',
-      noResultsMessage: 'Aucun patient commence par cette recherche',
-      restoreCommittedOnBlur: true
-    });
-    return;
-  }
-
-  return originalRefreshCardiologyPatientList();
-};
-
-const originalLoadCardiologyPatient = loadCardiologyPatient;
-loadCardiologyPatient = async function(patientId) {
-  if (typeof window.setLazyPatientFieldValue === 'function') {
-    window.setLazyPatientFieldValue('cardiology-patient-selector', patientId || '');
-  }
-  return originalLoadCardiologyPatient(patientId);
-};
-
 window.refreshCardiologyPatientList = refreshCardiologyPatientList;

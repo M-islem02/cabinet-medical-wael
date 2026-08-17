@@ -28,32 +28,40 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 2px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-size: var(--font-size-small);
-  font-weight: 600;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 400;
 }
 
 .badge.success {
-  border-color: var(--color-success);
-  background: var(--color-success-bg);
-  color: var(--color-success);
+  border-color: #b7eb8f;
+  background: #f6ffed;
+  color: #52c41a;
 }
 
 .badge.warning {
-  border-color: var(--color-warning);
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
+  border-color: #ffe58f;
+  background: #fffbe6;
+  color: #faad14;
 }
 
 .badge.danger {
-  border-color: var(--color-danger);
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
+  border-color: #ffccc7;
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.badge.primary,
+.badge.info {
+  border-color: #91caff;
+  background: #e6f4ff;
+  color: #1677ff;
 }
 
 .table-clean {
@@ -121,31 +129,51 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
-  min-height: 36px;
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  font-size: var(--font-size-body);
-  font-weight: 600;
+  gap: 6px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 6px;
+  padding: 4px 15px;
+  font-size: 14px;
+  font-weight: 400;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
 }
 
 .btn-primary {
-  border: 1px solid var(--color-accent);
-  background: var(--color-accent);
+  border: 1px solid #1677ff;
+  background: #1677ff;
   color: #fff;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
+}
+
+.btn-primary:hover {
+  background: #4096ff;
+  border-color: #4096ff;
 }
 
 .btn-secondary {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
-  color: var(--color-text);
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.btn-secondary:hover {
+  color: #4096ff;
+  border-color: #4096ff;
 }
 
 .btn-danger {
-  border: 0;
-  background: transparent;
-  color: var(--color-danger);
+  border: 1px solid #ff4d4f;
+  background: #ff4d4f;
+  color: #fff;
+  box-shadow: 0 2px 0 rgba(255, 38, 5, 0.06);
+}
+
+.btn-danger:hover {
+  background: #ff7875;
+  border-color: #ff7875;
 }
 
 .empty-state {

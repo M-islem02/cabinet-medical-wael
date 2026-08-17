@@ -1920,7 +1920,21 @@ function applySpecialtyAccent() {
   console.log(`🎨 Applied specialty colors for active specialty [${activeSpecialty}]:`, colors);
 }
 
+function switchRehabMainTab(tabName) {
+  document.querySelectorAll('.rehab-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.rehab-tab-content').forEach(content => {
+    content.style.display = 'none';
+  });
+  const activeTab = document.getElementById(`rehab-tab-${tabName}`);
+  if (activeTab) {
+    activeTab.style.display = 'block';
+  }
+}
+
 window.SPECIALTY_CONFIG = SPECIALTY_CONFIG;
 window.applySpecialtyAccent = applySpecialtyAccent;
 window.getPatientDocumentSpecialtyConfig = getPatientDocumentSpecialtyConfig;
 window.getPatientDocumentSpecialtyKey = getPatientDocumentSpecialtyKey;
+window.switchRehabMainTab = switchRehabMainTab;

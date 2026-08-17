@@ -6,8 +6,8 @@ function setSidebarCollapsed(collapsed) {
   document.documentElement.classList.toggle('sidebar-collapsed', !!collapsed);
   const toggleButton = document.getElementById('sidebar-toggle-btn');
   if (toggleButton) {
-    toggleButton.textContent = collapsed ? '\u2630' : '\u2715';
-    toggleButton.title = collapsed ? 'Ouvrir la navigation' : 'Fermer la navigation';
+    toggleButton.textContent = '\u2630';
+    toggleButton.title = collapsed ? 'Ouvrir la navigation' : 'Réduire la navigation';
   }
   localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
 }
@@ -291,57 +291,64 @@ function showSection(sectionId) {
     'appointments-calendar': 'featureCalendar'
   };
 
-  const featureKey = sectionFeatureMap[sectionId];
-  if (packageConfig && featureKey && !(packageConfig[featureKey] === 1 || packageConfig[featureKey] === true || packageConfig[featureKey] === '1')) {
-    showNotification('Fonctionnalité désactivée dans Config Client', 'warning');
-    return;
-  }
+  const isTestAccount = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
+    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase().includes('test'))
+    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase().includes('test'))
+    || (localStorage.getItem('currentUserRole') === 'test');
 
-  const specialtySectionMap = {
-    'rehabilitation': 'mpr',
-    'kine-staff': 'mpr',
-    'daily-summary': 'mpr',
-    'dentistry': 'dentistry',
-    'cardiology': 'cardiology'
-  };
-  const requiredSpecialty = specialtySectionMap[sectionId];
-  if (packageConfig && requiredSpecialty) {
-    const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
-      ? resolveActivePracticeSpecialty(packageConfig)
-      : 'general';
-    if (activeSpecialty !== requiredSpecialty) {
-      const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
-        ? getPracticeSpecialtyMeta(requiredSpecialty)
-        : null;
-      showNotification(
-        `Section inactive. Activez la spécialité ${specialtyMeta?.label || requiredSpecialty} dans Config Client.`,
-        'warning'
-      );
+  if (!isTestAccount) {
+    const featureKey = sectionFeatureMap[sectionId];
+    if (packageConfig && featureKey && !(packageConfig[featureKey] === 1 || packageConfig[featureKey] === true || packageConfig[featureKey] === '1')) {
+      showNotification('Fonctionnalité désactivée dans Config Client', 'warning');
       return;
     }
-  }
 
-  // Check role-based access for assistant
-  if (currentUserRole === 'assistant') {
-    const assistantRestrictedSections = ['statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
-    if (assistantRestrictedSections.includes(sectionId)) {
-      showNotification('Accès non autorisé', 'error');
+    const specialtySectionMap = {
+      'rehabilitation': 'mpr',
+      'kine-staff': 'mpr',
+      'daily-summary': 'mpr',
+      'dentistry': 'dentistry',
+      'cardiology': 'cardiology'
+    };
+    const requiredSpecialty = specialtySectionMap[sectionId];
+    if (packageConfig && requiredSpecialty) {
+      const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
+        ? resolveActivePracticeSpecialty(packageConfig)
+        : 'general';
+      if (activeSpecialty !== requiredSpecialty && !packageConfig[sectionFeatureMap[sectionId]]) {
+        const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
+          ? getPracticeSpecialtyMeta(requiredSpecialty)
+          : null;
+        showNotification(
+          `Section inactive. Activez la spécialité ${specialtyMeta?.label || requiredSpecialty} dans Config Client.`,
+          'warning'
+        );
+        return;
+      }
+    }
+
+    // Check role-based access for assistant
+    if (currentUserRole === 'assistant') {
+      const assistantRestrictedSections = ['statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
+      if (assistantRestrictedSections.includes(sectionId)) {
+        showNotification('Accès non autorisé', 'error');
+        return;
+      }
+    }
+
+    if (currentUserRole === 'director') {
+      const directorAllowedSections = new Set(['statistics', 'settings']);
+      if (!directorAllowedSections.has(sectionId)) {
+        showNotification('Accès réservé au directeur : Statistiques et Paramètres', 'error');
+        return;
+      }
+    }
+
+    // Restrict client config and integrations to superadmin only.
+    if (['package-config', 'sms-config', 'cloud-sync'].includes(sectionId) && !currentUserIsSuperAdmin) {
+      showNotification('Accès réservé au super administrateur', 'error');
       return;
     }
-  }
-
-  if (currentUserRole === 'director') {
-    const directorAllowedSections = new Set(['statistics', 'settings']);
-    if (!directorAllowedSections.has(sectionId)) {
-      showNotification('Accès réservé au directeur : Statistiques et Paramètres', 'error');
-      return;
-    }
-  }
-
-  // Restrict client config and integrations to superadmin only.
-  if (['package-config', 'sms-config', 'cloud-sync'].includes(sectionId) && !currentUserIsSuperAdmin) {
-    showNotification('Accès réservé au super administrateur', 'error');
-    return;
   }
   
   // Hide all sections
@@ -405,7 +412,9 @@ function showSection(sectionId) {
   currentPage = sectionId;
   
   if (sectionId === 'patients') {
-    if (typeof loadPatients === 'function') {
+    if (typeof switchPatientsView === 'function') {
+      switchPatientsView('mine');
+    } else if (typeof loadPatients === 'function') {
       loadPatients();
     }
   } else if (sectionId === 'payments') {

@@ -276,25 +276,32 @@ export function handleMedicationEvents() {
       const limit = Math.min(30, Math.max(1, Number(payload.limit) || 10));
       const specialtyMedications = getSpecialtyMedicationSearchBase(specialty);
       const generalMedications = specialty === 'general' ? [] : getSpecialtyMedicationSearchBase('general');
-      const mergedMedications = [...specialtyMedications, ...generalMedications].filter((entry, index, list) => {
-        const identity = `${normalizeMedicationSearchText(entry.nom_medicament)}|${normalizeMedicationSearchText(entry.dosage_posologie)}`;
-        return list.findIndex((candidate) => `${normalizeMedicationSearchText(candidate.nom_medicament)}|${normalizeMedicationSearchText(candidate.dosage_posologie)}` === identity) === index;
-      });
-      const matches = mergedMedications
-        .filter((entry) => specialtyMedicationMatches(entry, normalizedTerm))
-        .sort((left, right) => {
-          const leftName = normalizeMedicationSearchText(left.nom_medicament);
-          const rightName = normalizeMedicationSearchText(right.nom_medicament);
-          return leftName.localeCompare(rightName, 'fr');
-        })
-        .slice(0, limit)
-        .map((entry) => ({
-          ...entry,
-          specialtyKey: specialty,
-          source: 'specialty-json'
-        }));
 
-      return { success: true, data: matches };
+      const seen = new Set();
+      const matches = [];
+      const sources = specialty === 'general'
+        ? [{ items: specialtyMedications, key: specialty }]
+        : [{ items: generalMedications, key: 'general' }, { items: specialtyMedications, key: specialty }];
+
+      for (const { items, key } of sources) {
+        for (const entry of items) {
+          if (matches.length >= limit) break;
+          if (!specialtyMedicationMatches(entry, normalizedTerm)) continue;
+          const identity = `${normalizeMedicationSearchText(entry.nom_medicament)}|${normalizeMedicationSearchText(entry.dosage_posologie)}`;
+          if (seen.has(identity)) continue;
+          seen.add(identity);
+          matches.push({ ...entry, specialtyKey: key, source: 'specialty-json' });
+        }
+        if (matches.length >= limit) break;
+      }
+
+      matches.sort((left, right) => {
+        const leftName = normalizeMedicationSearchText(left.nom_medicament);
+        const rightName = normalizeMedicationSearchText(right.nom_medicament);
+        return leftName.localeCompare(rightName, 'fr');
+      });
+
+      return { success: true, data: matches.slice(0, limit) };
     } catch (error) {
       console.error('❌ Erreur recherche médicaments JSON spécialité:', error);
       return { success: false, error: error.message };

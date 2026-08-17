@@ -281,15 +281,15 @@ export function handleWaitingRoomEvents() {
     }
   });
 
-  // Create kinÃ© staff
+  // Create kiné staff
   ipcMain.handle('kine-staff:create', async (event, data) => {
     try {
       const id = uuidv4();
       console.log('Creating kine staff:', data.firstName, data.lastName, 'with ID:', id);
       await run(`
-        INSERT INTO kine_staff (id, firstName, lastName, phone, email, specialty, sessionPrice, notes, isActive)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `, [id, data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.notes || '']);
+        INSERT INTO kine_staff (id, firstName, lastName, phone, email, specialty, sessionPrice, sessionDuration, notes, isActive)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `, [id, data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.sessionDuration || 30, data.notes || '']);
       console.log('Kine staff created and committed to DB');
       return { success: true, id };
     } catch (error) {
@@ -298,16 +298,16 @@ export function handleWaitingRoomEvents() {
     }
   });
 
-  // Update kinÃ© staff
+  // Update kiné staff
   ipcMain.handle('kine-staff:update', async (event, id, data) => {
     try {
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       await run(`
         UPDATE kine_staff SET
           firstName = ?, lastName = ?, phone = ?, email = ?,
-          specialty = ?, sessionPrice = ?, notes = ?, updatedAt = ?
+          specialty = ?, sessionPrice = ?, sessionDuration = ?, notes = ?, updatedAt = ?
         WHERE id = ?
-      `, [data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.notes || '', now, id]);
+      `, [data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.sessionDuration || 30, data.notes || '', now, id]);
       return { success: true };
     } catch (error) {
       console.error('Error updating kine:', error);

@@ -1624,10 +1624,15 @@ function setupKineCheckboxBehavior() {
 }
 
 // Load kiné options for the consultation modal
-async function loadKineSelectOptions() {
+async function loadKineSelectOptions(force = false) {
   try {
     const kineSelect = document.getElementById('consultation-kine');
     if (!kineSelect) return;
+
+    if (force) {
+      consultationKineOptionsLoaded = false;
+      consultationKineOptionsPromise = null;
+    }
 
     if (consultationKineOptionsLoaded) {
       return;
@@ -1638,6 +1643,7 @@ async function loadKineSelectOptions() {
       return;
     }
 
+    const previousValue = kineSelect.value;
     kineSelect.innerHTML = '<option value="">-- Sélectionner un kiné --</option>';
     consultationKineOptionsPromise = (async () => {
       const kines = await window.api.kineStaff.getAll();
@@ -1650,6 +1656,10 @@ async function loadKineSelectOptions() {
           option.textContent = `${kine.firstName} ${kine.lastName} - ${kine.sessionPrice || 0} DZD/séance`;
           kineSelect.appendChild(option);
         });
+      }
+
+      if (previousValue) {
+        kineSelect.value = previousValue;
       }
 
       consultationKineOptionsLoaded = true;
