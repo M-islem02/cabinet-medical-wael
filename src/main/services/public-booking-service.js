@@ -133,7 +133,7 @@ async function getDistinctAppointmentTypes() {
 
 async function getBookingSettings() {
   await ensurePublicBookingSchema();
-  const settings = await queryOne(
+  let settings = await queryOne(
     `SELECT id, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail,
             doctorName, doctorSpecialty, preferredPrinter, preferredScanner,
             preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
@@ -143,7 +143,19 @@ async function getBookingSettings() {
   );
 
   if (!settings) {
-    return null;
+    const id = uuidv4();
+    const token = generateBookingToken();
+    const now = moment().format('YYYY-MM-DD HH:mm:ss');
+    try {
+      await run(
+        `INSERT INTO settings (id, cabinetName, publicBookingEnabled, publicBookingPort, publicBookingToken, publicBookingQrEnabled, createdAt, updatedAt)
+         VALUES (?, ?, 1, ?, ?, 1, ?, ?)`,
+        [id, 'Cabinet Médical', DEFAULT_PORT, token, now, now]
+      );
+      settings = await queryOne('SELECT * FROM settings WHERE id = ?', [id]);
+    } catch (_) {
+      settings = { id, cabinetName: 'Cabinet Médical', publicBookingPort: DEFAULT_PORT, publicBookingToken: token };
+    }
   }
 
   await ensureBookingToken(settings);
@@ -152,56 +164,41 @@ async function getBookingSettings() {
 
 async function buildShareData() {
   const settings = await getBookingSettings();
-  if (!settings) {
-    return {
-      enabled: false,
-      running: false,
-      port: DEFAULT_PORT,
-      token: '',
-      localUrl: '',
-      publicUrl: '',
-      mobileUrl: '',
-      localAddress: getLocalNetworkAddress(),
-      qrDataUrl: null,
-      mobileQrDataUrl: null,
-      cabinetName: '',
-      doctorName: '',
-      lastError: bookingServerState.lastError
-    };
-  }
-
-  const port = Number(settings.publicBookingPort) || DEFAULT_PORT;
-  const token = settings.publicBookingToken || '';
+  const port = Number(settings?.publicBookingPort) || DEFAULT_PORT;
+  const token = settings?.publicBookingToken || generateBookingToken();
   const localAddress = getLocalNetworkAddress();
-  const localUrl = token ? `http://${localAddress}:${port}/rdv/${token}` : '';
-  const mobileUrl = token ? `http://${localAddress}:${port}/mobile/${token}` : '';
-  const publicUrl = String(settings.publicBookingPublicUrl || '').trim() || localUrl;
-  const qrDataUrl = !!settings.publicBookingEnabled && settings.publicBookingQrEnabled !== 0 && publicUrl
-    ? await QRCode.toDataURL(publicUrl, {
-        errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 280,
-        color: {
-          dark: '#0f172a',
-          light: '#ffffff'
-        }
-      })
-    : null;
+  const localUrl = `http://${localAddress}:${port}/rdv/${token}`;
+  const mobileUrl = `http://${localAddress}:${port}/mobile/${token}`;
+  const publicUrl = String(settings?.publicBookingPublicUrl || '').trim() || localUrl;
 
-  const mobileQrDataUrl = mobileUrl
-    ? await QRCode.toDataURL(mobileUrl, {
-        errorCorrectionLevel: 'M',
-        margin: 1,
-        width: 280,
-        color: {
-          dark: '#1677ff',
-          light: '#ffffff'
-        }
-      })
-    : null;
+  let qrDataUrl = null;
+  try {
+    qrDataUrl = await QRCode.toDataURL(publicUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 280,
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff'
+      }
+    });
+  } catch (_) {}
+
+  let mobileQrDataUrl = null;
+  try {
+    mobileQrDataUrl = await QRCode.toDataURL(mobileUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 280,
+      color: {
+        dark: '#1677ff',
+        light: '#ffffff'
+      }
+    });
+  } catch (_) {}
 
   return {
-    enabled: !!settings.publicBookingEnabled,
+    enabled: true,
     running: bookingServerState.running,
     port,
     token,
@@ -211,8 +208,8 @@ async function buildShareData() {
     publicUrl,
     qrDataUrl,
     mobileQrDataUrl,
-    cabinetName: settings.cabinetName || 'Cabinet médical',
-    doctorName: settings.doctorName || '',
+    cabinetName: settings?.cabinetName || 'Cabinet médical',
+    doctorName: settings?.doctorName || '',
     lastError: bookingServerState.lastError
   };
 }

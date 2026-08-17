@@ -586,6 +586,29 @@ html.sidebar-collapsed .btn-block::before {
   border-color: #4096ff !important;
 }
 
+.topbar-mobile-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #1677ff !important;
+  background: #e6f4ff !important;
+  border: 1px solid #91caff !important;
+  border-radius: 6px !important;
+  height: 32px !important;
+  padding: 0 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  margin-right: 8px !important;
+}
+
+.topbar-mobile-btn:hover {
+  background: #bae0ff !important;
+  border-color: #69b1ff !important;
+  color: #0958d9 !important;
+}
+
 .content-area {
   flex: 1 1 auto !important;
   overflow-y: auto !important;

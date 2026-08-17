@@ -1944,24 +1944,37 @@ async function openMobileAccessModal() {
   if (!modal) return;
 
   const qrImg = document.getElementById('mobile-qr-img');
+  const loader = document.getElementById('mobile-qr-loader');
   const urlInput = document.getElementById('mobile-url-input');
 
-  if (urlInput) urlInput.value = 'Chargement...';
+  if (loader) loader.style.display = 'flex';
+  if (urlInput) urlInput.value = 'Recherche de l\'adresse locale...';
   showModal('modal-mobile-access');
 
   try {
     const res = await window.api.publicBooking?.getShareData?.();
     if (res?.success && res.data) {
       const data = res.data;
-      if (qrImg && data.mobileQrDataUrl) {
+      const targetUrl = data.mobileUrl || `http://${data.localAddress || '127.0.0.1'}:${data.port || 4580}/mobile/${data.token || ''}`;
+      if (urlInput) urlInput.value = targetUrl;
+      
+      if (data.mobileQrDataUrl && qrImg) {
         qrImg.src = data.mobileQrDataUrl;
+      } else if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(targetUrl)}`;
       }
-      if (urlInput) {
-        urlInput.value = data.mobileUrl || `http://${data.localAddress}:${data.port}/mobile/${data.token}`;
-      }
+    } else {
+      const fallbackUrl = `http://127.0.0.1:4580/mobile`;
+      if (urlInput) urlInput.value = fallbackUrl;
+      if (qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fallbackUrl)}`;
     }
   } catch (err) {
     console.error('Error fetching mobile share data:', err);
+    const fallbackUrl = `http://127.0.0.1:4580/mobile`;
+    if (urlInput) urlInput.value = fallbackUrl;
+    if (qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fallbackUrl)}`;
+  } finally {
+    if (loader) loader.style.display = 'none';
   }
 }
 
