@@ -139,6 +139,10 @@
                     </div>
                 </div>
                 <div class="topbar-actions" aria-label="Zoom de l'interface">
+                    <button type="button" class="btn btn-secondary btn-small topbar-mobile-btn" id="topbar-mobile-btn"
+                        onclick="openMobileAccessModal()" title="Accès Smartphone & Tablette (QR Code)">
+                        📱 Mobile
+                    </button>
                     <button type="button" class="zoom-control-btn" id="app-zoom-out" title="Zoom arrière (Ctrl -)"
                         aria-label="Zoom arrière">−</button>
                     <button type="button" class="zoom-reset-btn" id="app-zoom-reset"
@@ -6218,6 +6222,32 @@
                     <button type="submit" class="btn btn-primary">Enregistrer</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ===================== ACCÈS MOBILE MODAL ===================== -->
+    <div id="modal-mobile-access" class="modal">
+        <div class="modal-content" style="max-width: 520px; text-align: center;">
+            <div class="modal-header">
+                <h2>📱 Interface Mobile du Cabinet</h2>
+                <button class="close-btn" onclick="closeModal('modal-mobile-access')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 16px;">
+                <p style="color: #6b7280; font-size: 13.5px; margin-bottom: 16px;">
+                    Scannez ce QR Code avec votre smartphone ou tablette (connecté au Wi-Fi du cabinet) pour accéder au planning, à la salle d'attente et envoyer des photos cliniques en direct vers le PC.
+                </p>
+                <div id="mobile-qr-container" style="margin: 16px auto; display: inline-block; padding: 12px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                    <img id="mobile-qr-img" src="" alt="QR Code Mobile" style="width: 220px; height: 220px; display: block; margin: 0 auto;">
+                </div>
+                <div style="margin-top: 14px;">
+                    <label style="font-size: 12px; font-weight: 600; color: #4b5563; display: block; margin-bottom: 4px;">Adresse sur le réseau local :</label>
+                    <div style="display: flex; gap: 6px; justify-content: center; max-width: 440px; margin: 0 auto;">
+                        <input type="text" id="mobile-url-input" class="form-control" readonly style="font-size: 13px; text-align: center;">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="copyMobileUrl()">Copier</button>
+                        <button type="button" class="btn btn-primary btn-small" onclick="openMobileInBrowser()">Ouvrir</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

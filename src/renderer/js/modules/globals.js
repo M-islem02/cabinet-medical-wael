@@ -1938,3 +1938,52 @@ window.applySpecialtyAccent = applySpecialtyAccent;
 window.getPatientDocumentSpecialtyConfig = getPatientDocumentSpecialtyConfig;
 window.getPatientDocumentSpecialtyKey = getPatientDocumentSpecialtyKey;
 window.switchRehabMainTab = switchRehabMainTab;
+
+async function openMobileAccessModal() {
+  const modal = document.getElementById('modal-mobile-access');
+  if (!modal) return;
+
+  const qrImg = document.getElementById('mobile-qr-img');
+  const urlInput = document.getElementById('mobile-url-input');
+
+  if (urlInput) urlInput.value = 'Chargement...';
+  showModal('modal-mobile-access');
+
+  try {
+    const res = await window.api.publicBooking?.getShareData?.();
+    if (res?.success && res.data) {
+      const data = res.data;
+      if (qrImg && data.mobileQrDataUrl) {
+        qrImg.src = data.mobileQrDataUrl;
+      }
+      if (urlInput) {
+        urlInput.value = data.mobileUrl || `http://${data.localAddress}:${data.port}/mobile/${data.token}`;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching mobile share data:', err);
+  }
+}
+
+function copyMobileUrl() {
+  const input = document.getElementById('mobile-url-input');
+  if (!input || !input.value) return;
+  navigator.clipboard.writeText(input.value).then(() => {
+    if (typeof showNotification === 'function') {
+      showNotification('✅ Lien mobile copié dans le presse-papier', 'success');
+    }
+  });
+}
+
+function openMobileInBrowser() {
+  const input = document.getElementById('mobile-url-input');
+  if (input && input.value && window.api?.openExternal) {
+    window.api.openExternal(input.value);
+  } else if (input && input.value) {
+    window.open(input.value, '_blank');
+  }
+}
+
+window.openMobileAccessModal = openMobileAccessModal;
+window.copyMobileUrl = copyMobileUrl;
+window.openMobileInBrowser = openMobileInBrowser;
