@@ -301,7 +301,7 @@ function hideSessionNotePreview() {
 }
 
 function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
-  const safeCount = Math.max(1, Math.min(100, parseInt(count || 1)));
+  const safeCount = Math.max(1, Math.max(parseInt(count || 1), (sessions || []).length));
   const sorted = [...(sessions || [])].sort((a, b) => Number(a.sessionNumber || 0) - Number(b.sessionNumber || 0));
   const byNumber = new Map(sorted.map((session, index) => [Number(session.sessionNumber || index + 1), session]));
   const fallbackSessionAmount = safeCount ? Number(totalCost || 0) / safeCount : 0;
@@ -707,8 +707,11 @@ async function openEditPlanModal(planId) {
     const sessionsHtml = `
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <h4 style="margin:0;font-size:14px;font-weight:700;text-transform:uppercase;color:#374151">Tarifs des séances</h4>
-          <span id="ep-sessions-count-label" style="font-size:12px;color:#6b7280">${Number(plan.sessionsCount || sessions.length || 1)} séance(s) · encaissement séparé</span>
+          <h4 style="margin:0;font-size:14px;font-weight:700;text-transform:uppercase;color:#374151">Tarifs et Versements des séances</h4>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="ep-sessions-count-label" style="font-size:12px;color:#6b7280">${Number(plan.sessionsCount || sessions.length || 1)} séance(s)</span>
+            <button type="button" class="btn btn-primary btn-small" onclick="event.stopPropagation(); openAddPaymentModal('${plan.id}', ${planTotal}, ${planPaid})" style="padding:4px 10px;font-size:12px">➕ Nouveau versement</button>
+          </div>
         </div>
         <div style="border:1px solid #e5e7eb;border-radius:8px;overflow-x:auto;overflow-y:visible;background:#fff">
           <table style="width:100%;border-collapse:collapse;min-width:860px">
@@ -983,44 +986,54 @@ function openAddPaymentModalFromActions(planId, totalCost, totalPaid) {
 function openAddPaymentModal(planId, totalCost, totalPaid, presetAmount = null, sessionId = '', presetNotes = '') {
   const existing = document.getElementById('plan-payment-modal');
   if (existing) existing.remove();
-  const balance = totalCost - totalPaid;
+  const balance = Math.max(0, totalCost - totalPaid);
   const defaultAmount = presetAmount && presetAmount > 0 ? Math.min(presetAmount, balance) : balance;
   const html = `
-    <div id="plan-payment-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10003;display:flex;align-items:center;justify-content:center">
-      <div style="background:#fff;border-radius:16px;padding:28px;width:440px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-          <h3 style="margin:0">Enregistrer un Paiement</h3>
-          <button onclick="document.getElementById('plan-payment-modal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer">✕</button>
+    <div id="plan-payment-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:10003;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:#fff;border-radius:16px;padding:26px;width:460px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <h3 style="margin:0;font-size:18px;font-weight:700;color:#111827">Nouveau Versement / Séance</h3>
+            <p style="margin:4px 0 0;font-size:12.5px;color:#6b7280">Enregistrer un paiement de séance (s'ajoute au total payé)</p>
+          </div>
+          <button onclick="document.getElementById('plan-payment-modal').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af">&times;</button>
         </div>
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
-          Solde restant: <strong style="color:#16a34a">${balance.toLocaleString()} DA</strong>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;">
+          <div><div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700">Total Plan</div><strong style="color:#111827;font-size:14px">${totalCost.toLocaleString()} DA</strong></div>
+          <div><div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700">Déjà Payé</div><strong style="color:#16a34a;font-size:14px">${totalPaid.toLocaleString()} DA</strong></div>
+          <div><div style="color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700">Reste</div><strong style="color:#f97316;font-size:14px">${balance.toLocaleString()} DA</strong></div>
         </div>
+
         <div style="display:grid;gap:12px">
           <div>
-            <label style="font-weight:600;font-size:13px">Montant payé (DA) *</label>
-            <input type="number" id="pp-amount" class="form-control" value="${defaultAmount}" min="1" max="${balance}" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px">
+            <label style="font-weight:600;font-size:13px;color:#374151">Montant de ce versement (DA) *</label>
+            <input type="number" id="pp-amount" class="form-control" value="${defaultAmount}" min="1" max="${balance || 9999999}" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;font-weight:600;font-size:15px">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="font-weight:600;font-size:13px;color:#374151">Date du paiement</label>
+              <input type="date" id="pp-date" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px">
+            </div>
+            <div>
+              <label style="font-weight:600;font-size:13px;color:#374151">Mode</label>
+              <select id="pp-method" class="form-control" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px">
+                <option value="Espèces">Espèces</option>
+                <option value="Carte">Carte</option>
+                <option value="Chèque">Chèque</option>
+                <option value="Virement">Virement</option>
+              </select>
+            </div>
           </div>
           <div>
-            <label style="font-weight:600;font-size:13px">Date du paiement</label>
-            <input type="date" id="pp-date" class="form-control" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px">
-          </div>
-          <div>
-            <label style="font-weight:600;font-size:13px">Mode de paiement</label>
-            <select id="pp-method" class="form-control" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px">
-              <option value="Espèces">Espèces</option>
-              <option value="Carte">Carte</option>
-              <option value="Chèque">Chèque</option>
-              <option value="Virement">Virement</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-weight:600;font-size:13px">Notes cliniques / Actes réalisés (Traçabilité)</label>
-            <textarea id="pp-notes" class="form-control" placeholder="Ex: Détartrage + préparation, dent 46..." style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;min-height:70px;resize:vertical;font-family:inherit">${esc(presetNotes || '')}</textarea>
+            <label style="font-weight:600;font-size:13px;color:#374151">Notes cliniques / Actes réalisés (Traçabilité)</label>
+            <textarea id="pp-notes" class="form-control" placeholder="Ex: Séance de rééducation à la marche, travail de l'équilibre..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;min-height:60px;resize:vertical;font-family:inherit">${esc(presetNotes || '')}</textarea>
           </div>
         </div>
+
         <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
           <button onclick="document.getElementById('plan-payment-modal').remove()" class="btn btn-secondary">Annuler</button>
-          <button onclick="submitPayment('${planId}')" class="btn btn-primary">✅ Enregistrer</button>
+          <button onclick="submitPayment('${planId}')" class="btn btn-primary">✅ Enregistrer le versement</button>
         </div>
       </div>
     </div>`;

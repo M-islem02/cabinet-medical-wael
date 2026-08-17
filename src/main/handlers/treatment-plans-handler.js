@@ -33,11 +33,12 @@ async function recalculatePlanTotals(planId) {
       [planId]
     ).catch(() => ({ treatmentCount: 0, totalCost: 0 }));
     const sessionsRow = await queryOne(
-      `SELECT COALESCE(SUM(paidAmount), 0) as totalPaid FROM plan_payment_sessions WHERE planId = ?`,
+      `SELECT COUNT(*) as sessionCount, COALESCE(SUM(paidAmount), 0) as totalPaid FROM plan_payment_sessions WHERE planId = ?`,
       [planId]
     );
     const totalPaid = Number(sessionsRow?.totalPaid || 0);
-    const plan = await queryOne(`SELECT totalCost, status FROM treatment_plans WHERE id = ?`, [planId]);
+    const totalSessions = Number(sessionsRow?.sessionCount || 0);
+    const plan = await queryOne(`SELECT totalCost, sessionsCount, status FROM treatment_plans WHERE id = ?`, [planId]);
     if (!plan) return;
 
     const treatmentCount = Number(treatmentsRow?.treatmentCount || 0);
@@ -47,13 +48,14 @@ async function recalculatePlanTotals(planId) {
     const newStatus = (totalPaid >= totalCost && totalCost > 0 && plan.status === 'active')
       ? 'completed'
       : plan.status;
+    const newSessionsCount = Math.max(Number(plan.sessionsCount || 1), totalSessions);
 
     await run(
-      `UPDATE treatment_plans SET totalCost = ?, totalPaid = ?, status = ?, updatedAt = ? WHERE id = ?`,
-      [totalCost, totalPaid, newStatus, moment().format('YYYY-MM-DD HH:mm:ss'), planId]
+      `UPDATE treatment_plans SET totalCost = ?, totalPaid = ?, sessionsCount = ?, status = ?, updatedAt = ? WHERE id = ?`,
+      [totalCost, totalPaid, newSessionsCount, newStatus, moment().format('YYYY-MM-DD HH:mm:ss'), planId]
     );
 
-    return { totalCost, totalPaid, newStatus };
+    return { totalCost, totalPaid, sessionsCount: newSessionsCount, newStatus };
   } catch (err) {
     console.error('Error recalculating plan totals:', err);
     throw err;
@@ -504,7 +506,7 @@ export function handleTreatmentPlanEvents() {
         );
         if (!pendingSession) return { success: false, error: 'Séance introuvable' };
         if (pendingSession.status === 'paid' || Number(pendingSession.paidAmount || 0) > 0) {
-          return { success: false, error: 'Cette séance est déjà encaissée.' };
+          pendingSession = null;
         }
       } else {
         pendingSession = await queryOne(
