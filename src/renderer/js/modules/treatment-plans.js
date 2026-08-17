@@ -304,7 +304,23 @@ function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
   const safeCount = Math.max(1, Math.max(parseInt(count || 1), (sessions || []).length));
   const sorted = [...(sessions || [])].sort((a, b) => Number(a.sessionNumber || 0) - Number(b.sessionNumber || 0));
   const byNumber = new Map(sorted.map((session, index) => [Number(session.sessionNumber || index + 1), session]));
-  const fallbackSessionAmount = safeCount ? Number(totalCost || 0) / safeCount : 0;
+
+  // Calculate actual total already paid and count of paid sessions
+  let totalPaid = 0;
+  let paidCount = 0;
+  for (let index = 0; index < safeCount; index++) {
+    const s = byNumber.get(index + 1);
+    if (s && (Number(s.paidAmount || 0) > 0 || s.status === 'paid')) {
+      totalPaid += Number(s.paidAmount || 0);
+      paidCount++;
+    }
+  }
+
+  // Calculate remaining balance and remaining unpaid sessions
+  const remainingBalance = Math.max(0, Number(totalCost || 0) - totalPaid);
+  const remainingUnpaidCount = Math.max(1, safeCount - paidCount);
+  const dynamicRemainingPerSession = Math.round((remainingBalance / remainingUnpaidCount) * 100) / 100;
+
   const rows = [];
 
   for (let index = 0; index < safeCount; index++) {
@@ -312,19 +328,24 @@ function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
     const s = byNumber.get(sessionNumber) || {
       id: `new-${sessionNumber}`,
       sessionNumber,
-      expectedAmount: fallbackSessionAmount,
+      expectedAmount: dynamicRemainingPerSession,
       paidAmount: 0,
       status: 'pending',
       scheduledDate: '',
       paidDate: '',
       notes: ''
     };
-    const expected = Number(s.expectedAmount || s.paidAmount || fallbackSessionAmount || 0);
     const paid = Number(s.paidAmount || 0);
-    const scheduled = formatDateInputValue(s.scheduledDate);
-    const paidDate = formatDisplayDate(s.paidDate);
     const isPaid = paid > 0 || s.status === 'paid';
     const isRequested = !isPaid && s.status === 'requested';
+
+    // If session is already paid, keep what was recorded; if not paid, dynamically divide the remaining balance!
+    const expected = isPaid
+      ? Number(s.paidAmount || s.expectedAmount || 0)
+      : dynamicRemainingPerSession;
+
+    const scheduled = formatDateInputValue(s.scheduledDate);
+    const paidDate = formatDisplayDate(s.paidDate);
     const badgeBg = isPaid ? '#f0fdf4' : (isRequested ? '#fff7ed' : '#f8fafc');
     const badgeColor = isPaid ? '#15803d' : (isRequested ? '#c2410c' : '#64748b');
     const statusLabel = isPaid ? 'Payée' : (isRequested ? 'Demande envoyée' : 'Prévue');
@@ -332,12 +353,12 @@ function buildEditPlanSessionRows(planId, sessions, count, totalCost = 0) {
       ? `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); modifierEncaissementPlanSession('${planId}', '${esc(s.id)}', ${paid}, '${esc(formatDateInputValue(s.paidDate))}', '${esc(s.notes || '')}')" style="padding:7px 10px;font-size:12px">Modifier paiement</button>`
       : (isRequested
         ? '<span style="color:#c2410c;font-size:12px;font-weight:700">En attente d’encaissement</span>'
-        : `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); openPlanSessionPaymentChoice('${planId}', '${esc(s.id)}', ${expected})" style="padding:7px 10px;font-size:12px">Encaisser</button>`);
+        : `<button type="button" class="btn btn-secondary btn-small" onclick="event.stopPropagation(); openPlanSessionPaymentChoice('${planId}', '${esc(s.id)}', ${expected})" style="padding:7px 10px;font-size:12px">Encaisser (${expected.toLocaleString()} DA)</button>`);
     rows.push(`
       <tr class="ep-session-row" data-session-id="${esc(s.id)}" data-session-number="${sessionNumber}" data-status="${esc(s.status || 'pending')}">
         <td style="padding:8px 10px;font-weight:600;color:#111827">#${sessionNumber}</td>
         <td style="padding:8px 10px"><input class="ep-session-scheduled" type="date" value="${esc(scheduled)}" style="width:140px;padding:7px;border:1px solid #d1d5db;border-radius:6px"></td>
-        <td style="padding:8px 10px"><input class="ep-session-expected" type="number" min="0" value="${expected}" style="width:110px;padding:7px;border:1px solid #d1d5db;border-radius:6px;text-align:right"></td>
+        <td style="padding:8px 10px"><input class="ep-session-expected" type="number" min="0" step="any" value="${expected}" style="width:110px;padding:7px;border:1px solid #d1d5db;border-radius:6px;text-align:right"></td>
         <td style="padding:8px 10px;text-align:right;color:#111827;font-weight:600">${paid.toLocaleString()} DA</td>
         <td style="padding:8px 10px;color:#475569;font-weight:600">${isPaid ? paidDate : '—'}</td>
         <td style="padding:8px 10px"><span style="display:inline-flex;align-items:center;min-height:24px;padding:2px 8px;border-radius:999px;background:${badgeBg};color:${badgeColor};font-size:12px;font-weight:700">${statusLabel}</span></td>

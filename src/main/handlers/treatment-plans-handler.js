@@ -55,6 +55,25 @@ async function recalculatePlanTotals(planId) {
       [totalCost, totalPaid, newSessionsCount, newStatus, moment().format('YYYY-MM-DD HH:mm:ss'), planId]
     );
 
+    // Dynamically recalculate and divide remaining balance across remaining unpaid sessions
+    const remainingBalance = Math.max(0, totalCost - totalPaid);
+    const unpaidSessions = await query(
+      `SELECT id FROM plan_payment_sessions
+       WHERE planId = ? AND (status != 'paid' AND COALESCE(paidAmount, 0) = 0)
+       ORDER BY sessionNumber ASC`,
+      [planId]
+    );
+
+    if (unpaidSessions && unpaidSessions.length > 0) {
+      const perSessionAmount = Math.round((remainingBalance / unpaidSessions.length) * 100) / 100;
+      for (const s of unpaidSessions) {
+        await run(
+          `UPDATE plan_payment_sessions SET expectedAmount = ? WHERE id = ?`,
+          [perSessionAmount, s.id]
+        );
+      }
+    }
+
     return { totalCost, totalPaid, sessionsCount: newSessionsCount, newStatus };
   } catch (err) {
     console.error('Error recalculating plan totals:', err);
