@@ -434,7 +434,8 @@ function translateSql(sql) {
     .replace(/\bTIME\s*\(\s*([A-Za-z0-9_".?]+)\s*\)/gi, 'CAST($1 AS TIME)')
     .replace(/strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\)/gi, "TO_CHAR($1::timestamp, 'YYYY-MM')")
     .replace(/strftime\s*\(\s*'%Y-W%W'\s*,\s*([^)]+)\)/gi, "TO_CHAR($1::timestamp, 'IYYY-\"W\"IW')")
-    .replace(/\bVALUES\s*\("([^"]+)"\)/gi, 'EXCLUDED."$1"');
+    .replace(/\bVALUES\s*\("([^"]+)"\)/gi, 'EXCLUDED."$1"')
+    .replace(/\bCOLLATE\s+NOCASE\b/gi, '');
 
   translated = transformInsertOrReplace(translated);
   translated = transformInsertOrIgnore(translated);

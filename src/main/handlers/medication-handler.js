@@ -329,7 +329,7 @@ export function handleMedicationEvents() {
         return { success: true, data: [] };
       }
 
-      const prefixPattern = `${normalizedTerm}%`;
+      const prefixPattern = `${normalizedTerm.toLowerCase()}%`;
       const medications = await query(
         `SELECT id,
                 name,
@@ -342,17 +342,17 @@ export function handleMedicationEvents() {
                 usageCount,
                 updatedAt,
                 CASE
-                  WHEN name LIKE ? COLLATE NOCASE THEN 0
-                  WHEN genericName LIKE ? COLLATE NOCASE THEN 1
+                  WHEN LOWER(name) LIKE ? THEN 0
+                  WHEN LOWER(genericName) LIKE ? THEN 1
                   ELSE 2
                 END AS searchRank
          FROM medications 
          WHERE isActive = 1
            AND (
-             name LIKE ? COLLATE NOCASE
-             OR genericName LIKE ? COLLATE NOCASE
+             LOWER(name) LIKE ?
+             OR LOWER(genericName) LIKE ?
            )
-         ORDER BY searchRank ASC, usageCount DESC, name COLLATE NOCASE
+         ORDER BY searchRank ASC, usageCount DESC, name ASC
          LIMIT 12`,
         [prefixPattern, prefixPattern, prefixPattern, prefixPattern]
       );

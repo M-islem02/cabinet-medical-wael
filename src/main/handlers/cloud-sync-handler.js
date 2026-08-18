@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cloud Sync Handler - Hybrid Online/Offline Data Backup
  * Supports: Firebase, Custom REST API, or Remote MariaDB replication
  * Works offline-first: data is always local, cloud is backup
@@ -441,6 +441,46 @@ async function discoverSQLiteBackupSource(artifacts) {
   }
 }
 
+async function discoverUnifiedBackupSource(artifacts) {
+  try {
+    const discoveredTables = [];
+    const data = {};
+
+    for (const tableName of SYNC_TABLES) {
+      try {
+        const rows = await query(`SELECT * FROM ${tableName}`);
+        if (Array.isArray(rows)) {
+          const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+          const normalizedRows = rows.map((row) => normalizeBackupRow(row, 'unified', tableName, artifacts));
+          data[`db_${tableName}`] = normalizedRows;
+          discoveredTables.push({
+            name: `db_${tableName}`,
+            rawName: tableName,
+            source: 'unified',
+            columns,
+            count: normalizedRows.length
+          });
+        }
+      } catch (err) {
+        // Table might not exist or empty
+      }
+    }
+
+    if (!discoveredTables.length) return null;
+
+    return {
+      source: 'unified',
+      label: 'Base de données PostgreSQL',
+      data,
+      tables: discoveredTables,
+      database: 'cabinet_db'
+    };
+  } catch (error) {
+    console.warn('Unified database backup discovery failed:', error.message);
+    return null;
+  }
+}
+
 async function discoverMariaDBBackupSource(artifacts) {
   return null;
   const config = getMariaDBBackupConfig();
@@ -856,6 +896,15 @@ async function buildDynamicBackupBundle(prefix = 'backup') {
   const context = await buildExportContext();
   const artifacts = [];
   const sources = [];
+
+  try {
+    const unifiedSource = await discoverUnifiedBackupSource(artifacts);
+    if (unifiedSource) {
+      sources.push(unifiedSource);
+    }
+  } catch (error) {
+    console.warn('Unified DB backup skipped:', error.message);
+  }
 
   try {
     const sqliteSource = await discoverSQLiteBackupSource(artifacts);
