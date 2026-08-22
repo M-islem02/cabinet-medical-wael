@@ -437,7 +437,6 @@ function buildPrintableHtml(opts = {}) {
         </div>
         <div class="logo-container">${getDocumentLogoHTML()}</div>
         <div class="professional-patient-info">
-          <div class="professional-patient-label">DOSSIER PATIENT</div>
           <div class="professional-patient-name">${patientLast.toUpperCase()} ${patientFirst.toUpperCase()}</div>
           <div class="professional-patient-meta">
             <span>${ageLabel === "-" ? "Âge non renseigné" : `Âge : ${ageLabel} ans`}</span>
@@ -463,7 +462,7 @@ function buildPrintableHtml(opts = {}) {
       </div>
       <div class="footer-divider"></div>
       <div class="footer-contact">
-        <div class="contact-phone">📞 ${escapePrintingHtml(cabinetPhone)}</div>
+        <div class="contact-phone">📞 ${escapePrintingHtml(cabinetPhone).replace(/(\r\n|\n|\r)/g, ' • ')}</div>
         <div class="contact-address">📍 ${escapePrintingHtml(cabinetAddress)}</div>
       </div>
     </div>
@@ -1533,14 +1532,10 @@ function generateHtmlDocument(bodyContent, options = {}) {
           margin-top: 2mm;
           padding: 0;
           border: 0;
-          text-align: right;
+          text-align: left;
         }
         body[data-document-style="professional-center"] .professional-patient-label {
-          margin-bottom: 1.1mm;
-          color: var(--professional-blue);
-          font-size: ${layout.metaFont};
-          font-weight: 800;
-          letter-spacing: 0.12em;
+          display: none;
         }
         body[data-document-style="professional-center"] .professional-patient-name {
           color: var(--professional-ink);
@@ -1548,16 +1543,18 @@ function generateHtmlDocument(bodyContent, options = {}) {
           font-weight: 800;
           line-height: 1.25;
           overflow-wrap: anywhere;
+          text-align: left;
         }
         body[data-document-style="professional-center"] .professional-patient-meta {
           display: flex;
           flex-direction: column;
-          align-items: flex-end;
+          align-items: flex-start;
           gap: 0.8mm;
           margin-top: 1.2mm;
           color: var(--professional-muted);
           font-size: ${layout.metaFont};
           line-height: 1.35;
+          text-align: left;
         }
         body[data-document-style="professional-center"] .header-divider {
           height: 0.65mm;
@@ -2681,7 +2678,8 @@ async function renderInvoiceDocument({ patient, invoiceData, onEdit = null }) {
 function buildMprRapportDocumentHtml({ patient, rapportData, dateLabel, consultation, specialtyMeta }) {
   const settings = typeof cachedSettings !== 'undefined' ?cachedSettings : {}
   const rapportLayout = getPrintLayout("A5")
-  const cabinetName = escapePrintingHtml((settings.cabinetName || 'Cabinet medical').toUpperCase())
+  const rawCabinetName = (settings.cabinetName || 'Cabinet médical').trim()
+  const cabinetName = escapePrintingHtml(rawCabinetName.toUpperCase()).replace(/(\r\n|\n|\r)/g, '<br>')
   const cleanDoctorName = normalizeDoctorDisplayName(settings.doctorName || '') || 'Docteur'
   const doctorName = escapePrintingHtml(cleanDoctorName.toUpperCase())
   const doctorSpecialty = escapePrintingHtml(
@@ -2973,7 +2971,8 @@ function buildRapportDocumentHtml({ patient, rapportData, dateLabel, consultatio
 
   const settings = typeof cachedSettings !== 'undefined' ?cachedSettings : {}
   const rapportLayout = getPrintLayout("A5")
-  const cabinetName = escapePrintingHtml((settings.cabinetName || 'Cabinet Médical').toUpperCase())
+  const rawCabinetName = (settings.cabinetName || 'Cabinet Médical').trim()
+  const cabinetName = escapePrintingHtml(rawCabinetName.toUpperCase()).replace(/(\r\n|\n|\r)/g, '<br>')
   const cleanDoctorName = normalizeDoctorDisplayName(settings.doctorName || '') || 'Docteur'
   const doctorName = escapePrintingHtml(cleanDoctorName.toUpperCase())
   const doctorSpecialty = escapePrintingHtml(

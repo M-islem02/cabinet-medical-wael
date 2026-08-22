@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
-    <title>Cabinet Médical ORL - MedCareSO v1.1.1</title>
+    <title>MedCareSO v1.0.9</title>
     <script>
         // Prevent sidebar/layout flicker before JS modules load.
         try {
@@ -91,35 +91,11 @@
                     </span>
                     <span class="label">Opérations</span>
                 </a>
-                <a href="#" class="nav-item doctor-only" data-section="rehabilitation" onclick="event.preventDefault(); showSection('rehabilitation')" title="Rééducation / MPR">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5a4 4 0 1 1 8 0l-1.5 6h-5l-1.5-6z"/><path d="M8.5 17h7"/><path d="M7 12h10"/><path d="M12 12v5"/></svg>
-                    </span>
-                    <span class="label">Rééducation</span>
-                </a>
-                <a href="#" class="nav-item doctor-only" data-section="dentistry" onclick="event.preventDefault(); showSection('dentistry')" title="Dentisterie">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5c-1.5 0-2-.8-3.5-.8C6 4.2 4 6 4 9c0 3 1.5 6 2.5 8 .7 1.4 1.4 2.8 2.5 2.8 1.6 0 1.3-2.8 3-2.8s1.4 2.8 3 2.8c1.1 0 1.8-1.4 2.5-2.8C18.5 15 20 12 20 9c0-3-2-4.8-4.5-4.8C14 4.2 13.5 5 12 5z"/></svg>
-                    </span>
-                    <span class="label">Dentisterie</span>
-                </a>
                 <a href="#" class="nav-item doctor-only" data-section="treatment-plans" onclick="event.preventDefault(); showSection('treatment-plans')" title="Plans de Traitement">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
                     </span>
                     <span class="label">Plans Traitement</span>
-                </a>
-                <a href="#" class="nav-item doctor-only" data-section="cardiology" onclick="event.preventDefault(); showSection('cardiology')" title="Cardiologie">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                    </span>
-                    <span class="label">Cardiologie</span>
-                </a>
-                <a href="#" class="nav-item" data-section="kine-staff" onclick="event.preventDefault(); showSection('kine-staff')" title="Kinésithérapeutes (Staff)">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </span>
-                    <span class="label">Kinés (Staff)</span>
                 </a>
                 <a href="#" class="nav-item" data-section="payments" onclick="event.preventDefault(); showSection('payments')" title="Gestion des Paiements">
                     <span class="icon">
@@ -293,11 +269,11 @@
 
                     <div class="welcome-box ant-alert ant-alert-info">
                         <div>
-                            <h2 id="dashboard-welcome-title">Espace Médecine Générale</h2>
-                            <p id="dashboard-welcome-desc">Accès direct aux patients, consultations et prescriptions générales.</p>
+                            <h2>Espace ORL &amp; Chirurgie</h2>
+                            <p>Accès direct aux consultations ORL, audiométrie, fibroscopie, actes chirurgicaux et dossiers patients.</p>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button type="button" class="btn btn-primary" id="dashboard-welcome-btn" onclick="showSection('patients')">Consulter les Patients</button>
+                            <button type="button" class="btn btn-primary" onclick="showSection('orl')">Consulter Module ORL</button>
                             <button type="button" class="btn btn-secondary" onclick="showSection('patients')">Répertoire Patients</button>
                         </div>
                     </div>
@@ -609,8 +585,11 @@
           <div class="avatar" id="orl-patient-avatar" style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: #1677ff; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; box-shadow: 0 2px 8px rgba(22,119,255,0.25);">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
-          <div style="overflow: hidden; flex: 1;">
-            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PATIENT EN COURS</div>
+          <div style="overflow: hidden; flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PATIENT EN COURS</div>
+              <button type="button" id="orl-sider-deselect-btn" onclick="deselectORLPatient(event)" title="Désélectionner ce patient" style="display: none; width: 20px; height: 20px; border-radius: 6px; background: #ffffff; border: 1px solid #f87171; color: #dc2626; cursor: pointer; font-size: 11px; font-weight: 800; align-items: center; justify-content: center; padding: 0;">✕</button>
+            </div>
             <div id="orl-current-patient-display" style="font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Aucun patient sélectionné</div>
             <div id="orl-current-patient-sub" style="font-size: 12.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Sélectionnez un patient en haut</div>
           </div>
@@ -1691,25 +1670,31 @@
                                     </div>
                                     <select id="imaging-patient-select" style="display: none;" aria-hidden="true"></select>
                                 </div>
-                                <div class="form-group" style="flex: 0 1 200px; margin: 0;">
-                                    <label for="imaging-family-select" style="font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.65); margin-bottom: 4px; display: block;">Famille d’examen</label>
+                                <div class="form-group" style="flex: 0 1 240px; margin: 0;">
+                                    <label for="imaging-family-select" style="font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.65); margin-bottom: 4px; display: block;">Famille d’examen ORL</label>
                                     <select id="imaging-family-select" class="form-control" style="height: 36px; box-sizing: border-box; width: 100%;">
-                                        <option value="Radiographie">Radiographie</option>
-                                        <option value="IRM">IRM</option>
-                                        <option value="Scanner CT">Scanner CT</option>
-                                        <option value="Échographie">Échographie</option>
-                                        <option value="Mammographie">Mammographie</option>
+                                        <option value="Scanner CT / TDM (Rochers, Sinus, Cou)">Scanner CT / TDM (Rochers, Sinus, Cou)</option>
+                                        <option value="IRM ORL (CPA, Glandes salivaires, Sinus)">IRM ORL (CPA, Glandes, Sinus)</option>
+                                        <option value="Radiographie ORL (Blondeau, Cavum, OPN)">Radiographie (Blondeau, Cavum, OPN)</option>
+                                        <option value="Échographie Cervicale & Salivaire">Échographie Cervicale &amp; Salivaire</option>
+                                        <option value="Endoscopie & Fibroscopie ORL">Endoscopie &amp; Fibroscopie ORL</option>
+                                        <option value="Audiométrie & Tympanométrie">Audiométrie &amp; Tympanométrie</option>
+                                        <option value="Cone Beam / CBCT (Massif facial & Rochers)">Cone Beam / CBCT</option>
+                                        <option value="Vidéonystagmographie / VNG & Équilibre">Vidéonystagmographie (VNG)</option>
                                     </select>
                                 </div>
-                                <div class="form-group" style="flex: 0 1 200px; margin: 0;">
-                                    <label for="imaging-filter-family" style="font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.65); margin-bottom: 4px; display: block;">Filtre</label>
+                                <div class="form-group" style="flex: 0 1 240px; margin: 0;">
+                                    <label for="imaging-filter-family" style="font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.65); margin-bottom: 4px; display: block;">Filtre examens ORL</label>
                                     <select id="imaging-filter-family" class="form-control" style="height: 36px; box-sizing: border-box; width: 100%;">
-                                        <option value="all">Toutes les familles</option>
-                                        <option value="Radiographie">Radiographie</option>
-                                        <option value="IRM">IRM</option>
-                                        <option value="Scanner CT">Scanner CT</option>
-                                        <option value="Échographie">Échographie</option>
-                                        <option value="Mammographie">Mammographie</option>
+                                        <option value="all">Tous les examens ORL</option>
+                                        <option value="Scanner CT / TDM (Rochers, Sinus, Cou)">Scanner CT / TDM</option>
+                                        <option value="IRM ORL (CPA, Glandes salivaires, Sinus)">IRM ORL</option>
+                                        <option value="Radiographie ORL (Blondeau, Cavum, OPN)">Radiographie ORL</option>
+                                        <option value="Échographie Cervicale & Salivaire">Échographie Cervicale &amp; Salivaire</option>
+                                        <option value="Endoscopie & Fibroscopie ORL">Endoscopie &amp; Fibroscopie</option>
+                                        <option value="Audiométrie & Tympanométrie">Audiométrie &amp; Tympanométrie</option>
+                                        <option value="Cone Beam / CBCT (Massif facial & Rochers)">Cone Beam / CBCT</option>
+                                        <option value="Vidéonystagmographie / VNG & Équilibre">Vidéonystagmographie (VNG)</option>
                                     </select>
                                 </div>
                             </div>
@@ -3141,474 +3126,6 @@
                     </div>
                 </section>
 
-                <section id="rehabilitation" class="section doctor-only">
-                    <div class="section-header rehab-header">
-                        <div class="section-heading-block">
-                            <h2>♿ Rééducation MPR</h2>
-                            <p class="section-subtitle">Bilans fonctionnels, plans de soins et suivi de la progression clinique.</p>
-                        </div>
-                    </div>
-
-                    <div class="feature-shell rehab-shell">
-                        <!-- Patient Selection Card -->
-                        <div class="feature-hero feature-hero-rehab">
-                            <div class="feature-hero-content">
-                                <div class="feature-hero-layout">
-                                    <div>
-                                        <span class="feature-hero-label">Patient sélectionné</span>
-                                        <h3 class="feature-hero-title">👤 Dossier de rééducation</h3>
-                                        <p id="rehab-current-patient-display" class="feature-hero-patient">
-                                            Aucun patient sélectionné
-                                        </p>
-                                    </div>
-                                    <div class="feature-hero-actions">
-                                        <select id="rehab-patient-selector"
-                                            class="form-control feature-patient-selector"
-                                            onchange="selectRehabPatient(this.value)">
-                                            <option value="">-- Sélectionner un patient --</option>
-                                        </select>
-                                        <button class="btn feature-hero-refresh"
-                                            onclick="refreshRehabPatientList()">⟳</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Main Tabs Navigation -->
-                        <div class="feature-tabs-shell">
-                            <div class="feature-tabs-wrap">
-                                <div class="rehab-main-tabs feature-main-tabs">
-                                    <button class="rehab-tab-btn feature-tab-btn active" data-tab="bilans"
-                                        onclick="switchRehabMainTab('bilans')">
-                                        📋 BILANS
-                                    </button>
-                                    <button class="rehab-tab-btn feature-tab-btn" data-tab="plans"
-                                        onclick="switchRehabMainTab('plans')">
-                                        📝 PLANS
-                                    </button>
-                                    <button class="rehab-tab-btn feature-tab-btn" data-tab="progression"
-                                        onclick="switchRehabMainTab('progression')">
-                                        📈 PROGRESSION
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- BILANS Tab Content -->
-                        <div id="rehab-tab-bilans" class="rehab-tab-content" style="display: block;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📋 Bilans Fonctionnels</h3>
-                                    <button class="btn btn-primary btn-sm" onclick="openEvaluationModal()">+ Nouveau
-                                        Bilan</button>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-bilans-list">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📋</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir ses bilans
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- PLANS Tab Content -->
-                        <div id="rehab-tab-plans" class="rehab-tab-content" style="display: none;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📝 Plans de Rééducation</h3>
-                                    <button class="btn btn-primary btn-sm" onclick="openRehabPlanModal()">+ Nouveau
-                                        Plan</button>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-plans-list">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📝</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir ses plans
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- PROGRESSION Tab Content -->
-                        <div id="rehab-tab-progression" class="rehab-tab-content" style="display: none;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📈 Suivi de la Progression</h3>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-progression-content">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📈</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir sa
-                                                progression</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Stats Row -->
-                        <div class="stats-row rehab-stat-grid">
-                            <div class="card rehab-stat-card rehab-stat-card-primary">
-                                <div class="card-header">
-                                    <h3>Plans Actifs</h3>
-                                    <span class="icon">📋</span>
-                                </div>
-                                <div class="card-stat" id="stat-active-plans">0</div>
-                                <p class="card-footer">Plans de rééducation</p>
-                            </div>
-                            <div class="card rehab-stat-card rehab-stat-card-success">
-                                <div class="card-header">
-                                    <h3>Bilans ce Mois</h3>
-                                    <span class="icon">📊</span>
-                                </div>
-                                <div class="card-stat" id="stat-evaluations-month">0</div>
-                                <p class="card-footer">Évaluations fonctionnelles</p>
-                            </div>
-                            <div class="card rehab-stat-card rehab-stat-card-warning">
-                                <div class="card-header">
-                                    <h3>Séances Prévues</h3>
-                                    <span class="icon">📅</span>
-                                </div>
-                                <div class="card-stat" id="stat-planned-sessions">0</div>
-                                <p class="card-footer">Cette semaine</p>
-                            </div>
-                        </div>
-
-                        <!-- Échelles médicales disponibles -->
-                        <div class="card rehab-scale-card">
-                            <div class="card-header">
-                                <h3>📏 Échelles d'Évaluation Disponibles</h3>
-                            </div>
-                            <div class="rehab-scales-grid">
-                                <div class="scale-item rehab-scale-item rehab-scale-danger">
-                                    <strong>EVA</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Échelle Visuelle
-                                        Analogique (Douleur)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-primary">
-                                    <strong>Barthel</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Indice d'Autonomie (0-100)
-                                    </p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-success">
-                                    <strong>Tinetti</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Équilibre et Marche (0-28)
-                                    </p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-violet">
-                                    <strong>MRC</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Force Musculaire (0-5)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-warning">
-                                    <strong>Ashworth</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Spasticité (0-4)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-cyan">
-                                    <strong>Berg</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Équilibre (0-56)</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===================== CARDIOLOGY SECTION ===================== -->
-                <section id="cardiology" class="section doctor-only">
-                    <div class="section-header cardio-header">
-                        <div class="section-heading-block">
-                            <h2>💓 Cardiologie</h2>
-                            <p class="section-subtitle">Bilan cardiovasculaire structuré, suivi et génération du rapport médical.</p>
-                        </div>
-                    </div>
-
-                    <div class="feature-shell cardiology-shell">
-                        <div class="feature-hero feature-hero-cardiology">
-                            <div class="feature-hero-content">
-                                <div class="feature-hero-layout">
-                                    <div>
-                                        <span class="feature-hero-label">Patient sélectionné</span>
-                                        <h3 class="feature-hero-title">Dossier cardiovasculaire</h3>
-                                        <p id="cardiology-current-patient-display" class="feature-hero-patient">Aucun
-                                            patient sélectionné</p>
-                                    </div>
-                                    <div class="feature-hero-actions">
-                                        <select id="cardiology-patient-selector"
-                                            class="form-control feature-patient-selector"
-                                            onchange="selectCardiologyPatient(this.value)">
-                                            <option value="">-- Sélectionner un patient --</option>
-                                        </select>
-                                        <button class="btn feature-hero-refresh"
-                                            onclick="refreshCardiologyPatientList()">⟳</button>
-                                        <button class="btn btn-primary" onclick="openCardiologyReportWorkspace()">📄
-                                            Générer rapport</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="cardiology-stats-grid">
-                            <div class="card cardiology-stat-card cardiology-stat-card-primary">
-                                <div class="card-header">
-                                    <h3>Dernier rapport</h3><span class="icon">🗓️</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-last-report">-</div>
-                                <p class="card-footer">Dernière génération ou mise à jour</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-danger">
-                                <div class="card-header">
-                                    <h3>TA de référence</h3><span class="icon">🩸</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-blood-pressure">-</div>
-                                <p class="card-footer">Dernière tension connue</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-info">
-                                <div class="card-header">
-                                    <h3>Rapports</h3><span class="icon">📄</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-rapport-count">0</div>
-                                <p class="card-footer">Rapports enregistrés</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-warning">
-                                <div class="card-header">
-                                    <h3>Orientations</h3><span class="icon">📨</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-orientation-count">0</div>
-                                <p class="card-footer">Avis et adressages</p>
-                            </div>
-                        </div>
-
-                        <div class="cardiology-grid">
-                            <div class="card cardiology-panel cardiology-panel-form">
-                                <div class="card-header">
-                                    <h3>Données du bilan clinique</h3>
-                                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                        <button class="btn btn-outline" type="button"
-                                            onclick="resetCardiologyProfile()">Réinitialiser</button>
-                                        <button class="btn btn-primary" type="button"
-                                            onclick="saveCardiologyProfile()">💾 Enregistrer</button>
-                                    </div>
-                                </div>
-                                <div class="cardiology-panel-body">
-                                    <input type="hidden" id="cardiology-patient-id">
-                                    <div class="feature-tabs-wrap cardiology-tabs-wrap">
-                                        <div class="feature-main-tabs cardiology-main-tabs">
-                                            <button class="cardiology-tab-btn feature-tab-btn active" data-tab="summary"
-                                                type="button" onclick="switchCardiologyTab('summary')">
-                                                Synthèse
-                                            </button>
-                                            <button class="cardiology-tab-btn feature-tab-btn" data-tab="tests"
-                                                type="button" onclick="switchCardiologyTab('tests')">
-                                                Examens
-                                            </button>
-                                            <button class="cardiology-tab-btn feature-tab-btn" data-tab="plan"
-                                                type="button" onclick="switchCardiologyTab('plan')">
-                                                Conclusion
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div id="cardiology-tab-summary" class="cardiology-tab-content"
-                                        style="display: block;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Motif / indication</label>
-                                                <input type="text" id="cardiology-motif" class="form-control"
-                                                    placeholder="Ex: HTA, douleur thoracique, palpitations, suivi insuffisance cardiaque">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Date du bilan</label>
-                                                <input type="date" id="cardiology-date" class="form-control">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Tension artérielle</label>
-                                                <input type="text" id="cardiology-blood-pressure" class="form-control"
-                                                    placeholder="Ex: 14/8">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Fréquence cardiaque</label>
-                                                <input type="text" id="cardiology-heart-rate" class="form-control"
-                                                    placeholder="Ex: 78 bpm">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>SpO2</label>
-                                                <input type="text" id="cardiology-spo2" class="form-control"
-                                                    placeholder="Ex: 98%">
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Antécédents cardiovasculaires</label>
-                                                <textarea id="cardiology-antecedents" class="form-control" rows="3"
-                                                    placeholder="HTA, coronaropathie, valvulopathie, AVC, antécédents familiaux..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Facteurs de risque</label>
-                                                <textarea id="cardiology-risk-factors" class="form-control" rows="3"
-                                                    placeholder="Tabac, diabète, dyslipidémie, obésité, sédentarité..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Symptômes / histoire clinique</label>
-                                                <textarea id="cardiology-symptoms" class="form-control" rows="4"
-                                                    placeholder="Dyspnée, douleur thoracique, palpitations, syncope, œdèmes..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Examen clinique</label>
-                                                <textarea id="cardiology-clinical-exam" class="form-control" rows="4"
-                                                    placeholder="Auscultation, souffle, signes d’insuffisance cardiaque, état hémodynamique..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="cardiology-tab-tests" class="cardiology-tab-content"
-                                        style="display: none;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group">
-                                                <label>ECG de repos</label>
-                                                <textarea id="cardiology-ecg-rest" class="form-control" rows="3"
-                                                    placeholder="Rythme, conduction, anomalies ST-T, fréquence..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>ECG d'effort / test d'effort</label>
-                                                <textarea id="cardiology-ecg-stress" class="form-control" rows="3"
-                                                    placeholder="Tolérance à l'effort, ischémie, troubles du rythme, arrêt du test..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Échocardiographie</label>
-                                                <textarea id="cardiology-echo" class="form-control" rows="3"
-                                                    placeholder="FEVG, cavités, valves, PAPS..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Holter ECG / MAPA</label>
-                                                <textarea id="cardiology-holter-mapa" class="form-control" rows="3"
-                                                    placeholder="Holter, MAPA, variabilité, épisodes rythmiques..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Biologie / troponine / BNP</label>
-                                                <textarea id="cardiology-biology" class="form-control" rows="3"
-                                                    placeholder="Troponine, BNP, bilan lipidique, créatinine..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Autres examens / résultats logiciels</label>
-                                                <textarea id="cardiology-other-tests" class="form-control" rows="3"
-                                                    placeholder="Compte rendu logiciel ECG, épreuve d'effort, scanner, coronarographie, Doppler, autre export..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="cardiology-tab-plan" class="cardiology-tab-content" style="display: none;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Traitement / ajustement thérapeutique</label>
-                                                <textarea id="cardiology-treatment" class="form-control" rows="3"
-                                                    placeholder="IEC, ARA2, bêtabloquant, diurétique, antiagrégant..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Conclusion / conduite à tenir</label>
-                                                <textarea id="cardiology-conclusion" class="form-control" rows="5"
-                                                    placeholder="Synthèse diagnostique, risque, examens à compléter, suivi..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="cardiology-side-column">
-                                <div class="card cardiology-panel">
-                                    <div class="card-header">
-                                        <h3>Résumé patient</h3>
-                                    </div>
-                                    <div class="cardiology-panel-body">
-                                        <div id="cardiology-patient-summary" class="cardiology-empty-state">Sélectionnez
-                                            un patient pour afficher le résumé cardiovasculaire.</div>
-                                    </div>
-                                </div>
-
-                                <div class="card cardiology-panel">
-                                    <div class="card-header">
-                                        <h3>Historique rapide</h3>
-                                    </div>
-                                    <div class="cardiology-panel-body">
-                                        <div id="cardiology-recent-items" class="cardiology-history-list">
-                                            <div class="cardiology-empty-state">Aucune activité à afficher.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ===================== KINÉ STAFF SECTION ===================== -->
-                <section id="kine-staff" class="section">
-                    <div class="section-header">
-                        <h2>👨‍⚕️ Gestion des Kinésithérapeutes</h2>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-secondary" onclick="loadKineStaff()">⟳ Actualiser</button>
-                            <button class="btn btn-primary" onclick="openKineStaffModal()">
-                                ➕ Ajouter Kiné
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Kiné Stats - Only sessions, no money -->
-                    <div class="stats-row"
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                        <div class="card">
-                            <div class="card-header">
-                                <h3>Total Kinés</h3>
-                                <span class="icon">👨‍⚕️</span>
-                            </div>
-                            <div class="card-stat" id="stat-total-kines">0</div>
-                            <p class="card-footer">Kinés enregistrés</p>
-                        </div>
-                        <div class="card">
-                            <div class="card-header">
-                                <h3>Séances ce Mois</h3>
-                                <span class="icon">📅</span>
-                            </div>
-                            <div class="card-stat" id="stat-kine-sessions-month" style="color: #3b82f6;">0</div>
-                            <p class="card-footer">Séances effectuées</p>
-                        </div>
-                        <div class="card">
-                            <div class="card-header">
-                                <h3>Durée Séance</h3>
-                                <span class="icon">⏱️</span>
-                            </div>
-                            <div class="card-stat" id="stat-kine-session-duration" style="color: #8b5cf6;">30 min</div>
-                            <p class="card-footer">Durée standard</p>
-                        </div>
-                    </div>
-
-                    <!-- Kiné List - Simple table without money columns -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Liste des Kinésithérapeutes</h3>
-                        </div>
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>Téléphone</th>
-                                    <th>Spécialité</th>
-                                    <th>Durée Séance</th>
-                                    <th>Séances (Mois)</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="kine-staff-tbody">
-                                <tr class="empty-row">
-                                    <td colspan="6" class="text-center">Aucun kinésithérapeute enregistré</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-
                 <!-- ===================== EQUIPMENT SECTION ===================== -->
                 <section id="equipment" class="section module-workspace">
                     <!-- Stats Cards (Spec 13 Ant Design KpiRow - 4 equal cards) -->
@@ -4066,44 +3583,6 @@
                                         </div>
                                         <span class="pkg-price">Activable</span>
                                     </div>
-                                    <div class="pkg-option-row pkg-option-row-feature"
-                                        id="pkg-option-rehabilitation">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-rehabilitation"
-                                                style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">💪 MPR / Rééducation</div>
-                                                <div style="font-size: 11px; color: #64748b;">Kinésithérapie, séances, bilan fonctionnel, équipe kiné</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
-
-                                    <div class="pkg-option-row pkg-option-row-feature"
-                                        id="pkg-option-dentistry">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-dentistry"
-                                                style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">🦷 Dentisterie</div>
-                                                <div style="font-size: 11px; color: #64748b;">Odontogramme, soins dentaires, chirurgie buccale</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
-
-                                    <div class="pkg-option-row pkg-option-row-feature"
-                                        id="pkg-option-cardiology">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-cardiology"
-                                                style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">💓 Cardiologie</div>
-                                                <div style="font-size: 11px; color: #64748b;">ECG, échocardiographie, holter, consultations cardio</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
                                 </div>
 
                                 <h4 style="margin-top: 20px; margin-bottom: 10px; font-size: 15px;">⚙️ Modules
@@ -4153,9 +3632,6 @@
                                     <div class="pkg-specialty-buttons">
                                         <button type="button" class="btn btn-primary" data-pkg-specialty="orl">Spécialité ORL</button>
                                         <button type="button" class="btn btn-outline" data-pkg-specialty="general">Mode généraliste</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="rehabilitation">MPR / Rééducation</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="cardiology">Cardiologie</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="dentistry">Dentisterie</button>
                                     </div>
                                     <div class="pkg-specialty-status">
                                         Activées actuellement: <strong id="pkg-active-specialty-label">Spécialité ORL</strong>
@@ -4631,24 +4107,25 @@
                             <h3>Informations du Cabinet</h3>
                             <form id="settings-form">
                                 <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Nom du Cabinet</label>
-                                        <input type="text" id="cabinet-name" class="form-control">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Adresse</label>
-                                        <input type="text" id="cabinet-address" class="form-control">
+                                    <div class="form-group" style="flex: 1 1 100%;">
+                                        <label>Nom du Cabinet (multi-lignes supporté)</label>
+                                        <textarea id="cabinet-name" class="form-control" rows="2" placeholder="Nom du Cabinet (ex: Cabinet Médical d'ORL&#10;Chirurgie Cervico-Faciale)"></textarea>
                                     </div>
                                 </div>
-
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label>Téléphone</label>
-                                        <input type="tel" id="cabinet-phone" class="form-control">
+                                        <label>Adresse du Cabinet</label>
+                                        <input type="text" id="cabinet-address" class="form-control" placeholder="Adresse complète">
                                     </div>
                                     <div class="form-group">
-                                        <label>Email</label>
-                                        <input type="email" id="cabinet-email" class="form-control">
+                                        <label>Numéro(s) de Téléphone</label>
+                                        <input type="text" id="cabinet-phone" class="form-control" placeholder="Ex: 0555 12 34 56 / 0661 23 45 67">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Email du Cabinet</label>
+                                        <input type="email" id="cabinet-email" class="form-control" placeholder="contact@cabinet.com">
                                     </div>
                                 </div>
 
@@ -4714,96 +4191,111 @@
                         <div class="settings-card document-settings-card" id="document-settings-card"
                             data-settings-page="documents">
                             <h3>Documents générés</h3>
-                            <p class="settings-card-subtitle">Réglez ici les devis, ordonnances, rapports, factures et
-                                autres documents imprimés.</p>
+                            <p class="settings-card-subtitle">Réglez ici les devis, ordonnances, rapports, factures et autres documents imprimés.</p>
 
-                            <div class="form-group">
-                                <label>Mode couleur des documents</label>
-                                <select id="document-color-mode" class="form-control">
-                                    <option value="color">Couleur (vert médical)</option>
-                                    <option value="bw">Noir et blanc</option>
-                                </select>
+                            <!-- Ligne 1 : Mode couleur & Palette -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Mode couleur des documents</label>
+                                    <select id="document-color-mode" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
+                                        <option value="color">Couleur (vert médical)</option>
+                                        <option value="bw">Noir et blanc</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Palette couleur des documents</label>
+                                    <input type="color" id="document-primary-color" class="form-control" value="#1a8c7e"
+                                        style="height: 40px; padding: 4px; background: #ffffff; cursor: pointer; border-radius: 6px;">
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label>Palette couleur des documents</label>
-                                <input type="color" id="document-primary-color" class="form-control" value="#1a8c7e"
-                                    style="height: 42px; padding: 6px;">
+                            <!-- Ligne 2 : Taille texte & Taille logo -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du texte des documents</label>
+                                    <select id="document-text-scale" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
+                                        <option value="90">Petit (90%)</option>
+                                        <option value="100" selected>Normal (100%)</option>
+                                        <option value="110">Grand (110%)</option>
+                                        <option value="120">Très grand (120%)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du logo des documents</label>
+                                    <select id="document-logo-scale" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
+                                        <option value="80">Petit (80%)</option>
+                                        <option value="90" selected>Moyen (90%)</option>
+                                        <option value="100">Normal (100%)</option>
+                                        <option value="120">Grand (120%)</option>
+                                        <option value="150">Très grand (150%)</option>
+                                        <option value="180">Extra grand (180%)</option>
+                                        <option value="200">Double (200%)</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label>Taille du texte des documents</label>
-                                <select id="document-text-scale" class="form-control">
-                                    <option value="90">Petit (90%)</option>
-                                    <option value="100" selected>Normal (100%)</option>
-                                    <option value="110">Grand (110%)</option>
-                                    <option value="120">Très grand (120%)</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Taille du logo des documents</label>
-                                <select id="document-logo-scale" class="form-control">
-                                    <option value="80">Petit (80%)</option>
-                                    <option value="90" selected>Moyen (90%)</option>
-                                    <option value="100">Normal (100%)</option>
-                                    <option value="120">Grand (120%)</option>
-                                    <option value="150">Très grand (150%)</option>
-                                    <option value="180">Extra grand (180%)</option>
-                                    <option value="200">Double (200%)</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Logo du cabinet (documents & impressions)</label>
-                                <input type="hidden" id="cabinet-logo-data">
-                                <input type="file" id="cabinet-logo-file"
-                                    accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;"
-                                    onchange="handleCabinetLogoChange(event)">
-                                <div class="settings-logo-uploader">
-                                    <div class="settings-logo-preview-shell">
-                                        <img id="cabinet-logo-preview" class="settings-logo-preview"
-                                            alt="Logo du cabinet" style="display:none;">
-                                        <div id="cabinet-logo-placeholder" class="settings-logo-placeholder">Aucun logo
+                            <!-- Ligne 3 : Logo Cabinet & Watermark -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                                <!-- Logo Cabinet -->
+                                <div class="form-group" style="margin: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px;">
+                                    <label style="font-weight: 650; font-size: 13.5px; color: #1e293b; margin-bottom: 8px; display: block;">Logo du cabinet (documents &amp; impressions)</label>
+                                    <input type="hidden" id="cabinet-logo-data">
+                                    <input type="file" id="cabinet-logo-file"
+                                        accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;"
+                                        onchange="handleCabinetLogoChange(event)">
+                                    <div class="settings-logo-uploader" style="display: flex; align-items: center; gap: 14px;">
+                                        <div class="settings-logo-preview-shell" style="flex-shrink: 0;">
+                                            <img id="cabinet-logo-preview" class="settings-logo-preview"
+                                                alt="Logo du cabinet" style="display:none; max-height: 52px; max-width: 80px; object-fit: contain;">
+                                            <div id="cabinet-logo-placeholder" class="settings-logo-placeholder" style="font-size: 12px;">Aucun logo</div>
+                                        </div>
+                                        <div class="settings-logo-actions" style="display: flex; flex-direction: column; gap: 6px;">
+                                            <button type="button" class="btn btn-secondary btn-small"
+                                                onclick="document.getElementById('cabinet-logo-file').click()" style="font-size: 12px; height: 30px; padding: 0 10px;">
+                                                Téléverser un logo
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-small"
+                                                onclick="clearCabinetLogo()" style="font-size: 12px; height: 30px; padding: 0 10px;">
+                                                Supprimer le logo
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="settings-logo-actions">
-                                        <button type="button" class="btn btn-secondary"
-                                            onclick="document.getElementById('cabinet-logo-file').click()">Téléverser un
-                                            logo</button>
-                                        <button type="button" class="btn btn-outline"
-                                            onclick="clearCabinetLogo()">Supprimer le logo</button>
+                                </div>
+
+                                <!-- Logo Watermark -->
+                                <div class="form-group" style="margin: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px;">
+                                    <label style="font-weight: 650; font-size: 13.5px; color: #1e293b; margin-bottom: 8px; display: block;">Logo watermark (fond des documents)</label>
+                                    <input type="hidden" id="cabinet-watermark-logo-data">
+                                    <input type="file" id="cabinet-watermark-logo-file"
+                                        accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;"
+                                        onchange="handleCabinetWatermarkLogoChange(event)">
+                                    <div class="settings-logo-uploader" style="display: flex; align-items: center; gap: 14px;">
+                                        <div class="settings-logo-preview-shell" style="flex-shrink: 0;">
+                                            <img id="cabinet-watermark-logo-preview" class="settings-logo-preview"
+                                                alt="Logo watermark" style="display:none; max-height: 52px; max-width: 80px; object-fit: contain;">
+                                            <div id="cabinet-watermark-logo-placeholder" class="settings-logo-placeholder" style="font-size: 12px;">Aucun watermark</div>
+                                        </div>
+                                        <div class="settings-logo-actions" style="display: flex; flex-direction: column; gap: 6px;">
+                                            <button type="button" class="btn btn-secondary btn-small"
+                                                onclick="document.getElementById('cabinet-watermark-logo-file').click()" style="font-size: 12px; height: 30px; padding: 0 10px;">
+                                                Téléverser watermark
+                                            </button>
+                                            <button type="button" class="btn btn-outline btn-small"
+                                                onclick="clearCabinetWatermarkLogo()" style="font-size: 12px; height: 30px; padding: 0 10px;">
+                                                Supprimer watermark
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="form-group">
-                                <label>Logo watermark (grand logo en fond des documents)</label>
-                                <input type="hidden" id="cabinet-watermark-logo-data">
-                                <input type="file" id="cabinet-watermark-logo-file"
-                                    accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;"
-                                    onchange="handleCabinetWatermarkLogoChange(event)">
-                                <div class="settings-logo-uploader">
-                                    <div class="settings-logo-preview-shell">
-                                        <img id="cabinet-watermark-logo-preview" class="settings-logo-preview"
-                                            alt="Logo watermark" style="display:none;">
-                                        <div id="cabinet-watermark-logo-placeholder" class="settings-logo-placeholder">
-                                            Aucun watermark</div>
-                                    </div>
-                                    <div class="settings-logo-actions">
-                                        <button type="button" class="btn btn-secondary"
-                                            onclick="document.getElementById('cabinet-watermark-logo-file').click()">Téléverser
-                                            watermark</button>
-                                        <button type="button" class="btn btn-outline"
-                                            onclick="clearCabinetWatermarkLogo()">Supprimer watermark</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Style des documents</label>
-                                    <select id="document-style-variant" class="form-control">
+                            <!-- Ligne 4 : Style des documents & Opacité Watermark -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Style des documents</label>
+                                    <select id="document-style-variant" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
                                         <option value="classic" selected>Classique</option>
                                         <option value="sidebar">Bande latérale</option>
                                         <option value="gradient-header">En-tête dégradé</option>
@@ -4816,27 +4308,28 @@
                                         <option value="wave">Vague médicale innovante</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label>Opacité du watermark</label>
-                                    <div style="display:flex; align-items:center; gap:10px;">
+
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Opacité du watermark</label>
+                                    <div style="display:flex; align-items:center; gap:12px; height: 40px;">
                                         <input type="range" id="document-watermark-opacity" class="form-control" min="2"
-                                            max="35" step="1" value="5" style="padding: 0;">
+                                            max="35" step="1" value="5" style="padding: 0; flex: 1;">
                                         <span id="document-watermark-opacity-value"
-                                            style="min-width:52px; font-weight:700; color:#0f766e;">5%</span>
+                                            style="min-width:48px; font-weight:700; color:#0f766e; font-size: 14px;">5%</span>
                                     </div>
-                                    <small style="color:#64748b; display:block; margin-top:6px;">Réglez la visibilité du
-                                        logo de fond de 2% à 35%.</small>
+                                    <small style="color:#64748b; display:block; margin-top:2px;">Réglez la visibilité du logo de fond de 2% à 35%.</small>
                                 </div>
                             </div>
 
-                            <div class="form-group" style="margin-top: 6px;">
-                                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-                                    <input type="checkbox" id="document-hide-signature" style="width:auto;">
-                                    Masquer « Signature et cachet » dans le footer (garder seulement « ÉMIS LE »)
+                            <!-- Ligne 5 : Checkboxes Options -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
+                                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size: 13px; color: #1e293b; font-weight: 500; margin: 0;">
+                                    <input type="checkbox" id="document-hide-signature" style="width:16px; height:16px; accent-color: #1677ff;">
+                                    Masquer « Signature et cachet » dans le footer
                                 </label>
-                                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-top:10px;">
-                                    <input type="checkbox" id="document-show-barcode" style="width:auto;" checked>
-                                    Afficher le code-barres lié au numéro du document
+                                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size: 13px; color: #1e293b; font-weight: 500; margin: 0;">
+                                    <input type="checkbox" id="document-show-barcode" style="width:16px; height:16px; accent-color: #1677ff;" checked>
+                                    Afficher le code-barres lié au document
                                 </label>
                             </div>
 
@@ -5371,12 +4864,12 @@
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Téléphone</label>
-                                <input type="tel" id="patient-phone" class="form-control">
+                                <label>Numéro(s) de Téléphone (1er & 2ème)</label>
+                                <input type="text" id="patient-phone" class="form-control" placeholder="Ex: 0555 12 34 56 / 0770 98 76 54">
                             </div>
                             <div class="form-group">
                                 <label>Email</label>
-                                <input type="email" id="patient-email" class="form-control">
+                                <input type="email" id="patient-email" class="form-control" placeholder="patient@email.com">
                             </div>
                         </div>
                     </div>
