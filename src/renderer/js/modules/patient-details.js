@@ -466,7 +466,7 @@ function applyConsultationActsSelection(rawActs) {
       label.style.display = isAllowed ? 'flex' : 'none';
     }
     if (textSpan) {
-      textSpan.textContent = `${icon} ${labelText}`;
+      textSpan.textContent = labelText;
     }
   });
 
@@ -1945,16 +1945,14 @@ async function loadConsultationEquipmentPicker(consultationId = '') {
     let items = allResult?.success ? (allResult.data || []) : [];
     if (!items.length) {
       items = [
-        { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
-        { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', assignedRoom: 'Salle de Stérilisation', status: 'available' },
-        { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
-        { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', assignedRoom: 'Cabinet 1 (Radiologie Dentaire)', status: 'available' },
-        { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
-        { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
-        { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', assignedRoom: 'Local Technique', status: 'available' },
-        { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
-        { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", assignedRoom: 'Salle de Chirurgie Dentaire', status: 'available' },
-        { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' }
+        { id: 'eq-orl-001', name: 'Fauteuil d’examen ORL motorisé ergonomique', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
+        { id: 'eq-orl-002', name: 'Microscope de consultation ORL à LED', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
+        { id: 'eq-orl-003', name: 'Nasofibroscope souple vidéo HD', assignedRoom: 'Salle d’Endoscopie ORL', status: 'available' },
+        { id: 'eq-orl-004', name: 'Audiomètre clinique diagnostique 2 canaux', assignedRoom: 'Cabine Audiométrique', status: 'available' },
+        { id: 'eq-orl-005', name: 'Tympanomètre & Impédancemètre automatique', assignedRoom: 'Cabine Audiométrique', status: 'available' },
+        { id: 'eq-orl-006', name: 'Caméra Vidéo-Otoscope HD avec écran', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
+        { id: 'eq-orl-007', name: 'Système d’aspiration chirurgicale ORL', assignedRoom: 'Salle de Soins ORL', status: 'available' },
+        { id: 'eq-orl-008', name: 'Source de lumière froide LED & Câble optique', assignedRoom: 'Salle d’Endoscopie ORL', status: 'available' }
       ];
     }
     allConsultationEquipmentItems = items;
@@ -1971,10 +1969,13 @@ function renderConsultationEquipmentWidget() {
 
   container.innerHTML = `
     <div class="consultation-equipment-picker-box" style="position: relative; width: 100%;">
-      <div style="position: relative;">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Taper pour rechercher un équipement (ex: Fauteuil, Autoclave, Radio...)" autocomplete="off" style="padding-left: 36px; height: 38px; font-size: 13.5px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%;">
-        <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1100; background: #ffffff; border: 1px solid #d9d9d9; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 240px; overflow-y: auto;"></div>
+      <div style="position: relative; width: 100%;">
+        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; pointer-events: none; color: #64748b; z-index: 2;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Rechercher un appareil / équipement utilisé (cliquez pour afficher la liste)..." autocomplete="off" style="padding-left: 36px; padding-right: 30px; height: 38px; font-size: 13.5px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%; box-sizing: border-box;">
+        <button type="button" id="consultation-eq-clear-btn" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 14px; color: #94a3b8; cursor: pointer; padding: 2px; line-height: 1;" title="Effacer la recherche">&times;</button>
+        <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1100; background: #ffffff; border: 1px solid #d9d9d9; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); max-height: 280px; overflow-y: auto;"></div>
       </div>
       <div id="consultation-eq-selected-tags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; margin-top: 10px; align-items: center;"></div>
       <div id="consultation-eq-hidden-inputs" style="display: none;"></div>
@@ -1983,18 +1984,21 @@ function renderConsultationEquipmentWidget() {
 
   const searchInput = document.getElementById('consultation-eq-search-input');
   const dropdown = document.getElementById('consultation-eq-dropdown-list');
+  const clearBtn = document.getElementById('consultation-eq-clear-btn');
 
   const updateDropdown = (query = '') => {
-    const q = query.toLowerCase().trim();
-    if (!q || q.length < 1) {
-      dropdown.style.display = 'none';
-      dropdown.innerHTML = '';
-      return;
+    const q = String(query || '').toLowerCase().trim();
+
+    if (clearBtn) {
+      clearBtn.style.display = q.length > 0 ? 'inline-block' : 'none';
     }
 
-    const available = allConsultationEquipmentItems.filter(item => {
-      return (item.name || '').toLowerCase().includes(q) || (item.assignedRoom || '').toLowerCase().includes(q);
-    }).slice(0, 10);
+    const available = (q.length > 0
+      ? allConsultationEquipmentItems.filter(item => {
+          return (item.name || '').toLowerCase().includes(q) || (item.assignedRoom || '').toLowerCase().includes(q);
+        })
+      : allConsultationEquipmentItems
+    ).slice(0, 8);
 
     if (!available.length) {
       dropdown.innerHTML = `<div style="padding: 12px 16px; font-size: 12.5px; color: #94a3b8; font-style: italic; text-align: center;">Aucun équipement trouvé pour "${escapeHTML(q)}"</div>`;
@@ -2003,14 +2007,16 @@ function renderConsultationEquipmentWidget() {
         const isSelected = selectedConsultationEquipmentIds.has(String(item.id));
         return `
           <div class="eq-dropdown-item" onclick="toggleConsultationEquipmentSelection('${escapeHTML(item.id)}')" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9; background: ${isSelected ? '#f0fdf4' : '#ffffff'}; transition: background 0.15s;" onmouseenter="this.style.background='${isSelected ? '#dcfce7' : '#f8fafc'}'" onmouseleave="this.style.background='${isSelected ? '#f0fdf4' : '#ffffff'}'">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 28px; height: 28px; border-radius: 6px; background: #eff6ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #2563eb;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </div>
               <div>
                 <span style="font-weight: 600; color: #1e293b;">${escapeHTML(item.name)}</span>
                 <small style="display: block; font-size: 11.5px; color: #64748b;">${escapeHTML(item.assignedRoom || 'Cabinet de soins')}</small>
               </div>
             </div>
-            <span style="font-size: 12px; font-weight: 700; color: ${isSelected ? '#16a34a' : '#1677ff'};">${isSelected ? 'Sélectionné' : '+ Ajouter'}</span>
+            <span style="font-size: 12px; font-weight: 700; color: ${isSelected ? '#16a34a' : '#1677ff'};">${isSelected ? '✓ Sélectionné' : '+ Ajouter'}</span>
           </div>
         `;
       }).join('');
@@ -2020,6 +2026,16 @@ function renderConsultationEquipmentWidget() {
 
   if (searchInput) {
     searchInput.addEventListener('input', () => updateDropdown(searchInput.value));
+    searchInput.addEventListener('focus', () => updateDropdown(searchInput.value));
+    searchInput.addEventListener('click', () => updateDropdown(searchInput.value));
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      updateDropdown('');
+      searchInput.focus();
+    });
   }
 
   document.addEventListener('click', (e) => {
