@@ -208,10 +208,10 @@ html, body {
 }
 
 .sidebar-header {
-  min-height: 64px !important;
-  max-height: 64px !important;
-  height: 64px !important;
-  padding: 8px 12px 8px 16px !important;
+  min-height: 80px !important;
+  max-height: 88px !important;
+  height: 84px !important;
+  padding: 10px 14px 10px 18px !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
@@ -219,7 +219,7 @@ html, body {
   border-bottom: 1px solid #f0f0f0 !important;
   background: #ffffff !important;
   flex-shrink: 0 !important;
-  gap: 8px !important;
+  gap: 10px !important;
 }
 
 .sidebar-header .sidebar-brand-wrapper,
@@ -233,14 +233,22 @@ html, body {
 }
 
 .app-brand-logo {
-  max-height: 46px !important;
-  height: 46px !important;
+  max-height: 66px !important;
+  height: 64px !important;
   width: auto !important;
-  max-width: 170px !important;
+  max-width: 185px !important;
   object-fit: contain !important;
   filter: none !important;
   display: block !important;
   margin: 0 auto !important;
+}
+
+.app-brand-logo.app-brand-logo-custom {
+  max-height: 70px !important;
+  height: 68px !important;
+  width: auto !important;
+  max-width: 185px !important;
+  object-fit: contain !important;
 }
 
 .nav-menu {
