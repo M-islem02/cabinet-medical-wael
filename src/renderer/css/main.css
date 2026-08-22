@@ -4123,17 +4123,16 @@ textarea.form-control {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--white);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  max-width: 700px;
-  width: 90%;
-  max-height: 90vh;
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  max-width: 95vw;
+  width: auto;
+  max-height: 95vh;
+  overflow: visible;
   z-index: 1000;
   display: none;
-  animation: slideUp 0.3s ease-out;
-  border: 1px solid rgba(20, 93, 160, 0.1);
+  border: none;
 }
 
 /* Modal with large content */
