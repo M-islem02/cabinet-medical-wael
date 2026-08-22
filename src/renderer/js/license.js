@@ -148,11 +148,12 @@ async function chooseLicenseFile() {
 }
 
 async function validateAndActivate() {
-  const licenseKey = selectedSignedLicenseContent;
+  const jsonInput = document.getElementById('license-json-input')?.value?.trim();
+  const licenseKey = jsonInput || selectedSignedLicenseContent;
   const messageEl = document.getElementById('validation-message');
 
   if (!licenseKey) {
-    showMessage(messageEl, 'Veuillez choisir le fichier de licence', 'error');
+    showMessage(messageEl, 'Veuillez coller le JSON de la licence ou choisir un fichier .json', 'error');
     return;
   }
 

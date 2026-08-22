@@ -103,12 +103,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="license-key">Fichier de licence :</label>
-                        <input type="text" id="license-key" placeholder="Aucun fichier sélectionné" class="form-control" readonly autocomplete="off">
+                        <label for="license-json-input">Coller le texte JSON de la licence :</label>
+                        <textarea id="license-json-input" placeholder="Collez directement le contenu JSON de votre licence ici..." class="form-control" rows="4" style="font-family: monospace; font-size: 11.5px; margin-bottom: 8px; width: 100%; box-sizing: border-box;"></textarea>
                     </div>
 
-                    <div class="button-group" style="margin-top: 10px;">
-                        <button class="btn btn-secondary" type="button" onclick="chooseLicenseFile()">📁 Choisir le fichier</button>
+                    <div class="form-group">
+                        <label for="license-key">Ou sélectionner le fichier .json :</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="license-key" placeholder="Aucun fichier sélectionné" class="form-control" readonly autocomplete="off" style="flex: 1;">
+                            <button class="btn btn-secondary" type="button" onclick="chooseLicenseFile()">📁 Parcourir</button>
+                        </div>
                     </div>
 
                     <div id="validation-message" class="message hidden"></div>

@@ -11,11 +11,13 @@ import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
 import { execFile } from 'child_process';
+import { fileURLToPath } from 'url';
 
 const execFileAsync = promisify(execFile);
 const LICENSE_FILE = 'license.medcareso.json';
 const CLOCK_FILE = '.license-clock';
-const PUBLIC_KEY_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), 'security', 'license-public-key.pem');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_KEY_FILE = path.join(__dirname, 'security', 'license-public-key.pem');
 const CLOCK_TOLERANCE_MS = 5 * 60 * 1000;
 
 let cachedFingerprint = null;

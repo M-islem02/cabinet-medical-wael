@@ -4490,16 +4490,21 @@
                                 </div>
                             </div>
                             <form id="license-management-form" style="margin-top: 18px;">
+                                <div class="form-group" style="margin-bottom: 12px;">
+                                    <label for="license-paste-textarea">Coller directement le JSON de la licence :</label>
+                                    <textarea id="license-paste-textarea" class="form-control" rows="4" placeholder="Collez ici le JSON complet de la licence reçu (ex: { &quot;version&quot;: 1, ... })" style="font-family: monospace; font-size: 12px;"></textarea>
+                                </div>
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label for="license-key-input">Fichier de licence signé</label>
-                                        <input type="text" id="license-key-input" class="form-control"
-                                            placeholder="Aucun fichier sélectionné" readonly autocomplete="off">
-                                        <small>La licence est un fichier signé par MedCareSO et lié à ce poste.</small>
+                                        <label for="license-key-input">Ou sélectionner le fichier .json :</label>
+                                        <div style="display: flex; gap: 8px;">
+                                            <input type="text" id="license-key-input" class="form-control"
+                                                placeholder="Aucun fichier sélectionné" readonly autocomplete="off" style="flex: 1;">
+                                            <button type="button" class="btn btn-secondary" onclick="chooseSignedLicenseFile()">📁 Parcourir</button>
+                                        </div>
                                     </div>
                                 </div>
-                                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                                    <button type="button" class="btn btn-secondary" onclick="chooseSignedLicenseFile()">Choisir la licence</button>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
                                     <button type="submit" class="btn btn-primary">Activer la licence</button>
                                     <button type="button" class="btn btn-danger"
                                         onclick="disableCurrentLicense()">Désactiver la licence active</button>

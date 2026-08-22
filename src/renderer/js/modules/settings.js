@@ -1077,21 +1077,25 @@ document.getElementById('license-management-form')?.addEventListener('submit', a
   }
 
   const input = document.getElementById('license-key-input');
-  if (!selectedSignedLicenseContent) {
-    showNotification('Choisissez le fichier de licence signé', 'error');
+  const pasteInput = document.getElementById('license-paste-textarea');
+  const licenseContent = pasteInput?.value?.trim() || selectedSignedLicenseContent;
+
+  if (!licenseContent) {
+    showNotification('Collez le texte JSON de la licence ou choisissez un fichier .json', 'error');
     return;
   }
 
   try {
-    const result = await window.api.license.activate(selectedSignedLicenseContent);
+    const result = await window.api.license.activate(licenseContent);
     if (!result.success) {
       showNotification(result.reason || 'Activation impossible', 'error');
       return;
     }
 
     if (input) input.value = '';
+    if (pasteInput) pasteInput.value = '';
     selectedSignedLicenseContent = '';
-    showNotification('Licence signée activée', 'success');
+    showNotification('Licence signée activée avec succès', 'success');
     await loadLicenseStatus();
   } catch (error) {
     console.error('Error activating license:', error);
