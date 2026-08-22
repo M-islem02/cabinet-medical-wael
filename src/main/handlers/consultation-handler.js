@@ -139,13 +139,13 @@ export function handleConsultationEvents() {
       }
 
       if (userContext.isPractitioner && userContext.userId) {
-        const assignment = await queryOne(
-          'SELECT patientid FROM patient_practitioners WHERE patientid = ? AND practitionerId = ?',
-          [normalized.patientId, userContext.userId]
-        );
-        if (!assignment) {
-          return { success: false, error: 'Accès refusé: ajoutez d’abord ce patient à votre liste' };
-        }
+        try {
+          await run(
+            `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+             VALUES (?, ?, ?) ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+            [normalized.patientId, userContext.userId, userContext.userId]
+          );
+        } catch (_) {}
       }
 
       const doctorid = userContext.isPractitioner ? userContext.userId : (patient.primaryDoctorId || null);
