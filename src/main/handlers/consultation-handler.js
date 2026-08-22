@@ -38,7 +38,7 @@ function buildPaginationMeta(total, page, pageSize) {
 function normalizeConsultationListRequest(payload) {
   if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
     return {
-      patientId: payload.patientId || '',
+      patientid: payload.patientId || payload.patientid || '',
       page: toPositiveInt(payload.page, 1),
       pageSize: Math.min(100, toPositiveInt(payload.pageSize, 10)),
       startDate: String(payload.startDate || '').trim(),
@@ -49,7 +49,7 @@ function normalizeConsultationListRequest(payload) {
   }
 
   return {
-    patientId: payload,
+    patientid: payload,
     page: 1,
     pageSize: 10,
     startDate: '',
@@ -82,6 +82,39 @@ function denyAssistantMedicalWriteAccess() {
   return { success: false, error: 'Accès refusé: le compte assistant ne peut pas créer ou modifier des consultations' };
 }
 
+function normalizeConsultationPayload(data = {}) {
+  const patientId = String(data.patientId || data.patientid || '').trim();
+  const type = data.type !== undefined ? data.type : (data.consultationType || data.consultationtype);
+  const bloodPressure = data.bloodPressure !== undefined ? data.bloodPressure : data.bloodpressure;
+  const clinicalExamination = data.clinicalExamination !== undefined ? data.clinicalExamination : data.clinicalexamination;
+  const kineId = data.kineId !== undefined ? data.kineId : data.kineid;
+  const isUnpaid = data.isUnpaid !== undefined ? data.isUnpaid : data.isunpaid;
+  const unpaidAmount = data.unpaidAmount !== undefined ? data.unpaidAmount : data.unpaidamount;
+  const unpaidDueDate = data.unpaidDueDate !== undefined ? data.unpaidDueDate : data.unpaidduedate;
+  const date = data.date || data.consultationDate || data.consultationdate;
+
+  return {
+    patientId,
+    date,
+    type,
+    reason: data.reason,
+    weight: data.weight,
+    height: data.height,
+    bloodPressure,
+    temperature: data.temperature,
+    clinicalExamination,
+    diagnosis: data.diagnosis,
+    treatment: data.treatment,
+    notes: data.notes,
+    acts: data.acts,
+    kineId,
+    isUnpaid: Boolean(isUnpaid),
+    unpaidAmount: toNumberOrNull(unpaidAmount) || 0,
+    unpaidDueDate: toNullIfEmpty(unpaidDueDate),
+    attachments: data.attachments
+  };
+}
+
 export function handleConsultationEvents() {
   // Créer une consultation
   ipcMain.handle('consultation:create', async (event, consultationData) => {
@@ -95,68 +128,79 @@ export function handleConsultationEvents() {
         return denyAssistantMedicalWriteAccess();
       }
 
-      const patient = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [consultationData.patientId]);
+      const normalized = normalizeConsultationPayload(consultationData);
+      if (!normalized.patientId) {
+        return { success: false, error: 'Patient introuvable' };
+      }
+
+      const patient = await queryOne('SELECT id, primaryDoctorId FROM patients WHERE id = ?', [normalized.patientId]);
       if (!patient?.id) {
         return { success: false, error: 'Patient introuvable' };
       }
 
       if (userContext.isPractitioner && userContext.userId) {
         const assignment = await queryOne(
-          'SELECT patientId FROM patient_practitioners WHERE patientId = ? AND practitionerId = ?',
-          [consultationData.patientId, userContext.userId]
+          'SELECT patientid FROM patient_practitioners WHERE patientid = ? AND practitionerId = ?',
+          [normalized.patientId, userContext.userId]
         );
         if (!assignment) {
           return { success: false, error: 'Accès refusé: ajoutez d’abord ce patient à votre liste' };
         }
       }
 
-      const doctorId = userContext.isPractitioner ? userContext.userId : (patient.primaryDoctorId || null);
+      const doctorid = userContext.isPractitioner ? userContext.userId : (patient.primaryDoctorId || null);
 
       const id = uuidv4();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      const normalizedDate = consultationData.date
-        ? moment(consultationData.date).format('YYYY-MM-DD HH:mm:ss')
-        : now;
+      let normalizedDate = now;
+      if (normalized.date) {
+        const strDate = String(normalized.date).trim();
+        if (strDate.length === 10) {
+          normalizedDate = `${strDate} ${moment().format('HH:mm:ss')}`;
+        } else if (moment(strDate).isValid()) {
+          normalizedDate = moment(strDate).format('YYYY-MM-DD HH:mm:ss');
+        }
+      }
       
       // Calculer l'IMC si poids et taille fournis
       let imc = null;
-      const weight = toNumberOrNull(consultationData.weight);
-      const height = toNumberOrNull(consultationData.height);
+      const weight = toNumberOrNull(normalized.weight);
+      const height = toNumberOrNull(normalized.height);
       if (weight && height) {
         const heightInMeters = height / 100;
         imc = (weight / (heightInMeters * heightInMeters)).toFixed(2);
       }
 
       // Prepare attachments JSON
-      const attachmentsJson = consultationData.attachments ? JSON.stringify(consultationData.attachments) : null;
-      const actsJson = Array.isArray(consultationData.acts)
-        ? JSON.stringify(consultationData.acts)
-        : toNullIfEmpty(consultationData.acts);
+      const attachmentsJson = normalized.attachments ? JSON.stringify(normalized.attachments) : null;
+      const actsJson = Array.isArray(normalized.acts)
+        ? JSON.stringify(normalized.acts)
+        : toNullIfEmpty(normalized.acts);
 
       await run(
         `INSERT INTO consultations 
-         (id, patientId, doctorId, consultationDate, consultationType, reason, weight, height, bloodPressure, temperature, clinicalExamination, diagnosis, treatment, notes, acts, kineId, isUnpaid, unpaidAmount, unpaidDueDate, attachments, createdAt)
+         (id, patientid, doctorid, consultationdate, consultationtype, reason, weight, height, bloodpressure, temperature, clinicalexamination, diagnosis, treatment, notes, acts, kineid, isunpaid, unpaidamount, unpaidduedate, attachments, createdat)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
-          consultationData.patientId,
-          doctorId,
+          normalized.patientId,
+          doctorid,
           normalizedDate,
-          toNullIfEmpty(consultationData.type),
-          toNullIfEmpty(consultationData.reason),
+          toNullIfEmpty(normalized.type),
+          toNullIfEmpty(normalized.reason),
           weight,
           height,
-          toNullIfEmpty(consultationData.bloodPressure),
-          toNumberOrNull(consultationData.temperature),
-          toNullIfEmpty(consultationData.clinicalExamination),
-          toNullIfEmpty(consultationData.diagnosis),
-          toNullIfEmpty(consultationData.treatment),
-          toNullIfEmpty(consultationData.notes),
+          toNullIfEmpty(normalized.bloodPressure),
+          toNumberOrNull(normalized.temperature),
+          toNullIfEmpty(normalized.clinicalExamination),
+          toNullIfEmpty(normalized.diagnosis),
+          toNullIfEmpty(normalized.treatment),
+          toNullIfEmpty(normalized.notes),
           actsJson,
-          toNullIfEmpty(consultationData.kineId),
-          consultationData.isUnpaid ? 1 : 0,
-          toNumberOrNull(consultationData.unpaidAmount) || 0,
-          toNullIfEmpty(consultationData.unpaidDueDate),
+          toNullIfEmpty(normalized.kineId),
+          normalized.isUnpaid ? 1 : 0,
+          toNumberOrNull(normalized.unpaidAmount) || 0,
+          toNullIfEmpty(normalized.unpaidDueDate),
           attachmentsJson,
           now
         ]
@@ -182,21 +226,21 @@ export function handleConsultationEvents() {
       }
 
       const request = normalizeConsultationListRequest(payload);
-      const whereParts = ['patientId = ?'];
-      const params = [request.patientId];
+      const whereParts = ['patientid = ?'];
+      const params = [request.patientid];
 
       if (!userContext.isAdmin && userContext.isPractitioner && userContext.userId) {
-        whereParts.push('doctorId = ?');
+        whereParts.push('doctorid = ?');
         params.push(userContext.userId);
       }
 
       if (request.startDate) {
-        whereParts.push('DATE(consultationDate) >= DATE(?)');
+        whereParts.push('DATE(consultationdate) >= DATE(?)');
         params.push(request.startDate);
       }
 
       if (request.endDate) {
-        whereParts.push('DATE(consultationDate) <= DATE(?)');
+        whereParts.push('DATE(consultationdate) <= DATE(?)');
         params.push(request.endDate);
       }
 
@@ -207,17 +251,17 @@ export function handleConsultationEvents() {
 
       const whereClause = whereParts.join(' AND ');
       const selectClause = request.attachmentsOnly
-        ? `SELECT id, patientId, consultationDate, consultationType, reason, attachments, createdAt,
-                  consultationDate as date, consultationType as type
+        ? `SELECT id, patientid, consultationdate, consultationtype, reason, attachments, createdat,
+                  consultationdate as date, consultationtype as type
            FROM consultations`
-        : `SELECT *, consultationDate as date, consultationType as type
+        : `SELECT *, consultationdate as date, consultationtype as type
            FROM consultations`;
 
       if (!request.paginated) {
         const consultations = await query(
           `${selectClause}
            WHERE ${whereClause}
-           ORDER BY consultationDate DESC`,
+           ORDER BY consultationdate DESC`,
           params
         );
         return { success: true, data: consultations };
@@ -230,7 +274,7 @@ export function handleConsultationEvents() {
       const consultations = await query(
         `${selectClause}
          WHERE ${whereClause}
-         ORDER BY consultationDate DESC
+         ORDER BY consultationdate DESC
          LIMIT ? OFFSET ?`,
         [...params, pagination.pageSize, offset]
       );
@@ -262,8 +306,8 @@ export function handleConsultationEvents() {
       }
 
       const lookupSql = (!userContext.isAdmin && userContext.isPractitioner && userContext.userId)
-        ? 'SELECT *, consultationDate as date, consultationType as type FROM consultations WHERE id = ? AND doctorId = ?'
-        : 'SELECT *, consultationDate as date, consultationType as type FROM consultations WHERE id = ?';
+        ? 'SELECT *, consultationdate as date, consultationtype as type FROM consultations WHERE id = ? AND doctorid = ?'
+        : 'SELECT *, consultationdate as date, consultationtype as type FROM consultations WHERE id = ?';
       const lookupParams = (!userContext.isAdmin && userContext.isPractitioner && userContext.userId)
         ? [consultationId, userContext.userId]
         : [consultationId];
@@ -293,12 +337,13 @@ export function handleConsultationEvents() {
         return denyAssistantMedicalWriteAccess();
       }
 
+      const normalized = normalizeConsultationPayload(consultationData);
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       
       // Convertir les valeurs numériques
-      const weight = toNumberOrNull(consultationData.weight);
-      const height = toNumberOrNull(consultationData.height);
-      const temperature = toNumberOrNull(consultationData.temperature);
+      const weight = toNumberOrNull(normalized.weight);
+      const height = toNumberOrNull(normalized.height);
+      const temperature = toNumberOrNull(normalized.temperature);
       
       // Calculer l'IMC si poids et taille fournis
       let imc = null;
@@ -308,8 +353,8 @@ export function handleConsultationEvents() {
       }
 
       const existingLookupSql = (!userContext.isAdmin && userContext.isPractitioner && userContext.userId)
-        ? 'SELECT consultationDate, attachments FROM consultations WHERE id = ? AND doctorId = ?'
-        : 'SELECT consultationDate, attachments FROM consultations WHERE id = ?';
+        ? 'SELECT consultationdate, attachments FROM consultations WHERE id = ? AND doctorid = ?'
+        : 'SELECT consultationdate, attachments FROM consultations WHERE id = ?';
       const existingLookupParams = (!userContext.isAdmin && userContext.isPractitioner && userContext.userId)
         ? [consultationId, userContext.userId]
         : [consultationId];
@@ -318,44 +363,44 @@ export function handleConsultationEvents() {
         return { success: false, error: 'Consultation non trouvée' };
       }
 
-      const normalizedDate = consultationData.date
-        ? moment(consultationData.date).format('YYYY-MM-DD HH:mm:ss')
-        : existingConsultation.consultationDate || now;
+      const normalizedDate = normalized.date
+        ? moment(normalized.date).format('YYYY-MM-DD HH:mm:ss')
+        : existingConsultation.consultationdate || now;
 
       // Get existing attachments if not provided in update
       let attachmentsJson = null;
-      if (consultationData.attachments) {
-        attachmentsJson = JSON.stringify(consultationData.attachments);
+      if (normalized.attachments) {
+        attachmentsJson = JSON.stringify(normalized.attachments);
       } else {
         attachmentsJson = existingConsultation?.attachments || null;
       }
-      const actsJson = Array.isArray(consultationData.acts)
-        ? JSON.stringify(consultationData.acts)
-        : toNullIfEmpty(consultationData.acts);
+      const actsJson = Array.isArray(normalized.acts)
+        ? JSON.stringify(normalized.acts)
+        : toNullIfEmpty(normalized.acts);
 
       await run(
         `UPDATE consultations 
-         SET consultationDate = ?, consultationType = ?, reason = ?, clinicalExamination = ?,
-             bloodPressure = ?, temperature = ?, weight = ?, height = ?,
-             diagnosis = ?, treatment = ?, notes = ?, acts = ?, kineId = ?, isUnpaid = ?, unpaidAmount = ?, unpaidDueDate = ?, attachments = ?, updatedAt = ?
+         SET consultationdate = ?, consultationtype = ?, reason = ?, clinicalexamination = ?,
+             bloodpressure = ?, temperature = ?, weight = ?, height = ?,
+             diagnosis = ?, treatment = ?, notes = ?, acts = ?, kineid = ?, isunpaid = ?, unpaidamount = ?, unpaidduedate = ?, attachments = ?, updatedat = ?
          WHERE id = ?`,
         [
           normalizedDate,
-          toNullIfEmpty(consultationData.type),
-          toNullIfEmpty(consultationData.reason),
-          toNullIfEmpty(consultationData.clinicalExamination),
-          toNullIfEmpty(consultationData.bloodPressure),
+          toNullIfEmpty(normalized.type),
+          toNullIfEmpty(normalized.reason),
+          toNullIfEmpty(normalized.clinicalExamination),
+          toNullIfEmpty(normalized.bloodPressure),
           temperature,
           weight,
           height,
-          toNullIfEmpty(consultationData.diagnosis),
-          toNullIfEmpty(consultationData.treatment),
-          toNullIfEmpty(consultationData.notes),
+          toNullIfEmpty(normalized.diagnosis),
+          toNullIfEmpty(normalized.treatment),
+          toNullIfEmpty(normalized.notes),
           actsJson,
-          toNullIfEmpty(consultationData.kineId),
-          consultationData.isUnpaid ? 1 : 0,
-          toNumberOrNull(consultationData.unpaidAmount) || 0,
-          toNullIfEmpty(consultationData.unpaidDueDate),
+          toNullIfEmpty(normalized.kineId),
+          normalized.isUnpaid ? 1 : 0,
+          toNumberOrNull(normalized.unpaidAmount) || 0,
+          toNullIfEmpty(normalized.unpaidDueDate),
           attachmentsJson,
           now,
           consultationId
@@ -382,7 +427,7 @@ export function handleConsultationEvents() {
       }
 
       if (!userContext.isAdmin && userContext.isPractitioner && userContext.userId) {
-        const existingConsultation = await queryOne('SELECT id FROM consultations WHERE id = ? AND doctorId = ?', [consultationId, userContext.userId]);
+        const existingConsultation = await queryOne('SELECT id FROM consultations WHERE id = ? AND doctorid = ?', [consultationId, userContext.userId]);
         if (!existingConsultation) {
           return { success: false, error: 'Consultation non trouvée' };
         }

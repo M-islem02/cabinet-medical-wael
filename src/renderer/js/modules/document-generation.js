@@ -690,6 +690,64 @@ function setRapportSummary({ patient, updatedAt }) {
 }
 
 const RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY = {
+  orl: {
+    options: [
+      'Oreille droite (Otoscopie OD)',
+      'Oreille gauche (Otoscopie OG)',
+      'Fosses nasales, Septum & Sinus',
+      'Cavité buccale, Langue & Dents',
+      'Oropharynx & Amygdales palatines',
+      'Cavum & Rhinopharynx (Végétations)',
+      'Larynx, Épiglotte & Cordes vocales',
+      'Aires ganglionnaires cervicales & Cou',
+      'Glandes salivaires (Parotides / Sous-maxillaires)',
+      'Système vestibulaire & Équilibre'
+    ],
+    templates: [
+      {
+        organs: ['Oreille droite (Otoscopie OD)', 'Oreille gauche (Otoscopie OG)'],
+        entries: [
+          { key: 'conduit', label: 'Conduit auditif externe (CAE)', type: 'text', placeholder: 'Ex: Libre, non inflammatoire, absence de bouchon' },
+          { key: 'tympan', label: 'Tympan & Reliefs', type: 'text', placeholder: 'Ex: Tympan gris perle, triangle lumineux présent, intègre' },
+          { key: 'mobilite', label: 'Mobilité / Aérateur', type: 'text', placeholder: 'Ex: Bonne mobilité au Valsalva / Absence d\'épanchement' },
+          { key: 'observations', label: 'Observations otologiques', type: 'textarea', rows: 2, placeholder: 'Ex: Pas de perforation, pas d\'otorrhée...' }
+        ]
+      },
+      {
+        organs: ['Fosses nasales, Septum & Sinus', 'Cavum & Rhinopharynx (Végétations)'],
+        entries: [
+          { key: 'muqueuse', label: 'Aspect de la muqueuse nasale', type: 'text', placeholder: 'Ex: Muqueuse rose normotrophe, non sécrétante' },
+          { key: 'cloisons_cornets', label: 'Cloison (Septum) & Cornets', type: 'text', placeholder: 'Ex: Septum centré, cornets inférieurs normotrophiques' },
+          { key: 'meats', label: 'Méats moyens / Écoulement', type: 'text', placeholder: 'Ex: Méats libres, absence de pus ou de polype' },
+          { key: 'cavum', label: 'Cavum / Végétations adénoïdes', type: 'text', placeholder: 'Ex: Cavum libre, torus tubaires normaux' },
+          { key: 'observations', label: 'Observations rhinologiques', type: 'textarea', rows: 2, placeholder: 'Ex: Pas d\'obstacle ni de formation suspecte...' }
+        ]
+      },
+      {
+        organs: ['Cavité buccale, Langue & Dents', 'Oropharynx & Amygdales palatines'],
+        entries: [
+          { key: 'buccal_dents', label: 'Lèvres, Gencives & Dents', type: 'text', placeholder: 'Ex: État bucco-dentaire satisfaisant, muqueuses saines' },
+          { key: 'langue_plancher', label: 'Langue & Plancher buccal', type: 'text', placeholder: 'Ex: Langue mobile, plancher buccal souple sans induration' },
+          { key: 'voile_palais', label: 'Voile du palais & Luette', type: 'text', placeholder: 'Ex: Voile mobile et symétrique, luette médiane' },
+          { key: 'amygdales', label: 'Amygdales palatines (Tonsilles)', type: 'text', placeholder: 'Ex: Amygdales normotrophes (Grade 1), saines, sans enduit ni caséum' },
+          { key: 'observations', label: 'Observations pharyngo-buccales', type: 'textarea', rows: 2, placeholder: 'Ex: Pas de lésion ulcéreuse ni de foyer infectieux...' }
+        ]
+      },
+      {
+        organs: ['Larynx, Épiglotte & Cordes vocales'],
+        entries: [
+          { key: 'larynx_epiglotte', label: 'Épiglotte & Margelle laryngée', type: 'text', placeholder: 'Ex: Épiglotte souple, replis ary-épiglottiques libres' },
+          { key: 'cordes_vocales', label: 'Cordes vocales & Mobilité', type: 'text', placeholder: 'Ex: Cordes vocales blanches nacrées, mobiles, bon accolement glottique' },
+          { key: 'sinus_piriformes', label: 'Sinus piriformes & Hypopharynx', type: 'text', placeholder: 'Ex: Sinus piriformes libres, pas de stase salivaire' },
+          { key: 'observations', label: 'Observations endoscopiques', type: 'textarea', rows: 2, placeholder: 'Ex: Absence de nodule, polype ou dysphonie...' }
+        ]
+      }
+    ],
+    defaultEntries: [
+      { key: 'description', label: 'Constatations cliniques', type: 'textarea', rows: 2, placeholder: 'Examen de la zone...' },
+      { key: 'observations', label: 'Observations complémentaires', type: 'textarea', rows: 2, placeholder: 'Détails et explorations utiles...' }
+    ]
+  },
   cardiology: {
     options: [
       'Coeur',
@@ -1679,15 +1737,15 @@ async function openBonPourModal(patientId, preset = null) {
               <div class="form-group">
                 <label>Type de demande</label>
                 <select id="bonpour-type" class="form-control" onchange="updateBonPourContent()">
-                  <option value="analyses">Analyses biologiques</option>
-                  <option value="radio">Radiographie</option>
-                  <option value="scanner">Scanner</option>
-                  <option value="irm">IRM</option>
-                  <option value="echo">Échographie</option>
-                  <option value="emg">EMG / ENMG</option>
-                  <option value="doppler">Doppler</option>
-                  <option value="kine">Kinésithérapie</option>
-                  <option value="other">Autre</option>
+                  <option value="analyses">Analyses Biologiques (NFS, Coagulation, CRP, Pré-opératoire...)</option>
+                  <option value="scanner">Scanner / TDM (Rochers, Sinus, Cavum, Cou, Dentascan...)</option>
+                  <option value="irm">IRM (CAI, Sinus, Cavum, Cou, ATM, Cérébrale...)</option>
+                  <option value="radio">Radiographie & Cône Beam 3D (Panoramique, CBCT, Blondeau...)</option>
+                  <option value="echo">Échographie & Doppler (Cervicale, Thyroïde, Salivaires, TSA...)</option>
+                  <option value="audio_orl">Explorations ORL (Audiométrie, PEA, VNG, Nasofibroscopie...)</option>
+                  <option value="kine">Kinésithérapie & Rééducation (Vestibulaire, Maxillo-faciale...)</option>
+                  <option value="emg">EMG / ENMG (Nerf facial, Neuro-musculaire...)</option>
+                  <option value="other">Autre demande d'examen</option>
                 </select>
               </div>
               <div class="form-group">
@@ -1702,11 +1760,11 @@ async function openBonPourModal(patientId, preset = null) {
                 <label>Détails de la demande</label>
                 <textarea id="bonpour-details" class="form-control bonpour-details-source" rows="6" placeholder="Précisez les examens demandés..."></textarea>
                 <div class="bonpour-details-columns">
-                  <textarea id="bonpour-details-left" class="form-control bonpour-details-column" rows="6" placeholder="- FNS complete&#10;- VS&#10;- CRP"></textarea>
-                  <textarea id="bonpour-details-right" class="form-control bonpour-details-column" rows="6" placeholder="- Glycémie à jeun&#10;- Créatinine&#10;- Urée"></textarea>
+                  <textarea id="bonpour-details-left" class="form-control bonpour-details-column" rows="6" placeholder="- TDM des rochers sans injection&#10;- IRM des CAI avec Gadolinium&#10;- Panoramique dentaire"></textarea>
+                  <textarea id="bonpour-details-right" class="form-control bonpour-details-column" rows="6" placeholder="- Cone Beam 3D maxillo-mandibulaire&#10;- NFS complete, TP, INR&#10;- Audiometrie tonale et vocale"></textarea>
                 </div>
                 <div class="bonpour-details-actions">
-                  <button type="button" id="bonpour-add-analysis-btn" class="btn btn-outline" onclick="addAnotherBonPourAnalysis()">➕ Ajouter une autre analyse</button>
+                  <button type="button" id="bonpour-add-analysis-btn" class="btn btn-outline" onclick="addAnotherBonPourAnalysis()">+ Ajouter une ligne</button>
                   <button type="button" id="bonpour-remove-analysis-btn" class="btn btn-danger btn-small" onclick="removeLastBonPourAnalysis()">Supprimer la dernière</button>
                 </div>
               </div>
@@ -1714,11 +1772,11 @@ async function openBonPourModal(patientId, preset = null) {
               <div class="bonpour-side-stack">
                 <div class="form-group">
                   <label>Indication clinique</label>
-                  <input type="text" id="bonpour-indication" class="form-control" placeholder="Ex: Bilan pré-opératoire, contrôle glycémie...">
+                  <input type="text" id="bonpour-indication" class="form-control" placeholder="Ex: Bilan d'otite chronique, bilan pré-implantaire, hypoacousie...">
                 </div>
                 <div class="form-group">
                   <label>Notes complémentaires</label>
-                  <textarea id="bonpour-notes" class="form-control" rows="3" placeholder="Informations supplémentaires..."></textarea>
+                  <textarea id="bonpour-notes" class="form-control" rows="3" placeholder="Renseignements cliniques ou précisions utiles..."></textarea>
                 </div>
               </div>
             </div>
@@ -1862,7 +1920,7 @@ function parseBonPourDetailsLines(value) {
 }
 
 function splitBonPourDetailsLines(lines) {
-  const items = Array.isArray(lines) ?lines : [];
+  const items = Array.isArray(lines) ? lines : [];
   const midpoint = Math.ceil(items.length / 2);
   return [items.slice(0, midpoint), items.slice(midpoint)];
 }
@@ -1893,7 +1951,7 @@ function syncBonPourTextareaFromColumns() {
 
 function focusBonPourDetailsEnd() {
   const [leftColumn, rightColumn] = getBonPourDetailsColumns();
-  const target = rightColumn && rightColumn.value.trim() ?rightColumn : leftColumn || rightColumn;
+  const target = rightColumn && rightColumn.value.trim() ? rightColumn : leftColumn || rightColumn;
   if (!target) return;
 
   target.focus();
@@ -1920,59 +1978,111 @@ function updateBonPourContent() {
   
   const quickItems = {
     analyses: [
-      // Hématologie
-      'FNS complete', 'VS', 'CRP', 'TP/INR', 'Fibrinogene',
-      // Glycémie
-      'Glycémie à jeun', 'HbA1c', 'Glycémie post-prandiale',
-      // Fonction rénale
-      'Urée', 'Créatinine', 'Acide urique', 'Ionogramme sanguin',
-      // Fonction hépatique
-      'ASAT', 'ALAT', 'GGT', 'PAL', 'Bilirubine totale',
-      // Bilan lipidique
-      'Cholestérol total', 'HDL', 'LDL', 'Triglycérides',
-      // Thyroïde
-      'TSH us', 'T3', 'T4', 'Ac anti-TPO',
-      // Rhumatologie / Auto-immunité
-      'Facteur rhumatoïde', 'Ac anti-CCP', 'Ac anti-nucléaires (ANA)', 'HLA B27',
-      // Autres
-      'Vitamine D', 'Vitamine B12', 'Fer sérique', 'Ferritine', 'Transferrine',
-      'Calcémie', 'Phosphorémie', 'Magnésémie', 'Albumine',
-      'Électrophorèse des protéines', 'CPK', 'LDH', 'Homocystéine',
-      // Urines
-      'ECBU', 'Protéinurie des 24h', 'Microalbuminurie'
+      // Hématologie & Bilan pré-opératoire
+      'NFS complète (FNS / Plaquettes)', 'TP (Taux de prothrombine)', 'TCA (Temps de céphaline activée)', 'INR', 'Fibrinogène', 'Groupe sanguin Rhésus + RAI', 'Temps de saignement (TS)',
+      // Inflammation & Infection
+      'CRP (Protéine C-Réactive)', 'VS (Vitesse de sédimentation)', 'Procalcitonine',
+      // Bilan osseux & Pré-implantaire
+      'Calcémie', 'Phosphorémie', 'Vitamine D (25-OH-D3)', 'Phosphatases alcalines (PAL)', 'Parathormone (PTH)',
+      // Métabolisme, Rein & Foie
+      'Glycémie à jeun', 'HbA1c (Hémoglobine glyquée)', 'Urée sanguine', 'Créatininémie', 'Clairance de la créatinine (DFG)', 'Ionogramme sanguin (Na+, K+, Cl-)', 'Bilan hépatique (ASAT, ALAT, GGT, Bilirubine)', 'Bilan lipidique (Cholestérol, Triglycérides)',
+      // Bactériologie & Sérologies ORL / Dentaire
+      'Prélèvement pharyngé (Frottis de gorge)', 'Prélèvement otologique + Antibiogramme', 'Prélèvement de pus sinusal / endodontique', 'Sérologie EBV (MNI)', 'Sérologie CMV', 'Sérologie Toxoplasmose',
+      // Allergologie & Thyroïde
+      'Dosage des IgE totales', 'IgE spécifiques / RAST pneumallergènes', 'TSH ultra-sensible', 'T4 libre', 'Amylasémie'
+    ],
+    scanner: [
+      // ORL & Rochers / Sinus
+      'TDM des rochers (Os temporaux) sans injection',
+      'TDM des sinus de la face (Massif facial) sans injection',
+      'TDM des sinus de la face avec injection',
+      'TDM du cavum / rhino-pharynx',
+      'TDM du cou et du larynx avec injection',
+      'TDM des glandes salivaires (parotides / sous-maxillaires)',
+      // Dentaire & Maxillo-facial
+      'Dentascan maxillaire et mandibulaire 3D',
+      'TDM maxillo-facial 3D',
+      'TDM des articulations temporo-mandibulaires (ATM)',
+      // Général
+      'TDM cérébrale sans et avec injection',
+      'TDM thoracique',
+      'TDM abdomino-pelvien',
+      'TDM rachis cervical',
+      'TDM rachis lombaire'
+    ],
+    irm: [
+      // ORL & Tête et Cou
+      'IRM des conduits auditifs internes (CAI / APC) avec Gadolinium',
+      'IRM cérébrale et des voies auditives',
+      'IRM des sinus de la face et cavum avec injection',
+      'IRM du cou et des parties molles cervicales',
+      'IRM des glandes salivaires (parotides et submandibulaires)',
+      'IRM laryngo-pharyngée',
+      // Dentaire & Maxillo-facial
+      'IRM des articulations temporo-mandibulaires (ATM bouche ouverte et fermée)',
+      'IRM du plancher buccal et de la langue',
+      // Général
+      'IRM cérébrale',
+      'IRM médullaire',
+      'IRM rachis cervical',
+      'IRM rachis lombaire'
     ],
     radio: [
-      // Membre supérieur
-      'Rx de l\'épaule face et profil',
-      'Rx du coude face et profil',
-      'Rx du poignet face et profil',
-      'Rx de la main face et profil',
-      'Rx du bras face et profil',
-      'Rx de l\'avant-bras face et profil',
-      // Membre inférieur
-      'Rx de la hanche face et profil',
-      'Rx du fémur face et profil',
-      'Rx du genou face et profil',
-      'Rx du genou en charge',
-      'Rx de la jambe face et profil',
-      'Rx de la cheville face et profil',
-      'Rx du pied face et profil',
-      // Rachis
-      'Rx du rachis cervical face et profil',
-      'Rx du rachis dorsal face et profil',
-      'Rx du rachis lombaire face et profil',
-      'Rx du rachis entier F/P (Télémétrie)',
-      // Autres
-      'Rx du bassin face',
+      // Dentaire & Stomatologie / Cône Beam
+      'Orthopantomogramme (Panoramique dentaire numérique)',
+      'Cone Beam 3D (CBCT) maxillaire',
+      'Cone Beam 3D (CBCT) mandibulaire',
+      'Cone Beam 3D (CBCT) bi-maxillaire',
+      'Cone Beam 3D (CBCT) sectoriel / localisé',
+      'Téléradiographie de profil (Céphalométrie)',
+      'Téléradiographie de face',
+      'Radiographie rétro-alvéolaire ciblée',
+      'Cliché mordu occlusal',
+      'Radiographie des ATM bouche ouverte et fermée',
+      // ORL & Crâne
+      'Incidence de Blondeau (Sinus fronto-maxillaires)',
+      'Incidence de Hirtz (Base du crâne)',
+      'Rx cavum profil (Végétations adénoïdes)',
+      'Rx des os propres du nez (OPN face et profil)',
       'Rx du thorax face',
-      'Rx des sacro-iliaques'
+      'Rx du rachis cervical face et profil'
     ],
-    scanner: ['Scanner cérébral', 'Scanner rachis cervical', 'Scanner rachis dorsal', 'Scanner rachis lombaire', 'Scanner épaule', 'Scanner genou', 'Scanner cheville', 'Scanner hanche', 'TDM thoracique', 'TDM abdomino-pelvien'],
-    irm: ['IRM cérébrale', 'IRM rachis cervical', 'IRM rachis dorsal', 'IRM rachis lombaire', 'IRM épaule', 'IRM genou', 'IRM hanche', 'IRM cheville', 'IRM poignet', 'IRM coude'],
-    echo: ['Écho abdominale', 'Écho thyroïde', 'Écho parties molles', 'Écho articulaire', 'Écho épaule', 'Écho genou', 'Écho hanche'],
-    emg: ['EMG membres supérieurs', 'EMG membres inférieurs', 'EMG 4 membres', 'ENMG', 'Vitesses de conduction nerveuse'],
-    doppler: ['Doppler TSA', 'Doppler membres inférieurs artériel', 'Doppler membres inférieurs veineux', 'Doppler membres supérieurs'],
-    kine: ['Rééducation fonctionnelle', 'Renforcement musculaire', 'Mobilisation passive', 'Drainage lymphatique', 'Électrothérapie', 'Massage', 'Physiothérapie'],
+    echo: [
+      // Échographie Cervico-Faciale & Doppler
+      'Échographie cervicale et des aires ganglionnaires',
+      'Échographie de la glande thyroïde',
+      'Échographie des glandes parotides',
+      'Échographie des glandes sous-maxillaires (submandibulaires)',
+      'Échographie du plancher buccal',
+      'Écho-Doppler des troncs supra-aortiques (TSA)',
+      'Échographie abdominale générale'
+    ],
+    audio_orl: [
+      // Explorations ORL
+      'Audiométrie tonale liminaire (conduction aérienne et osseuse)',
+      'Audiométrie vocale (seuil d\'intelligibilité)',
+      'Tympanométrie avec recherche des réflexes stapédiens',
+      'Potentiels Évoqués Auditifs du tronc cérébral (PEA)',
+      'Vidéonystagmographie (VNG / Vestibulométrie)',
+      'Épreuves caloriques vestibulaires',
+      'Oto-émissions acoustiques (OEA)',
+      'Nasofibroscopie diagnostique des VADS',
+      'Endoscopie des cordes vocales et du larynx'
+    ],
+    kine: [
+      'Rééducation vestibulaire instrumentale / VNG',
+      'Rééducation maxillo-faciale et des ATM',
+      'Rééducation vocale et orthophonique',
+      'Kinésithérapie respiratoire de désencombrement',
+      'Rééducation fonctionnelle du rachis cervical',
+      'Drainage lymphatique cervico-facial'
+    ],
+    emg: [
+      'EMG du nerf facial (Bilan de paralysie faciale)',
+      'EMG / ENMG membres supérieurs',
+      'EMG / ENMG membres inférieurs',
+      'Vitesses de conduction motrice et sensitive'
+    ],
     other: []
   };
   
@@ -2274,117 +2384,130 @@ async function openOrientationModal(patientId, preset = null) {
             <h2>Lettre d'orientation</h2>
             <button class="close-btn" onclick="closeModal('modal-orientation')" style="color: white;">&times;</button>
           </div>
-          <div class="modal-body document-modal-body orientation-modal-body">
+          <div class="modal-body document-modal-body orientation-modal-body" style="padding: 16px 24px; max-height: calc(94vh - 130px); overflow-y: auto;">
             <input type="hidden" id="orientation-patient-id">
             
-            <div class="document-editor-hero document-editor-hero--emerald">
+            <div class="document-editor-hero document-editor-hero--emerald" style="margin-bottom: 12px; padding: 12px 18px; border-radius: 12px;">
               <div class="document-editor-brand">
-                <div class="document-editor-logo">
-                  ${typeof getDocumentEditorLogoHTML === 'function' ?getDocumentEditorLogoHTML() : '<span>MC</span>'}
+                <div class="document-editor-logo" style="width: 48px; height: 48px;">
+                  ${typeof getDocumentEditorLogoHTML === 'function' ? getDocumentEditorLogoHTML() : '<span>MC</span>'}
                 </div>
                 <div>
-                  <div class="document-editor-kicker">Courrier medical</div>
-                  <div class="document-editor-title">Lettre d'orientation</div>
-                  <div class="document-editor-subtitle">Adressez le patient a un specialiste avec un courrier plus propre et plus lisible.</div>
+                  <div class="document-editor-kicker" style="font-size: 11px;">Courrier médical</div>
+                  <div class="document-editor-title" style="font-size: 17px;">Lettre d'orientation</div>
+                  <div class="document-editor-subtitle" style="font-size: 12px;">Adressez le patient à un confrère ou spécialiste avec un aperçu immédiat.</div>
                 </div>
               </div>
-              <div class="document-editor-badge">Orientation</div>
+              <div class="document-editor-badge" style="font-size: 11px; padding: 3px 10px;">Orientation</div>
             </div>
 
-            <div class="document-summary-grid">
+            <div class="document-summary-grid" style="margin-bottom: 12px; padding: 8px 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
               <div>
-                <p><strong>Patient :</strong> <span id="orientation-patient-name"></span></p>
+                <p style="margin: 0; font-size: 13px;"><strong>Patient :</strong> <span id="orientation-patient-name" style="font-weight: 700; color: #0f172a;"></span></p>
               </div>
               <div>
-                <p><strong>Type :</strong> Orientation vers confrere, consoeur ou specialiste</p>
+                <p style="margin: 0; font-size: 13px;"><strong>Type :</strong> Orientation vers confrère, consœur ou spécialiste</p>
               </div>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Date</label>
-              <input type="date" id="orientation-date" class="form-control">
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Destinataire (Cher confrere/consoeur)</label>
-              <select id="orientation-destinataire" class="form-control">
-                <option value="confrere">Cher confrere</option>
-                <option value="consoeur">Chere consoeur</option>
-                <option value="confrere (consoeur)">Cher confrere (consoeur)</option>
-              </select>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Specialite d'orientation</label>
-              <select id="orientation-specialty" class="form-control">
-                <option value="">-- Selectionner --</option>
-                <option value="Medecin generaliste">Medecin generaliste</option>
-                <option value="Rhumatologue">Rhumatologue</option>
-                <option value="Neurologue">Neurologue</option>
-                <option value="Orthopediste">Orthopediste</option>
-                <option value="Neurochirurgien">Neurochirurgien</option>
-                <option value="Cardiologue">Cardiologue</option>
-                <option value="Pneumologue">Pneumologue</option>
-                <option value="Endocrinologue">Endocrinologue</option>
-                <option value="Gastro-enterologue">Gastro-enterologue</option>
-                <option value="Dermatologue">Dermatologue</option>
-                <option value="ORL">ORL</option>
-                <option value="Ophtalmologue">Ophtalmologue</option>
-                <option value="Urologue">Urologue</option>
-                <option value="Gynecologue">Gynecologue</option>
-                <option value="Psychiatre">Psychiatre</option>
-                <option value="Radiologue">Radiologue</option>
-                <option value="Kinesitherapeute">Kinesitherapeute</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Antecedents</label>
-              <textarea id="orientation-antecedents" class="form-control" rows="2" placeholder="Antecedents medicaux du patient..."></textarea>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Presente (symptomes/diagnostic)</label>
-              <textarea id="orientation-symptoms" class="form-control" rows="3" placeholder="Symptomes et diagnostic actuel..."></textarea>
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 15px;">
-              <label>Motif d'orientation (je vous le confie pour...)</label>
-              <textarea id="orientation-motif" class="form-control" rows="3" placeholder="Motif de l'orientation et prise en charge demandee..."></textarea>
             </div>
 
-            <div class="form-group document-preview-card document-preview-span-full">
-              <label>Apercu de la lettre</label>
-              <div id="orientation-preview" class="document-live-preview"></div>
-              <small style="color: #666; display: block; margin-top: 6px;">
-                Le texte du courrier se met a jour selon les champs saisis.
-              </small>
-            </div>
-            
-            <div id="orientation-specialty-presets-container" class="orientation-specialty-presets-container" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block;">Modèles courants par spécialité</label>
-              <div id="orientation-specialty-presets" class="patient-documents-chip-grid" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <!-- Populated dynamically by JS -->
+            <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left, Live Preview on Right -->
+            <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; align-items: stretch;">
+              <!-- Colonne Gauche : Formulaire de saisie -->
+              <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date</label>
+                    <input type="date" id="orientation-date" class="form-control" style="height: 36px; font-size: 13px;">
+                  </div>
+                  <div class="form-group" style="margin: 0;">
+                    <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Destinataire</label>
+                    <select id="orientation-destinataire" class="form-control" style="height: 36px; font-size: 13px;">
+                      <option value="confrere">Cher confrère</option>
+                      <option value="consoeur">Chère consœur</option>
+                      <option value="confrere (consoeur)">Cher confrère (consœur)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Spécialité d'orientation</label>
+                  <select id="orientation-specialty" class="form-control" style="height: 36px; font-size: 13px;">
+                    <option value="">-- Sélectionner --</option>
+                    <option value="Médecin généraliste">Médecin généraliste</option>
+                    <option value="Rhumatologue">Rhumatologue</option>
+                    <option value="Neurologue">Neurologue</option>
+                    <option value="Orthopédiste">Orthopédiste</option>
+                    <option value="Neurochirurgien">Neurochirurgien</option>
+                    <option value="Cardiologue">Cardiologue</option>
+                    <option value="Pneumologue">Pneumologue</option>
+                    <option value="Endocrinologue">Endocrinologue</option>
+                    <option value="Gastro-entérologue">Gastro-entérologue</option>
+                    <option value="Dermatologue">Dermatologue</option>
+                    <option value="ORL">ORL</option>
+                    <option value="Ophtalmologue">Ophtalmologue</option>
+                    <option value="Urologue">Urologue</option>
+                    <option value="Gynécologue">Gynécologue</option>
+                    <option value="Psychiatre">Psychiatre</option>
+                    <option value="Radiologue">Radiologue</option>
+                    <option value="Kinésithérapeute">Kinésithérapeute</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+
+                <div id="orientation-specialty-presets-container" class="orientation-specialty-presets-container" style="background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <label style="font-size: 12px; font-weight: 650; color: #475569; margin-bottom: 6px; display: block;">Modèles par spécialité</label>
+                  <div id="orientation-specialty-presets" class="patient-documents-chip-grid" style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <!-- Populated dynamically by JS -->
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Antécédents</label>
+                  <textarea id="orientation-antecedents" class="form-control" rows="2" placeholder="Antécédents médicaux du patient..." style="font-size: 12.5px; line-height: 1.4; resize: vertical; min-height: 52px;"></textarea>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Présente (symptômes / diagnostic)</label>
+                  <textarea id="orientation-symptoms" class="form-control" rows="2" placeholder="Symptômes et diagnostic actuel..." style="font-size: 12.5px; line-height: 1.4; resize: vertical; min-height: 52px;"></textarea>
+                </div>
+
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Motif d'orientation (je vous le confie pour...)</label>
+                  <textarea id="orientation-motif" class="form-control" rows="2" placeholder="Motif de l'orientation et prise en charge demandée..." style="font-size: 12.5px; line-height: 1.4; resize: vertical; min-height: 52px;"></textarea>
+                </div>
+
+                <div class="orientation-quick-panel" style="background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <label style="font-size: 12px; font-weight: 650; color: #475569; margin-bottom: 6px; display: block;">Motifs rapides (cliquez pour insérer)</label>
+                  <div id="orientation-quick-items" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Avis spécialisé')">Avis spécialisé</button>
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Prise en charge')">Prise en charge</button>
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Bilan complémentaire')">Bilan complémentaire</button>
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Suivi')">Suivi</button>
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Traitement spécialisé')">Traitement spécialisé</button>
+                    <button type="button" class="btn btn-small btn-secondary" style="font-size: 11px; padding: 3px 8px; height: 26px;" onclick="addOrientationMotif('Intervention chirurgicale')">Intervention chirurgicale</button>
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            <div class="orientation-quick-panel" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="font-size: 13px; font-weight: 600; margin-bottom: 10px; display: block;">Motifs courants (cliquez pour ajouter)</label>
-              <div id="orientation-quick-items" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Avis specialise')">Avis specialise</button>
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Prise en charge')">Prise en charge</button>
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Bilan complementaire')">Bilan complementaire</button>
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Suivi')">Suivi</button>
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Traitement specialise')">Traitement specialise</button>
-                <button type="button" class="btn btn-small btn-secondary" style="font-size: 12px; padding: 5px 10px;" onclick="addOrientationMotif('Intervention chirurgicale')">Intervention chirurgicale</button>
+
+              <!-- Colonne Droite : Aperçu en Direct -->
+              <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <span>Aperçu de la lettre en direct</span>
+                    </label>
+                    <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
+                  </div>
+                  <div id="orientation-preview" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
+                </div>
               </div>
             </div>
           </div>
           <div class="modal-footer modal-footer-split">
             <button class="btn btn-secondary" onclick="closeModal('modal-orientation')">Annuler</button>
             <div class="modal-footer-actions">
-              <button class="btn btn-primary" onclick="printOrientation()" style="background: #059669; border-color: #047857;">Enregistrer et imprimer</button>
+              <button class="btn btn-primary" onclick="printOrientation()" style="background: #059669; border-color: #047857; font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px;">Enregistrer et imprimer</button>
             </div>
           </div>
         </div>
@@ -2750,3 +2873,104 @@ window.applyBonPourPreset = applyBonPourPreset;
 window.clearBonPourForm = clearBonPourForm;
 window.applyOrientationPreset = applyOrientationPreset;
 window.clearOrientationForm = clearOrientationForm;
+
+/**
+ * Open document in new WYSIWYG preview drawer
+ * @param {string} docType - 'ordonnance', 'certificat', 'arret', 'facture', 'rapport', 'svp', 'orientation'
+ * @param {object} context - { patientId, consultationId, content }
+ */
+function openDocumentPreview(docType, context = {}) {
+  if (typeof DocumentPreview === 'undefined') {
+    showNotification('Le composant d\'aperçu n\'est pas disponible', 'warning');
+    return;
+  }
+
+  const doctorInfo = {
+    name: '',
+    specialty: 'Médecin ORL & Chirurgie Cervico-Faciale',
+    address: '',
+    phone: '',
+    license: '',
+  };
+
+  // Load doctor info from cached settings
+  if (typeof ensureSettingsLoaded === 'function') {
+    ensureSettingsLoaded().then(() => {
+      if (typeof cachedSettings !== 'undefined' && cachedSettings) {
+        doctorInfo.name = 'Dr. ' + (cachedSettings.doctorName || cachedSettings.doctor_name || '');
+        doctorInfo.address = cachedSettings.cabinetAddress || cachedSettings.cabinet_address || '';
+        doctorInfo.phone = cachedSettings.cabinetPhone || cachedSettings.cabinet_phone || '';
+        doctorInfo.license = cachedSettings.licenseNumber || cachedSettings.license_number || '';
+        doctorInfo.specialty = cachedSettings.specialty || doctorInfo.specialty;
+      }
+    }).catch(() => {});
+  }
+
+  const patientInfo = {};
+  if (typeof currentPatientData !== 'undefined' && currentPatientData) {
+    patientInfo.name = (currentPatientData.nom || currentPatientData.lastName || '') + ' ' + (currentPatientData.prenom || currentPatientData.firstName || '');
+    patientInfo.age = currentPatientData.age || '';
+    patientInfo.phone = currentPatientData.telephone || currentPatientData.phone || '';
+  }
+
+  const typeLabels = {
+    ordonnance: 'Ordonnance',
+    certificat: 'Certificat médical',
+    arret: 'Arrêt de travail',
+    facture: 'Facture',
+    rapport: 'Rapport médical',
+    svp: 'Bon Pour',
+    orientation: 'Orientation',
+  };
+
+  DocumentPreview.open({
+    type: docType,
+    title: (typeLabels[docType] || docType) + (patientInfo.name ? ' — ' + patientInfo.name.trim() : ''),
+    format: (typeof DEFAULT_DOC_FORMATS !== 'undefined' ? DEFAULT_DOC_FORMATS[docType] : null) || 'A4',
+    content: context.content || '<p></p>',
+    editable: true,
+    doctorInfo: doctorInfo,
+    patientInfo: patientInfo,
+    onSave: (content) => {
+      // Store the edited content for later use
+      if (typeof showNotification === 'function') {
+        showNotification('Document enregistré', 'success');
+      }
+    },
+  });
+}
+
+window.openDocumentPreview = openDocumentPreview;
+
+// Initialize document format toggles in Settings
+function initDocFormatSettings() {
+  if (typeof AntSegmented === 'undefined') return;
+  const docTypes = ['ordonnance', 'certificat', 'arret', 'facture', 'rapport', 'orientation', 'operation', 'operation_facture'];
+  const defaults = { ordonnance: 'A5', certificat: 'A5', arret: 'A5', facture: 'A5', rapport: 'A4', orientation: 'A4', operation: 'A4', operation_facture: 'A5' };
+  
+  // Load saved preferences
+  let savedFormats = {};
+  try {
+    savedFormats = JSON.parse(localStorage.getItem('medcareso_doc_formats') || '{}');
+  } catch(e) {}
+  
+  docTypes.forEach(type => {
+    const el = document.getElementById('fmt-' + type);
+    if (!el) return;
+    AntSegmented.create(el, {
+      options: [{ label: 'A4', value: 'A4' }, { label: 'A5', value: 'A5' }],
+      defaultValue: savedFormats[type] || defaults[type],
+      onChange: (value) => {
+        savedFormats[type] = value;
+        localStorage.setItem('medcareso_doc_formats', JSON.stringify(savedFormats));
+        // Update global defaults
+        if (typeof DEFAULT_DOC_FORMATS !== 'undefined') DEFAULT_DOC_FORMATS[type] = value;
+      },
+    });
+  });
+}
+// Run when settings page might be visible
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initDocFormatSettings, 1000);
+});
+window.initDocFormatSettings = initDocFormatSettings;

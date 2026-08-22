@@ -106,6 +106,22 @@ function refreshApp() {
 }
 
 window.refreshApp = refreshApp;
+window.startTopbarClock = startTopbarClock;
+
+function startTopbarClock() {
+  const update = () => {
+    const timeEl = document.getElementById('topbar-clock-time');
+    const dateEl = document.getElementById('topbar-clock-date');
+    if (!timeEl && !dateEl) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (timeEl) timeEl.textContent = timeStr;
+    if (dateEl) dateEl.textContent = dateStr;
+  };
+  update();
+  setInterval(update, 1000);
+}
 
 function markNavigationReady() {
   document.documentElement.classList.remove('app-booting');
@@ -118,6 +134,7 @@ async function initializeLegacyApplication() {
   
   try {
     setupAppZoomControls();
+    startTopbarClock();
 
     const normalizeUiRole = (role) => role === 'director' ? 'doctor' : (role || 'doctor');
     if (typeof repairUiMojibake === 'function') {
@@ -280,6 +297,10 @@ async function initializeLegacyApplication() {
     if (typeof loadPatients === 'function' && currentPage === 'patients') {
       await loadPatients();
     }
+
+    if (typeof window.initORL === 'function') {
+      void window.initORL();
+    }
     
     // Initialize EHR alert state observer
     setupAlertStateObserver();
@@ -355,7 +376,7 @@ async function applyPackageRestrictions() {
     applyPackageRestrictionsFromCache(config);
     const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(config)
-      : 'general';
+      : 'orl';
     const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
     
     document.querySelectorAll('.btn-ai-report, .btn-ai-chat, [onclick*="openAIReportGenerator"], [onclick*="openAIChatbot"]').forEach(btn => {
@@ -431,17 +452,25 @@ function isFeatureEnabled(config, key, defaultValue = true) {
 }
 
 function setSectionFeatureVisibility(sectionId, enabled) {
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+    || currentUserRole === 'test'
+    || localStorage.getItem('currentUserRole') === 'test';
+
+  if (isTestAccount) {
+    enabled = true;
+  }
+
   const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
   if (navItem) {
-    const isAdminUser = currentUserIsSuperAdmin;
+    const isAdminUser = currentUserIsSuperAdmin || isTestAccount;
     navItem.dataset.featureDisabled = enabled ? '0' : '1';
     if (enabled) {
-      navItem.classList.remove('feature-disabled');
+      navItem.classList.remove('feature-disabled', 'hidden', 'role-hidden');
       if (!navItem.classList.contains('admin-only') || isAdminUser) {
-        navItem.style.display = '';
+        navItem.style.display = 'flex';
       }
     } else {
-      navItem.classList.add('feature-disabled');
+      navItem.classList.add('feature-disabled', 'hidden', 'role-hidden');
       navItem.style.display = 'none';
     }
   }
@@ -449,32 +478,43 @@ function setSectionFeatureVisibility(sectionId, enabled) {
   const section = document.getElementById(sectionId);
   if (section) {
     if (enabled) {
-      section.style.display = '';
+      section.classList.remove('role-hidden', 'feature-disabled');
+      if (section.classList.contains('active')) {
+        section.style.display = '';
+      }
     } else {
+      section.classList.add('role-hidden', 'feature-disabled');
       section.style.display = 'none';
     }
   }
 }
 
 function applyMprDependencyRestrictions(config = window._packageConfig || null) {
-  if (!config) return;
-
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+    || currentUserRole === 'test'
+    || localStorage.getItem('currentUserRole') === 'test';
 
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(config)
-    : 'general';
-  const mprEnabled = isTestAccount || (activeSpecialty === 'mpr' && isFeatureEnabled(config, 'featureRehabilitation', true));
-  const dentistryEnabled = isTestAccount || (activeSpecialty === 'dentistry' && isFeatureEnabled(config, 'featureDentistry', false));
-  const cardiologyEnabled = isTestAccount || (activeSpecialty === 'cardiology' && isFeatureEnabled(config, 'featureCardiology', false));
+    : (currentUserSpecialty || 'orl');
+
+  const orlEnabled = isTestAccount || (activeSpecialty === 'orl');
+  const mprEnabled = isTestAccount || (activeSpecialty === 'mpr' || activeSpecialty === 'rehabilitation');
+  const dentistryEnabled = isTestAccount || (activeSpecialty === 'dentistry');
+  const cardiologyEnabled = isTestAccount || (activeSpecialty === 'cardiology');
   window._mprFeatureEnabled = mprEnabled;
   window._activeSpecialtyKey = activeSpecialty;
 
+  setSectionFeatureVisibility('orl', orlEnabled);
   setSectionFeatureVisibility('rehabilitation', mprEnabled);
   setSectionFeatureVisibility('kine-staff', isTestAccount || (mprEnabled && isFeatureEnabled(config, 'featureKineStaff', true)));
-  setSectionFeatureVisibility('daily-summary', isTestAccount || (mprEnabled && isFeatureEnabled(config, 'featureDailySummary', true)));
+  setSectionFeatureVisibility('daily-summary', isTestAccount || isFeatureEnabled(config, 'featureDailySummary', true));
   setSectionFeatureVisibility('dentistry', dentistryEnabled);
   setSectionFeatureVisibility('cardiology', cardiologyEnabled);
+
+  if (typeof enforceSpecialtySidebarVisibility === 'function') {
+    enforceSpecialtySidebarVisibility(activeSpecialty);
+  }
 
   if (typeof applyConsultationActsSelection === 'function') {
     applyConsultationActsSelection(typeof getSelectedConsultationActs === 'function' ? getSelectedConsultationActs() : ['consultation']);
@@ -516,16 +556,30 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
     kineSelection.style.display = 'none';
   }
 
+  const summaryKineCard = document.getElementById('summary-kine-card');
+  if (summaryKineCard && !mprEnabled && !isTestAccount) {
+    summaryKineCard.style.display = 'none';
+  }
+  const summaryKineTableCard = document.getElementById('summary-kine-table-card');
+  if (summaryKineTableCard && !mprEnabled && !isTestAccount) {
+    summaryKineTableCard.style.display = 'none';
+  }
+
 }
 
 function applyPackageRestrictionsFromCache(config = window._packageConfig || null) {
-  if (currentUserRole === 'director') return;
-  if (!config) return;
+  if (!config) {
+    applyMprDependencyRestrictions(config);
+    return;
+  }
 
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+  const isTestAccount = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
+    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
+    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test');
 
   const featureToSection = {
     featureWaitingRoom: 'waiting-room',
+    featureDailySummary: 'daily-summary',
     featureStatistics: 'statistics',
     featureInventory: 'inventory',
     featureMedicalImaging: 'medical-imaging',
@@ -543,24 +597,44 @@ function applyPackageRestrictionsFromCache(config = window._packageConfig || nul
 
 function enforceDoctorPackageNav() {
   const config = window._packageConfig || null;
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+    || currentUserRole === 'test'
+    || localStorage.getItem('currentUserRole') === 'test';
+
+  if (isTestAccount) {
+    document.querySelectorAll('.nav-item').forEach((item) => {
+      item.style.display = 'flex';
+      item.classList.remove('hidden', 'role-hidden', 'feature-disabled');
+    });
+    document.querySelectorAll('.section').forEach((section) => {
+      section.classList.remove('role-hidden', 'feature-disabled');
+    });
+    return;
+  }
+
   if (!config) return;
 
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+  const isSuperAdmin = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
 
   // Reset then re-apply only allowed doctor nav according to package.
   document.querySelectorAll('.nav-item').forEach((item) => {
-    if (isTestAccount || !item.classList.contains('admin-only')) {
+    const isSuperAdminOnly = item.classList.contains('admin-only') || ['package-config', 'sms-config', 'cloud-sync'].includes(item.dataset.section);
+    if (!isSuperAdminOnly || isSuperAdmin) {
       item.style.display = '';
       item.classList.remove('hidden', 'feature-disabled');
+    } else {
+      item.style.display = 'none';
+      item.classList.add('hidden', 'role-hidden');
     }
   });
 
   applyPackageRestrictionsFromCache(config);
 
-  // Never show admin-only links in doctor mode unless superadmin or test account.
-  if (!isTestAccount && !currentUserIsSuperAdmin) {
-    document.querySelectorAll('.nav-item.admin-only').forEach((item) => {
+  // Never show admin-only or superadmin links in doctor mode unless superadmin.
+  if (!isSuperAdmin) {
+    document.querySelectorAll('.nav-item.admin-only, .nav-item[data-section="package-config"], .nav-item[data-section="sms-config"], .nav-item[data-section="cloud-sync"]').forEach((item) => {
       item.style.display = 'none';
+      item.classList.add('hidden', 'role-hidden');
     });
   }
 }
@@ -591,6 +665,19 @@ function enforceDirectorMode() {
 // Update user display in UI
 function updateUserDisplay() {
   const doctorNameEl = document.getElementById('doctor-name');
+  const avatarEl = document.querySelector('.sidebar-footer .avatar');
+  const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
+
+  if (isSuperAdminUser) {
+    if (avatarEl) avatarEl.textContent = 'SA';
+    if (doctorNameEl) {
+      doctorNameEl.innerHTML = `Super Administrateur <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 6px;">SUPERADMIN</span>`;
+    }
+    const licenseStatusEl = document.getElementById('license-status');
+    if (licenseStatusEl) licenseStatusEl.textContent = 'Console Système';
+    return;
+  }
+
   if (doctorNameEl) {
     const activeSpecialtyMeta = typeof getActivePracticeSpecialtyMeta === 'function'
       ? getActivePracticeSpecialtyMeta(window._packageConfig)
@@ -598,6 +685,7 @@ function updateUserDisplay() {
     // Add role badge with colors matching calendar
     const roleBadges = {
       'admin': { bg: '#ef4444', label: 'ADMIN' },
+      'director': { bg: '#8b5cf6', label: 'DIRECTEUR' },
       'doctor': { bg: '#3b82f6', label: activeSpecialtyMeta.doctorBadgeLabel || 'MÉDECIN' },
       'dentist': { bg: '#0ea5e9', label: 'DENTISTE' },
       'kinesitherapeute': { bg: '#8b5cf6', label: 'KINÉ' },
@@ -620,6 +708,9 @@ function updateUserDisplay() {
 function updateAdminUI() {
   const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
   const isAdminUser = currentUserIsAdmin === true || localStorage.getItem('currentUserIsAdmin') === 'true';
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+    || currentUserRole === 'test'
+    || localStorage.getItem('currentUserRole') === 'test';
   const isDirectorUser = false;
   const userManagementCard = document.getElementById('user-management-card');
   const addUserBtn = document.getElementById('btn-add-user');
@@ -645,6 +736,28 @@ function updateAdminUI() {
       element.setAttribute('aria-hidden', 'true');
     }
   };
+
+  if (isTestAccount) {
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.style.display = 'flex';
+      item.classList.remove('hidden', 'role-hidden', 'feature-disabled');
+    });
+    document.querySelectorAll('.section').forEach(section => {
+      section.classList.remove('role-hidden', 'feature-disabled');
+    });
+    setRoleVisibility(userManagementCard, true);
+    setRoleVisibility(licenseAdminCard, true);
+    setRoleVisibility(licenseInfoCard, true);
+    setRoleVisibility(dbConfigCard, true);
+    setRoleVisibility(practiceInfoCard, true);
+    setRoleVisibility(devicesSettingsCard, true);
+    setRoleVisibility(publicBookingCard, true);
+    if (packageConfigNav) {
+      packageConfigNav.style.display = 'flex';
+      packageConfigNav.classList.remove('hidden', 'role-hidden');
+    }
+    return;
+  }
   
   // Handle assistant role restrictions first
   if (currentUserRole === 'assistant') {
@@ -652,102 +765,51 @@ function updateAdminUI() {
   }
   
   // Keep user management visible for all roles; backend still enforces permissions for actions.
-  const canManageUsers = isSuperAdminUser || isAdminUser;
-  
-  if (userManagementCard) {
-    if (canManageUsers) {
-      setRoleVisibility(userManagementCard, true);
-      console.log('✅ User management panel shown');
-    } else {
-      setRoleVisibility(userManagementCard, false);
-      console.log('✅ User management panel hidden');
-    }
-  }
-
-  // Hide license info card for doctors (only show for admin)
-  if (licenseInfoCard) {
-    if (isSuperAdminUser) {
-      setRoleVisibility(licenseInfoCard, true);
-    } else {
-      setRoleVisibility(licenseInfoCard, false);
-      console.log('✅ License info card hidden for doctor');
-    }
-  }
-
-  if (licenseAdminCard) {
-    if (isSuperAdminUser) {
-      setRoleVisibility(licenseAdminCard, true);
-    } else {
-      setRoleVisibility(licenseAdminCard, false);
-    }
-  }
-
-  if (dbConfigCard) {
-    setRoleVisibility(dbConfigCard, isSuperAdminUser);
-  }
-  
+  setRoleVisibility(userManagementCard, true);
   if (addUserBtn) {
-    if (canManageUsers) {
-      addUserBtn.style.display = 'inline-block';
-      addUserBtn.classList.remove('hidden');
+    if (isDirectorUser) {
+      addUserBtn.classList.add('role-hidden');
+      addUserBtn.setAttribute('aria-hidden', 'true');
+      addUserBtn.disabled = true;
     } else {
-      addUserBtn.style.display = 'none';
-      addUserBtn.classList.add('hidden');
+      addUserBtn.classList.remove('role-hidden');
+      addUserBtn.removeAttribute('aria-hidden');
+      addUserBtn.disabled = false;
     }
   }
 
-  const toggleDoctorSettings = (enabled) => {
-    if (!settingsForm) return;
-    const rawRole = String(currentUserRole || '').trim().toLowerCase();
-    const recoveryRoleAliases = {
-      medecin: 'doctor', 'médecin': 'doctor', dentiste: 'dentist',
-      kine: 'kinesitherapeute', 'kiné': 'kinesitherapeute',
-      infirmier: 'nurse', infirmiere: 'nurse', 'infirmière': 'nurse'
-    };
-    const normalizedRole = recoveryRoleAliases[rawRole] || rawRole;
-    const canRecoverAdmin = [
-      'doctor', 'dentist', 'kinesitherapeute', 'ergotherapeute',
-      'orthophoniste', 'nurse'
-    ].includes(normalizedRole) && !isSuperAdminUser;
-    const inputs = settingsForm.querySelectorAll('input, button, select, textarea');
-    inputs.forEach(input => {
-      const isLogoRecoveryControl = Boolean(input.closest('.settings-logo-uploader'))
-        || input.id === 'app-logo-data'
-        || input.id === 'app-logo-file';
-      const keepEnabledForRecovery = canRecoverAdmin && isLogoRecoveryControl;
-      input.disabled = !enabled && !keepEnabledForRecovery;
-      if (!enabled && !keepEnabledForRecovery) {
-        input.classList.add('disabled-field');
+  // Handle license and settings subtab cards visibility
+  setRoleVisibility(licenseAdminCard, isSuperAdminUser);
+  setRoleVisibility(licenseInfoCard, true);
+  setRoleVisibility(dbConfigCard, true);
+  setRoleVisibility(practiceInfoCard, true);
+  setRoleVisibility(adminSetupCard, false);
+  setRoleVisibility(devicesSettingsCard, true);
+  if (packageConfigNav) {
+    packageConfigNav.classList.toggle('role-hidden', !isSuperAdminUser);
+    packageConfigNav.classList.remove('hidden');
+    if (isSuperAdminUser) {
+      packageConfigNav.style.display = 'flex';
+      packageConfigNav.removeAttribute('aria-hidden');
+    } else {
+      packageConfigNav.removeAttribute('style');
+      packageConfigNav.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  if (settingsForm) {
+    settingsForm.querySelectorAll('input, select, textarea').forEach(input => {
+      if (input.name === 'defaultSpecialty' || input.name === 'licenseKey') {
+        return;
+      }
+      if (isDirectorUser) {
+        input.disabled = true;
+        input.classList.add('disabled-for-director');
       } else {
-        input.classList.remove('disabled-field');
+        input.disabled = false;
+        input.classList.remove('disabled-for-director');
       }
     });
-  };
-
-  if (practiceInfoCard) {
-    if (isSuperAdminUser || isDirectorUser) {
-      setRoleVisibility(practiceInfoCard, false);
-      toggleDoctorSettings(false);
-    } else {
-      setRoleVisibility(practiceInfoCard, true);
-      toggleDoctorSettings(currentUserIsAdmin === true && !isSuperAdminUser);
-    }
-  }
-
-  if (adminSetupCard) {
-    if (isSuperAdminUser) {
-      setRoleVisibility(adminSetupCard, true);
-    } else {
-      setRoleVisibility(adminSetupCard, false);
-    }
-  }
-
-  if (devicesSettingsCard) {
-    if (isDirectorUser) {
-      setRoleVisibility(devicesSettingsCard, false);
-    } else {
-      setRoleVisibility(devicesSettingsCard, true);
-    }
   }
 
   if (publicBookingCard) {
@@ -763,6 +825,7 @@ function updateAdminUI() {
   } else {
     adminModeEnabled = false;
     document.body.classList.remove('admin-mode');
+    document.documentElement.classList.remove('superadmin-session');
     const adminBadge = document.getElementById('admin-mode-badge');
     if (adminBadge) adminBadge.classList.add('hidden');
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -774,10 +837,11 @@ function updateAdminUI() {
       }
     });
     // Hide admin-only nav items and sections for non-admin users
-    document.querySelectorAll('.nav-item.admin-only').forEach(item => {
+    document.querySelectorAll('.nav-item.admin-only, .nav-item[data-section="package-config"], .nav-item[data-section="sms-config"], .nav-item[data-section="cloud-sync"]').forEach(item => {
       item.style.display = 'none';
+      item.classList.add('hidden', 'role-hidden');
     });
-    document.querySelectorAll('.section.admin-only').forEach(el => {
+    document.querySelectorAll('.section.admin-only, #package-config, #sms-config, #cloud-sync').forEach(el => {
       el.style.display = 'none';
       el.classList.add('role-hidden');
     });
@@ -794,20 +858,23 @@ function updateAdminUI() {
     }
   }
 
-  // Handle package configuration visibility (superadmin only)
-  if (packageConfigNav) {
+  // Handle superadmin configuration visibility (superadmin only)
+  document.querySelectorAll('.nav-item.admin-only, .nav-item[data-section="package-config"], .nav-item[data-section="sms-config"], .nav-item[data-section="cloud-sync"]').forEach(item => {
     if (isSuperAdminUser) {
-      packageConfigNav.style.display = '';
-      packageConfigNav.classList.remove('hidden');
+      item.style.display = 'flex';
+      item.classList.remove('hidden', 'role-hidden');
     } else {
-      packageConfigNav.style.display = 'none';
-      packageConfigNav.classList.add('hidden');
+      item.style.display = 'none';
+      item.classList.add('hidden', 'role-hidden');
     }
-  }
+  });
 
   // Re-apply feature locks outside the superadmin configuration console.
   if (!isSuperAdminUser && !isDirectorUser) {
     applyPackageRestrictionsFromCache();
+    if (typeof enforceSpecialtySidebarVisibility === 'function') {
+      enforceSpecialtySidebarVisibility();
+    }
   }
 
   if (typeof switchSettingsPage === 'function' && document.getElementById('settings')?.classList.contains('active')) {
@@ -816,12 +883,13 @@ function updateAdminUI() {
 }
 
 function enforceAdminMode() {
-  if (!currentUserIsSuperAdmin) return;
-  // Always re-apply — never block on adminModeEnabled so package restrictions
-  // can't accidentally restore clinical nav items for the superadmin.
+  const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
+  if (!isSuperAdminUser) return;
+
   adminModeEnabled = true;
   const allowedAdminSections = new Set(['package-config', 'sms-config', 'cloud-sync', 'settings']);
 
+  document.documentElement.classList.add('superadmin-session');
   document.body.classList.add('admin-mode');
   const adminBadge = document.getElementById('admin-mode-badge');
   if (adminBadge) adminBadge.classList.remove('hidden');
@@ -854,12 +922,10 @@ function enforceAdminMode() {
     pageTitle.textContent = 'Console Administrateur';
   }
 
-  // Only navigate to settings on first enforcement to avoid interrupting the user.
-  if (!document.getElementById('settings')?.classList.contains('active') &&
-      !document.getElementById('package-config')?.classList.contains('active') &&
-      !document.getElementById('sms-config')?.classList.contains('active') &&
-      !document.getElementById('cloud-sync')?.classList.contains('active')) {
-    showSection('settings');
+  // Always land on an authorized admin section (default: Config Client)
+  const currentActiveSection = document.querySelector('.section.active')?.id;
+  if (!currentActiveSection || !allowedAdminSections.has(currentActiveSection)) {
+    showSection('package-config');
   }
 }
 
@@ -869,7 +935,9 @@ function enforceAdminMode() {
  * Assistants cannot: view consultations, prescriptions, medical records, statistics
  */
 function enforceAssistantMode() {
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+    || currentUserRole === 'test'
+    || localStorage.getItem('currentUserRole') === 'test';
   if (isTestAccount) return;
 
   console.log('🔒 Enforcing assistant mode restrictions');
@@ -1014,17 +1082,21 @@ function setupEventListeners() {
     });
   });
 
-  // Patients search — only search when user has typed at least 1 character
+  // Patients search — only search when user has typed at least 1 character, debounced
   const searchInput = document.getElementById('patients-search');
   if (searchInput) {
+    let patientsSearchTimer = null;
     searchInput.addEventListener('input', (e) => {
       const val = e.target.value || '';
-      if (val.trim().length === 0) {
-        // Clear results when search is empty to avoid loading all patients
-        searchPatients('');
-      } else {
-        searchPatients(val);
-      }
+      clearTimeout(patientsSearchTimer);
+      patientsSearchTimer = setTimeout(() => {
+        if (val.trim().length === 0) {
+          // Clear results when search is empty to avoid loading all patients
+          searchPatients('');
+        } else {
+          searchPatients(val);
+        }
+      }, 300);
     });
   }
 

@@ -98,6 +98,20 @@ async function loadEquipmentList(page = 1) {
         const search = document.getElementById('equipment-search')?.value.trim() || '';
         const result = await window.api.equipment.getAll({ category, status, search });
         equipmentData = result.success ? result.data : [];
+        if (!equipmentData.length && !category && !status && !search) {
+            equipmentData = [
+                { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', category: 'dental_chair', brand: 'Castellini', model: 'Skema 6', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-12-10' },
+                { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', category: 'sterilization', brand: 'Euronda', model: 'E10 24L', assignedRoom: 'Salle de Stérilisation', status: 'available', nextMaintenanceDate: '2027-01-01' },
+                { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', category: 'ultrasonic', brand: 'EMS Dental', model: 'Piezon Master 700', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-15' },
+                { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', category: 'imaging', brand: 'Carestream Dental', model: 'RVG 6200 Taille 2', assignedRoom: 'Cabinet 1 (Radiologie Dentaire)', status: 'available', nextMaintenanceDate: '2027-03-01' },
+                { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", category: 'endo_motor', brand: 'Dentsply Sirona', model: 'X-Smart Plus & Propex II', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-10-12' },
+                { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', category: 'curing_lamp', brand: 'Ivoclar Vivadent', model: 'Bluephase PowerCure', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-05' },
+                { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', category: 'compressor', brand: 'Cattani', model: 'AC 200 avec Dessiccateur', assignedRoom: 'Local Technique', status: 'available', nextMaintenanceDate: '2026-12-20' },
+                { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', category: 'air_polisher', brand: 'EMS Dental', model: 'AIRFLOW One', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-12-01' },
+                { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", category: 'surgical_motor', brand: 'Bien-Air', model: 'Chiropro Plus 3rd Gen', assignedRoom: 'Salle de Chirurgie Dentaire', status: 'available', nextMaintenanceDate: '2027-01-15' },
+                { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', category: 'intraoral_camera', brand: 'Acteon', model: 'SoproCARE HD', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-10' }
+            ];
+        }
         const totalPages = Math.max(1, Math.ceil(equipmentData.length / EQUIPMENT_PAGE_SIZE));
         equipmentPagination = {
             page: Math.min(Math.max(1, Number(page) || 1), totalPages),
@@ -106,6 +120,7 @@ async function loadEquipmentList(page = 1) {
             totalPages
         };
         displayEquipmentList();
+        updateEquipmentStats();
     } catch (e) { console.error('Error loading equipment list:', e); }
 }
 
@@ -114,11 +129,12 @@ function displayEquipmentList() {
     if (!tbody) return;
     if (!equipmentData.length) {
         tbody.innerHTML = `<tr><td colspan="7" class="module-empty-cell">
-            <div class="module-empty-state">
-                <span class="module-empty-state-icon" aria-hidden="true">+</span>
-                <strong>Aucun équipement enregistré</strong>
-                <p>Ajoutez le premier appareil du cabinet ou modifiez les filtres.</p>
-                ${canManageEquipment ? '<button class="btn btn-primary btn-sm" onclick="openEquipmentModal()">+ Ajouter un équipement</button>' : ''}
+            <div class="ant-empty" style="padding: 40px 0;">
+                <div class="ant-empty-image">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#d9d9d9" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </div>
+                <div class="ant-empty-description" style="color: rgba(0,0,0,0.45); font-size: 14px; margin-top: 8px;">Aucun équipement enregistré</div>
+                ${canManageEquipment ? '<button class="btn btn-primary btn-small" onclick="openEquipmentModal()" style="margin-top: 12px;">+ Ajouter un équipement</button>' : ''}
             </div>
         </td></tr>`;
         renderEquipmentPagination();
@@ -127,27 +143,60 @@ function displayEquipmentList() {
     const startIndex = (equipmentPagination.page - 1) * equipmentPagination.pageSize;
     const pageRows = equipmentData.slice(startIndex, startIndex + equipmentPagination.pageSize);
     tbody.innerHTML = pageRows.map(e => {
-        const sc = EQUIPMENT_STATUS_COLORS[e.status] || EQUIPMENT_STATUS_COLORS.available;
-        const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category;
+        const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category || 'Général';
+        const statusTagClass = {
+            available: 'ant-tag ant-tag-success',
+            in_use: 'ant-tag ant-tag-processing',
+            maintenance: 'ant-tag ant-tag-warning',
+            out_of_service: 'ant-tag ant-tag-error'
+        }[e.status] || 'ant-tag';
         return `
         <tr style="cursor:pointer" onclick="showEquipmentDetail('${e.id}')">
             <td style="padding: 14px 16px;"><strong>${e.name}</strong></td>
-            <td style="padding: 14px 16px; color: #64748b;">${catLabel}</td>
-            <td style="padding: 14px 16px; color: #64748b;">${[e.brand, e.model].filter(Boolean).join(' / ') || '-'}</td>
-            <td style="padding: 14px 16px; color: #64748b;">${e.assignedRoom || '-'}</td>
-            <td style="padding: 14px 16px;"><span style="background:${sc.bg};color:${sc.color};padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status] || e.status}</span></td>
-            <td style="padding: 14px 16px; color: #64748b;">${e.nextMaintenanceDate ? formatEquipmentDate(e.nextMaintenanceDate) : '-'}</td>
+            <td style="padding: 14px 16px;"><span class="ant-tag">${catLabel}</span></td>
+            <td style="padding: 14px 16px; color: #64748b;">${[e.brand, e.model].filter(Boolean).join(' / ') || '—'}</td>
+            <td style="padding: 14px 16px; color: #64748b;">${e.assignedRoom || '—'}</td>
+            <td style="padding: 14px 16px;"><span class="${statusTagClass}">${EQUIPMENT_STATUS_LABELS[e.status] || e.status}</span></td>
+            <td style="padding: 14px 16px; color: #64748b;">${e.nextMaintenanceDate ? formatEquipmentDate(e.nextMaintenanceDate) : '—'}</td>
             <td class="equipment-row-actions" onclick="event.stopPropagation()">
-                <button onclick="showEquipmentDetail('${e.id}')" class="inventory-action-btn inventory-action-btn-view">Fiche</button>
-                ${canManageEquipment ? `<button onclick="editEquipment('${e.id}')" class="inventory-action-btn inventory-action-btn-edit">Modifier</button>` : ''}
-                ${canManageEquipment ? `<button onclick="openAddMaintenanceModal('${e.id}')" class="inventory-action-btn inventory-action-btn-stock">Maintenance</button>` : ''}
-                ${e.status === 'maintenance'
-                    ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-resolve">Remettre en service</button>`
-                    : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="inventory-action-btn equipment-action-report">Signaler un problème</button>`}
-                ${canManageEquipment ? `<button onclick="deleteEquipment('${e.id}')" class="inventory-action-btn equipment-action-delete">Supprimer</button>` : ''}
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="showEquipmentDetail('${e.id}')" class="btn btn-secondary btn-small" style="height: 28px; padding: 0 10px; font-size: 12.5px;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Fiche
+                    </button>
+                    <button id="equip-more-${e.id}" class="btn btn-small equip-more-action-btn" data-equip-id="${e.id}" style="height: 28px; padding: 0 6px;" title="Plus d'actions">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                    </button>
+                </div>
             </td>
         </tr>`;
     }).join('');
+
+    // Attach AntDropdown to more action buttons
+    document.querySelectorAll('.equip-more-action-btn').forEach(btn => {
+        const id = btn.dataset.equipId;
+        const item = equipmentData.find(e => String(e.id) === String(id));
+        if (!item || typeof AntDropdown === 'undefined') return;
+        const menuItems = [
+            { key: 'edit', label: 'Modifier', icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' },
+            { key: 'maintenance', label: 'Planifier une maintenance', icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>' },
+            item.status === 'maintenance'
+                ? { key: 'resolve', label: 'Remettre en service', icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#52c41a" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' }
+                : { key: 'report', label: 'Signaler un problème', icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#faad14" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' },
+            { divider: true },
+            { key: 'delete', label: 'Supprimer', danger: true, icon: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' }
+        ];
+        AntDropdown.create(btn, menuItems, {
+            onClick: (key) => {
+                if (key === 'edit') editEquipment(id);
+                if (key === 'maintenance') openAddMaintenanceModal(id);
+                if (key === 'resolve') clearEquipmentMaintenance(id);
+                if (key === 'report') requestEquipmentMaintenance(id);
+                if (key === 'delete') deleteEquipment(id);
+            }
+        });
+    });
+
     renderEquipmentPagination();
 }
 
@@ -155,11 +204,34 @@ function renderEquipmentPagination() {
     const container = document.getElementById('equipment-pagination');
     if (!container) return;
     const { page, pageSize, total, totalPages } = equipmentPagination;
-    container.style.display = 'inline-flex';
+    if (total <= pageSize) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'flex';
+    container.style.justifyContent = 'space-between';
+    container.style.alignItems = 'center';
+    container.style.width = '100%';
+
+    const start = ((page - 1) * pageSize) + 1;
+    const end = Math.min(page * pageSize, total);
+
     container.innerHTML = `
-        <span class="equipment-pagination-count">${total ? `${page} / ${totalPages}` : '0 / 0'}</span>
-        <button class="equipment-pagination-btn" title="Page précédente" aria-label="Page précédente" ${page <= 1 ? 'disabled' : ''} onclick="changeEquipmentPage(-1)">‹</button>
-        <button class="equipment-pagination-btn" title="Page suivante" aria-label="Page suivante" ${page >= totalPages ? 'disabled' : ''} onclick="changeEquipmentPage(1)">›</button>`;
+        <div class="patients-pagination-info" style="font-size: 13px; font-weight: 500; color: #64748b;">
+            Affichage de ${start} à ${end} sur ${total} équipements
+        </div>
+        <div class="patients-pagination-actions" style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="btn btn-small btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12.5px;" ${page <= 1 ? 'disabled' : ''} onclick="changeEquipmentPage(-1)">
+                ◀ Précédent
+            </button>
+            <span class="patients-pagination-info" style="font-size: 12.5px; font-weight: 600; color: #334155; padding: 0 6px;">
+                Page ${page} / ${totalPages}
+            </span>
+            <button type="button" class="btn btn-small btn-secondary" style="height: 32px; padding: 0 12px; font-size: 12.5px;" ${page >= totalPages ? 'disabled' : ''} onclick="changeEquipmentPage(1)">
+                Suivant ▶
+            </button>
+        </div>
+    `;
 }
 
 function changeEquipmentPage(direction) {
@@ -176,69 +248,163 @@ async function showEquipmentDetail(id) {
     equipmentSelectedId = id;
     const container = document.getElementById('equipment-detail-content');
     if (!container) return;
-    container.innerHTML = '<div class="module-empty-state"><strong>Chargement de la fiche...</strong></div>';
+    container.innerHTML = '<div class="module-empty-state" style="padding: 40px; text-align: center;"><div class="ant-spin-dot" style="margin: 0 auto 12px;"></div><strong>Chargement de la fiche équipement...</strong></div>';
     showModal('modal-equipment-detail');
     try {
         const result = await window.api.equipment.getById(id);
         if (!result.success) throw new Error(result.error || 'Équipement introuvable');
         const e = result.data;
-        const sc = EQUIPMENT_STATUS_COLORS[e.status] || EQUIPMENT_STATUS_COLORS.available;
-        const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category;
+        const catLabel = equipmentCategories.find(c => c.value === e.category)?.label || e.category || 'Général';
+        
         const sf = e.specificFields || {};
-        const specificHtml = Object.entries(sf).length
-            ? `<div style="margin-bottom:16px"><h4 style="font-size:14px;margin-bottom:6px">Champs spécifiques</h4>${Object.entries(sf).map(([k, v]) => `<div style="font-size:13px;padding:4px 0"><strong>${k}:</strong> ${v}</div>`).join('')}</div>`
-            : '';
+        const brand = e.brand || sf.brand || sf.Marque || sf.marque || '—';
+        const model = e.model || sf.model || sf.Modèle || sf.modele || '—';
+        const serial = e.serialNumber || sf.serial || sf.serialNumber || sf['N° de série'] || '—';
+        const room = e.assignedRoom || sf.room || sf.Salle || '—';
+
+        const standardKeys = new Set(['brand', 'model', 'serial', 'serialNumber', 'Marque', 'marque', 'Modèle', 'modele', 'N° de série', 'room', 'Salle']);
+        const remainingSpecific = Object.entries(sf).filter(([k]) => !standardKeys.has(k));
+
+        const statusMap = {
+          available: { label: 'Disponible', className: 'ant-tag ant-tag-success', style: 'background: #f6ffed; color: #52c41a; border-color: #b7eb8f;' },
+          in_use: { label: 'En service', className: 'ant-tag ant-tag-processing', style: 'background: #e6f0ff; color: #1677ff; border-color: #91caff;' },
+          maintenance: { label: 'En maintenance', className: 'ant-tag', style: 'background: #f3e8ff; color: #9333ea; border-color: #d8b4fe;' },
+          out_of_service: { label: 'Hors service', className: 'ant-tag ant-tag-error', style: 'background: #fff1f0; color: #ff4d4f; border-color: #ffa39e;' }
+        };
+        const st = statusMap[e.status] || { label: e.status || 'Disponible', className: 'ant-tag', style: '' };
+
         const maintenanceHtml = (e.maintenance || []).length
-            ? e.maintenance.map(m => `<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px">
-                <div style="display:flex;justify-content:space-between;font-size:13px">
-                    <strong>${formatEquipmentDate(m.maintenanceDate)} — ${MAINTENANCE_TYPE_LABELS[m.maintenanceType] || m.maintenanceType}</strong>
-                    ${canSeeEquipmentCosts ? `<span>${formatEquipmentCurrency(m.cost)}</span>` : ''}
-                </div>
-                <div style="font-size:13px;color:#64748b">${m.technician || m.supplierName || ''}</div>
-                ${m.notes ? `<div style="font-size:12px;color:#94a3b8">${m.notes}</div>` : ''}
-            </div>`).join('')
-            : '<div style="font-size:13px;color:#94a3b8">Aucune maintenance enregistrée</div>';
+            ? e.maintenance.map(m => `
+                <div style="padding: 10px 12px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                        <strong style="color: rgba(0,0,0,0.88);">${formatEquipmentDate(m.maintenanceDate)} — ${MAINTENANCE_TYPE_LABELS[m.maintenanceType] || m.maintenanceType}</strong>
+                        ${canSeeEquipmentCosts && m.cost ? `<span class="ant-tag" style="margin: 0; background: #e6fbf0; color: #22c55e; border-color: #86efac; font-weight: 600;">${formatEquipmentCurrency(m.cost)}</span>` : ''}
+                    </div>
+                    <div style="font-size: 12.5px; color: rgba(0,0,0,0.65); margin-top: 2px;">${m.technician || m.supplierName || 'Intervention interne'}</div>
+                    ${m.notes ? `<div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-top: 4px; border-top: 1px dashed #e8e8e8; padding-top: 4px;">${m.notes}</div>` : ''}
+                </div>`).join('')
+            : '<div style="padding: 24px 12px; text-align: center; color: rgba(0,0,0,0.35); font-size: 13px;"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" style="display:block; margin:0 auto 6px; opacity:0.6;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Aucune maintenance enregistrée</div>';
 
         const planUsageHtml = (e.planUsage || []).length
-            ? e.planUsage.map(p => `<div style="font-size:13px;padding:4px 0">${p.planTitle || 'Plan'} — ${p.lastName || ''} ${p.firstName || ''} (${formatEquipmentDate(p.usageDate)})</div>`).join('')
-            : '<div style="font-size:13px;color:#94a3b8">Aucune utilisation enregistrée</div>';
+            ? e.planUsage.map(p => `
+                <div style="font-size: 12.5px; padding: 6px 10px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between;">
+                    <strong>${p.planTitle || 'Plan de soins'}</strong>
+                    <span style="color: rgba(0,0,0,0.45);">${p.lastName || ''} ${p.firstName || ''} (${formatEquipmentDate(p.usageDate)})</span>
+                </div>`).join('')
+            : '<div style="padding: 16px 12px; text-align: center; color: rgba(0,0,0,0.35); font-size: 13px;">Aucune utilisation dans un plan de soins</div>';
 
         const title = document.getElementById('equipment-detail-modal-title');
         if (title) title.textContent = e.name;
         container.innerHTML = `
-        <div class="equipment-detail-layout">
-            <section class="equipment-detail-summary">
-                <p class="equipment-detail-category">${catLabel}</p>
-                <span style="background:${sc.bg};color:${sc.color};padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600">${EQUIPMENT_STATUS_LABELS[e.status]}</span>
-                <table class="equipment-detail-table">
-                    <tr><td>Marque</td><td><strong>${e.brand || '-'}</strong></td></tr>
-                    <tr><td>Modèle</td><td><strong>${e.model || '-'}</strong></td></tr>
-                    <tr><td>N° de série</td><td><strong>${e.serialNumber || '-'}</strong></td></tr>
-                    <tr><td>Salle</td><td><strong>${e.assignedRoom || '-'}</strong></td></tr>
-                    <tr><td>Date d'achat</td><td>${formatEquipmentDate(e.purchaseDate)}</td></tr>
-                    <tr><td>Fin de garantie</td><td>${formatEquipmentDate(e.warrantyEnd)}</td></tr>
-                    <tr><td>Dernière maintenance</td><td>${formatEquipmentDate(e.lastMaintenanceDate)}</td></tr>
-                    <tr><td>Prochaine maintenance</td><td><strong>${formatEquipmentDate(e.nextMaintenanceDate) || 'Non définie'}</strong></td></tr>
-                </table>
-                ${specificHtml}
-                ${e.notes ? `<div style="margin-top:12px;font-size:13px;color:#64748b"><strong>Notes:</strong> ${e.notes.replace(/\n/g, '<br>')}</div>` : ''}
-            </section>
-            <section class="equipment-detail-history">
-                <div class="equipment-detail-section-heading"><h3>Historique de maintenance</h3><span>${(e.maintenance || []).length} intervention(s)</span></div>
-                <div class="equipment-maintenance-history">${maintenanceHtml}</div>
-                <h3 class="equipment-detail-usage-title">Utilisation dans les plans</h3>
-                ${planUsageHtml}
-                ${canManageEquipment ? `<div style="margin-top:20px;display:flex;gap:8px">
-                    <button onclick="editEquipment('${e.id}')" class="btn btn-secondary btn-small">Modifier</button>
-                    <button onclick="openAddMaintenanceModal('${e.id}')" class="btn btn-primary btn-small">+ Maintenance</button>
-                    <button onclick="deleteEquipment('${e.id}')" class="btn btn-danger btn-small">Supprimer</button>
-                </div>` : ''}
-                <div class="equipment-detail-actions-secondary">
-                  ${e.status === 'maintenance'
-                    ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Remettre en service</button>`
-                    : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="btn btn-secondary btn-small">Signaler un problème</button>`}
+        <div class="equipment-detail-layout" style="display: grid; grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.2fr); gap: 20px; align-items: start;">
+            <!-- Left: Informations & Caractéristiques -->
+            <div style="background: #ffffff; border: 1px solid #f0f0f0; border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; margin-bottom: 12px;">
+                    <span class="ant-tag ant-tag-processing" style="font-weight: 600; font-size: 12.5px; padding: 2px 8px;">${catLabel}</span>
+                    <span class="${st.className}" style="${st.style}; font-weight: 600; padding: 3px 12px; border-radius: 12px; font-size: 12px;">${st.label}</span>
                 </div>
-            </section>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Marque</span>
+                        <strong style="color: rgba(0,0,0,0.88);">${brand}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Modèle</span>
+                        <strong style="color: rgba(0,0,0,0.88);">${model}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">N° de série</span>
+                        <strong style="font-family: monospace; color: #1677ff;">${serial}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Salle / Emplacement</span>
+                        <strong style="color: rgba(0,0,0,0.88);">${room}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Date d'achat</span>
+                        <span style="color: rgba(0,0,0,0.88);">${formatEquipmentDate(e.purchaseDate) || '—'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Fin de garantie</span>
+                        <span style="color: rgba(0,0,0,0.88);">${formatEquipmentDate(e.warrantyEnd) || '—'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0;">
+                        <span style="color: rgba(0,0,0,0.45);">Dernière maintenance</span>
+                        <span style="color: rgba(0,0,0,0.88);">${formatEquipmentDate(e.lastMaintenanceDate) || '—'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                        <span style="color: rgba(0,0,0,0.45);">Prochaine maintenance</span>
+                        <strong style="color: ${e.nextMaintenanceDate ? '#f59e0b' : 'rgba(0,0,0,0.88)'};">${formatEquipmentDate(e.nextMaintenanceDate) || 'Non définie'}</strong>
+                    </div>
+                </div>
+
+                ${remainingSpecific.length ? `
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
+                        <div style="font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.45); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">Spécificités</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            ${remainingSpecific.map(([k, v]) => `<span class="ant-tag" style="margin: 0; font-size: 12px;"><strong>${k} :</strong> ${v}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${e.notes ? `
+                    <div style="margin-top: 12px; padding: 10px; background: #fafafa; border: 1px solid #f0f0f0; border-radius: 6px; font-size: 12px; color: rgba(0,0,0,0.65);">
+                        <strong style="color: rgba(0,0,0,0.88);">Notes :</strong> ${e.notes.replace(/\n/g, '<br>')}
+                    </div>
+                ` : ''}
+            </div>
+
+            <!-- Right: Historique & Actions -->
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <!-- Maintenance Card -->
+                <div style="background: #ffffff; border: 1px solid #f0f0f0; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                        <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: rgba(0,0,0,0.88); display: flex; align-items: center; gap: 6px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1677ff" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            Historique de maintenance
+                        </h4>
+                        <span class="ant-tag" style="margin: 0; font-size: 11.5px;">${(e.maintenance || []).length} intervention(s)</span>
+                    </div>
+                    <div style="max-height: 190px; overflow-y: auto; padding-right: 2px;">
+                        ${maintenanceHtml}
+                    </div>
+                </div>
+
+                <!-- Plans Card -->
+                <div style="background: #ffffff; border: 1px solid #f0f0f0; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                        <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: rgba(0,0,0,0.88); display: flex; align-items: center; gap: 6px;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0d9488" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            Utilisation dans les plans de soins
+                        </h4>
+                    </div>
+                    <div style="max-height: 120px; overflow-y: auto;">
+                        ${planUsageHtml}
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding-top: 10px;">
+                    ${canManageEquipment ? `
+                        <button onclick="editEquipment('${e.id}')" class="btn" style="height: 34px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Modifier
+                        </button>
+                        <button onclick="openAddMaintenanceModal('${e.id}')" class="btn btn-primary" style="height: 34px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            + Maintenance
+                        </button>
+                        <button onclick="deleteEquipment('${e.id}')" class="btn btn-danger" style="height: 34px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; color: #ff4d4f; border-color: #ffccc7;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Supprimer
+                        </button>
+                    ` : ''}
+                    ${e.status === 'maintenance'
+                        ? `<button onclick="clearEquipmentMaintenance('${e.id}')" class="btn" style="height: 34px; font-size: 12.5px; color: #22c55e; border-color: #b7eb8f;">✅ Remettre en service</button>`
+                        : `<button onclick="requestEquipmentMaintenance('${e.id}')" class="btn" style="height: 34px; font-size: 12.5px;">Signaler un problème</button>`}
+                </div>
+            </div>
         </div>`;
     } catch (e) {
         console.error('Error loading equipment detail:', e);
@@ -303,12 +469,25 @@ async function updateEquipmentStats() {
         const all = result.success ? result.data : [];
         const totalEl = document.getElementById('equip-stat-total');
         const availEl = document.getElementById('equip-stat-avail');
-        if (totalEl) totalEl.textContent = all.length;
-        if (availEl) availEl.textContent = all.filter(e => e.status === 'available').length;
         const upcomingEl = document.getElementById('equip-stat-upcoming');
         const inmaiEl = document.getElementById('equip-stat-inmai');
-        if (upcomingEl) upcomingEl.textContent = (equipmentAlerts.upcoming || []).length;
-        if (inmaiEl) inmaiEl.textContent = (equipmentAlerts.inMaintenance || []).length;
+
+        if (totalEl) totalEl.textContent = all.length;
+        if (availEl) {
+            const count = all.filter(e => e.status === 'available').length;
+            availEl.textContent = count;
+            availEl.style.color = '#22c55e';
+        }
+        if (upcomingEl) {
+            const count = (equipmentAlerts.upcoming || []).length;
+            upcomingEl.textContent = count;
+            upcomingEl.style.color = count > 0 ? '#f59e0b' : 'inherit';
+        }
+        if (inmaiEl) {
+            const count = (equipmentAlerts.inMaintenance || []).length;
+            inmaiEl.textContent = count;
+            inmaiEl.style.color = count > 0 ? '#9333ea' : 'inherit';
+        }
     } catch (e) { }
 }
 

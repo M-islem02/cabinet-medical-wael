@@ -6,8 +6,8 @@ function setSidebarCollapsed(collapsed) {
   document.documentElement.classList.toggle('sidebar-collapsed', !!collapsed);
   const toggleButton = document.getElementById('sidebar-toggle-btn');
   if (toggleButton) {
-    toggleButton.textContent = '\u2630';
-    toggleButton.title = collapsed ? 'Ouvrir la navigation' : 'Réduire la navigation';
+    toggleButton.title = collapsed ? 'Agrandir la navigation' : 'Réduire la navigation';
+    toggleButton.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>`;
   }
   localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
 }
@@ -276,6 +276,9 @@ function openDashboardTodayAppointmentsModal() {
 }
 
 function showSection(sectionId) {
+  if (currentUserIsSuperAdmin && sectionId === 'dashboard') {
+    sectionId = 'package-config';
+  }
   const packageConfig = window._packageConfig || null;
   const sectionFeatureMap = {
     'waiting-room': 'featureWaitingRoom',
@@ -284,31 +287,30 @@ function showSection(sectionId) {
     'inventory': 'featureInventory',
     'equipment': 'featureInventory',
     'kine-staff': 'featureKineStaff',
-    'rehabilitation': 'featureRehabilitation',
-    'dentistry': 'featureDentistry',
-    'cardiology': 'featureCardiology',
+    'orl': 'featureORL',
     'medical-imaging': 'featureMedicalImaging',
     'appointments-calendar': 'featureCalendar'
   };
 
   const isTestAccount = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
-    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase().includes('test'))
-    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase().includes('test'))
+    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
+    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test')
     || (localStorage.getItem('currentUserRole') === 'test');
 
   if (!isTestAccount) {
     const featureKey = sectionFeatureMap[sectionId];
-    if (packageConfig && featureKey && !(packageConfig[featureKey] === 1 || packageConfig[featureKey] === true || packageConfig[featureKey] === '1')) {
-      showNotification('Fonctionnalité désactivée dans Config Client', 'warning');
-      return;
+    if (packageConfig && featureKey && sectionId !== 'daily-summary') {
+      const isEnabled = typeof isFeatureEnabled === 'function'
+        ? isFeatureEnabled(packageConfig, featureKey, true)
+        : (packageConfig[featureKey] === 1 || packageConfig[featureKey] === true || packageConfig[featureKey] === '1');
+      if (!isEnabled) {
+        showNotification('Fonctionnalité désactivée dans Config Client', 'warning');
+        return;
+      }
     }
 
     const specialtySectionMap = {
-      'rehabilitation': 'mpr',
-      'kine-staff': 'mpr',
-      'daily-summary': 'mpr',
-      'dentistry': 'dentistry',
-      'cardiology': 'cardiology'
+      'orl': 'orl'
     };
     const requiredSpecialty = specialtySectionMap[sectionId];
     if (packageConfig && requiredSpecialty) {
@@ -359,10 +361,8 @@ function showSection(sectionId) {
   // Show target section
   const targetSection = document.getElementById(sectionId);
   if (targetSection) {
-    if (currentUserIsSuperAdmin && ['package-config', 'sms-config', 'cloud-sync', 'settings'].includes(sectionId)) {
-      targetSection.style.display = '';
-      targetSection.classList.remove('role-hidden');
-    }
+    targetSection.style.display = 'block';
+    targetSection.classList.remove('role-hidden', 'feature-disabled', 'hidden');
     targetSection.classList.add('active');
   }
 
@@ -381,11 +381,14 @@ function showSection(sectionId) {
   if (pageTitle) {
     const titles = {
       'dashboard': 'Tableau de Bord',
+      'package-config': 'Configuration Client & Spécialités',
       'waiting-room': 'Salle d\'Attente',
       'daily-summary': 'Résumé du Jour',
       'appointments-calendar': 'Agenda RDV',
       'patients': 'Gestion des Patients',
       'medical-imaging': 'Imagerie Médicale',
+      'orl': 'Module ORL & Explorations',
+      'operations': 'Gestion des Opérations & Interventions',
       'patient-details': 'Détails du Patient',
       'consultations': 'Consultations',
       'prescriptions': 'Ordonnances',
@@ -406,16 +409,43 @@ function showSection(sectionId) {
       'cloud-sync': 'Cloud Sync'
     };
     pageTitle.textContent = titles[sectionId] || 'MedCareSO';
+
+    const breadcrumbMap = {
+      'dashboard': null,
+      'waiting-room': null,
+      'daily-summary': null,
+      'appointments-calendar': null,
+      'patients': null,
+      'medical-imaging': 'Patients',
+      'orl': 'Module Médical',
+      'patient-details': 'Patients',
+      'payments': null,
+      'inventory': null,
+      'equipment': null,
+      'statistics': null,
+      'package-config': 'Administration',
+      'sms-config': 'Administration',
+      'cloud-sync': 'Administration',
+      'settings': 'Administration',
+      'consultations': 'Patients',
+      'prescriptions': 'Patients',
+      'sick-leaves': 'Patients',
+    };
+
+    const breadcrumbEl = document.getElementById('topbar-breadcrumb');
+    if (breadcrumbEl) {
+      breadcrumbEl.style.display = 'none';
+    }
   }
 
   // Load section-specific data
   currentPage = sectionId;
   
   if (sectionId === 'patients') {
-    if (typeof switchPatientsView === 'function') {
-      switchPatientsView('mine');
-    } else if (typeof loadPatients === 'function') {
+    if (typeof loadPatients === 'function') {
       loadPatients();
+    } else if (typeof switchPatientsView === 'function') {
+      switchPatientsView('mine');
     }
   } else if (sectionId === 'payments') {
     loadPayments();
@@ -424,10 +454,13 @@ function showSection(sectionId) {
     loadStatistics();
   } else if (sectionId === 'settings') {
     loadSettings();
-    loadLicenseStatus();
-    loadLicenseInventory();
-    // Load users list if admin
-    if (currentUserIsSuperAdmin) {
+    if (typeof switchSettingsPage === 'function') {
+      switchSettingsPage(typeof activeSettingsPage !== 'undefined' ? activeSettingsPage : 'general');
+    }
+    if (typeof loadLicenseStatus === 'function') {
+      loadLicenseStatus();
+    }
+    if (typeof loadUsersList === 'function') {
       loadUsersList();
     }
   } else if (sectionId === 'appointments-calendar') {
@@ -449,17 +482,41 @@ function showSection(sectionId) {
   } else if (sectionId === 'kine-staff') {
     if (typeof loadKineStaff === 'function') loadKineStaff();
   } else if (sectionId === 'daily-summary') {
-    if (typeof loadDailySummary === 'function') loadDailySummary(true); // Reset to today
-  } else if (sectionId === 'rehabilitation') {
-    if (typeof initRehabilitation === 'function') initRehabilitation();
-  } else if (sectionId === 'dentistry') {
-    if (typeof initDentistry === 'function') initDentistry();
-  } else if (sectionId === 'treatment-plans') {
-    if (typeof initTreatmentPlans === 'function') initTreatmentPlans();
-  } else if (sectionId === 'cardiology') {
-    if (typeof initCardiology === 'function') initCardiology();
+    if (typeof initDailySummary === 'function') {
+      initDailySummary();
+    } else if (typeof loadDailySummary === 'function') {
+      loadDailySummary(true);
+    }
   } else if (sectionId === 'medical-imaging') {
     if (typeof initMedicalImaging === 'function') initMedicalImaging();
+  } else if (sectionId === 'orl') {
+    if (typeof initORL === 'function') {
+      void initORL();
+    } else if (typeof window.initORL === 'function') {
+      void window.initORL();
+    } else if (typeof refreshORLPatientList === 'function') {
+      void refreshORLPatientList();
+    } else if (typeof window.refreshORLPatientList === 'function') {
+      void window.refreshORLPatientList();
+    }
+  } else if (sectionId === 'operations') {
+    if (typeof initOperations === 'function') initOperations();
+    else if (typeof window.initOperations === 'function') window.initOperations();
+  } else if (sectionId === 'dentistry') {
+    if (typeof initDentistry === 'function') initDentistry();
+    else if (typeof window.initDentistry === 'function') window.initDentistry();
+  } else if (sectionId === 'treatment-plans') {
+    if (typeof initTreatmentPlans === 'function') initTreatmentPlans();
+    else if (typeof window.initTreatmentPlans === 'function') window.initTreatmentPlans();
+  } else if (sectionId === 'rehabilitation') {
+    if (typeof initRehabilitation === 'function') initRehabilitation();
+    else if (typeof window.initRehabilitation === 'function') window.initRehabilitation();
+  } else if (sectionId === 'cardiology') {
+    if (typeof initCardiology === 'function') initCardiology();
+    else if (typeof window.initCardiology === 'function') window.initCardiology();
+  } else if (sectionId === 'package-config') {
+    if (typeof loadPackageConfig === 'function') loadPackageConfig();
+    else if (typeof window.loadPackageConfig === 'function') window.loadPackageConfig();
   } else if (sectionId === 'sms-config') {
     if (typeof initSMSConfig === 'function') initSMSConfig();
   } else if (sectionId === 'cloud-sync') {
@@ -469,6 +526,7 @@ function showSection(sectionId) {
 
 window.toggleSidebar = toggleSidebar;
 window.initializeSidebarState = initializeSidebarState;
+window.showSection = showSection;
 
 // ========== DASHBOARD STATS ==========
 async function loadDashboardStats() {

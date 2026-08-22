@@ -15,21 +15,32 @@ function domReady() {
 function showStartupError(error) {
   document.documentElement.classList.remove('app-booting');
   document.body?.classList.add('app-ready');
-  if (typeof window.showNotification === 'function') {
-    window.showNotification('Initialisation partielle. Certaines fonctions sont indisponibles.', 'error');
-  }
-  logger.error('Renderer bootstrap failed', { code: error?.code || 'RENDERER_BOOTSTRAP_FAILED' });
+  console.error('❌ Renderer bootstrap failed:', error);
+  logger.error('Renderer bootstrap failed', { code: error?.code || 'RENDERER_BOOTSTRAP_FAILED', message: error?.message, stack: error?.stack });
 }
 
 async function initializeCoreFeatures(packageConfig) {
-  const patientFeature = await import('../features/patients/index.js');
-  const appointmentFeature = await import('../features/appointments/index.js');
-  await patientFeature.initialize();
-  await appointmentFeature.initialize();
+  try {
+    const patientFeature = await import('../features/patients/index.js');
+    await patientFeature.initialize();
+  } catch (err) {
+    logger.warn('Patients feature initialization warning:', err);
+  }
+
+  try {
+    const appointmentFeature = await import('../features/appointments/index.js');
+    await appointmentFeature.initialize();
+  } catch (err) {
+    logger.warn('Appointments feature initialization warning:', err);
+  }
 
   if (packageConfig.features.inventory) {
-    const inventoryFeature = await import('../features/inventory/index.js');
-    await inventoryFeature.initialize();
+    try {
+      const inventoryFeature = await import('../features/inventory/index.js');
+      await inventoryFeature.initialize();
+    } catch (err) {
+      logger.warn('Inventory feature initialization warning:', err);
+    }
   } else {
     setSectionAvailability('inventory', false);
     setSectionAvailability('equipment', false);
@@ -65,9 +76,22 @@ export async function bootstrapApplication() {
   configureApplicationState({ currentUser, packageConfig });
   initializeCoreNavigation();
   await initializeCoreFeatures(packageConfig);
-  await loadEnabledSpecialties(packageConfig, { context: { eventBus } });
-  await window.initializeLegacyApplication?.();
+  
+  try {
+    await loadEnabledSpecialties(packageConfig, { context: { eventBus } });
+  } catch (err) {
+    logger.warn('Specialties load warning:', err);
+  }
+
+  try {
+    await window.initializeLegacyApplication?.();
+  } catch (err) {
+    logger.warn('Legacy application initialization warning:', err);
+  }
+
   eventBus.emit('package-config:loaded', packageConfig);
+  document.documentElement.classList.remove('app-booting');
+  document.body?.classList.add('app-ready');
   logger.info('MedCareSO renderer initialized');
 }
 

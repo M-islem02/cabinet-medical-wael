@@ -82,20 +82,7 @@ async function recalculatePlanTotals(planId) {
 }
 
 async function assertSingleActivePlan(patientId, excludeId = null) {
-  const params = [patientId];
-  let sql = `SELECT id FROM treatment_plans WHERE patientId = ? AND status = 'active'`;
-  if (excludeId) {
-    sql += ' AND id != ?';
-    params.push(excludeId);
-  }
-  sql += ' LIMIT 1';
-  const existing = await queryOne(sql, params);
-  if (existing?.id) {
-    return {
-      success: false,
-      error: 'Ce patient possède déjà un plan actif. Archivez ou terminez le plan actif avant d’en créer un autre.'
-    };
-  }
+  // Allow multiple active treatment plans per patient
   return { success: true };
 }
 

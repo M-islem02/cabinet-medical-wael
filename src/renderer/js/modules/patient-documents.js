@@ -125,13 +125,37 @@ async function loadPatientFactures(patientId, options = {}) {
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Chargement...</td></tr>';
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (!hasExistingContent) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Chargement...</td></tr>';
+  }
   
   try {
     const factures = await fetchPatientDocumentPage(patientId, 'factures', 'invoice', options.page);
 
     if (!factures.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Aucune facture</td></tr>';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                  <line x1="20" y1="22" x2="44" y2="22"/>
+                  <line x1="20" y1="30" x2="44" y2="30"/>
+                  <line x1="20" y1="38" x2="32" y2="38"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucune facture émise</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Générez une facture ou note d'honoraires pour les soins de ce patient.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openPatientFactureModal()" style="display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvelle Facture
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
       return;
     }
 
@@ -145,14 +169,21 @@ async function loadPatientFactures(patientId, options = {}) {
       const montant = formatCurrencyDisplay(totals.grandTotal);
       return `
         <tr>
-          <td>${escapeHTML(dateLabel)}</td>
-          <td>${escapeHTML(montant)}</td>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td><span class="ant-tag ant-tag-success" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-weight: 600; font-size: 13px;">${escapeHTML(montant)}</span></td>
           <td>
-            <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="printPatientFacture('${f.id}')">👁️</button>
-              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Modifier" onclick="editPatientFacture('${f.id}')">✏️</button>
-              <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPatientFacture('${f.id}')">🖨️</button>
-              <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePatientDocument('${f.id}', 'facture')">🗑️</button>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="printPatientFacture('${f.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="editPatientFacture('${f.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deletePatientDocument('${f.id}', 'facture')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </div>
           </td>
         </tr>
@@ -281,7 +312,28 @@ async function deletePatientDocument(documentId, typeName) {
   }
 }
 
-// ========== RAPPORTS (PATIENT-LEVEL) ==========
+// ========== RAPPORTS (PATIENT-LEVEL & MODULE ORL) ==========
+
+function deleteORLReportFromHistory(reportId, patientId) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce compte-rendu ORL ?')) return;
+  try {
+    const targetPatientId = patientId || currentPatientId;
+    const raw = localStorage.getItem(`orl_history_${targetPatientId}`);
+    if (raw) {
+      const list = JSON.parse(raw);
+      const filtered = list.filter(item => item.id !== reportId);
+      localStorage.setItem(`orl_history_${targetPatientId}`, JSON.stringify(filtered));
+      showNotification('✅ Compte-rendu ORL supprimé', 'success');
+      loadPatientRapports(targetPatientId);
+    }
+  } catch (err) {
+    console.error('Error deleting ORL report:', err);
+    showNotification('Erreur de suppression', 'error');
+  }
+}
+if (typeof window !== 'undefined') {
+  window.deleteORLReportFromHistory = deleteORLReportFromHistory;
+}
 
 async function loadPatientRapports(patientId, options = {}) {
   const tbody = document.getElementById('details-rapports-tbody');
@@ -292,30 +344,108 @@ async function loadPatientRapports(patientId, options = {}) {
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Chargement...</td></tr>';
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (!hasExistingContent) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Chargement...</td></tr>';
+  }
   
   try {
-    const rapports = await fetchPatientDocumentPage(patientId, 'rapports', 'rapport', options.page);
+    const generalRapports = await fetchPatientDocumentPage(patientId, 'rapports', 'rapport', options.page);
+    
+    // Charger les comptes-rendus du Module ORL pour ce patient
+    let orlReports = [];
+    try {
+      const raw = localStorage.getItem(`orl_history_${patientId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          orlReports = parsed.map(item => ({
+            id: item.id,
+            isORL: true,
+            createdAt: item.savedAt || item.date || new Date().toISOString(),
+            title: item.data?.reportTitle || item.motif || item.diagnosis || 'Compte-rendu ORL',
+            diagnosis: item.diagnosis || '',
+            motif: item.motif || ''
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('Could not read ORL history for patient rapports:', e);
+    }
 
-    if (!rapports.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Aucun rapport</td></tr>';
+    const allRapports = [...orlReports, ...generalRapports].sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    if (!allRapports.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                  <line x1="20" y1="22" x2="44" y2="22"/>
+                  <line x1="20" y1="30" x2="44" y2="30"/>
+                  <line x1="20" y1="38" x2="34" y2="38"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun compte-rendu ou rapport enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Créez un compte-rendu ORL ou un rapport médical pour ce patient.</div>
+              <button type="button" class="btn btn-primary" onclick="openPatientRapportModal()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600; background: #0d9488; border-color: #0d9488;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouveau Compte-Rendu / Rapport
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
       return;
     }
 
-    const rowsHtml = rapports.map(r => {
+    const rowsHtml = allRapports.map(r => {
       const date = r.updatedAt || r.createdAt;
       const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
-      const title = r.title || 'Rapport médical';
+      const title = r.title || 'Compte-rendu ORL';
+      const isORL = Boolean(r.isORL);
+      const badgeHtml = isORL 
+        ? '<span class="ant-tag" style="background: #e6fffb; color: #08979c; border-color: #87e8de; font-weight: 700; font-size: 11.5px; margin-right: 6px;">ORL</span>' 
+        : '<span class="ant-tag" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-weight: 700; font-size: 11.5px; margin-right: 6px;">Rapport</span>';
+      
+      const printAction = isORL 
+        ? `openORLReportFromTimeline('${r.id}', '${patientId}')`
+        : `printPatientRapport('${r.id}')`;
+      const editAction = isORL 
+        ? `openORLReportFromTimeline('${r.id}', '${patientId}')`
+        : `editPatientRapport('${r.id}')`;
+      const deleteAction = isORL 
+        ? `deleteORLReportFromHistory('${r.id}', '${patientId}')`
+        : `deletePatientDocument('${r.id}', 'rapport')`;
+
       return `
         <tr>
-          <td>${escapeHTML(dateLabel)}</td>
-          <td>${escapeHTML(title)}</td>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
           <td>
-            <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Voir" data-rapport-action="view" data-document-id="${r.id}">👁️</button>
-              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" data-rapport-action="edit" data-document-id="${r.id}">✏️</button>
-              <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" data-rapport-action="print" data-document-id="${r.id}">🖨️</button>
-              <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" data-rapport-action="delete" data-document-id="${r.id}">🗑️</button>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              ${badgeHtml}
+              <span style="font-weight: 600; color: #1e293b;">${escapeHTML(title)}</span>
+            </div>
+          </td>
+          <td>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="${printAction}" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="${editAction}" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="${deleteAction}" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </div>
           </td>
         </tr>
@@ -331,11 +461,18 @@ async function loadPatientRapports(patientId, options = {}) {
 }
 
 function openPatientRapportModal() {
-  if (!currentPatientId) {
+  const patientId = currentPatientId || window.currentPatientId;
+  if (!patientId) {
     showNotification('Sélectionnez un patient', 'warning');
     return;
   }
-  openPatientLevelRapportModal(currentPatientId);
+  
+  if (typeof openORLNewReportFromPatientDetails === 'function') {
+    openORLNewReportFromPatientDetails();
+    return;
+  }
+
+  openPatientLevelRapportModal(patientId);
 }
 
 async function openPatientLevelRapportModal(patientId, existingDoc = null, options = {}) {
@@ -500,15 +637,39 @@ async function loadPatientBonPour(patientId, options = {}) {
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="4" class="text-center empty-row">Chargement...</td></tr>';
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (!hasExistingContent) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center empty-row">Chargement...</td></tr>';
+  }
   if (emptyState) emptyState.style.display = 'none';
 
   try {
     const bonpours = await fetchPatientDocumentPage(patientId, 'bonpour', 'bonpour', options.page);
 
     if (!bonpours.length) {
-      tbody.innerHTML = '';
-      if (emptyState) emptyState.style.display = 'block';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                  <line x1="20" y1="22" x2="44" y2="22"/>
+                  <line x1="20" y1="30" x2="44" y2="30"/>
+                  <line x1="20" y1="38" x2="34" y2="38"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun faire svp enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Créez une demande d'examens ou de soins pour ce patient.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openBonPourModal(currentPatientId)" style="background: #8b5cf6; border-color: #8b5cf6; display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouveau Faire Svp
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (emptyState) emptyState.style.display = 'none';
       return;
     }
 
@@ -518,19 +679,26 @@ async function loadPatientBonPour(patientId, options = {}) {
       const payload = parseDocumentPayload(bp.payload);
       const date = payload.date || bp.updatedAt || bp.createdAt;
       const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
-      const type = payload.type || bp.title || 'Demande medicale';
+      const type = payload.type || bp.title || 'Demande médicale';
       const examCount = payload.examCount || '-';
       return `
         <tr>
-          <td>${escapeHTML(dateLabel)}</td>
-          <td>${escapeHTML(type)}</td>
-          <td>${examCount} examen(s)</td>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td><span style="font-weight: 600; color: #1e293b;">${escapeHTML(type)}</span></td>
+          <td><span class="ant-tag ant-tag-processing" style="background: #f3e8ff; color: #7c3aed; border-color: #d8b4fe; font-weight: 600; font-size: 12.5px;">${escapeHTML(`${examCount} examen(s)`)}</span></td>
           <td>
-            <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="reprintBonPour('${bp.id}')">👁️</button>
-              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="viewBonPour('${bp.id}')">✏️</button>
-              <button class="btn btn-tiny btn-secondary" title="Reimprimer" onclick="reprintBonPour('${bp.id}')">Imprimer</button>
-              <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deleteBonPour('${bp.id}')">Supprimer</button>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintBonPour('${bp.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="viewBonPour('${bp.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deleteBonPour('${bp.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </div>
           </td>
         </tr>
@@ -570,39 +738,21 @@ async function reprintBonPour(documentId) {
     const detailsLines = details.split('\n').filter(line => line.trim());
 
     let detailsHtml = '<div class="exam-list" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px;">';
-    detailsLines.forEach((line) => {
-      const cleanLine = line.replace(/^[-?]\s*/, '').trim();
-      detailsHtml += `<div class="exam-item">- ${escapeHTML(cleanLine)}</div>`;
+    detailsLines.forEach(line => {
+      detailsHtml += `<div class="exam-item">${escapeHTML(line.trim())}</div>`;
     });
     detailsHtml += '</div>';
 
     const pageContent = `
-      <div class="content-box">
-        <h3>Examens demandes</h3>
-        <style>
-          .exam-item { font-size: 10.4pt; padding: 2px 0; line-height: 1.4; break-inside: avoid; word-break: break-word; }
-          .exam-list { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px; align-items:start; }
-        </style>
-        ${detailsHtml}
+      <div class="content-box bon-pour-shell">
+        <div class="content-text bon-pour-text">${detailsHtml}</div>
       </div>
-      ${payload.indication ? `
-        <div class="content-box">
-          <h3>Indication clinique</h3>
-          <div class="content-text">${escapeHTML(payload.indication)}</div>
-        </div>
-      ` : ''}
-      ${payload.notes ? `
-        <div class="content-box">
-          <h3>Notes complementaires</h3>
-          <div class="content-text">${escapeHTML(payload.notes)}</div>
-        </div>
-      ` : ''}
     `;
-    
+
     if (typeof sharedPrintScope !== 'undefined' && sharedPrintScope.openA5PrintDocument) {
       await sharedPrintScope.openA5PrintDocument({
-        title: 'Faire Svp',
-        subtitle: payload.type || 'Demande médicale',
+        title: 'FAIRE SVP',
+        subtitle: payload.type || 'Prescription d\'actes',
         dateLabel: payload.date ? new Date(payload.date).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
         patient: patient,
         documentType: 'bonpour',
@@ -610,21 +760,21 @@ async function reprintBonPour(documentId) {
         onEdit: () => viewBonPour(documentId)
       });
     }
-    
-    showNotification('✅ Faire Svp réimprimé', 'success');
+
+    showNotification('Bon pour prêt pour impression', 'success');
   } catch (error) {
     console.error('Error reprinting bon pour:', error);
-    showNotification('Erreur lors de la réimpression', 'error');
+    showNotification('Erreur de réimpression', 'error');
   }
 }
 
 async function deleteBonPour(documentId) {
-  if (!confirm('Supprimer ce bon pour ?')) return;
+  if (!confirm('Supprimer ce bon pour / faire svp ?')) return;
   
   try {
     const result = await window.api.document.delete(documentId);
     if (result.success) {
-      showNotification('✅ Bon pour supprimé', 'success');
+      showNotification('Bon pour supprimé', 'success');
       if (currentPatientId) {
         loadPatientBonPour(currentPatientId);
       }
@@ -665,8 +815,9 @@ async function viewBonPour(documentId) {
         
         if (dateInput && payload.date) dateInput.value = payload.date;
         if (typeSelect && payload.type) {
+          typeSelect.value = payload.type;
           for (let opt of typeSelect.options) {
-            if (opt.text === payload.type) {
+            if (opt.value === payload.type || opt.text === payload.type) {
               typeSelect.value = opt.value;
               break;
             }
@@ -724,15 +875,38 @@ async function loadPatientOrientations(patientId, options = {}) {
     return;
   }
 
-  tbody.innerHTML = '<tr><td colspan="4" class="text-center empty-row">Chargement...</td></tr>';
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (!hasExistingContent) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center empty-row">Chargement...</td></tr>';
+  }
   if (emptyState) emptyState.style.display = 'none';
 
   try {
     const orientations = await fetchPatientDocumentPage(patientId, 'orientations', 'orientation', options.page);
 
     if (!orientations.length) {
-      tbody.innerHTML = '';
-      if (emptyState) emptyState.style.display = 'block';
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                  <path d="M22 24l10 8 10-8" stroke="#1677ff" stroke-width="1.5"/>
+                  <line x1="20" y1="40" x2="44" y2="40"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucune lettre d'orientation enregistrée</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Rédigez une lettre de recommandation ou d'orientation pour un confrère.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openOrientationModal(currentPatientId)" style="background: #059669; border-color: #059669; display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvelle Orientation
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (emptyState) emptyState.style.display = 'none';
       return;
     }
 
@@ -747,15 +921,22 @@ async function loadPatientOrientations(patientId, options = {}) {
       const motifShort = motif.length > 40 ? motif.substring(0, 40) + '...' : motif;
       return `
         <tr>
-          <td>${escapeHTML(dateLabel)}</td>
-          <td>${escapeHTML(specialty)}</td>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td><span class="ant-tag ant-tag-processing" style="background: #ecfdf5; color: #059669; border-color: #a7f3d0; font-weight: 600; font-size: 12.5px;">${escapeHTML(specialty)}</span></td>
           <td title="${escapeHTML(motif)}">${escapeHTML(motifShort)}</td>
           <td>
-            <div class="table-actions" style="display:flex; gap:6px;">
-              <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu" onclick="reprintOrientation('${o.id}')">👁️</button>
-              <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="viewOrientation('${o.id}')">✏️</button>
-              <button class="btn btn-tiny btn-secondary" title="Reimprimer" onclick="reprintOrientation('${o.id}')">Imprimer</button>
-              <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deleteOrientation('${o.id}')">Supprimer</button>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintOrientation('${o.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="viewOrientation('${o.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deleteOrientation('${o.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
             </div>
           </td>
         </tr>

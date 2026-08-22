@@ -89,6 +89,7 @@ export function handleEquipmentEvents() {
   ipcMain.handle('equipment:getAll', async (event, filters = {}) => {
     try {
       if (getEquipmentContext().isAssistant) return { success: false, error: 'Accès refusé' };
+      await ensureDentalEquipment();
       let sql = `SELECT e.*, u.fullName as doctorName FROM equipment e LEFT JOIN users u ON u.id = e.assignedDoctorId WHERE e.isActive = TRUE`;
       const params = [];
       if (filters.category) { sql += ' AND e.category = ?'; params.push(filters.category); }
@@ -311,4 +312,185 @@ function safelyParseJson(value) {
   if (typeof value === 'object' && !Array.isArray(value)) return value;
   if (typeof value !== 'string') return {};
   try { return JSON.parse(value); } catch (_) { return {}; }
+}
+
+const DENTAL_EQUIPMENT_SEEDS = [
+  {
+    id: 'eq-dent-001',
+    name: 'Fauteuil Dentaire Ergonomique Pro',
+    category: 'dental_chair',
+    brand: 'Castellini',
+    model: 'Skema 6',
+    serialNumber: 'CS-2024-9841',
+    purchaseDate: '2024-01-15',
+    warrantyEnd: '2027-01-15',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-06-10',
+    nextMaintenanceDate: '2026-12-10',
+    notes: 'Fauteuil principal avec unit praticien 5 cordons et scialytique LED.'
+  },
+  {
+    id: 'eq-dent-002',
+    name: 'Autoclave Stérilisateur Classe B 24L',
+    category: 'sterilization',
+    brand: 'Euronda',
+    model: 'E10 24L',
+    serialNumber: 'EU-2023-4512',
+    purchaseDate: '2023-11-20',
+    warrantyEnd: '2026-11-20',
+    assignedRoom: 'Salle de Stérilisation',
+    status: 'available',
+    lastMaintenanceDate: '2026-07-01',
+    nextMaintenanceDate: '2027-01-01',
+    notes: 'Stérilisation conforme EN 13060 avec traçabilité et imprimante thermique intégrée.'
+  },
+  {
+    id: 'eq-dent-003',
+    name: 'Détartreur Ultrasonique Piézoélectrique',
+    category: 'ultrasonic',
+    brand: 'EMS Dental',
+    model: 'Piezon Master 700',
+    serialNumber: 'PM-2024-1102',
+    purchaseDate: '2024-02-10',
+    warrantyEnd: '2026-02-10',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-05-15',
+    nextMaintenanceDate: '2026-11-15',
+    notes: 'Pièce à main avec lumière LED et réserve de fluide indépendant.'
+  },
+  {
+    id: 'eq-dent-004',
+    name: 'Capteur Radiologique Intra-oral Numérique HD',
+    category: 'imaging',
+    brand: 'Carestream Dental',
+    model: 'RVG 6200 Taille 2',
+    serialNumber: 'CS-RVG-2024-88',
+    purchaseDate: '2024-03-01',
+    warrantyEnd: '2027-03-01',
+    assignedRoom: 'Cabinet 1 (Radiologie Dentaire)',
+    status: 'available',
+    lastMaintenanceDate: '2026-06-01',
+    nextMaintenanceDate: '2027-03-01',
+    notes: 'Capteur radiographique haute définition CMOS avec fibre optique.'
+  },
+  {
+    id: 'eq-dent-005',
+    name: "Moteur d'Endodontie avec Localisateur d'Apex",
+    category: 'endo_motor',
+    brand: 'Dentsply Sirona',
+    model: 'X-Smart Plus & Propex II',
+    serialNumber: 'DS-END-2024-019',
+    purchaseDate: '2024-04-12',
+    warrantyEnd: '2026-04-12',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-04-12',
+    nextMaintenanceDate: '2026-10-12',
+    notes: 'Moteur sans fil à rotation continue et mouvement réciproque WaveOne Gold.'
+  },
+  {
+    id: 'eq-dent-006',
+    name: 'Lampe à Photopolymériser LED Haute Puissance',
+    category: 'curing_lamp',
+    brand: 'Ivoclar Vivadent',
+    model: 'Bluephase PowerCure',
+    serialNumber: 'IV-BP-2024-301',
+    purchaseDate: '2024-05-05',
+    warrantyEnd: '2026-05-05',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-05-05',
+    nextMaintenanceDate: '2026-11-05',
+    notes: 'Intensité 3000 mW/cm² avec polywave pour tous photoinitiateurs.'
+  },
+  {
+    id: 'eq-dent-007',
+    name: 'Compresseur Dentaire Silencieux Sans Huile 50L',
+    category: 'compressor',
+    brand: 'Cattani',
+    model: 'AC 200 avec Dessiccateur',
+    serialNumber: 'CAT-2023-8821',
+    purchaseDate: '2023-10-01',
+    warrantyEnd: '2026-10-01',
+    assignedRoom: 'Local Technique',
+    status: 'available',
+    lastMaintenanceDate: '2026-06-20',
+    nextMaintenanceDate: '2026-12-20',
+    notes: 'Air médical sec et déshuilé conforme normes ISO pour 2 postes de travail.'
+  },
+  {
+    id: 'eq-dent-008',
+    name: 'Aéropolisseur Prophylactique Sub/Supragingival',
+    category: 'air_polisher',
+    brand: 'EMS Dental',
+    model: 'AIRFLOW One',
+    serialNumber: 'AF-2024-7740',
+    purchaseDate: '2024-06-01',
+    warrantyEnd: '2026-06-01',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-06-01',
+    nextMaintenanceDate: '2026-12-01',
+    notes: 'Élimination du biofilm et des colorations avec poudre érythritol PLUS.'
+  },
+  {
+    id: 'eq-dent-009',
+    name: "Moteur Chirurgical et d'Implantologie Dentaire",
+    category: 'surgical_motor',
+    brand: 'Bien-Air',
+    model: 'Chiropro Plus 3rd Gen',
+    serialNumber: 'BA-CH-2024-602',
+    purchaseDate: '2024-01-20',
+    warrantyEnd: '2026-01-20',
+    assignedRoom: 'Salle de Chirurgie Dentaire',
+    status: 'available',
+    lastMaintenanceDate: '2026-07-15',
+    nextMaintenanceDate: '2027-01-15',
+    notes: 'Couple 80 Ncm avec pompe péristaltique et contre-angle bague verte 20:1 L Micro-Series.'
+  },
+  {
+    id: 'eq-dent-010',
+    name: 'Caméra Intra-orale HD avec Écran Tactile',
+    category: 'intraoral_camera',
+    brand: 'Acteon',
+    model: 'SoproCARE HD',
+    serialNumber: 'AC-SOP-2024-91',
+    purchaseDate: '2024-02-18',
+    warrantyEnd: '2026-02-18',
+    assignedRoom: 'Cabinet 1 (Soins Dentaires)',
+    status: 'available',
+    lastMaintenanceDate: '2026-05-10',
+    nextMaintenanceDate: '2026-11-10',
+    notes: 'Aide au diagnostic des caries et évaluation de la plaque dentaire.'
+  }
+];
+
+let dentalEquipmentSeeded = false;
+
+export async function ensureDentalEquipment() {
+  if (dentalEquipmentSeeded) return;
+  try {
+    for (const eq of DENTAL_EQUIPMENT_SEEDS) {
+      const existing = await queryOne('SELECT id FROM equipment WHERE id = ?', [eq.id]);
+      if (!existing) {
+        await run(
+          `INSERT INTO equipment (
+            id, name, category, brand, model, serialNumber, purchaseDate, warrantyEnd,
+            assignedRoom, status, lastMaintenanceDate, nextMaintenanceDate, notes, isActive, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
+          [
+            eq.id, eq.name, eq.category, eq.brand, eq.model, eq.serialNumber, eq.purchaseDate, eq.warrantyEnd,
+            eq.assignedRoom, eq.status, eq.lastMaintenanceDate, eq.nextMaintenanceDate, eq.notes,
+            nowSql(), nowSql()
+          ]
+        );
+      }
+    }
+    dentalEquipmentSeeded = true;
+    console.log('[Equipment] 10 Dental equipments seeded successfully');
+  } catch (err) {
+    console.error('[Equipment] Auto-seeding dental equipment error:', err);
+  }
 }

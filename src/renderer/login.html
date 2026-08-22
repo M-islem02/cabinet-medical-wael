@@ -368,6 +368,130 @@
             color: var(--text-light);
         }
 
+        /* Saved Accounts Selector */
+        .saved-accounts-section {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .saved-accounts-section.hidden {
+            display: none !important;
+        }
+
+        .saved-accounts-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .saved-accounts-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .saved-accounts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 155px;
+            overflow-y: auto;
+        }
+
+        .saved-account-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .saved-account-item:hover {
+            border-color: #145da0;
+            background: #f0fdfa;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(13, 115, 119, 0.08);
+        }
+
+        .saved-account-item.active {
+            border-color: #145da0;
+            background: #f0fdfa;
+            box-shadow: 0 0 0 2px rgba(13, 115, 119, 0.15);
+        }
+
+        .saved-account-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .saved-account-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #145da0 0%, #1e88c8 100%);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .saved-account-name {
+            font-size: 13.5px;
+            font-weight: 650;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .saved-account-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .saved-account-btn-delete {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            font-size: 13px;
+        }
+
+        .saved-account-btn-delete:hover {
+            color: #e11d48;
+            background: #fff1f2;
+        }
+
         .forgot-password {
             text-align: center;
             font-size: var(--login-text-xs);
@@ -553,6 +677,18 @@
                 </div>
 
                 <form id="login-form">
+                    <!-- Section Comptes Mémorisés (Fast Account Switcher) -->
+                    <div id="saved-accounts-section" class="saved-accounts-section hidden">
+                        <div class="saved-accounts-header">
+                            <span class="saved-accounts-title">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#145da0" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                Comptes mémorisés
+                            </span>
+                            <span style="font-size: 11.5px; color: #64748b;">Choisir un compte</span>
+                        </div>
+                        <div id="saved-accounts-list" class="saved-accounts-grid"></div>
+                    </div>
+
                     <div class="form-group input-with-icon">
                         <label for="username">Nom d'utilisateur</label>
                         <div class="input-wrapper">

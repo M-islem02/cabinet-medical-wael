@@ -49,6 +49,8 @@ async function setSelectedPatient(patientId, { patient = null, source = 'unknown
 
   currentPatientId = selectedPatient.id || normalizedPatientId;
   currentPatientData = selectedPatient;
+  window.currentPatientId = currentPatientId;
+  window.currentPatientData = currentPatientData;
   window.dispatchEvent(new CustomEvent('medcare:patient-selected', {
     detail: { patientId: currentPatientId, patient: selectedPatient, source }
   }));
@@ -132,6 +134,40 @@ window.repairMojibakeText = repairMojibakeText;
 window.repairUiMojibake = repairUiMojibake;
 
 const PRACTICE_SPECIALTY_META = {
+  orl: {
+    key: 'orl',
+    label: 'Médecin ORL',
+    shortLabel: 'ORL',
+    doctorBadgeLabel: 'MÉDECIN ORL',
+    doctorSpecialtyLine: 'MÉDECIN SPÉCIALISTE EN OTO-RHINO-LARYNGOLOGIE',
+    sectionId: 'orl',
+    report: {
+      kicker: 'Compte-rendu ORL',
+      heroTitle: 'Rapport de consultation ORL',
+      heroSubtitle: 'Otoscopie, audiométrie, fibroscopie et conduite thérapeutique.',
+      badge: 'ORL',
+      typeLabel: 'Compte-rendu ORL',
+      defaultMotif: 'Bilan ORL',
+      objectLabel: 'Motif / Objet ORL *',
+      objectPlaceholder: 'Ex: Bilan otologique, acouphènes, vertiges, rhinopharyngite chronique',
+      contextLabel: 'Contexte clinique & Antécédents *',
+      contextPlaceholder: 'Antécédents ORL, surdité, exposition au bruit, tabagisme, terrain allergique...',
+      findingsLabel: 'Constatations / Examen ORL *',
+      findingsPlaceholder: 'Otoscopie OD/OG, rhinoscopie, examen pharyngo-laryngé, aires ganglionnaires...',
+      careLabel: 'Explorations & Gestes pratiqués',
+      carePlaceholder: 'Audiométrie, tympanométrie, fibroscopie, lavage auriculaire, traitement prescrit...',
+      recommendationsLabel: 'Conduite à tenir / Recommandations',
+      recommendationsPlaceholder: 'Traitement médical, surveillance audiométrique, précautions, contrôle prévu...',
+      objectTitle: 'Motif de consultation',
+      contextTitle: 'Contexte et antécédents',
+      findingsTitle: 'Examen clinique ORL',
+      careTitle: 'Explorations et traitement',
+      conclusionTitle: 'Conclusion et recommandations',
+      printTitle: 'COMPTE-RENDU ORL',
+      printSubtitle: 'Oto-Rhino-Laryngologie'
+    },
+    aiPromptIntro: 'Tu es un médecin spécialiste en Oto-Rhino-Laryngologie (ORL). Génère un compte rendu de consultation ORL professionnel, structuré et concis en français.'
+  },
   general: {
     key: 'general',
     label: 'Médecin généraliste',
@@ -352,10 +388,17 @@ Object.assign(PRACTICE_SPECIALTY_META.cardiology.report, {
 });
 
 const CONSULTATION_ACT_META = {
-  consultation: { label: 'Consultation médicale', specialties: ['general', 'mpr', 'cardiology', 'dentistry', 'urology'] },
+  consultation: { label: 'Consultation médicale', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] },
+  audiometrie: { label: 'Audiométrie tonale / vocale', specialties: ['orl'] },
+  tympanometrie: { label: 'Tympanométrie / Impédancemétrie', specialties: ['orl'] },
+  fibroscopie: { label: 'Fibroscopie ORL / Nasofibroscopie', specialties: ['orl'] },
+  lavage: { label: 'Lavage d\'oreille / Aspiration', specialties: ['orl', 'general'] },
+  otoscopie_micro: { label: 'Otoscopie sous microscope', specialties: ['orl'] },
+  manoeuvre_vestibulaire: { label: 'Manoeuvre libératoire vestibulaire', specialties: ['orl'] },
+  paracentese: { label: 'Paracentèse / Soins otologiques', specialties: ['orl'] },
   ecg: { label: 'ECG de repos', specialties: ['cardiology'] },
   ecgstress: { label: 'ECG d\'effort', specialties: ['cardiology'] },
-  echo: { label: 'Échographie', specialties: ['general', 'mpr', 'cardiology', 'urology'] },
+  echo: { label: 'Échographie', specialties: ['orl', 'general', 'mpr', 'cardiology', 'urology'] },
   holtermapa: { label: 'Holter / MAPA', specialties: ['cardiology'] },
   kine: { label: 'Séance kiné', specialties: ['mpr'] },
   reduction: { label: 'Réduction', specialties: ['general', 'mpr'] },
@@ -368,10 +411,18 @@ const CONSULTATION_ACT_META = {
   lasertherapie: { label: 'Laser thérapie', specialties: ['mpr'] },
   dryneedling: { label: 'Dry needling', specialties: ['mpr'] },
   osteopathie: { label: 'Ostéopathie', specialties: ['mpr'] },
-  other: { label: 'Autre acte', specialties: ['general', 'mpr', 'cardiology', 'dentistry', 'urology'] }
+  other: { label: 'Autre acte', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] }
 };
 
 const CONSULTATION_ACT_LABEL_OVERRIDES = {
+  orl: {
+    consultation: 'Consultation ORL',
+    fibroscopie: 'Nasofibroscopie diagnostique',
+    audiometrie: 'Bilan audiométrique tonal et vocal',
+    echo: 'Échographie cervicale / salivaire',
+    lavage: 'Lavage d\'oreille / Aspiration',
+    other: 'Autre acte ORL'
+  },
   cardiology: {
     consultation: 'Consultation cardiologique',
     echo: 'Échocardiographie',
@@ -384,18 +435,19 @@ const CONSULTATION_ACT_LABEL_OVERRIDES = {
 
 function normalizePracticeSpecialtyKey(value) {
   const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return 'general';
+  if (!raw) return 'orl';
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
+  if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
   if (['mpr', 'rehabilitation', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique'].includes(raw)) return 'mpr';
   if (['cardiology', 'cardiologie', 'cardiologue', 'cardiologist'].includes(raw)) return 'cardiology';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist'].includes(raw)) return 'dentistry';
   if (['urology', 'urologue', 'urologie', 'urologist', 'طبيب المسالك البولية', 'المسالك البولية'].includes(raw)) return 'urology';
-  return PRACTICE_SPECIALTY_META[raw] ? raw : 'general';
+  return PRACTICE_SPECIALTY_META[raw] ? raw : 'orl';
 }
 
-function getPracticeSpecialtyMeta(value = 'general') {
+function getPracticeSpecialtyMeta(value = 'orl') {
   const key = normalizePracticeSpecialtyKey(value);
-  return PRACTICE_SPECIALTY_META[key] || PRACTICE_SPECIALTY_META.general;
+  return PRACTICE_SPECIALTY_META[key] || PRACTICE_SPECIALTY_META.orl || PRACTICE_SPECIALTY_META.general;
 }
 
 function getAvailablePracticeSpecialties(config = window._packageConfig || null) {
@@ -419,26 +471,23 @@ function getEnabledPracticeSpecialties(config = window._packageConfig || null) {
         .map((entry) => normalizePracticeSpecialtyKey(entry))
         .filter((entry) => PRACTICE_SPECIALTY_META[entry]);
       const unique = [...new Set(normalizedList)];
-      return unique.length ? unique : ['general'];
+      return unique.length ? unique : ['orl'];
     } catch (_) {
       // Fall back to legacy feature columns below.
     }
   }
 
-  const specialties = ['general'];
-  if (config?.featureRehabilitation === 1 || config?.featureRehabilitation === true || config?.featureRehabilitation === '1') {
-    specialties.push('mpr');
+  const specialties = [];
+  if (config?.featureORL === 1 || config?.featureORL === true || config?.featureORL === '1' || config?.activeSpecialty === 'orl') {
+    specialties.push('orl');
   }
-  if (config?.featureCardiology === 1 || config?.featureCardiology === true || config?.featureCardiology === '1') {
-    specialties.push('cardiology');
-  }
-  if (config?.featureDentistry === 1 || config?.featureDentistry === true || config?.featureDentistry === '1') {
+  if (config?.featureDentistry === 1 || config?.featureDentistry === true || config?.featureDentistry === '1' || config?.activeSpecialty === 'dentistry') {
     specialties.push('dentistry');
   }
-  if (config?.featureUrology === 1 || config?.featureUrology === true || config?.featureUrology === '1') {
-    specialties.push('urology');
+  if (config?.featureGeneral === 1 || config?.featureGeneral === true || config?.activeSpecialty === 'general') {
+    specialties.push('general');
   }
-  return specialties;
+  return specialties.length ? [...new Set(specialties)] : ['orl', 'dentistry'];
 }
 
 function getCabinetType(config = window._packageConfig || null) {
@@ -457,30 +506,71 @@ function resolveActivePracticeSpecialty(config = window._packageConfig || null) 
     window.selectedDoctorSpecialty || ''
   );
   const enabled = getEnabledPracticeSpecialties(config);
-  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || enabled[0] || 'general');
+  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || enabled[0] || 'orl');
 
-  if (currentUserRole === 'assistant' && assistantSelectedDoctorSpecialty !== 'general') {
+  if (currentUserRole === 'assistant' && assistantSelectedDoctorSpecialty) {
     return assistantSelectedDoctorSpecialty;
   }
 
-  if (userSpecialty !== 'general' && (enabled.includes(userSpecialty) || userSpecialty === 'urology')) {
+  if (userSpecialty) {
     return userSpecialty;
   }
 
-  if (requested !== 'general' && (enabled.includes(requested) || requested === 'urology')) {
+  if (requested && enabled.includes(requested)) {
     return requested;
   }
 
-  if (enabled.length > 1) {
-    return 'general';
-  }
-
   if (enabled.length === 1) return enabled[0];
-  return 'general';
+  return enabled[0] || 'orl';
 }
 
 function getActivePracticeSpecialtyMeta(config = window._packageConfig || null) {
   return getPracticeSpecialtyMeta(resolveActivePracticeSpecialty(config));
+}
+
+function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
+  const currentSpecialty = explicitSpecialty || resolveActivePracticeSpecialty();
+  const isTest = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
+    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
+    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test')
+    || (localStorage.getItem('currentUserRole') === 'test');
+
+  const specialtySectionMap = {
+    'orl': ['orl'],
+    'dentistry': ['dentistry', 'treatment-plans'],
+    'mpr': ['rehabilitation', 'kine-staff', 'daily-summary'],
+    'rehabilitation': ['rehabilitation', 'kine-staff', 'daily-summary'],
+    'cardiology': ['cardiology']
+  };
+
+  const allSpecialtySections = ['orl', 'dentistry', 'treatment-plans', 'rehabilitation', 'kine-staff', 'cardiology'];
+  const allowedSections = specialtySectionMap[currentSpecialty] || (currentSpecialty === 'general' ? [] : ['orl']);
+
+  allSpecialtySections.forEach((sectionId) => {
+    const isAllowed = isTest || allowedSections.includes(sectionId);
+    const navItem = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+    if (navItem) {
+      navItem.dataset.featureDisabled = isAllowed ? '0' : '1';
+      if (isAllowed) {
+        navItem.classList.remove('feature-disabled', 'hidden', 'role-hidden');
+        navItem.style.display = 'flex';
+      } else {
+        navItem.classList.add('feature-disabled', 'hidden', 'role-hidden');
+        navItem.style.display = 'none';
+      }
+    }
+    const section = document.getElementById(sectionId);
+    if (section) {
+      if (isAllowed) {
+        section.classList.remove('role-hidden', 'feature-disabled');
+      } else {
+        section.classList.add('role-hidden', 'feature-disabled');
+        section.style.display = 'none';
+      }
+    }
+  });
+
+  document.title = 'MedCareSO v1.1.1';
 }
 
 function normalizeConsultationActLookupToken(value) {
@@ -600,6 +690,7 @@ function getDefaultAppBrandLogoSrc() {
     : 'general';
   const userSpecialty = normalizePracticeSpecialtyKey(currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || '');
   const specialtyLogoMap = {
+    orl: '../../assets/ORL.png',
     general: 'assets/logo.png',
     mpr: '../../assets/MPR.png',
     cardiology: '../../assets/Cardiologue.png',
@@ -785,6 +876,7 @@ window.resolveConsultationActValue = resolveConsultationActValue;
 window.getAllowedConsultationActValues = getAllowedConsultationActValues;
 window.isConsultationActEnabled = isConsultationActEnabled;
 window.filterConsultationActsByActiveSpecialty = filterConsultationActsByActiveSpecialty;
+window.enforceSpecialtySidebarVisibility = enforceSpecialtySidebarVisibility;
 
 function formatDocumentDateLabel(value = null) {
   const parts = getAlgeriaDateParts(value);
@@ -1162,15 +1254,31 @@ function autoResizeSickLeavePreview() {
   preview.style.height = `${preview.scrollHeight}px`;
 }
 
+let sickLeavePreviewManualEdited = false;
+
+function resetSickLeavePreviewText() {
+  sickLeavePreviewManualEdited = false;
+  const fields = getSickLeaveTemplateFieldsFromInputs();
+  const template = buildSickLeaveDiagnosisText(fields);
+  const preview = document.getElementById('sickleave-preview-text');
+  if (preview) {
+    preview.value = template;
+    autoResizeSickLeavePreview();
+  }
+  updateSickLeaveSummary();
+}
+
 function updateSickLeavePreview() {
   const preview = document.getElementById('sickleave-preview-text');
   if (!preview) return '';
   const fields = getSickLeaveTemplateFieldsFromInputs();
   const template = buildSickLeaveDiagnosisText(fields);
-  preview.value = template;
+  if (!sickLeavePreviewManualEdited) {
+    preview.value = template;
+  }
   autoResizeSickLeavePreview();
   updateSickLeaveSummary();
-  return template;
+  return preview.value || template;
 }
 
 function updateSickLeaveSummary() {
@@ -1316,10 +1424,89 @@ function attachSickLeaveTemplateListeners() {
   startInput?.addEventListener('change', handleSickLeaveDateChange);
   endInput?.addEventListener('change', handleSickLeaveDateChange);
   
+  const previewInput = document.getElementById('sickleave-preview-text');
+  if (previewInput) {
+    previewInput.addEventListener('input', () => {
+      sickLeavePreviewManualEdited = true;
+      autoResizeSickLeavePreview();
+    });
+  }
+
   // Add listener for days input to calculate end date
   daysInput?.addEventListener('input', handleSickLeaveDaysChange);
   document.getElementById('sickleave-allowed-outings')?.addEventListener('change', () => updateSickLeavePreview());
 }
+
+async function previewSickLeaveDocumentModal() {
+  const form = document.getElementById('sickleave-form');
+  const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
+  const docTitle = documentKind === 'workstop' ? 'ARRET DE TRAVAIL' : 'CERTIFICAT MEDICAL';
+  const docSubtitle = documentKind === 'workstop' ? 'Arrêt de travail' : 'Certificat médical';
+  const docContentTitle = documentKind === 'workstop' ? 'Motif de l\'arrêt' : 'Texte du certificat';
+  
+  const startDate = document.getElementById('sickleave-start-date')?.value;
+  const endDate = document.getElementById('sickleave-end-date')?.value;
+  const previewText = document.getElementById('sickleave-preview-text')?.value || '';
+  const daysDisplay = document.getElementById('sickleave-days-display')?.value || '1';
+  const allowedOutings = document.getElementById('sickleave-allowed-outings')?.checked;
+  const patientId = document.getElementById('sickleave-patient-id')?.value || currentPatientId;
+
+  let patient = currentPatientData;
+  if (!patient && patientId && window.api?.patient?.getById) {
+    try {
+      const res = await window.api.patient.getById(patientId);
+      if (res?.success && res.data) patient = res.data;
+    } catch (_) {}
+  }
+  if (!patient) {
+    patient = { firstName: 'Patient', lastName: '' };
+  }
+
+  const startDateObj = startDate ? new Date(startDate) : new Date();
+  const endDateObj = endDate ? new Date(endDate) : new Date();
+  const outingsLabel = allowedOutings ? 'Autorisées' : 'Non autorisées';
+  const daysCount = parseInt(daysDisplay, 10) || 1;
+  const daysLabel = typeof formatRestDaysWithWords === 'function'
+    ? formatRestDaysWithWords(daysCount)
+    : `${daysCount} jour${daysCount > 1 ? 's' : ''}`;
+
+  const diagnosisHtml = typeof formatPrintingRichTextHtml === 'function'
+    ? formatPrintingRichTextHtml(previewText || 'Repos médical prescrit.')
+    : (previewText || 'Repos médical prescrit.').replace(/\n/g, '<br>');
+
+  const pageContent = `
+    <div class="content-box content-box-plain">
+      <h3>Période</h3>
+      <div class="period-grid">
+        <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
+        <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
+        <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${daysLabel}</span></div>
+        <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
+      </div>
+    </div>
+    <div class="content-box">
+      <h3>${docContentTitle}</h3>
+      <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
+    </div>
+  `;
+
+  if (typeof openA5PrintDocument === 'function') {
+    await openA5PrintDocument({
+      title: docTitle,
+      subtitle: docSubtitle,
+      dateLabel: typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(new Date()) : new Date().toLocaleDateString('fr-FR'),
+      patient,
+      bodyContentHtml: pageContent,
+      documentType: documentKind,
+      pages: [pageContent]
+    });
+  } else {
+    showNotification('Aperçu ouvert', 'info');
+  }
+}
+
+window.resetSickLeavePreviewText = resetSickLeavePreviewText;
+window.previewSickLeaveDocumentModal = previewSickLeaveDocumentModal;
 
 function getDefaultFactureData({ consultation = null, settings = null } = {}) {
   const mainLabel = consultation?.consultationType || consultation?.type || 'Consultation';
@@ -1569,27 +1756,53 @@ function getPatientDocumentSpecialtyKey() {
       || ''
   ).trim().toLowerCase();
 
+  if (['orl', 'oto', 'otorhino', 'oto-rhino-laryngologie', 'ent'].includes(rawSpecialty)) return 'orl';
   if (['dentist', 'dentiste', 'dentistry', 'dentaire'].includes(rawSpecialty)) return 'dentiste';
   if (['cardio', 'cardiologie', 'cardiologue'].includes(rawSpecialty)) return 'cardiologue';
   if (['mpr', 'physio', 'rehab', 'rééducation', 'reeducation'].includes(rawSpecialty)) return 'mpr';
-  return rawSpecialty || 'general';
+  return rawSpecialty || 'orl';
 }
 
 function getPatientDocumentSpecialtyConfig() {
   const key = getPatientDocumentSpecialtyKey();
   const configs = {
-    dentiste: {
-      label: 'Dentiste',
+    orl: {
+      label: 'ORL (Oto-Rhino-Laryngologie)',
       imaging: [
-        { label: 'Panoramique dentaire', type: 'radio', details: 'Radiographie panoramique dentaire', indication: 'Bilan dentaire / orientation diagnostique' },
-        { label: 'Cone Beam CT', type: 'scanner', details: 'Cone Beam CT dentaire ciblé', indication: 'Étude 3D pré-thérapeutique ou lésion dentaire' },
-        { label: 'Rétro-alvéolaire', type: 'radio', details: 'Radiographie rétro-alvéolaire ciblée', indication: 'Douleur dentaire / contrôle endodontique' },
-        { label: 'Télécrâne', type: 'radio', details: 'Téléradiographie de profil', indication: 'Bilan orthodontique' }
+        { label: 'TDM des Rochers', type: 'scanner', details: '- TDM des rochers (Os temporaux) en coupes millimétriques sans injection\n- Étude anatomique de l\'oreille moyenne, interne, osselets et mastoïdes', indication: 'Bilan d\'otite chronique / hypoacousie / acouphènes / cholestéatome' },
+        { label: 'TDM Sinus de la Face', type: 'scanner', details: '- TDM du massif facial et des sinus (coronal et axial sans injection)\n- Étude des méats, complexe ostio-méatal, cloisons et cavités sinusiennes', indication: 'Bilan de sinusite chronique / polypose naso-sinusienne / déviation septale' },
+        { label: 'IRM des CAI (Conduits Auditifs)', type: 'irm', details: '- IRM des conduits auditifs internes (CAI) et de l\'angle ponto-cérébelleux\n- Séquences CISS 3D / T2 haute résolution et T1 avec injection de Gadolinium', indication: 'Hypoacousie unilatérale / acouphènes / vertiges / éliminer schwannome vestibulaire' },
+        { label: 'IRM Sinus & Cavum', type: 'irm', details: '- IRM du cavum, pharynx et sinus de la face avec injection de Gadolinium\n- Évaluation des tissus mous et extensions', indication: 'Lésion cavum / obstruction nasale unilatérale / adénopathie' },
+        { label: 'Échographie Cervicale & Thyroïde', type: 'echo', details: '- Échographie cervicale bilatérale avec étude des aires ganglionnaires\n- Échographie de la glande thyroïde et des glandes salivaires (parotides et sous-maxillaires)', indication: 'Adénopathie cervicale / nodule thyroïdien / tuméfaction salivaire' },
+        { label: 'Audiométrie & Tympanométrie', type: 'audio_orl', details: '- Audiométrie tonale liminaire (conduction aérienne et osseuse)\n- Audiométrie vocale (seuil d\'intelligibilité)\n- Tympanométrie avec recherche des réflexes stapédiens', indication: 'Bilan de surdité / acouphènes / hypoacousie de transmission ou perception' },
+        { label: 'Bilan Pré-opératoire ORL', type: 'analyses', details: '- NFS / Plaquettes complète\n- TP, TCA, INR, Fibrinogène\n- Groupe Sanguin Rhésus + RAI\n- Glycémie à jeun, Urée, Créatininémie', indication: 'Bilan pré-opératoire (Adénoïdectomie / Amygdalectomie / Septoplastie / Chirurgie otologique)' },
+        { label: 'Bilan Vertiges (VNG / PEA)', type: 'audio_orl', details: '- Vidéonystagmographie (VNG) avec épreuves vestibulaires caloriques\n- Potentiels Évoqués Auditifs (PEA) précoces du tronc cérébral', indication: 'Exploration de vertiges / instabilité / syndrome vestibulaire périphérique' },
+        { label: 'Nasofibroscopie VADS', type: 'audio_orl', details: '- Nasofibroscopie diagnostique des fosses nasales, du pharynx et du larynx', indication: 'Dysphonie chronique / dysphagie / obstruction nasale' }
       ],
       orientations: [
-        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Bilan d’imagerie dentaire orienté' },
-        { label: 'Chirurgie maxillo-faciale', specialty: 'Autre', motif: 'Avis spécialisé en chirurgie maxillo-faciale' },
-        { label: 'ORL', specialty: 'ORL', motif: 'Avis ORL selon contexte sinusien ou maxillo-facial' }
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Imagerie ORL spécialisée (TDM rochers/sinus, IRM CAI, Échographie cervicale)' },
+        { label: 'Audioprothésiste', specialty: 'Autre', motif: 'Bilan d\'appareillage auditif prothétique' },
+        { label: 'Orthophoniste', specialty: 'Autre', motif: 'Rééducation vocale / bilan de déglutition / rééducation tubaire' },
+        { label: 'Kinésithérapeute Vestibulaire', specialty: 'Kinesitherapeute', motif: 'Rééducation vestibulaire fonctionnelle' },
+        { label: 'Allergologue', specialty: 'Autre', motif: 'Bilan allergologique respiratoire (Prick-tests / RAST pneumallergènes)' }
+      ]
+    },
+    dentiste: {
+      label: 'Dentiste / Stomatologie',
+      imaging: [
+        { label: 'Panoramique dentaire', type: 'radio', details: '- Orthopantomogramme (Radiographie panoramique dentaire numérique)', indication: 'Bilan bucco-dentaire global / orientation diagnostique' },
+        { label: 'Cone Beam 3D (CBCT)', type: 'radio', details: '- Cône Beam CT 3D maxillo-mandibulaire haute résolution\n- Étude volumétrique osseuse et repérage du canal mandibulaire / sinus', indication: 'Bilan implantaire / dent de sagesse incluse / lésion péri-apicale' },
+        { label: 'Téléradiographie de profil', type: 'radio', details: '- Téléradiographie de profil (Céphalométrie orthodontique)', indication: 'Bilan d\'orthopédie dento-faciale / orthodontie' },
+        { label: 'Radiographie des ATM', type: 'radio', details: '- Radiographie / Cone Beam des ATM bouche ouverte et bouche fermée', indication: 'Dysfonctionnement temporo-mandibulaire / craquements / douleurs ATM' },
+        { label: 'Bilan Pré-implantaire / Chirurgical', type: 'analyses', details: '- NFS / Plaquettes\n- TP, TCA, INR\n- Glycémie à jeun, HbA1c\n- Calcémie, Vitamine D (25-OH-D3)\n- Créatininémie, Clairance rénale', indication: 'Bilan biologique pré-implantaire et pré-chirurgical' },
+        { label: 'Bilan Infectieux Bucco-Dentaire', type: 'analyses', details: '- NFS / Plaquettes\n- CRP (Protéine C-Réactive)\n- Vitesse de Sédimentation (VS)\n- Glycémie à jeun', indication: 'Bilan de cellulite / abcès / infection dentaire aiguë' }
+      ],
+      orientations: [
+        { label: 'Radiologue Maxillo-Facial', specialty: 'Radiologue', motif: 'Bilan d’imagerie 3D Cone Beam / Panoramique dentaire' },
+        { label: 'Chirurgien Maxillo-Facial', specialty: 'Autre', motif: 'Avis spécialisé extraction complexe / kystes / chirurgie orthognathique' },
+        { label: 'ORL', specialty: 'ORL', motif: 'Avis ORL pour communication bucco-sinusienne ou sinusite maxillaire d\'origine dentaire' },
+        { label: 'Orthodontiste', specialty: 'Autre', motif: 'Prise en charge orthodontique spécialisée' },
+        { label: 'Parodontiste', specialty: 'Autre', motif: 'Prise en charge de parodontite sévère / chirurgie parodontale' }
       ]
     },
     cardiologue: {
@@ -1627,10 +1840,11 @@ function getPatientDocumentSpecialtyConfig() {
     general: {
       label: 'Général',
       imaging: [
-        { label: 'Analyses', type: 'analyses', details: '', indication: 'Bilan biologique' },
-        { label: 'Radiographie', type: 'radio', details: '', indication: 'Bilan radiologique' },
-        { label: 'Échographie', type: 'echo', details: '', indication: 'Bilan échographique' },
-        { label: 'Scanner', type: 'scanner', details: '', indication: 'Bilan scanner' }
+        { label: 'Analyses biologiques', type: 'analyses', details: '- FNS complete\n- VS, CRP\n- Glycémie à jeun\n- Urée, Créatinine', indication: 'Bilan biologique standard' },
+        { label: 'Radiographie', type: 'radio', details: '- Radiographie du thorax face', indication: 'Bilan radiologique' },
+        { label: 'Échographie', type: 'echo', details: '- Échographie abdominale / cervicale', indication: 'Bilan échographique' },
+        { label: 'Scanner / TDM', type: 'scanner', details: '- Scanner TDM', indication: 'Bilan scanner' },
+        { label: 'IRM', type: 'irm', details: '- IRM', indication: 'Bilan IRM' }
       ],
       orientations: [
         { label: 'Spécialiste', specialty: 'Autre', motif: 'Avis spécialisé' },
@@ -1639,7 +1853,7 @@ function getPatientDocumentSpecialtyConfig() {
     }
   };
 
-  return configs[key] || configs.general;
+  return configs[key] || configs.orl || configs.general;
 }
 
 window.patientDocumentPresetMap = window.patientDocumentPresetMap || {};
@@ -1676,7 +1890,7 @@ function renderPatientDocumentWidget() {
   if (!panel) return;
 
   if (!currentPatientId) {
-    panel.innerHTML = '<div class="document-placeholder">Sélectionnez un patient pour générer les documents.</div>';
+    panel.innerHTML = '<div class="document-placeholder" style="font-size: 14px; color: #94a3b8; padding: 12px;">Sélectionnez un patient pour générer les documents.</div>';
     return;
   }
 
@@ -1685,17 +1899,34 @@ function renderPatientDocumentWidget() {
     : 'ce patient';
 
   panel.innerHTML = `
-    <div class="patient-documents-select">
-      <p>Générer un document pour <strong>${escapeHTML(patientLabel)}</strong>.</p>
+    <div class="patient-documents-select" style="margin-bottom: 12px;">
+      <p style="margin: 0; font-size: 13.5px; color: #475569;">Générer un document pour <strong style="color: #0f172a;">${escapeHTML(patientLabel)}</strong> :</p>
     </div>
     <div class="patient-documents-actions patient-documents-actions-single">
-      <button class="btn btn-small" onclick="handlePatientDocumentAction('ordonnance')">Ordonnance</button>
-      <button class="btn btn-small" onclick="handlePatientDocumentAction('certificate')">Certificat médical</button>
-      <button class="btn btn-small" onclick="handlePatientDocumentAction('workstop')">Arrêt de travail</button>
-      <button class="btn btn-small" onclick="handlePatientDocumentAction('invoice')">Facture</button>
-      <button class="btn btn-small" onclick="handlePatientDocumentAction('rapport')">Rapport</button>
-      <button class="btn btn-small" onclick="openBonPourModal(currentPatientId)">Faire Svp</button>
-      <button class="btn btn-small" onclick="openOrientationModal(currentPatientId)">Orientations</button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('ordonnance')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Ordonnance</span>
+      </button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('certificate')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Certificat Médical</span>
+      </button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('orientation')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Orientation / Lettre</span>
+      </button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('workstop')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+        <span>Arrêt de travail</span>
+      </button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('invoice')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Facture</span>
+      </button>
+      <button type="button" class="btn" onclick="handlePatientDocumentAction('bonpour')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Bon Pour / Faire Svp</span>
+      </button>
     </div>
   `;
 }
@@ -1788,6 +2019,8 @@ function handlePatientDocumentAction(action, preset = null) {
   }
 }
 
+window.handlePatientDocumentAction = handlePatientDocumentAction;
+window.renderPatientDocumentWidget = renderPatientDocumentWidget;
 window.openPatientDocumentPreset = openPatientDocumentPreset;
 
 /**
@@ -1878,6 +2111,11 @@ window.initializeTimeInputs = initializeTimeInputs;
 window.initializePasswordToggles = initializePasswordToggles;
 
 const SPECIALTY_CONFIG = {
+  orl: {
+    accent: '#0d7377', // Medical Teal / Cyan for ORL
+    accentLight: '#149d9f',
+    accentDark: '#073b4c'
+  },
   general: {
     accent: '#145da0', // Professional blue
     accentLight: '#2d7fbe',
@@ -1908,16 +2146,16 @@ const SPECIALTY_CONFIG = {
 function applySpecialtyAccent() {
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(window._packageConfig)
-    : 'general';
+    : 'orl';
   
-  const colors = SPECIALTY_CONFIG[activeSpecialty] || SPECIALTY_CONFIG.general;
+  const colors = SPECIALTY_CONFIG[activeSpecialty] || SPECIALTY_CONFIG.orl || SPECIALTY_CONFIG.general;
   
   const root = document.documentElement;
   root.style.setProperty('--primary-color', colors.accent);
   root.style.setProperty('--primary-light', colors.accentLight);
   root.style.setProperty('--primary-dark', colors.accentDark);
   root.style.setProperty('--color-accent', colors.accent);
-  console.log(`🎨 Applied specialty colors for active specialty [${activeSpecialty}]:`, colors);
+  console.log('[Specialty] Applied specialty colors for active specialty [' + activeSpecialty + ']:', colors);
 }
 
 function switchRehabMainTab(tabName) {
@@ -1927,7 +2165,7 @@ function switchRehabMainTab(tabName) {
   document.querySelectorAll('.rehab-tab-content').forEach(content => {
     content.style.display = 'none';
   });
-  const activeTab = document.getElementById(`rehab-tab-${tabName}`);
+  const activeTab = document.getElementById('rehab-tab-' + tabName);
   if (activeTab) {
     activeTab.style.display = 'block';
   }
@@ -1955,24 +2193,24 @@ async function openMobileAccessModal() {
     const res = await window.api.publicBooking?.getShareData?.();
     if (res?.success && res.data) {
       const data = res.data;
-      const targetUrl = data.mobileUrl || `http://${data.localAddress || '127.0.0.1'}:${data.port || 4580}/mobile/${data.token || ''}`;
+      const targetUrl = data.mobileUrl || ('http://' + (data.localAddress || '127.0.0.1') + ':' + (data.port || 4580) + '/mobile/' + (data.token || ''));
       if (urlInput) urlInput.value = targetUrl;
       
       if (data.mobileQrDataUrl && qrImg) {
         qrImg.src = data.mobileQrDataUrl;
       } else if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(targetUrl)}`;
+        qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(targetUrl);
       }
     } else {
-      const fallbackUrl = `http://127.0.0.1:4580/mobile`;
+      const fallbackUrl = 'http://127.0.0.1:4580/mobile';
       if (urlInput) urlInput.value = fallbackUrl;
-      if (qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fallbackUrl)}`;
+      if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fallbackUrl);
     }
   } catch (err) {
     console.error('Error fetching mobile share data:', err);
-    const fallbackUrl = `http://127.0.0.1:4580/mobile`;
+    const fallbackUrl = 'http://127.0.0.1:4580/mobile';
     if (urlInput) urlInput.value = fallbackUrl;
-    if (qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fallbackUrl)}`;
+    if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fallbackUrl);
   } finally {
     if (loader) loader.style.display = 'none';
   }
@@ -1983,17 +2221,21 @@ function copyMobileUrl() {
   if (!input || !input.value) return;
   navigator.clipboard.writeText(input.value).then(() => {
     if (typeof showNotification === 'function') {
-      showNotification('✅ Lien mobile copié dans le presse-papier', 'success');
+      showNotification('Lien mobile copié dans le presse-papier', 'success');
     }
   });
 }
 
 function openMobileInBrowser() {
   const input = document.getElementById('mobile-url-input');
-  if (input && input.value && window.api?.openExternal) {
-    window.api.openExternal(input.value);
-  } else if (input && input.value) {
-    window.open(input.value, '_blank');
+  const url = input?.value;
+  if (!url || url.includes('Recherche')) return;
+  if (window.api?.system?.openExternal) {
+    window.api.system.openExternal(url);
+  } else if (window.api?.openExternal) {
+    window.api.openExternal(url);
+  } else {
+    window.open(url, '_blank');
   }
 }
 

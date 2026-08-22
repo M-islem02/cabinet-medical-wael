@@ -277,7 +277,11 @@ function renderActsTable() {
   if (entries.length === 0) {
     tbody.innerHTML = `
       <tr class="empty-row">
-        <td colspan="3" class="text-center">Aucune donnée pour cette date</td>
+        <td colspan="3">
+          <div class="ant-empty">
+            <div class="ant-empty-description">Aucune donnée pour cette date</div>
+          </div>
+        </td>
       </tr>
     `;
     return;

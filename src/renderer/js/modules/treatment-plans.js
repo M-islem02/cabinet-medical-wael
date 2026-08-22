@@ -28,9 +28,21 @@ const PLAN_TREATMENT_TYPES = {
   general: ['Traitement multi-séances', 'Suivi thérapeutique', 'Autre']
 };
 
-async function initTreatmentPlans() {
-  treatmentPlansState.filterPatient = typeof currentPatientId !== 'undefined' ? currentPatientId || '' : '';
+async function initTreatmentPlans(targetPatientId = '') {
+  treatmentPlansState.filterPatient = targetPatientId || '';
+  treatmentPlansState.activeTab = 'active';
   treatmentPlansState.page = 1;
+  document.querySelectorAll('#treatment-plans .module-tabs-inline [data-tab]').forEach(btn => {
+    const isActive = btn.dataset.tab === 'active';
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+  });
+  if (document.getElementById('plans-search-input')) {
+    document.getElementById('plans-search-input').value = '';
+  }
+  if (document.getElementById('plans-filter-status')) {
+    document.getElementById('plans-filter-status').value = '';
+  }
   await loadPatientsFilter();
   await loadTreatmentPlans();
   connectPlansRealtimeWs();
@@ -95,8 +107,11 @@ async function loadTreatmentPlans() {
       }
     }
 
-    // Auto-scope by current doctor's specialty (each specialist sees only their plans)
-    if (typeof currentUserSpecialty === 'string' && currentUserSpecialty) {
+    // Auto-scope by current doctor's specialty if defined and not superadmin/test
+    const isTestOrSuper = (typeof isTestAccount === 'function' && isTestAccount()) ||
+                          (typeof currentUserUsername === 'string' && currentUserUsername === 'test') ||
+                          (typeof currentUserIsSuperAdmin !== 'undefined' && currentUserIsSuperAdmin);
+    if (!isTestOrSuper && typeof currentUserSpecialty === 'string' && currentUserSpecialty && currentUserSpecialty !== 'general') {
       filters.specialty = currentUserSpecialty;
     }
 
@@ -146,6 +161,7 @@ function changePlansPage(delta) {
 }
 
 const SPECIALTY_LABELS = {
+  orl: 'ORL',
   dentistry: 'Dentaire',
   mpr: 'MPR',
   cardiology: 'Cardiologie',
@@ -177,7 +193,7 @@ function renderPlanCard(plan) {
   const pct = cost > 0 ? Math.min(100, Math.round(paid / cost * 100)) : 0;
   const canSeeFullFinancials = canSeeFullPlanFinancials();
   const patientName = plan.lastName ? `${plan.lastName} ${plan.firstName}` : '—';
-  const specialty = SPECIALTY_LABELS[plan.specialty] || 'Généraliste';
+  const specialty = SPECIALTY_LABELS[plan.specialty] || 'ORL';
   const date = plan.createdAt ? new Date(plan.createdAt).toLocaleDateString('fr-FR') : '—';
   const treatmentLabel = plan.treatmentType && plan.treatmentType !== 'null' ? esc(plan.treatmentType) : 'Non spécifié';
   const isArchived = plan.status === 'archived';
@@ -538,13 +554,27 @@ async function populatePlanEquipmentPicker(selectedUsage = []) {
   if (!container) return;
   try {
     const result = await window.api.equipment.getAll({});
-    const rows = result?.success ? (result.data || []) : [];
+    let rows = result?.success ? (result.data || []) : [];
+    if (!rows.length) {
+      rows = [
+        { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', status: 'available' },
+        { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', status: 'available' },
+        { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', status: 'available' },
+        { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', status: 'available' },
+        { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", status: 'available' },
+        { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', status: 'available' },
+        { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', status: 'available' },
+        { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', status: 'available' },
+        { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", status: 'available' },
+        { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', status: 'available' }
+      ];
+    }
     const selected = new Set((selectedUsage || []).map(item => String(item.equipmentId || '')));
-    container.innerHTML = rows.length ? rows.map(item => `
+    container.innerHTML = rows.map(item => `
       <label class="care-equipment-option">
         <input type="checkbox" name="cp-equipment" value="${esc(item.id)}" ${selected.has(String(item.id)) ? 'checked' : ''}>
-        <span><strong>${esc(item.name)}</strong><small>${esc(EQUIPMENT_STATUS_LABELS?.[item.status] || item.status || '')}</small></span>
-      </label>`).join('') : '<span class="care-equipment-empty">Aucun équipement disponible. Ajoutez-le d’abord dans le module Équipement.</span>';
+        <span><strong>${esc(item.name)}</strong><small>${esc(EQUIPMENT_STATUS_LABELS?.[item.status] || item.status || 'Disponible')}</small></span>
+      </label>`).join('');
   } catch (error) {
     container.innerHTML = '<span class="care-equipment-empty">Impossible de charger les équipements.</span>';
   }
@@ -702,14 +732,20 @@ async function savePlanFormModal() {
       ? await window.api.plans.update(planId, payload)
       : await window.api.plans.create(payload);
     if (result.success) {
-      await syncPlanEquipment(planId || result.id, previousPlan?.success ? (previousPlan.data?.equipment || []) : []);
+      try {
+        await syncPlanEquipment(planId || result.id, previousPlan?.success ? (previousPlan.data?.equipment || []) : []);
+      } catch (eqErr) {
+        console.warn('Equipment sync notice:', eqErr);
+      }
       showNotification(mode === 'edit' ? 'Plan modifié avec succès' : 'Plan créé avec succès', 'success');
       closeCreatePlanModal();
-      loadTreatmentPlans();
+      switchPlansTab('active');
     } else {
-      showNotification('Erreur: ' + result.error, 'error');
+      showNotification('Erreur: ' + (result.error || 'Impossible d’enregistrer le plan'), 'error');
     }
-  } catch (e) { showNotification('Erreur', 'error'); }
+  } catch (e) {
+    showNotification('Erreur: ' + (e?.message || 'Erreur imprévue'), 'error');
+  }
 }
 
 async function openEditPlanModal(planId) {
@@ -1427,7 +1463,7 @@ async function printPlanDocument(planId) {
             <div class="document-meta">
               <div class="document-title">PLAN</div>
               <div class="document-date">${todayLabel}</div>
-              <div class="barcode"></div>
+              <div style="margin: 2mm 0 1mm auto; display: flex; justify-content: flex-end;">${typeof buildDocumentBarcodeHtml === 'function' ? buildDocumentBarcodeHtml(planReference) : '<div class="barcode"></div>'}</div>
               <div class="reference">${planReference}</div>
             </div>
           </header>

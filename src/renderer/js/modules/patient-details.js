@@ -511,7 +511,9 @@ async function persistConsultationDraft(options = {}) {
 
   const editId = form.dataset.editId || '';
   const patientId = document.getElementById('consultation-patientId').value;
-  const date = document.getElementById('consultation-date').value;
+  const dateVal = document.getElementById('consultation-date').value;
+  const timeVal = document.getElementById('consultation-time')?.value || new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const date = (dateVal && timeVal) ? `${dateVal} ${timeVal}:00` : (dateVal || new Date().toISOString());
   const treatmentField = document.getElementById('consultation-treatment');
   const notesField = document.getElementById('consultation-notes');
 
@@ -650,8 +652,32 @@ async function persistConsultationDraft(options = {}) {
     if (equipmentSync?.success === false) {
       showNotification('Consultation enregistrée, mais les équipements n’ont pas pu être associés', 'warning');
     }
+
+    // Auto-send payment request to assistant if price/unpaid amount was specified
+    const targetAmount = unpaidChecked ? unpaidAmount : (consultationPrice > 0 ? consultationPrice : unpaidAmount);
+    if (targetAmount > 0 && window.api?.paymentRequest?.create) {
+      try {
+        const patientName = currentPatientData ? `${currentPatientData.firstName || ''} ${currentPatientData.lastName || ''}`.trim() : 'Patient';
+        const primaryService = parseConsultationActs(selectedActs)[0] || 'consultation';
+        const paymentNotes = document.getElementById('consultation-payment-note')?.value?.trim() || '';
+        await window.api.paymentRequest.create({
+          patientId,
+          patientName,
+          amount: targetAmount,
+          consultationId: savedConsultationId,
+          service: primaryService,
+          notes: paymentNotes,
+          selectedActs,
+          doctorId: currentUserId
+        });
+      } catch (payErr) {
+        console.error('Error auto-transmitting payment request:', payErr);
+      }
+    }
+
     const attachmentCount = formData.attachments ? formData.attachments.length : 0;
     form.dataset.editId = savedConsultationId;
+    currentConsultationId = savedConsultationId;
     currentConsultationId = savedConsultationId;
 
     setConsultationEditorMode(true);
@@ -1235,20 +1261,35 @@ async function renderPatientAssignedMedecins(patient) {
 async function showPatientDetails(patientId) {
   if (!currentUserIsAdmin && currentUserRole === 'director') {
     showNotification('❌ Accès refusé: le directeur ne peut pas consulter le dossier médical détaillé', 'error');
-    return;
+    return null;
+  }
+
+  const normalizedId = (typeof patientId === 'object' && patientId !== null)
+    ? (patientId.id || patientId.patientId || '')
+    : String(patientId || '').trim();
+
+  if (!normalizedId) {
+    console.warn('showPatientDetails called without a valid patientId:', patientId);
+    return null;
   }
 
   try {
     const result = await window.api.patient.getById({
-      patientId,
+      patientId: normalizedId,
       includeConsultations: currentUserRole !== 'assistant',
       consultationLimit: 1
     });
     if (result.success) {
       const patient = result.data;
-      await setSelectedPatient(patientId, { patient, source: 'patient-details' });
+      currentPatientId = normalizedId;
+      window.currentPatientId = normalizedId;
+      window.currentPatientData = patient;
+      await setSelectedPatient(normalizedId, { patient, source: 'patient-details' });
       renderImmediateMedicalSummary(patient);
       void renderPatientAssignedMedecins(patient);
+      if (typeof renderPatientDocumentWidget === 'function') {
+        renderPatientDocumentWidget();
+      }
 
       // Keep summary cards collapsed on first view; content is ready when opened.
       const personalCard = document.getElementById('patient-personal-card');
@@ -1376,15 +1417,79 @@ async function showPatientDetails(patientId) {
   }
 }
 
+
+function switchPatientCategory(categoryKey) {
+  // Update category tab buttons
+  document.querySelectorAll('#patient-category-tabs .patient-category-btn, #patient-category-tabs .ant-vertical-tabs-item, #patient-category-tabs .ant-tabs-tab').forEach(tab => {
+    const isActive = tab.dataset.category === categoryKey || (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(categoryKey));
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+  });
+  
+  // Show/hide category panes
+  document.querySelectorAll('.patient-category-pane').forEach(pane => {
+    pane.style.display = 'none';
+    pane.classList.remove('active');
+  });
+  const targetPane = document.getElementById('patient-cat-' + categoryKey);
+  if (targetPane) {
+    targetPane.style.display = 'block';
+    targetPane.classList.add('active');
+  }
+  
+  // Load data for the first tab in the category
+  const categoryTabMap = {
+    'suivi': 'tab-consultations',
+    'documents': 'tab-prescriptions',
+    'facturation': 'tab-factures',
+    'rdv': 'tab-appointments',
+  };
+  const defaultTab = categoryTabMap[categoryKey];
+  if (defaultTab) switchTab(defaultTab);
+}
+window.switchPatientCategory = switchPatientCategory;
+
 function switchTab(tabId) {
+  // Initialize or update Segmented control for Documents category
+  if (typeof AntSegmented !== 'undefined') {
+    const docsSegmented = document.getElementById('patient-docs-segmented');
+    if (docsSegmented) {
+      if (!docsSegmented.hasChildNodes()) {
+        AntSegmented.create(docsSegmented, {
+          options: [
+            { label: 'Ordonnances', value: 'tab-prescriptions' },
+            { label: 'Certificats', value: 'tab-certificats' },
+            { label: 'Arrêts', value: 'tab-arrets' },
+            { label: 'Rapports', value: 'tab-rapports' },
+            { label: 'Bon Pour / Faire Svp', value: 'tab-bonpour' },
+            { label: 'Orientations', value: 'tab-orientations' },
+          ],
+          defaultValue: tabId || 'tab-prescriptions',
+          onChange: (value) => switchTab(value),
+        });
+      } else {
+        // Just update visual state without triggering onChange to avoid loop
+        const active = docsSegmented.querySelector('.ant-segmented-item.active');
+        if (active && active.dataset.value !== tabId) {
+          const newItem = docsSegmented.querySelector(`.ant-segmented-item[data-value="${tabId}"]`);
+          if (newItem) {
+            active.classList.remove('active');
+            newItem.classList.add('active');
+          }
+        }
+      }
+    }
+  }
+
   if (currentUserRole === 'assistant' && tabId !== 'tab-appointments') {
     tabId = 'tab-appointments';
   }
 
   // Update Tabs UI
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn, .details-tab-btn, #patient-details .tab-btn').forEach(btn => {
     btn.classList.remove('active');
-    if (btn.getAttribute('onclick').includes(tabId)) {
+    const onclickAttr = btn.getAttribute('onclick') || '';
+    if (onclickAttr && onclickAttr.includes(tabId)) {
       btn.classList.add('active');
     }
   });
@@ -1393,7 +1498,10 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.remove('active');
   });
-  document.getElementById(tabId).classList.add('active');
+  const targetPane = document.getElementById(tabId);
+  if (targetPane) {
+    targetPane.classList.add('active');
+  }
 
   // Load Data
   if (tabId === 'tab-consultations') loadPatientConsultations(currentPatientId);
@@ -1431,7 +1539,7 @@ async function loadPatientConsultations(patientId, options = {}) {
     const currentPagination = patientRecordPagination.consultations;
     const requestedPage = Number(options.page || currentPagination.page || 1);
     const filters = getPatientRecordsDateFilter();
-    const [result, pendingRequests] = await Promise.all([
+    const [result, pendingRequests, operationsResult, prescriptionsResult, certsResult, leavesResult] = await Promise.all([
       window.api.consultation.getByPatient({
         patientId,
         page: requestedPage,
@@ -1440,9 +1548,17 @@ async function loadPatientConsultations(patientId, options = {}) {
         endDate: filters.end,
         paginated: true
       }),
-      window.api.paymentRequest?.getPending ? window.api.paymentRequest.getPending() : Promise.resolve([])
+      window.api.paymentRequest?.getPending ? window.api.paymentRequest.getPending() : Promise.resolve([]),
+      window.api.operation?.getByPatient ? window.api.operation.getByPatient(patientId) : Promise.resolve({ success: true, data: [] }),
+      window.api.prescription?.getByPatient ? window.api.prescription.getByPatient(patientId) : Promise.resolve({ success: true, data: [] }),
+      window.api.medicalCertificate?.getByPatient ? window.api.medicalCertificate.getByPatient(patientId) : Promise.resolve({ success: true, data: [] }),
+      window.api.sickLeave?.getByPatient ? window.api.sickLeave.getByPatient(patientId) : Promise.resolve({ success: true, data: [] })
     ]);
     patientRecordsCache.consultations = result.success && Array.isArray(result.data) ? result.data : [];
+    patientRecordsCache.operations = operationsResult && operationsResult.success && Array.isArray(operationsResult.data) ? operationsResult.data : [];
+    patientRecordsCache.prescriptions = prescriptionsResult && prescriptionsResult.success && Array.isArray(prescriptionsResult.data) ? prescriptionsResult.data : [];
+    patientRecordsCache.certificates = certsResult && certsResult.success && Array.isArray(certsResult.data) ? certsResult.data : [];
+    patientRecordsCache.workLeaves = leavesResult && leavesResult.success && Array.isArray(leavesResult.data) ? leavesResult.data : [];
     updatePatientRecordPagination('consultations', result.pagination);
     consultationPendingRequestsByConsultationId = new Map();
     if (Array.isArray(pendingRequests)) {
@@ -1456,6 +1572,7 @@ async function loadPatientConsultations(patientId, options = {}) {
   } catch (error) {
     console.error('Error loading consultations:', error);
     patientRecordsCache.consultations = [];
+    patientRecordsCache.operations = [];
     updatePatientRecordPagination('consultations', null);
     consultationPendingRequestsByConsultationId = new Map();
     showNotification('Erreur lors du chargement des consultations', 'error');
@@ -1469,45 +1586,284 @@ async function loadPatientConsultations(patientId, options = {}) {
 
 function renderPatientConsultations() {
   const tbody = document.getElementById('details-consultations-tbody');
-  if (!tbody) return;
+  const timelineEl = document.getElementById('details-consultations-timeline');
 
-  const data = Array.isArray(patientRecordsCache.consultations) ? patientRecordsCache.consultations : [];
+  const consultations = Array.isArray(patientRecordsCache.consultations) ? patientRecordsCache.consultations : [];
+  const operations = Array.isArray(patientRecordsCache.operations) ? patientRecordsCache.operations : [];
+  const prescriptions = Array.isArray(patientRecordsCache.prescriptions) ? patientRecordsCache.prescriptions : [];
+  const certificates = Array.isArray(patientRecordsCache.certificates) ? patientRecordsCache.certificates : [];
+  const workLeaves = Array.isArray(patientRecordsCache.workLeaves) ? patientRecordsCache.workLeaves : [];
+  const orlHistory = typeof getORLHistory === 'function' ? getORLHistory(currentPatientId) : [];
 
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Aucune consultation</td></tr>';
-    return;
+  // Build unified chronological timeline
+  const unifiedItems = [
+    ...consultations.map(c => ({
+      itemType: 'consultation',
+      data: c,
+      date: c.date || c.consultationDate || c.createdAt
+    })),
+    ...operations.map(op => ({
+      itemType: 'operation',
+      data: op,
+      date: op.operationDate || op.createdAt
+    }))
+  ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  if (timelineEl) {
+    if (!unifiedItems.length) {
+      timelineEl.innerHTML = `
+        <div class="ant-empty" style="padding: 48px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div class="ant-empty-image" style="margin-bottom: 16px;">
+            <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="12" y="8" width="40" height="48" rx="4" fill="#f8fafc"/>
+              <line x1="22" y1="20" x2="42" y2="20"/>
+              <line x1="22" y1="28" x2="42" y2="28"/>
+              <line x1="22" y1="36" x2="32" y2="36"/>
+            </svg>
+          </div>
+          <div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 6px;">Aucun historique de suivi médical</div>
+          <div style="font-size: 13.5px; color: #64748b; max-width: 380px; line-height: 1.5; margin-bottom: 18px;">Démarrez une première consultation ou enregistrez une opération pour ce patient.</div>
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary btn-small" onclick="openNewConsultationModal()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nouvelle consultation
+            </button>
+            <button type="button" class="btn btn-secondary btn-small" onclick="goToOperationsFromPatientDetails()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              Opérations
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      let timelineHtml = `<div class="ant-timeline">`;
+      unifiedItems.forEach((item) => {
+        if (item.itemType === 'operation') {
+          const op = item.data;
+          const dateLabel = op.operationDate ? new Date(op.operationDate).toLocaleDateString('fr-FR') : '-';
+          const timeLabel = op.operationTime ? `à ${escapeHTML(op.operationTime)}` : '';
+          const costDisplay = op.cost ? `${Number(op.cost).toLocaleString('fr-DZ')} DZD` : '';
+          const paymentStatus = op.paymentStatus === 'paid'
+            ? '<span class="ant-tag ant-tag-success" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-weight: 600;">Réglé</span>'
+            : (op.paymentStatus === 'partial'
+              ? '<span class="ant-tag ant-tag-warning" style="background: #fffbe6; color: #d46b08; border-color: #ffd591; font-weight: 600;">Partiel</span>'
+              : `<span class="ant-tag ant-tag-error" style="background: #fff1f0; color: #cf1322; border-color: #ffa39e; font-weight: 600;">Impayé • ${costDisplay}</span>`);
+
+          let equipmentSummary = '';
+          if (op.equipmentUsed) {
+            try {
+              const eq = JSON.parse(op.equipmentUsed);
+              if (Array.isArray(eq) && eq.length > 0) {
+                equipmentSummary = eq.map(e => e.name || e).join(', ');
+              }
+            } catch (e) {}
+          }
+
+          let consumablesSummary = '';
+          if (op.consumablesUsed) {
+            try {
+              const cons = JSON.parse(op.consumablesUsed);
+              if (Array.isArray(cons) && cons.length > 0) {
+                consumablesSummary = cons.map(c => `${c.itemName} (${c.quantity})`).join(', ');
+              }
+            } catch (e) {}
+          }
+
+          timelineHtml += `
+            <div class="ant-timeline-item">
+              <div class="ant-timeline-item-tail"></div>
+              <div class="ant-timeline-item-head" style="border-color: #722ed1; background: #f9f0ff;"></div>
+              <div class="ant-timeline-item-content">
+                <div style="background: #faf5ff; border: 1px solid #d3adf7; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 2px rgba(114, 46, 209, 0.04); margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 14px; color: #0f172a;">${escapeHTML(dateLabel)}</span>
+                      ${timeLabel ? `<span style="font-size: 12px; color: #64748b;">${escapeHTML(timeLabel)}</span>` : ''}
+                      <span class="ant-tag" style="background: #722ed1; color: #ffffff; border-color: #722ed1; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                        Opération : ${escapeHTML(op.operationType)}
+                      </span>
+                      ${op.anesthesiaType ? `<span class="ant-tag" style="background: #f0f5ff; color: #2f54eb; border-color: #d6e4ff; font-size: 11px;">Anesthésie : ${escapeHTML(op.anesthesiaType)}</span>` : ''}
+                    </div>
+                    <div>${paymentStatus}</div>
+                  </div>
+                  <div style="font-size: 13.5px; color: #475569; margin-bottom: 6px;">
+                    <strong>Praticien :</strong> ${escapeHTML(op.practitionerName || 'Non spécifié')} ${op.room ? `• <em>${escapeHTML(op.room)}</em>` : ''} • Durée : ${op.durationMinutes || 30} min
+                  </div>
+                  ${op.clinicalNotes ? `<div style="font-size: 13px; color: #334155; margin-bottom: 6px; background: #ffffff; border: 1px solid #e9d8fd; border-radius: 6px; padding: 8px 12px;"><strong>Observations :</strong> ${escapeHTML(op.clinicalNotes)}</div>` : ''}
+                  ${equipmentSummary ? `<div style="font-size: 12.5px; color: #64748b; margin-bottom: 4px;">⚙️ <strong>Équipement :</strong> ${escapeHTML(equipmentSummary)}</div>` : ''}
+                  ${consumablesSummary ? `<div style="font-size: 12.5px; color: #64748b; margin-bottom: 8px;">📦 <strong>Matériel / Consommables :</strong> ${escapeHTML(consumablesSummary)}</div>` : ''}
+                  <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid #e9d8fd;">
+                    <button type="button" class="btn btn-secondary btn-small" onclick="viewOperationReport('${op.id}')" style="height: 30px; padding: 0 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px;" title="Compte-rendu opératoire">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      CR Opératoire
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="editOperation('${op.id}')" style="height: 30px; padding: 0 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px;" title="Modifier">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      Modifier
+                    </button>
+                    <button type="button" class="btn btn-small" onclick="deleteOperation('${op.id}')" style="height: 30px; width: 30px; padding: 0; border-radius: 6px; background: #fff1f0; border: 1px solid #ffa39e; color: #e11d48; display: inline-flex; align-items: center; justify-content: center;" title="Supprimer">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // Consultation item
+          const c = item.data;
+          const dateValue = c.date || c.consultationDate || c.createdAt;
+          const dateStr = dateValue ? String(dateValue).slice(0, 10) : '';
+          const dateLabel = dateValue ? new Date(dateValue).toLocaleDateString('fr-FR') : '-';
+          let timeLabel = '';
+          if (c.time && String(c.time).includes(':')) {
+            timeLabel = String(c.time).trim().slice(0, 5);
+          } else if (dateValue && String(dateValue).includes(' ')) {
+            const timePart = String(dateValue).split(' ')[1];
+            if (timePart && timePart.includes(':')) timeLabel = timePart.slice(0, 5);
+          }
+          if ((!timeLabel || timeLabel === '00:00' || !timeLabel.includes(':')) && c.createdAt) {
+            const parsed = new Date(c.createdAt);
+            if (!isNaN(parsed.getTime())) {
+              const str = parsed.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              if (str && str !== '00:00') timeLabel = str;
+            }
+          }
+          if (!/^\d{1,2}:\d{2}$/.test(timeLabel)) {
+            timeLabel = '';
+          }
+          const reason = c.reason || 'Consultation médicale';
+          const diagnosis = c.diagnosis || '—';
+          const treatment = c.treatment || '';
+          const pendingPayment = consultationPendingRequestsByConsultationId.get(String(c.id));
+          const paymentStatus = pendingPayment
+            ? `<span class="ant-tag ant-tag-warning" style="background: #fffbe6; color: #d46b08; border-color: #ffd591; font-weight: 600;">Impayé • ${(pendingPayment.amount || 0).toLocaleString('fr-DZ')} DZD</span>`
+            : '<span class="ant-tag ant-tag-success" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-weight: 600;">Réglé</span>';
+
+          // Match ORL Report
+          const matchedORLReport = orlHistory.find(r => (r.data && String(r.data.consultationId) === String(c.id)) || (r.date && r.date.slice(0, 10) === dateStr));
+
+          // Match generated documents
+          const matchingPrescriptions = prescriptions.filter(p => (p.consultationId && String(p.consultationId) === String(c.id)) || (p.prescriptionDate && String(p.prescriptionDate).slice(0, 10) === dateStr));
+          const matchingCerts = certificates.filter(cert => (cert.consultationId && String(cert.consultationId) === String(c.id)) || (cert.certificateDate && String(cert.certificateDate).slice(0, 10) === dateStr));
+          const matchingLeaves = workLeaves.filter(l => (l.consultationId && String(l.consultationId) === String(c.id)) || (l.startDate && String(l.startDate).slice(0, 10) === dateStr));
+
+          timelineHtml += `
+            <div class="ant-timeline-item">
+              <div class="ant-timeline-item-tail"></div>
+              <div class="ant-timeline-item-head"></div>
+              <div class="ant-timeline-item-content">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom: 12px; transition: all 0.2s ease;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 14px; color: #0f172a;">${escapeHTML(dateLabel)}</span>
+                      ${timeLabel ? `<span style="font-size: 12px; color: #64748b;">à ${escapeHTML(timeLabel)}</span>` : ''}
+                      <span class="ant-tag ant-tag-processing" style="background: #e6f0ff; color: #1677ff; border-color: #91caff; font-size: 12px; font-weight: 600;">${escapeHTML(c.type || 'Consultation')}</span>
+                      ${matchedORLReport ? `
+                        <span class="ant-tag" style="background: #e6fffb; color: #08979c; border-color: #87e8de; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(8, 151, 156, 0.1);" onclick="openORLReportFromTimeline('${matchedORLReport.id}', '${currentPatientId}')" title="Cliquer pour ouvrir le compte-rendu ORL lié">
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                          Consultation avec Compte-Rendu ORL
+                        </span>
+                      ` : ''}
+                    </div>
+                    <div>${paymentStatus}</div>
+                  </div>
+
+                  <!-- Synthesized Documents Summary Bar -->
+                  ${(matchingPrescriptions.length > 0 || matchingCerts.length > 0 || matchingLeaves.length > 0) ? `
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; padding: 6px 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #f1f5f9;">
+                      <span style="font-size: 11.5px; color: #64748b; font-weight: 600;">Documents émis :</span>
+                      ${matchingPrescriptions.length > 0 ? `<span class="ant-tag" style="background: #f0f5ff; color: #1d39c4; border-color: #adc6ff; font-size: 11px; margin: 0;">Ordonnance (${matchingPrescriptions.length})</span>` : ''}
+                      ${matchingCerts.length > 0 ? `<span class="ant-tag" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-size: 11px; margin: 0;">Certificat (${matchingCerts.length})</span>` : ''}
+                      ${matchingLeaves.length > 0 ? `<span class="ant-tag" style="background: #fff7e6; color: #d46b08; border-color: #ffd591; font-size: 11px; margin: 0;">Arrêt de travail (${matchingLeaves.length})</span>` : ''}
+                    </div>
+                  ` : ''}
+
+                  <div style="font-size: 13.5px; color: #334155; margin-bottom: 6px;">
+                    <strong>Motif :</strong> ${escapeHTML(reason)}
+                  </div>
+                  ${c.clinicalExamination ? `<div style="font-size: 13px; color: #475569; margin-bottom: 4px; background: #f8fafc; border-radius: 6px; padding: 6px 10px; border: 1px solid #f1f5f9;"><strong>Examen Clinique :</strong> ${escapeHTML(c.clinicalExamination)}</div>` : ''}
+                  <div style="font-size: 13.5px; color: #059669; margin-bottom: 6px;">
+                    <strong>Diagnostic :</strong> ${escapeHTML(diagnosis)}
+                  </div>
+                  ${treatment ? `<div style="font-size: 13px; color: #475569; margin-bottom: 4px;"><strong>Traitement :</strong> ${escapeHTML(treatment)}</div>` : ''}
+                  ${c.notes ? `<div style="font-size: 12.5px; color: #64748b; margin-top: 4px; font-style: italic;"><strong>Notes :</strong> ${escapeHTML(c.notes)}</div>` : ''}
+
+                  <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                    <button type="button" class="btn btn-secondary btn-small" onclick="printConsultationDetails('${c.id}')" style="height: 30px; padding: 0 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px;">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      Aperçu
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="editConsultation('${c.id}')" style="height: 30px; padding: 0 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 5px;">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      Modifier
+                    </button>
+                    <button type="button" class="btn btn-small" onclick="deleteConsultation('${c.id}')" style="height: 30px; width: 30px; padding: 0; border-radius: 6px; background: #fff1f0; border: 1px solid #ffa39e; color: #e11d48; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Supprimer" onmouseenter="this.style.background='#ff4d4f'; this.style.color='#ffffff';" onmouseleave="this.style.background='#fff1f0'; this.style.color='#e11d48';">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      });
+      const pagination = patientRecordPagination.consultations;
+      if (pagination && pagination.total > 0) {
+        const currentPage = Math.min(Math.max(1, pagination.page), Math.max(1, pagination.totalPages));
+        const start = ((currentPage - 1) * pagination.pageSize) + 1;
+        const end = Math.min(currentPage * pagination.pageSize, pagination.total);
+        timelineHtml += `
+          <div class="timeline-pagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding:12px 14px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+            <div style="font-size:13px; color:#64748b; font-weight:500;">Affichage ${start}-${end} sur ${pagination.total} consultations</div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <button type="button" class="btn btn-small btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="changePatientRecordPage('consultations', -1)">◀ Précédent</button>
+              <span style="font-size:12.5px; font-weight:600; color:#334155; padding:0 6px;">Page ${currentPage} / ${pagination.totalPages}</span>
+              <button type="button" class="btn btn-small btn-secondary" ${currentPage >= pagination.totalPages ? 'disabled' : ''} onclick="changePatientRecordPage('consultations', 1)">Suivant ▶</button>
+            </div>
+          </div>
+        `;
+      }
+      timelineHtml += `</div>`;
+      timelineEl.innerHTML = timelineHtml;
+    }
   }
 
-  const rowsHtml = data.map((c) => {
-    const dateValue = c.date || c.consultationDate || c.createdAt;
-    const dateLabel = dateValue ? new Date(dateValue).toLocaleDateString('fr-FR') : '-';
-    const reason = c.reason || '-';
-    const diagnosis = c.diagnosis || '-';
-    const pendingPayment = consultationPendingRequestsByConsultationId.get(String(c.id));
-    const paymentStatus = pendingPayment
-      ? `<span class="payment-status-badge pending">Non payé • ${(pendingPayment.amount || 0).toLocaleString('fr-DZ')} DZD</span>`
-      : '<span class="payment-status-badge received">Payé</span>';
-    const patientId = currentPatientId || c.patientId || '';
-    return `
-      <tr>
-        <td>${escapeHTML(dateLabel)}</td>
-        <td>${escapeHTML(reason)}</td>
-        <td>${escapeHTML(diagnosis)}</td>
-        <td>${paymentStatus}</td>
-        <td>
-          <div class="table-actions consultation-table-actions">
-            <button class="btn btn-tiny btn-secondary consultation-action-chip consultation-action-chip-icon" title="Aperçu de la consultation" aria-label="Aperçu de la consultation" data-tooltip="Aperçu de la consultation" onclick="printConsultationDetails('${c.id}')">&#128065;&#65039;</button>
-            <button class="btn btn-tiny btn-warning consultation-action-chip consultation-action-chip-icon" title="Demander un paiement" aria-label="Demander un paiement" data-tooltip="Demander un paiement" onclick="openPaymentRequestFromConsultationRecord('${c.id}')">&#128176;</button>
-            <button class="btn btn-tiny btn-info consultation-action-chip consultation-action-chip-icon" title="Modifier la consultation" aria-label="Modifier la consultation" data-tooltip="Modifier la consultation" onclick="editConsultation('${c.id}')">&#9998;&#65039;</button>
-            <button class="btn btn-tiny btn-primary consultation-action-chip consultation-action-chip-icon" title="Imprimer la consultation" aria-label="Imprimer la consultation" data-tooltip="Imprimer la consultation" onclick="printConsultationDetails('${c.id}')">&#128424;&#65039;</button>
-            <button class="btn btn-tiny btn-danger consultation-action-chip consultation-action-chip-icon" title="Supprimer la consultation" aria-label="Supprimer la consultation" data-tooltip="Supprimer la consultation" onclick="deleteConsultation('${c.id}')">&#128465;&#65039;</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  if (tbody) {
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Aucune consultation</td></tr>';
+      return;
+    }
 
-  tbody.innerHTML = rowsHtml + buildPatientRecordPaginationRow('consultations', 5);
+    const rowsHtml = data.map((c) => {
+      const dateValue = c.date || c.consultationDate || c.createdAt;
+      const dateLabel = dateValue ? new Date(dateValue).toLocaleDateString('fr-FR') : '-';
+      const reason = c.reason || '-';
+      const diagnosis = c.diagnosis || '-';
+      const pendingPayment = consultationPendingRequestsByConsultationId.get(String(c.id));
+      const paymentStatus = pendingPayment
+        ? `<span class="payment-status-badge pending">Non payé • ${(pendingPayment.amount || 0).toLocaleString('fr-DZ')} DZD</span>`
+        : '<span class="payment-status-badge received">Payé</span>';
+      return `
+        <tr>
+          <td>${escapeHTML(dateLabel)}</td>
+          <td>${escapeHTML(reason)}</td>
+          <td>${escapeHTML(diagnosis)}</td>
+          <td>${paymentStatus}</td>
+          <td>
+            <div class="table-actions consultation-table-actions" style="display: flex; gap: 4px;">
+              <button class="btn btn-tiny btn-secondary" title="Aperçu" onclick="printConsultationDetails('${c.id}')">Aperçu</button>
+              <button class="btn btn-tiny btn-info" title="Modifier" onclick="editConsultation('${c.id}')">Modifier</button>
+              <button class="btn btn-tiny btn-danger" title="Supprimer" onclick="deleteConsultation('${c.id}')">Supprimer</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml + buildPatientRecordPaginationRow('consultations', 5);
+  }
 }
 
 async function openNewConsultationModal() {
@@ -1574,26 +1930,157 @@ async function openNewConsultationModal() {
   showModal('modal-consultation');
 }
 
+let allConsultationEquipmentItems = [];
+let selectedConsultationEquipmentIds = new Set();
+
 async function loadConsultationEquipmentPicker(consultationId = '') {
   const container = document.getElementById('consultation-equipment-list');
   if (!container) return;
-  container.innerHTML = '<span class="care-equipment-empty">Chargement...</span>';
+  container.innerHTML = '<span class="care-equipment-empty" style="font-size:13px; color:#64748b;">Chargement des équipements...</span>';
   try {
     const [allResult, selectedResult] = await Promise.all([
       window.api.equipment.getAll({}),
       consultationId ? window.api.equipment.getForConsultation(consultationId) : Promise.resolve({ success: true, data: [] })
     ]);
-    const items = allResult?.success ? (allResult.data || []) : [];
-    const selected = new Set((selectedResult?.success ? selectedResult.data : []).map(item => String(item.equipmentId)));
-    container.innerHTML = items.length ? items.map(item => `
-      <label class="care-equipment-option">
-        <input type="checkbox" value="${escapeHTML(item.id)}" ${selected.has(String(item.id)) ? 'checked' : ''}>
-        <span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.assignedRoom || 'Salle non définie')} · ${escapeHTML(item.status || '')}</small></span>
-      </label>`).join('') : '<span class="care-equipment-empty">Aucun équipement enregistré.</span>';
+    let items = allResult?.success ? (allResult.data || []) : [];
+    if (!items.length) {
+      items = [
+        { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
+        { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', assignedRoom: 'Salle de Stérilisation', status: 'available' },
+        { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
+        { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', assignedRoom: 'Cabinet 1 (Radiologie Dentaire)', status: 'available' },
+        { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
+        { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
+        { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', assignedRoom: 'Local Technique', status: 'available' },
+        { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' },
+        { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", assignedRoom: 'Salle de Chirurgie Dentaire', status: 'available' },
+        { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available' }
+      ];
+    }
+    allConsultationEquipmentItems = items;
+    selectedConsultationEquipmentIds = new Set((selectedResult?.success ? selectedResult.data : []).map(item => String(item.equipmentId)));
+    renderConsultationEquipmentWidget();
   } catch (error) {
-    container.innerHTML = '<span class="care-equipment-empty">Impossible de charger les équipements.</span>';
+    container.innerHTML = '<span class="care-equipment-empty" style="font-size:13px; color:#ef4444;">Impossible de charger les équipements.</span>';
   }
 }
+
+function renderConsultationEquipmentWidget() {
+  const container = document.getElementById('consultation-equipment-list');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="consultation-equipment-picker-box" style="position: relative; width: 100%;">
+      <div style="position: relative;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94a3b8" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Taper pour rechercher un équipement (ex: Fauteuil, Autoclave, Radio...)" autocomplete="off" style="padding-left: 36px; height: 38px; font-size: 13.5px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%;">
+        <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1100; background: #ffffff; border: 1px solid #d9d9d9; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 240px; overflow-y: auto;"></div>
+      </div>
+      <div id="consultation-eq-selected-tags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; margin-top: 10px; align-items: center;"></div>
+      <div id="consultation-eq-hidden-inputs" style="display: none;"></div>
+    </div>
+  `;
+
+  const searchInput = document.getElementById('consultation-eq-search-input');
+  const dropdown = document.getElementById('consultation-eq-dropdown-list');
+
+  const updateDropdown = (query = '') => {
+    const q = query.toLowerCase().trim();
+    if (!q || q.length < 1) {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      return;
+    }
+
+    const available = allConsultationEquipmentItems.filter(item => {
+      return (item.name || '').toLowerCase().includes(q) || (item.assignedRoom || '').toLowerCase().includes(q);
+    }).slice(0, 10);
+
+    if (!available.length) {
+      dropdown.innerHTML = `<div style="padding: 12px 16px; font-size: 12.5px; color: #94a3b8; font-style: italic; text-align: center;">Aucun équipement trouvé pour "${escapeHTML(q)}"</div>`;
+    } else {
+      dropdown.innerHTML = available.map(item => {
+        const isSelected = selectedConsultationEquipmentIds.has(String(item.id));
+        return `
+          <div class="eq-dropdown-item" onclick="toggleConsultationEquipmentSelection('${escapeHTML(item.id)}')" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f1f5f9; background: ${isSelected ? '#f0fdf4' : '#ffffff'}; transition: background 0.15s;" onmouseenter="this.style.background='${isSelected ? '#dcfce7' : '#f8fafc'}'" onmouseleave="this.style.background='${isSelected ? '#f0fdf4' : '#ffffff'}'">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#2563eb" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <div>
+                <span style="font-weight: 600; color: #1e293b;">${escapeHTML(item.name)}</span>
+                <small style="display: block; font-size: 11.5px; color: #64748b;">${escapeHTML(item.assignedRoom || 'Cabinet de soins')}</small>
+              </div>
+            </div>
+            <span style="font-size: 12px; font-weight: 700; color: ${isSelected ? '#16a34a' : '#1677ff'};">${isSelected ? 'Sélectionné' : '+ Ajouter'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    dropdown.style.display = 'block';
+  };
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => updateDropdown(searchInput.value));
+  }
+
+  document.addEventListener('click', (e) => {
+    const box = container.querySelector('.consultation-equipment-picker-box');
+    if (box && !box.contains(e.target) && dropdown) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  renderConsultationEquipmentSelectedTags();
+}
+
+function renderConsultationEquipmentSelectedTags() {
+  const tagsContainer = document.getElementById('consultation-eq-selected-tags');
+  const hiddenContainer = document.getElementById('consultation-eq-hidden-inputs');
+  if (!tagsContainer || !hiddenContainer) return;
+
+  if (selectedConsultationEquipmentIds.size === 0) {
+    tagsContainer.innerHTML = '<span style="font-size: 12px; color: #94a3b8; font-style: italic;">Aucun équipement sélectionné pour cette consultation.</span>';
+    hiddenContainer.innerHTML = '';
+    return;
+  }
+
+  const selectedItems = allConsultationEquipmentItems.filter(item => selectedConsultationEquipmentIds.has(String(item.id)));
+
+  tagsContainer.innerHTML = selectedItems.map(item => `
+    <span style="display: inline-flex; align-items: center; gap: 6px; background: #e6f4ff; color: #0958d9; border: 1px solid #91caff; border-radius: 6px; padding: 5px 12px; font-size: 12.5px; font-weight: 600;">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      ${escapeHTML(item.name)}
+      <button type="button" onclick="removeConsultationEquipmentSelection('${escapeHTML(item.id)}')" style="background: none; border: none; color: #0958d9; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; margin-left: 2px;" title="Retirer" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#0958d9'">&times;</button>
+    </span>
+  `).join('');
+
+  hiddenContainer.innerHTML = selectedItems.map(item => `
+    <input type="checkbox" value="${escapeHTML(item.id)}" checked style="display: none;">
+  `).join('');
+}
+
+function toggleConsultationEquipmentSelection(id) {
+  const strId = String(id);
+  if (selectedConsultationEquipmentIds.has(strId)) {
+    selectedConsultationEquipmentIds.delete(strId);
+  } else {
+    selectedConsultationEquipmentIds.add(strId);
+  }
+  renderConsultationEquipmentSelectedTags();
+  const searchInput = document.getElementById('consultation-eq-search-input');
+  const dropdown = document.getElementById('consultation-eq-dropdown-list');
+  if (dropdown && searchInput) {
+    dropdown.style.display = 'none';
+    searchInput.value = '';
+  }
+}
+
+function removeConsultationEquipmentSelection(id) {
+  selectedConsultationEquipmentIds.delete(String(id));
+  renderConsultationEquipmentSelectedTags();
+}
+
+window.toggleConsultationEquipmentSelection = toggleConsultationEquipmentSelection;
+window.removeConsultationEquipmentSelection = removeConsultationEquipmentSelection;
 
 // Setup kiné checkbox to show/hide kiné selection
 function setupKineCheckboxBehavior() {
@@ -1767,7 +2254,7 @@ async function viewConsultationDetails(consultationId) {
       if (prescriptions && prescriptions.length > 0) {
         prescriptionsHTML = `
           <div class="consultation-section">
-            <h4>💊 Ordonnances</h4>
+            <h4>Ordonnances</h4>
             <div class="consultation-documents">
               ${prescriptions.map(p => {
                 const dateLabel = new Date(p.date).toLocaleDateString('fr-FR');
@@ -1798,7 +2285,7 @@ async function viewConsultationDetails(consultationId) {
       if (sickLeaves && sickLeaves.length > 0) {
         sickLeavesHTML = `
           <div class="consultation-section">
-            <h4>🏥 Certificats médicaux</h4>
+            <h4>Certificats médicaux</h4>
             <div class="consultation-documents">
               ${sickLeaves.map(sl => {
                 const start = new Date(sl.startDate);
@@ -1855,10 +2342,10 @@ async function viewConsultationDetails(consultationId) {
       ].filter(Boolean);
 
       const textSections = [
-        { title: '🔬 Examen Clinique', value: c.clinicalExamination || 'Aucune donnée' },
-        { title: '🩺 Diagnostic', value: c.diagnosis || 'Aucun diagnostic' },
-        c.treatment ? { title: '💊 Traitement', value: c.treatment } : null,
-        c.notes ? { title: '📝 Notes', value: c.notes } : null
+        { title: 'Examen Clinique', value: c.clinicalExamination || 'Aucune donnée' },
+        { title: 'Diagnostic', value: c.diagnosis || 'Aucun diagnostic' },
+        c.treatment ? { title: 'Traitement', value: c.treatment } : null,
+        c.notes ? { title: 'Notes', value: c.notes } : null
       ].filter(Boolean);
 
       const buildMetaGrid = (entries, emptyLabel) => {
@@ -1892,11 +2379,11 @@ async function viewConsultationDetails(consultationId) {
       content.innerHTML = `
         <div class="consultation-overview-grid">
           <div class="consultation-section consultation-section-compact">
-            <h4>📌 Informations Générales</h4>
+            <h4>Informations Générales</h4>
             ${buildMetaGrid(generalEntries, 'Aucune information générale')}
           </div>
           <div class="consultation-section consultation-section-compact">
-            <h4>⚕️ Signes Vitaux</h4>
+            <h4>Signes Vitaux</h4>
             ${buildMetaGrid(vitalEntries, 'Aucun signe vital renseigné')}
           </div>
         </div>
@@ -1925,7 +2412,7 @@ async function viewConsultationDetails(consultationId) {
       const modalHeader = document.querySelector('#modal-view-consultation .modal-header');
       modalHeader.innerHTML = `
         <div style="flex: 1;">
-          <h2 style="margin: 0 0 8px 0;">📋 Consultation du ${safeDate.toLocaleDateString('fr-FR')}</h2>
+          <h2 style="margin: 0 0 8px 0;">Consultation du ${safeDate.toLocaleDateString('fr-FR')}</h2>
           <p style="margin: 0; font-size: 14px; color: #666;">${safeDate.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}</p>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -1938,9 +2425,9 @@ async function viewConsultationDetails(consultationId) {
       const modalFooter = document.querySelector('#modal-view-consultation .modal-footer');
       modalFooter.innerHTML = `
         <div style="display:flex; flex-wrap:wrap; width:100%; gap:10px; justify-content:flex-end;">
-          <button class="btn btn-secondary" onclick="closeModal('modal-view-consultation'); editConsultation('${consultationId}')">✏️ Modifier</button>
-          <button class="btn btn-primary" onclick="printConsultationDetails('${consultationId}')">🖨️ Imprimer</button>
-          <button class="btn btn-primary" onclick="openAddPrescriptionFromConsultation()">💊 Ordonnance</button>
+          <button class="btn btn-secondary" onclick="closeModal('modal-view-consultation'); editConsultation('${consultationId}')">Modifier</button>
+          <button class="btn btn-primary" onclick="printConsultationDetails('${consultationId}')">Imprimer</button>
+          <button class="btn btn-primary" onclick="openAddPrescriptionFromConsultation()">Ordonnance</button>
           <button class="btn" onclick="closeModal('modal-view-consultation')">Fermer</button>
         </div>
       `;
@@ -2306,7 +2793,10 @@ async function loadPatientPrescriptions(patientId, options = {}) {
     return;
   }
 
-  if (!Array.isArray(patientRecordsCache.prescriptions) || !patientRecordsCache.prescriptions.length) {
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (Array.isArray(patientRecordsCache.prescriptions)) {
+    renderPatientPrescriptions();
+  } else if (!hasExistingContent) {
     tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Chargement...</td></tr>';
   }
   try {
@@ -2338,7 +2828,27 @@ function renderPatientPrescriptions() {
 
   const data = Array.isArray(patientRecordsCache.prescriptions) ? patientRecordsCache.prescriptions : [];
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center empty-row">Aucune ordonnance</td></tr>';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="padding: 32px 16px;">
+          <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 12px;">
+              <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                <path d="M24 26h16M32 18v16" stroke="#1677ff" stroke-width="2"/>
+                <line x1="20" y1="42" x2="44" y2="42"/>
+              </svg>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucune ordonnance émise</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Rédigez une prescription médicale pour ce patient.</div>
+            <button type="button" class="btn btn-primary btn-small" onclick="openPatientPrescriptionModal()" style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nouvelle Ordonnance
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
@@ -2349,14 +2859,21 @@ function renderPatientPrescriptions() {
     const formattedDate = rawDate ? new Date(rawDate).toLocaleDateString('fr-FR') : '-';
     return `
       <tr>
-        <td>${escapeHTML(formattedDate)}</td>
-        <td>${escapeHTML(`${medCount} médicament${medCount > 1 ? 's' : ''}`)}</td>
+        <td><strong style="color: #0f172a;">${escapeHTML(formattedDate)}</strong></td>
+        <td><span class="ant-tag ant-tag-processing" style="background: #e6f0ff; color: #1677ff; border-color: #91caff; font-size: 12.5px; font-weight: 600;">${escapeHTML(`${medCount} médicament${medCount > 1 ? 's' : ''}`)}</span></td>
         <td>
-          <div class="table-actions" style="display:flex; flex-wrap:wrap; gap:6px;">
-            <button class="btn btn-tiny btn-secondary consultation-action-chip-icon" title="Aperçu de l'ordonnance" onclick="printPrescriptionDetails('${p.id}')">👁️</button>
-            <button class="btn btn-tiny btn-primary consultation-action-chip-icon" title="Imprimer" onclick="printPrescriptionDetails('${p.id}')">🖨️</button>
-            <button class="btn btn-tiny btn-info consultation-action-chip-icon" title="Modifier" onclick="editPrescription('${p.id}')">✏️</button>
-            <button class="btn btn-tiny btn-danger consultation-action-chip-icon" title="Supprimer" onclick="deletePrescription('${p.id}')">🗑️</button>
+          <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+            <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="printPrescriptionDetails('${p.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <span>Imprimer</span>
+            </button>
+            <button class="btn btn-secondary" title="Modifier" onclick="editPrescription('${p.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Modifier</span>
+            </button>
+            <button type="button" class="btn" title="Supprimer" onclick="deletePrescription('${p.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
           </div>
         </td>
       </tr>
@@ -2509,7 +3026,10 @@ async function loadPatientSickLeaves(patientId, options = {}) {
     return;
   }
 
-  if (!Array.isArray(patientRecordsCache[cacheKey]) || !patientRecordsCache[cacheKey].length) {
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (Array.isArray(patientRecordsCache[cacheKey])) {
+    renderPatientSickLeaves(tbodyId, cacheKey, paginationKey);
+  } else if (!hasExistingContent) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Chargement...</td></tr>';
   }
   try {
@@ -2552,8 +3072,31 @@ function renderPatientSickLeaves(tbodyId, cacheKey, paginationKey) {
   const data = Array.isArray(patientRecordsCache[resolvedCacheKey]) ? patientRecordsCache[resolvedCacheKey] : [];
   const isWorkstop = resolvedCacheKey === 'workstops';
   const emptyLabel = isWorkstop ? 'Aucun arrêt de travail' : 'Aucun certificat médical';
+  const emptyAction = isWorkstop ? 'showWorkStopForm()' : 'showSickLeaveForm()';
+  const emptyBtnText = isWorkstop ? 'Nouvel arrêt de travail' : 'Nouveau certificat';
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center empty-row">${emptyLabel}</td></tr>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 32px 16px;">
+          <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 12px;">
+              <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                <line x1="20" y1="22" x2="44" y2="22"/>
+                <line x1="20" y1="30" x2="44" y2="30"/>
+                <line x1="20" y1="38" x2="32" y2="38"/>
+              </svg>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">${escapeHTML(emptyLabel)}</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Créez un document officiel pour ce patient.</div>
+            <button type="button" class="btn btn-primary btn-small" onclick="${emptyAction}" style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              ${emptyBtnText}
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
@@ -2569,16 +3112,23 @@ function renderPatientSickLeaves(tbodyId, cacheKey, paginationKey) {
 
     return `
       <tr>
-        <td>${escapeHTML(startLabel)}</td>
+        <td><strong style="color: #0f172a;">${escapeHTML(startLabel)}</strong></td>
         <td>${escapeHTML(endLabel)}</td>
-        <td>${escapeHTML(duration === '-' ? '-' : `${duration} jour${duration > 1 ? 's' : ''}`)}</td>
+        <td><span class="ant-tag ant-tag-processing" style="background: #e6f0ff; color: #1677ff; border-color: #91caff; font-weight: 600; font-size: 12.5px;">${escapeHTML(duration === '-' ? '-' : `${duration} jour${duration > 1 ? 's' : ''}`)}</span></td>
         <td>${escapeHTML(documentLabel)}</td>
         <td>
-          <div class="table-actions" style="display:flex; flex-wrap:nowrap; gap:6px; align-items:center;">
-            <button type="button" class="btn btn-tiny btn-secondary consultation-action-chip-icon" data-sickleave-action="view" data-id="${safeIdAttr}" title="Aperçu">👁️</button>
-            <button type="button" class="btn btn-tiny btn-primary consultation-action-chip-icon" data-sickleave-action="print" data-id="${safeIdAttr}" title="Imprimer">🖨️</button>
-            <button type="button" class="btn btn-tiny btn-info consultation-action-chip-icon" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier">✏️</button>
-            <button type="button" class="btn btn-tiny btn-danger consultation-action-chip-icon" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer">🗑️</button>
+          <div class="table-actions" style="display: flex; flex-wrap: nowrap; gap: 8px; align-items: center; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" data-sickleave-action="print" data-id="${safeIdAttr}" title="Aperçu et Imprimer" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <span>Imprimer</span>
+            </button>
+            <button type="button" class="btn btn-secondary" data-sickleave-action="edit" data-id="${safeIdAttr}" title="Modifier" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Modifier</span>
+            </button>
+            <button type="button" class="btn" data-sickleave-action="delete" data-id="${safeIdAttr}" title="Supprimer" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
           </div>
         </td>
       </tr>
@@ -3194,7 +3744,31 @@ function renderPatientAppointments() {
 
   if (!data.length) {
     updatePatientRecordPagination('appointments', null);
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Aucun rendez-vous</td></tr>';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 32px 16px;">
+          <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 12px;">
+              <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <rect x="12" y="10" width="40" height="44" rx="4" fill="#f8fafc"/>
+                <line x1="12" y1="22" x2="52" y2="22"/>
+                <line x1="22" y1="6" x2="22" y2="12" stroke="#1677ff" stroke-width="2"/>
+                <line x1="42" y1="6" x2="42" y2="12" stroke="#1677ff" stroke-width="2"/>
+                <circle cx="24" cy="32" r="2" fill="#1677ff"/>
+                <circle cx="32" cy="32" r="2" fill="#1677ff"/>
+                <circle cx="40" cy="32" r="2" fill="#1677ff"/>
+              </svg>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun rendez-vous planifié</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Planifiez un prochain rendez-vous ou une consultation de contrôle.</div>
+            <button type="button" class="btn btn-primary btn-small" onclick="openNewAppointmentModal()" style="display: inline-flex; align-items: center; gap: 5px;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nouveau RDV
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
     return;
   }
 
@@ -3225,14 +3799,19 @@ function renderPatientAppointments() {
     const statusKey = String(a.status || 'scheduled').toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     return `
       <tr>
-        <td>${escapeHTML(dateLabel)}</td>
-        <td>${escapeHTML(timeLabel)}</td>
+        <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+        <td><span style="font-weight: 600; color: #475569;">${escapeHTML(timeLabel)}</span></td>
         <td>${escapeHTML(reason)}</td>
         <td><span class="appointment-status-pill appointment-status-pill-${statusKey}">${escapeHTML(status)}</span></td>
         <td>
-          <div class="table-actions consultation-table-actions">
-            <button class="btn btn-tiny btn-primary consultation-action-chip" onclick="printAppointmentTicket('${a.id}')" title="Imprimer le ticket du rendez-vous">Ticket</button>
-            <button class="btn btn-tiny btn-danger consultation-action-chip" onclick="deleteAppointment('${a.id}')" title="Supprimer le rendez-vous">Supprimer</button>
+          <div class="table-actions" style="display: flex; gap: 6px; justify-content: flex-end;">
+            <button class="btn btn-tiny btn-secondary" onclick="printAppointmentTicket('${a.id}')" title="Imprimer le ticket du rendez-vous" style="display: inline-flex; align-items: center; gap: 4px;">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Ticket
+            </button>
+            <button class="btn btn-tiny" onclick="deleteAppointment('${a.id}')" title="Supprimer le rendez-vous" style="background: #fff1f0; border: 1px solid #ffa39e; color: #e11d48; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border-radius: 4px;">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
         </td>
       </tr>
@@ -3858,6 +4437,108 @@ window.scanConsultationAttachment = scanConsultationAttachment;
 window.openConsultationAttachmentImport = openConsultationAttachmentImport;
 window.openConsultationScanner = openConsultationScanner;
 
+// Navigate to ORL module from patient details
+function goToORLFromPatientDetails() {
+  const patientId = currentPatientId || window.currentPatientId || null;
+  if (typeof showSection === 'function') {
+    showSection('orl');
+  }
+  if (patientId && typeof selectORLPatient === 'function') {
+    const sel = document.getElementById('orl-patient-selector');
+    if (sel) sel.value = String(patientId);
+    selectORLPatient(patientId);
+  }
+}
+window.goToORLFromPatientDetails = goToORLFromPatientDetails;
+
+function goToOperationsFromPatientDetails() {
+  const patientId = currentPatientId || window.currentPatientId || null;
+  if (typeof showSection === 'function') {
+    showSection('operations');
+  }
+  if (patientId && currentPatientData) {
+    setTimeout(() => {
+      const searchInput = document.getElementById('operations-search');
+      const patientName = `${currentPatientData.firstName || ''} ${currentPatientData.lastName || ''}`.trim();
+      if (searchInput && patientName) {
+        searchInput.value = patientName;
+        if (typeof filterOperations === 'function') {
+          filterOperations();
+        }
+      }
+    }, 50);
+  }
+}
+window.goToOperationsFromPatientDetails = goToOperationsFromPatientDetails;
+
+function openORLNewReportFromPatientDetails() {
+  const patientId = currentPatientId || window.currentPatientId || null;
+  if (typeof showSection === 'function') {
+    showSection('orl');
+  }
+  if (patientId && typeof selectORLPatient === 'function') {
+    const sel = document.getElementById('orl-patient-selector');
+    if (sel) sel.value = String(patientId);
+    selectORLPatient(patientId);
+  }
+  if (typeof createNewORLReport === 'function') {
+    createNewORLReport();
+  }
+}
+window.openORLNewReportFromPatientDetails = openORLNewReportFromPatientDetails;
+
+function addORLReportToConsultation() {
+  const patientId = document.getElementById('consultation-patientId')?.value || currentPatientId || window.currentPatientId;
+  const reason = document.getElementById('consultation-reason')?.value || '';
+  const diagnosis = document.getElementById('consultation-diagnosis')?.value || '';
+  const treatment = document.getElementById('consultation-treatment')?.value || '';
+  const date = document.getElementById('consultation-date')?.value || '';
+
+  if (typeof closeModal === 'function') {
+    closeModal('modal-consultation');
+  }
+
+  if (typeof showSection === 'function') {
+    showSection('orl');
+  }
+
+  if (patientId && typeof selectORLPatient === 'function') {
+    const sel = document.getElementById('orl-patient-selector');
+    if (sel) sel.value = String(patientId);
+    selectORLPatient(patientId);
+  }
+
+  if (typeof createNewORLReport === 'function') {
+    createNewORLReport();
+  }
+
+  if (reason) {
+    const motifEl = document.getElementById('orl-motif');
+    if (motifEl) motifEl.value = reason;
+  }
+  if (diagnosis) {
+    const diagEl = document.getElementById('orl-diagnosis');
+    if (diagEl) diagEl.value = diagnosis;
+  }
+  if (treatment) {
+    const trtEl = document.getElementById('orl-treatment');
+    if (trtEl) trtEl.value = treatment;
+  }
+  if (date) {
+    const dateEl = document.getElementById('orl-date');
+    if (dateEl) dateEl.value = date;
+  }
+
+  if (typeof renderORLWysiwygReport === 'function') {
+    renderORLWysiwygReport(true);
+  }
+
+  if (typeof showNotification === 'function') {
+    showNotification('Module ORL ouvert : nouveau compte-rendu lié au patient', 'info');
+  }
+}
+window.addORLReportToConsultation = addORLReportToConsultation;
+
 // Navigate to dental tab from consultation modal
 function goToPatientDentalFromConsultation(patientId) {
   if (!patientId) return;
@@ -3866,3 +4547,10 @@ function goToPatientDentalFromConsultation(patientId) {
   setTimeout(() => { switchTab('tab-dental'); }, 300);
 }
 window.goToPatientDentalFromConsultation = goToPatientDentalFromConsultation;
+window.goToPatientORLFromConsultation = function(patientId) {
+  if (!patientId) return;
+  showPatientDetails(patientId);
+  setTimeout(() => { switchTab('tab-orl'); }, 300);
+};
+window.showPatientDetails = showPatientDetails;
+window.loadPatientDetails = showPatientDetails;

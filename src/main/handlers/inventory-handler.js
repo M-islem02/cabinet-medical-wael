@@ -168,6 +168,7 @@ export function handleInventoryEvents() {
   // Récupérer tous les articles
   ipcMain.handle('inventory:getAll', async (event, filters = {}) => {
     try {
+      await ensureDentalInventory();
       const request = normalizeInventoryRequest(filters);
       const hasSuppliers = await tableExists('suppliers');
       let sql = hasSuppliers
@@ -488,4 +489,200 @@ export function handleInventoryEvents() {
       return { success: false, error: error.message };
     }
   });
+}
+
+const DENTAL_INVENTORY_SEEDS = [
+  {
+    id: 'inv-dent-001',
+    name: 'Résine Composite Nano-hybride Universelle (A2/A3)',
+    category: 'Dentisterie',
+    description: 'Composite photopolymérisable pour obturations antérieures et postérieures.',
+    quantity: 25,
+    minQuantity: 5,
+    unit: 'Seringue 4g',
+    purchasePrice: 3500,
+    sellingPrice: 6000,
+    supplier: 'Dental Store Algérie',
+    expirationDate: '2027-12-31',
+    location: 'Tiroir Soins Dentaires A1',
+    notes: 'Restauration esthétique directe haute résistance.'
+  },
+  {
+    id: 'inv-dent-002',
+    name: 'Adhésif Amélo-dentinaire Universel 5ml',
+    category: 'Dentisterie',
+    description: 'Système adhésif universel mono-composant automordançant et mordançage total.',
+    quantity: 12,
+    minQuantity: 3,
+    unit: 'Flacon 5ml',
+    purchasePrice: 5200,
+    sellingPrice: 8500,
+    supplier: 'Dental Store Algérie',
+    expirationDate: '2027-08-30',
+    location: 'Tiroir Soins Dentaires A1',
+    notes: 'Compatible avec tous modes de collage.'
+  },
+  {
+    id: 'inv-dent-003',
+    name: 'Anesthésique Articaïne 1/200 000 avec Adrénaline',
+    category: 'Dentisterie',
+    description: 'Anesthésique local injectable à action rapide pour soins et chirurgie dentaire.',
+    quantity: 40,
+    minQuantity: 10,
+    unit: 'Boîte 50 cartouches',
+    purchasePrice: 4800,
+    sellingPrice: 7000,
+    supplier: 'Pharmacie Centrale & Dépôt Dentaire',
+    expirationDate: '2027-06-30',
+    location: 'Armoire Sécurisée B2',
+    notes: 'Usage réservé anesthésie dentaire (tronculaire et para-apicale).'
+  },
+  {
+    id: 'inv-dent-004',
+    name: 'Aiguilles Dentaires Stériles 30G / 27G',
+    category: 'Dentisterie',
+    description: 'Aiguilles siliconées pour seringue carpule dentaire.',
+    quantity: 30,
+    minQuantity: 8,
+    unit: 'Boîte 100 unités',
+    purchasePrice: 1200,
+    sellingPrice: 2000,
+    supplier: 'Dépôt Médical Dentaire',
+    expirationDate: '2028-05-30',
+    location: 'Tiroir Anesthésie B1',
+    notes: 'Aiguilles jetables stériles sous blister.'
+  },
+  {
+    id: 'inv-dent-005',
+    name: "Cônes de Gutta-Percha & Cônes de Papier d'Endodontie",
+    category: 'Dentisterie',
+    description: 'Assortiment pour obturation canalaire standardisée cône 4% / 6%.',
+    quantity: 18,
+    minQuantity: 4,
+    unit: 'Boîte 60 unités',
+    purchasePrice: 2800,
+    sellingPrice: 4500,
+    supplier: 'Dentsply Sirona Algérie',
+    expirationDate: '2028-12-31',
+    location: 'Tiroir Endo C1',
+    notes: 'Obturation canalaire étanche en technique mono-cône.'
+  },
+  {
+    id: 'inv-dent-006',
+    name: 'Ciment Verre Ionomère de Scellement & Fond de cavité',
+    category: 'Dentisterie',
+    description: "Ciment d'obturation coronaire et scellement prothétique libérant du fluor.",
+    quantity: 10,
+    minQuantity: 3,
+    unit: 'Kit Poudre+Liquide',
+    purchasePrice: 6500,
+    sellingPrice: 11000,
+    supplier: 'GC Dental Corporation',
+    expirationDate: '2027-10-31',
+    location: 'Tiroir Prothèse & Scellement C2',
+    notes: 'Scellement de couronnes, bridges et inlays.'
+  },
+  {
+    id: 'inv-dent-007',
+    name: 'Acide de Mordançage Gel 37%',
+    category: 'Dentisterie',
+    description: "Gel bleu thixotrope pour mordançage de l'émail et de la dentine.",
+    quantity: 20,
+    minQuantity: 5,
+    unit: 'Seringue 12g',
+    purchasePrice: 1500,
+    sellingPrice: 2800,
+    supplier: 'Dental Store Algérie',
+    expirationDate: '2028-01-31',
+    location: 'Tiroir Soins Dentaires A1',
+    notes: 'Application précise avec embouts aiguilles jetables.'
+  },
+  {
+    id: 'inv-dent-008',
+    name: 'Carrés de Digue Dentaire en Latex (Champ opératoire)',
+    category: 'Dentisterie',
+    description: 'Feuilles de champ opératoire pour isolation absolue en endodontie et soins.',
+    quantity: 15,
+    minQuantity: 4,
+    unit: 'Boîte 36 feuilles',
+    purchasePrice: 2200,
+    sellingPrice: 3500,
+    supplier: 'Sanctuary Dental',
+    expirationDate: '2028-09-30',
+    location: 'Tiroir Champ Opératoire D1',
+    notes: 'Indispensable pour dévitalisation et collages étanches.'
+  },
+  {
+    id: 'inv-dent-009',
+    name: 'Kit Fraises Diamantées & Carbure FG Haute Vitesse',
+    category: 'Dentisterie',
+    description: 'Assortiment de fraises pour taille cavitaire, dépouille et préparation prothèse.',
+    quantity: 22,
+    minQuantity: 5,
+    unit: 'Set 10 fraises',
+    purchasePrice: 3800,
+    sellingPrice: 6500,
+    supplier: 'Komet Dental Algérie',
+    expirationDate: '2029-12-31',
+    location: 'Tiroir Instrumentation D2',
+    notes: 'Fraises autoclavables à haute durabilité.'
+  },
+  {
+    id: 'inv-dent-010',
+    name: 'Implants Dentaires Titane Grade 4 (Ø 3.75mm / 4.2mm)',
+    category: 'Dentisterie',
+    description: 'Implants dentaires ostéo-intégrables connexion conique hexagonale stérile.',
+    quantity: 14,
+    minQuantity: 3,
+    unit: 'Unité stérile',
+    purchasePrice: 18000,
+    sellingPrice: 35000,
+    supplier: 'Implant Direct / Straumann Rep.',
+    expirationDate: '2029-06-30',
+    location: 'Armoire Implantologie E1',
+    notes: 'Restauration implantaire unitaire et plurale.'
+  },
+  {
+    id: 'inv-dent-011',
+    name: 'Silicone par Addition Haute Précision (Putty + Light)',
+    category: 'Dentisterie',
+    description: "Matériau d'empreinte dentaire hydrophile pour couronnes, bridges et facettes.",
+    quantity: 8,
+    minQuantity: 2,
+    unit: 'Kit Base + Catalyseur',
+    purchasePrice: 8900,
+    sellingPrice: 14500,
+    supplier: 'Zhermack Dental',
+    expirationDate: '2027-11-30',
+    location: 'Étagère Empreinte Prothèse E2',
+    notes: 'Reproduction fidèle des limites cervicales prothétiques.'
+  }
+];
+
+let dentalInventorySeeded = false;
+
+export async function ensureDentalInventory() {
+  if (dentalInventorySeeded) return;
+  try {
+    const now = moment().format('YYYY-MM-DD HH:mm:ss');
+    for (const item of DENTAL_INVENTORY_SEEDS) {
+      const existing = await queryOne('SELECT id FROM inventory WHERE id = ?', [item.id]);
+      if (!existing) {
+        await run(
+          `INSERT INTO inventory (
+            id, name, category, description, quantity, minQuantity, unit,
+            purchasePrice, sellingPrice, supplier, expirationDate, location, notes, isActive, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
+          [
+            item.id, item.name, item.category, item.description, item.quantity, item.minQuantity, item.unit,
+            item.purchasePrice, item.sellingPrice, item.supplier, item.expirationDate, item.location, item.notes,
+            now, now
+          ]
+        );
+      }
+    }
+    dentalInventorySeeded = true;
+  } catch (err) {
+    console.warn('[Inventory] Auto-seeding dental inventory notice:', err.message);
+  }
 }

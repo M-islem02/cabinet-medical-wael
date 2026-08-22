@@ -146,6 +146,26 @@
    GLOBAL APP RESET & TYPOGRAPHY
    ========================================================================== */
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d0d5dd transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #d0d5dd;
+  border-radius: 10px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #98a2b3;
+}
+
 html, body {
   background-color: var(--ant-bg-layout);
   color: var(--ant-text);
@@ -154,6 +174,10 @@ html, body {
   line-height: 1.5714285714285714;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .app-container {
@@ -184,30 +208,39 @@ html, body {
 }
 
 .sidebar-header {
-  min-height: var(--topbar-height) !important;
-  max-height: var(--topbar-height) !important;
-  padding: 0 20px !important;
+  min-height: 64px !important;
+  max-height: 64px !important;
+  height: 64px !important;
+  padding: 8px 12px 8px 16px !important;
   display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
-  justify-content: center !important;
+  justify-content: space-between !important;
   border-bottom: 1px solid #f0f0f0 !important;
   background: #ffffff !important;
   flex-shrink: 0 !important;
+  gap: 8px !important;
 }
 
+.sidebar-header .sidebar-brand-wrapper,
 .sidebar-header .logo {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 100% !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  text-align: center !important;
 }
 
 .app-brand-logo {
-  max-height: 36px !important;
+  max-height: 46px !important;
+  height: 46px !important;
   width: auto !important;
-  max-width: 140px !important;
+  max-width: 170px !important;
   object-fit: contain !important;
   filter: none !important;
+  display: block !important;
+  margin: 0 auto !important;
 }
 
 .nav-menu {
@@ -389,26 +422,48 @@ html, body {
   transition: all 0.2s !important;
 }
 
-}
-
 /* Ant Design Sider Collapsed States */
 body.sidebar-collapsed .sidebar,
 html.sidebar-collapsed .sidebar {
-  width: 64px !important;
-  min-width: 64px !important;
-  max-width: 64px !important;
+  width: 70px !important;
+  min-width: 70px !important;
+  max-width: 70px !important;
+  transition: width 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 body.sidebar-collapsed .sidebar-header,
 html.sidebar-collapsed .sidebar-header {
-  padding: 0 !important;
+  padding: 10px 4px !important;
+  min-height: unset !important;
+  max-height: unset !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
   justify-content: center !important;
+  gap: 8px !important;
+}
+
+body.sidebar-collapsed .sidebar-brand-wrapper,
+body.sidebar-collapsed .sidebar-header .logo,
+html.sidebar-collapsed .sidebar-brand-wrapper,
+html.sidebar-collapsed .sidebar-header .logo {
+  justify-content: center !important;
+  width: 100% !important;
 }
 
 body.sidebar-collapsed .app-brand-logo,
 html.sidebar-collapsed .app-brand-logo {
   max-height: 28px !important;
-  max-width: 32px !important;
+  max-width: 38px !important;
+  margin: 0 auto !important;
+}
+
+body.sidebar-collapsed .sidebar-toggle-btn,
+html.sidebar-collapsed .sidebar-toggle-btn {
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 auto !important;
 }
 
 body.sidebar-collapsed .nav-item,
@@ -448,7 +503,7 @@ html.sidebar-collapsed .nav-item .icon {
 
 body.sidebar-collapsed .sidebar-footer,
 html.sidebar-collapsed .sidebar-footer {
-  padding: 8px 4px !important;
+  padding: 12px 6px !important;
   align-items: center !important;
 }
 
@@ -463,6 +518,8 @@ html.sidebar-collapsed .user-info {
 body.sidebar-collapsed .avatar,
 html.sidebar-collapsed .avatar {
   margin: 0 auto !important;
+  width: 36px !important;
+  height: 36px !important;
 }
 
 body.sidebar-collapsed .sidebar-footer .btn-danger,
@@ -475,18 +532,19 @@ html.sidebar-collapsed .btn-block {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 0 auto !important;
+  margin: 6px auto 0 !important;
   border-radius: 6px !important;
   font-size: 0 !important;
+  background: #fff1f0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='%23ff4d4f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpolyline points='16 17 21 12 16 7'/%3E%3Cline x1='21' y1='12' x2='9' y2='12'/%3E%3C/svg%3E") center / 16px no-repeat !important;
+  border: 1px solid #ffccc7 !important;
 }
 
 body.sidebar-collapsed .sidebar-footer .btn-danger::before,
 html.sidebar-collapsed .sidebar-footer .btn-danger::before,
 body.sidebar-collapsed .btn-block::before,
 html.sidebar-collapsed .btn-block::before {
-  content: '🚪' !important;
-  font-size: 16px !important;
-  display: block !important;
+  content: '' !important;
+  display: none !important;
 }
 
 /* ==========================================================================
@@ -650,6 +708,14 @@ html.sidebar-collapsed .btn-block::before {
 
 .card:hover {
   border-color: #f0f0f0 !important;
+}
+
+.section:not(.active) {
+  display: none !important;
+}
+
+.section.active {
+  display: block !important;
 }
 
 .card-header,

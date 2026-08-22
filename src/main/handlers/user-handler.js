@@ -34,6 +34,10 @@ async function resolveAllowedDoctorSpecialty(requestedSpecialty) {
   const packageConfig = await queryOne('SELECT * FROM package_config LIMIT 1');
   const enabled = parseEnabledSpecialties(packageConfig?.enabledSpecialties, packageConfig);
   const allowed = enabled.length ? enabled : ['general'];
+  const rawRequested = String(requestedSpecialty || '').trim().toLowerCase();
+  if (rawRequested === 'all' || rawRequested === 'toutes' || rawRequested === 'demo' || rawRequested === 'démo') {
+    return { success: true, specialty: 'all', enabled: allowed };
+  }
   const normalized = normalizeSpecialtyKey(requestedSpecialty || allowed[0] || 'general');
   if (allowed.length === 1) {
     return { success: true, specialty: allowed[0], enabled: allowed };

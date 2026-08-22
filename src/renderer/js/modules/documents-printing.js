@@ -350,6 +350,9 @@ function buildDocumentBarcodeHtml(reference) {
 }
 
 sharedPrintScope.buildDocumentBarcodeHtml = buildDocumentBarcodeHtml
+if (typeof window !== 'undefined') {
+  window.buildDocumentBarcodeHtml = buildDocumentBarcodeHtml
+}
 
 function buildPrintableHtml(opts = {}) {
   const {

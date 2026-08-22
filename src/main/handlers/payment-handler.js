@@ -83,13 +83,13 @@ function getPaymentAccessScope(paymentAlias = 'payments', patientAlias = 'patien
 function buildPaymentSelect() {
   return `
     SELECT payments.*,
-           COALESCE(patients.firstName, consultation_patient.firstName) AS patientFirstName,
-           COALESCE(patients.lastName, consultation_patient.lastName) AS patientLastName,
-           COALESCE(payments.patientId, consultations.patientId) AS resolvedPatientId
+           COALESCE(patients.firstname, cp.firstname) AS patientFirstName,
+           COALESCE(patients.lastname, cp.lastname) AS patientLastName,
+           COALESCE(payments.patientid, consultations.patientid) AS resolvedPatientId
     FROM payments
-    LEFT JOIN patients ON patients.id = payments.patientId
-    LEFT JOIN consultations ON consultations.id = payments.consultationId
-    LEFT JOIN patients consultation_patient ON consultation_patient.id = consultations.patientId
+    LEFT JOIN patients ON patients.id = payments.patientid
+    LEFT JOIN consultations ON consultations.id = payments.consultationid
+    LEFT JOIN patients cp ON cp.id = consultations.patientid
   `;
 }
 
@@ -157,7 +157,7 @@ export function handlePaymentEvents() {
   ipcMain.handle('payment:getByPatient', async (event, patientId) => {
     try {
       const scope = getPaymentAccessScope('payments', 'patients');
-      const whereParts = ['payments.patientId = ?'];
+      const whereParts = ['payments.patientid = ?'];
       const params = [patientId];
 
       if (scope.clause) {
@@ -168,7 +168,7 @@ export function handlePaymentEvents() {
       const payments = await query(
         `SELECT payments.*
          FROM payments
-         LEFT JOIN patients ON patients.id = payments.patientId
+         LEFT JOIN patients ON patients.id = payments.patientid
          WHERE ${whereParts.join(' AND ')}
          ORDER BY paymentDate DESC`,
         params
@@ -188,7 +188,7 @@ export function handlePaymentEvents() {
       }
 
       const scope = getPaymentAccessScope('payments', 'patients');
-      const whereParts = ['payments.consultationId = ?'];
+      const whereParts = ['payments.consultationid = ?'];
       const params = [consultationId];
 
       if (scope.clause) {
@@ -198,12 +198,12 @@ export function handlePaymentEvents() {
 
       const payment = await queryOne(
         `SELECT payments.*,
-                patients.firstName AS patientFirstName,
-                patients.lastName AS patientLastName
+                patients.firstname AS patientFirstName,
+                patients.lastname AS patientLastName
          FROM payments
-         LEFT JOIN patients ON patients.id = payments.patientId
+         LEFT JOIN patients ON patients.id = payments.patientid
          WHERE ${whereParts.join(' AND ')}
-         ORDER BY payments.paymentDate DESC
+         ORDER BY payments.paymentdate DESC
          LIMIT 1`,
         params
       );
@@ -233,7 +233,7 @@ export function handlePaymentEvents() {
       const payment = await queryOne(
         `SELECT payments.*
          FROM payments
-         LEFT JOIN patients ON patients.id = payments.patientId
+         LEFT JOIN patients ON patients.id = payments.patientid
          WHERE ${whereParts.join(' AND ')}`,
         params
       );
@@ -255,17 +255,17 @@ export function handlePaymentEvents() {
       const params = [];
 
       if (request.startDate) {
-        whereParts.push('payments.paymentDate >= ?');
+        whereParts.push('payments.paymentdate >= ?');
         params.push(request.startDate);
       }
 
       if (request.endDate) {
-        whereParts.push('payments.paymentDate <= ?');
+        whereParts.push('payments.paymentdate <= ?');
         params.push(request.endDate);
       }
 
       if (request.paymentMethod) {
-        whereParts.push('payments.paymentMethod = ?');
+        whereParts.push('payments.paymentmethod = ?');
         params.push(request.paymentMethod);
       }
 
@@ -281,7 +281,7 @@ export function handlePaymentEvents() {
         const payments = await query(
           `${buildPaymentSelect()}
            WHERE ${whereClause}
-           ORDER BY payments.paymentDate DESC`,
+           ORDER BY payments.paymentdate DESC`,
           params
         );
 
@@ -291,9 +291,9 @@ export function handlePaymentEvents() {
       const totalRow = await queryOne(
         `SELECT COUNT(*) as total
          FROM payments
-         LEFT JOIN patients ON patients.id = payments.patientId
-         LEFT JOIN consultations ON consultations.id = payments.consultationId
-         LEFT JOIN patients consultation_patient ON consultation_patient.id = consultations.patientId
+         LEFT JOIN patients ON patients.id = payments.patientid
+         LEFT JOIN consultations ON consultations.id = payments.consultationid
+         LEFT JOIN patients cp ON cp.id = consultations.patientid
          WHERE ${whereClause}`,
         params
       );
@@ -303,7 +303,7 @@ export function handlePaymentEvents() {
       const payments = await query(
         `${buildPaymentSelect()}
          WHERE ${whereClause}
-         ORDER BY payments.paymentDate DESC
+         ORDER BY payments.paymentdate DESC
          LIMIT ? OFFSET ?`,
         [...params, pagination.pageSize, offset]
       );
@@ -327,18 +327,18 @@ export function handlePaymentEvents() {
       let sql = `
         SELECT SUM(payments.amount) as total
         FROM payments
-        LEFT JOIN patients ON patients.id = payments.patientId
+        LEFT JOIN patients ON patients.id = payments.patientid
         WHERE 1=1
       `;
       const params = [];
 
       if (filters.startDate) {
-        sql += ' AND payments.paymentDate >= ?';
+        sql += ' AND payments.paymentdate >= ?';
         params.push(filters.startDate);
       }
 
       if (filters.endDate) {
-        sql += ' AND payments.paymentDate <= ?';
+        sql += ' AND payments.paymentdate <= ?';
         params.push(filters.endDate);
       }
 
@@ -368,23 +368,23 @@ export function handlePaymentEvents() {
       const params = [];
 
       if (period === 'day') {
-        groupBy = 'DATE(payments.paymentDate)';
+        groupBy = 'DATE(payments.paymentdate)';
       } else if (period === 'week') {
-        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'IYYY-\"W\"IW')";
+        groupBy = "TO_CHAR(payments.paymentdate::timestamp, 'IYYY-\"W\"IW')";
       } else if (period === 'year') {
-        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'YYYY')";
+        groupBy = "TO_CHAR(payments.paymentdate::timestamp, 'YYYY')";
       } else {
-        groupBy = "TO_CHAR(payments.paymentDate::timestamp, 'YYYY-MM')";
+        groupBy = "TO_CHAR(payments.paymentdate::timestamp, 'YYYY-MM')";
       }
 
       if (startDate && endDate) {
-        whereClause = 'WHERE payments.paymentDate BETWEEN ? AND ?';
+        whereClause = 'WHERE payments.paymentdate BETWEEN ? AND ?';
         params.push(startDate, endDate);
       } else if (startDate) {
-        whereClause = 'WHERE payments.paymentDate >= ?';
+        whereClause = 'WHERE payments.paymentdate >= ?';
         params.push(startDate);
       } else if (endDate) {
-        whereClause = 'WHERE payments.paymentDate <= ?';
+        whereClause = 'WHERE payments.paymentdate <= ?';
         params.push(endDate);
       }
 
@@ -401,7 +401,7 @@ export function handlePaymentEvents() {
            ${groupBy} as period,
            SUM(payments.amount) as income
          FROM payments
-         LEFT JOIN patients ON patients.id = payments.patientId
+         LEFT JOIN patients ON patients.id = payments.patientid
          ${whereClause}
          GROUP BY ${groupBy}
          ORDER BY ${groupBy} DESC
@@ -428,7 +428,7 @@ export function handlePaymentEvents() {
         const allowed = await queryOne(
           `SELECT payments.id
            FROM payments
-           LEFT JOIN patients ON patients.id = payments.patientId
+           LEFT JOIN patients ON patients.id = payments.patientid
            WHERE payments.id = ? AND ${scope.clause}`,
           [paymentId, ...scope.params]
         );
@@ -474,7 +474,7 @@ export function handlePaymentEvents() {
         const allowed = await queryOne(
           `SELECT payments.id
            FROM payments
-           LEFT JOIN patients ON patients.id = payments.patientId
+           LEFT JOIN patients ON patients.id = payments.patientid
            WHERE payments.id = ? AND ${scope.clause}`,
           [paymentId, ...scope.params]
         );

@@ -96,9 +96,9 @@ async function loadStatistics(force = false) {
     if (!res?.success) {
       throw new Error(res?.error || 'Impossible de charger les statistiques');
     }
-
     const { role, isSuperAdmin, isDoctorAdmin, financials, clinicals, operationals } = res.data;
-    const hasFinancialAccess = isSuperAdmin || isDoctorAdmin;
+    const isPractitioner = res.data.isPractitioner || role === 'doctor' || role === 'dentist';
+    const hasFinancialAccess = isSuperAdmin || isDoctorAdmin || isPractitioner || (financials && typeof financials.totalRevenue === 'number');
 
     // Show/hide containers based on roles
     const finContainer = document.getElementById('stats-financial-container');
@@ -107,86 +107,85 @@ async function loadStatistics(force = false) {
     const alertsCard = document.getElementById('stats-alerts-card');
     const opWidgets = document.querySelectorAll('.stats-operational-widget');
 
-    if (hasFinancialAccess) {
+    if (hasFinancialAccess && financials) {
       if (finContainer) finContainer.style.display = 'grid';
-      if (trendsCard) trendsCard.style.display = 'block';
-      if (alertsCard) alertsCard.style.display = 'block';
-      if (docContainer) docContainer.style.display = 'none';
+      if (trendsCard) trendsCard.style.display = (financials.periodicalFinancials && financials.periodicalFinancials.length > 0) ? 'block' : 'none';
+      if (alertsCard) alertsCard.style.display = (isSuperAdmin || isDoctorAdmin) ? 'block' : 'none';
+      if (docContainer) docContainer.style.display = 'grid';
       opWidgets.forEach(w => w.style.display = 'block');
 
       // Populate Financials
-      if (financials) {
-        document.getElementById('stat-adv-revenue').textContent = formatRevenueAmount(financials.totalRevenue);
-        document.getElementById('stat-breakdown-consultations').textContent = formatRevenueAmount(financials.revenueBreakdown.consultations);
-        document.getElementById('stat-breakdown-plans').textContent = formatRevenueAmount(financials.revenueBreakdown.treatmentPlans);
-        document.getElementById('stat-breakdown-pos').textContent = formatRevenueAmount(financials.revenueBreakdown.posSales);
+      document.getElementById('stat-adv-revenue').textContent = formatRevenueAmount(financials.totalRevenue);
+      document.getElementById('stat-breakdown-consultations').textContent = formatRevenueAmount(financials.revenueBreakdown?.consultations || 0);
+      document.getElementById('stat-breakdown-plans').textContent = formatRevenueAmount(financials.revenueBreakdown?.treatmentPlans || 0);
+      document.getElementById('stat-breakdown-pos').textContent = formatRevenueAmount(financials.revenueBreakdown?.posSales || 0);
 
-        document.getElementById('stat-adv-expenses').textContent = formatRevenueAmount(financials.totalExpenses);
-        document.getElementById('stat-breakdown-general').textContent = formatRevenueAmount(financials.expenseBreakdown.general);
-        document.getElementById('stat-breakdown-salaries').textContent = formatRevenueAmount(financials.expenseBreakdown.salaires);
-        document.getElementById('stat-breakdown-inventory').textContent = formatRevenueAmount(financials.expenseBreakdown.inventory);
+      document.getElementById('stat-adv-expenses').textContent = formatRevenueAmount(financials.totalExpenses || 0);
+      document.getElementById('stat-breakdown-general').textContent = formatRevenueAmount(financials.expenseBreakdown?.general || 0);
+      document.getElementById('stat-breakdown-salaries').textContent = formatRevenueAmount(financials.expenseBreakdown?.salaires || 0);
+      document.getElementById('stat-breakdown-inventory').textContent = formatRevenueAmount(financials.expenseBreakdown?.inventory || 0);
 
-        const netMargin = financials.netMargin;
-        const marginEl = document.getElementById('stat-adv-margin');
+      const netMargin = financials.netMargin || 0;
+      const marginEl = document.getElementById('stat-adv-margin');
+      if (marginEl) {
         marginEl.textContent = formatRevenueAmount(netMargin);
         marginEl.style.color = netMargin >= 0 ? '#059669' : '#dc2626';
+      }
 
-        const marginPctEl = document.getElementById('stat-adv-margin-pct');
-        if (marginPctEl) {
-          const totalRev = financials.totalRevenue;
-          const pct = totalRev > 0 ? Math.round((netMargin / totalRev) * 100) : 0;
-          marginPctEl.textContent = `Taux de marge : ${pct}%`;
-          marginPctEl.style.color = netMargin >= 0 ? '#059669' : '#dc2626';
-        }
+      const marginPctEl = document.getElementById('stat-adv-margin-pct');
+      if (marginPctEl) {
+        const totalRev = financials.totalRevenue || 0;
+        const pct = totalRev > 0 ? Math.round((netMargin / totalRev) * 100) : 0;
+        marginPctEl.textContent = `Taux de marge : ${pct}%`;
+        marginPctEl.style.color = netMargin >= 0 ? '#059669' : '#dc2626';
+      }
 
-        document.getElementById('stat-adv-pending').textContent = formatRevenueAmount(financials.pendingPayments);
+      document.getElementById('stat-adv-pending').textContent = formatRevenueAmount(financials.pendingPayments || 0);
 
-        // Periodical financials table
-        const tbody = document.getElementById('stats-periodical-tbody');
-        if (tbody) {
-          if (Array.isArray(financials.periodicalFinancials) && financials.periodicalFinancials.length > 0) {
-            tbody.innerHTML = financials.periodicalFinancials.map(item => {
-              const pct = item.revenue > 0 ? Math.round((item.margin / item.revenue) * 100) : 0;
-              const marginColor = item.margin >= 0 ? '#059669' : '#dc2626';
-              return `
-                <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-                  <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${escapeStatisticsHtml(item.period)}</td>
-                  <td style="padding: 10px 12px; text-align: right; color: #059669; font-weight: 600;">${formatRevenueAmount(item.revenue)}</td>
-                  <td style="padding: 10px 12px; text-align: right; color: #dc2626;">${formatRevenueAmount(item.expenses)}</td>
-                  <td style="padding: 10px 12px; text-align: right; color: ${marginColor}; font-weight: 700;">${formatRevenueAmount(item.margin)}</td>
-                  <td style="padding: 10px 12px; text-align: right; color: ${marginColor}; font-weight: 700;">${pct}%</td>
-                </tr>
-              `;
-            }).join('');
-          } else {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">Aucune donnée historique sur cette période.</td></tr>`;
-          }
+      // Periodical financials table
+      const tbody = document.getElementById('stats-periodical-tbody');
+      if (tbody) {
+        if (Array.isArray(financials.periodicalFinancials) && financials.periodicalFinancials.length > 0) {
+          tbody.innerHTML = financials.periodicalFinancials.map(item => {
+            const pct = item.revenue > 0 ? Math.round((item.margin / item.revenue) * 100) : 0;
+            const marginColor = item.margin >= 0 ? '#059669' : '#dc2626';
+            return `
+              <tr>
+                <td style="font-weight: 700; color: #1e293b;">${escapeStatisticsHtml(item.period)}</td>
+                <td style="color: #059669; font-weight: 700;">${formatRevenueAmount(item.revenue)}</td>
+                <td style="color: #dc2626; font-weight: 600;">${formatRevenueAmount(item.expenses)}</td>
+                <td style="color: ${marginColor}; font-weight: 800;">${formatRevenueAmount(item.margin)}</td>
+                <td><span class="ant-tag" style="background: ${item.margin >= 0 ? '#f6ffed' : '#fff1f0'}; color: ${marginColor}; font-weight: 700; border-color: transparent;">${pct}%</span></td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 20px;">Aucune donnée financière périodique sur cet intervalle.</td></tr>`;
         }
       }
 
-      // Populate Operationals
-      if (operationals) {
-        document.getElementById('stat-adv-chairs-occupancy').textContent = `${operationals.chairOccupancy}%`;
-        document.getElementById('stat-adv-equip-occupancy').textContent = `${operationals.equipmentOccupancy}%`;
+      if (document.getElementById('stat-doctor-collected')) {
+        document.getElementById('stat-doctor-collected').textContent = formatRevenueAmount(financials.todayCollected || 0);
+      }
 
-        // Unified alerts rendering
+      // Operational Alerts
+      if (operationals) {
         const alertsList = document.getElementById('stats-alerts-list');
         if (alertsList) {
           const alerts = [];
-          
-          if (Array.isArray(operationals.alerts?.lowStock)) {
-            operationals.alerts.lowStock.forEach(a => {
-              alerts.push({ type: 'warning', icon: '⚠️', badge: 'Stock Bas', name: a.name, message: a.message });
+          if (Array.isArray(operationals.alerts?.lowStockItems)) {
+            operationals.alerts.lowStockItems.forEach(a => {
+              alerts.push({ type: 'warning', badge: 'Stock Bas', name: a.name, message: a.message });
             });
           }
           if (Array.isArray(operationals.alerts?.expiringLots)) {
             operationals.alerts.expiringLots.forEach(a => {
-              alerts.push({ type: 'danger', icon: '⏳', badge: 'Expiration', name: a.name, message: a.message });
+              alerts.push({ type: 'danger', badge: 'Expiration', name: a.name, message: a.message });
             });
           }
           if (Array.isArray(operationals.alerts?.maintenanceLots)) {
             operationals.alerts.maintenanceLots.forEach(a => {
-              alerts.push({ type: 'info', icon: '🔧', badge: 'Maintenance', name: a.name, message: a.message });
+              alerts.push({ type: 'info', badge: 'Maintenance', name: a.name, message: a.message });
             });
           }
 
@@ -199,7 +198,6 @@ async function loadStatistics(force = false) {
               return `
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 10px; background: ${bg}; border: 1px solid ${border}; color: ${color};">
                   <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 16px;">${a.icon}</span>
                     <div style="font-size: 13px;">
                       <span style="font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin-right: 6px;">${a.badge}</span>
                       <strong>${escapeStatisticsHtml(a.name)}</strong> — ${escapeStatisticsHtml(a.message)}
@@ -209,7 +207,7 @@ async function loadStatistics(force = false) {
               `;
             }).join('');
           } else {
-            alertsList.innerHTML = `<div style="padding: 16px; border-radius: 10px; background: #f0fdf4; border: 1px dashed #16a34a; color: #15803d; text-align: center; font-size: 13px;">✅ Aucune alerte active dans le cabinet.</div>`;
+            alertsList.innerHTML = `<div style="padding: 16px; border-radius: 10px; background: #f0fdf4; border: 1px dashed #16a34a; color: #15803d; text-align: center; font-size: 13px;">Aucune alerte active dans le cabinet.</div>`;
           }
         }
       }
@@ -221,7 +219,7 @@ async function loadStatistics(force = false) {
       opWidgets.forEach(w => w.style.display = 'none');
 
       // Populate Doctor collected revenue
-      if (financials) {
+      if (financials && document.getElementById('stat-doctor-collected')) {
         document.getElementById('stat-doctor-collected').textContent = formatRevenueAmount(financials.todayCollected || 0);
       }
     }
@@ -234,9 +232,9 @@ async function loadStatistics(force = false) {
       document.getElementById('stat-plans-completed').textContent = clinicals.plansCompletion.completed;
       document.getElementById('stat-plans-cancelled').textContent = clinicals.plansCompletion.cancelled;
 
-      // Render Left List (Top Practitioners if Admin, Top Patients if Doctor Normal)
+      // Render Left List (Top Practitioners if Admin, Top Patients if Doctor)
       const leftListTitleEl = document.getElementById('stats-list-title-left');
-      if (hasFinancialAccess) {
+      if ((isSuperAdmin || isDoctorAdmin) && clinicals.patientsSeenByDoctor && clinicals.patientsSeenByDoctor.length > 0) {
         if (leftListTitleEl) leftListTitleEl.textContent = 'Patients consultés par médecin (Top 10)';
         renderStatisticsList(
           'stats-consultations-list',
@@ -246,7 +244,6 @@ async function loadStatistics(force = false) {
         );
       } else {
         if (leftListTitleEl) leftListTitleEl.textContent = 'Mes Patients les plus vus (Top 10)';
-        // Call top lists to get patients count
         const topListsResult = await window.api.statistics.getTopLists({ startDate, endDate });
         const topLists = topListsResult?.success ? (topListsResult.data || {}) : {};
         renderStatisticsList(

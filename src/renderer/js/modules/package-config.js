@@ -48,10 +48,21 @@ let loadedSpecialtyBasesCache = [];
 
 const PKG_SPECIALTY_LABELS = {
     general: 'Mode généraliste',
-    mpr: 'MPR / Rééducation',
+    orl: 'Spécialité ORL',
+    rehabilitation: 'MPR / Rééducation',
     cardiology: 'Cardiologue',
     dentistry: 'Dentiste'
 };
+
+function normalizeSpecialtyKeyFromConfig(key) {
+    const raw = String(key || '').trim().toLowerCase();
+    if (['general', 'generaliste', 'généraliste'].includes(raw)) return 'general';
+    if (['orl', 'ent', 'oto-rhino', 'oto-rhino-laryngologie'].includes(raw)) return 'orl';
+    if (['rehabilitation', 'mpr', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique'].includes(raw)) return 'rehabilitation';
+    if (['cardiology', 'cardiologie', 'cardiologue'].includes(raw)) return 'cardiology';
+    if (['dentistry', 'dentiste', 'dentaire'].includes(raw)) return 'dentistry';
+    return raw;
+}
 
 const PKG_CABINET_TYPE_RADIO_NAME = 'pkg-cabinet-type';
 
@@ -67,6 +78,7 @@ function applyCabinetTypeChoice(type) {
 
 function enforceCabinetTypeSpecialtyMode() {
     const specialtyCheckboxes = [
+        'pkg-check-orl',
         'pkg-check-specialty-general',
         'pkg-check-rehabilitation',
         'pkg-check-cardiology',
@@ -102,7 +114,7 @@ function initCabinetTypeRadioHandlers() {
             if (radio.checked) applyCabinetTypeChoice(radio.value);
         });
     });
-    const specialtyIds = ['pkg-check-specialty-general', 'pkg-check-rehabilitation', 'pkg-check-cardiology', 'pkg-check-dentistry'];
+    const specialtyIds = ['pkg-check-orl', 'pkg-check-specialty-general', 'pkg-check-rehabilitation', 'pkg-check-cardiology', 'pkg-check-dentistry'];
     specialtyIds.forEach((id) => {
         const cb = document.getElementById(id);
         if (!cb) return;
@@ -152,8 +164,9 @@ async function applySavedPackageConfigState() {
 
 function getEnabledPackageSpecialties() {
     const enabled = [];
+    if (document.getElementById('pkg-check-orl')?.checked) enabled.push('orl');
     if (document.getElementById('pkg-check-specialty-general')?.checked) enabled.push('general');
-    if (document.getElementById('pkg-check-rehabilitation')?.checked) enabled.push('mpr');
+    if (document.getElementById('pkg-check-rehabilitation')?.checked) enabled.push('rehabilitation');
     if (document.getElementById('pkg-check-cardiology')?.checked) enabled.push('cardiology');
     if (document.getElementById('pkg-check-dentistry')?.checked) enabled.push('dentistry');
     if (!enabled.length) {
@@ -171,12 +184,13 @@ function parseEnabledSpecialtiesFromConfig(config = {}) {
             const parsed = Array.isArray(config.enabledSpecialties)
                 ? config.enabledSpecialties
                 : JSON.parse(config.enabledSpecialties);
-            const cleaned = parsed.filter((key) => PKG_SPECIALTY_LABELS[key]);
+            const cleaned = parsed.map(normalizeSpecialtyKeyFromConfig).filter((key) => PKG_SPECIALTY_LABELS[key]);
             if (cleaned.length) return [...new Set(cleaned)];
         } catch (_) {}
     }
     const enabled = ['general'];
-    if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureKineStaff === 1 || config.featureKineStaff === true) enabled.push('mpr');
+    if (config.featureORL === 1 || config.featureORL === true) enabled.push('orl');
+    if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureKineStaff === 1 || config.featureKineStaff === true) enabled.push('rehabilitation');
     if (config.featureCardiology === 1 || config.featureCardiology === true) enabled.push('cardiology');
     if (config.featureDentistry === 1 || config.featureDentistry === true) enabled.push('dentistry');
     return [...new Set(enabled)];
@@ -209,7 +223,9 @@ function syncPackageSpecialtyButtons(preferredSpecialty = selectedPackageSpecial
 function setPackageActiveSpecialty(specialtyKey = 'general') {
     const normalized = String(specialtyKey || 'general').trim().toLowerCase();
     const checkboxMap = {
+        orl: 'pkg-check-orl',
         general: 'pkg-check-specialty-general',
+        rehabilitation: 'pkg-check-rehabilitation',
         mpr: 'pkg-check-rehabilitation',
         cardiology: 'pkg-check-cardiology',
         dentistry: 'pkg-check-dentistry'
@@ -217,7 +233,7 @@ function setPackageActiveSpecialty(specialtyKey = 'general') {
     const checkbox = document.getElementById(checkboxMap[normalized]);
     if (checkbox) {
         checkbox.checked = !checkbox.checked;
-        const row = checkbox.closest('.pkg-option-row') || document.getElementById(`pkg-option-${normalized === 'mpr' ? 'rehabilitation' : normalized}`);
+        const row = checkbox.closest('.pkg-option-row') || document.getElementById(`pkg-option-${normalized === 'rehabilitation' || normalized === 'mpr' ? 'rehabilitation' : normalized}`);
         if (row) row.classList.toggle('selected', checkbox.checked);
     }
     syncPackageSpecialtyButtons(selectedPackageSpecialty);
@@ -270,7 +286,7 @@ function initializePackageConfig() {
     });
     
     // Feature checkboxes
-    ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general'].forEach(feature => {
+    ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general', 'orl'].forEach(feature => {
         const checkbox = document.getElementById(`pkg-check-${feature}`);
         if (checkbox) {
             checkbox.addEventListener('change', () => {
@@ -328,13 +344,14 @@ async function loadExistingPackageConfig() {
             // Load features
             const enabledSpecialties = parseEnabledSpecialtiesFromConfig(config);
             document.getElementById('pkg-check-specialty-general').checked = enabledSpecialties.includes('general');
+            document.getElementById('pkg-check-orl').checked = enabledSpecialties.includes('orl');
             document.getElementById('pkg-check-inventory').checked = config.featureInventory !== 0;
-            document.getElementById('pkg-check-rehabilitation').checked = enabledSpecialties.includes('mpr');
+            document.getElementById('pkg-check-rehabilitation').checked = enabledSpecialties.includes('rehabilitation');
             document.getElementById('pkg-check-dentistry').checked = enabledSpecialties.includes('dentistry');
             document.getElementById('pkg-check-cardiology').checked = enabledSpecialties.includes('cardiology');
             document.getElementById('pkg-check-medicalImaging').checked = config.featureMedicalImaging !== 0;
             // Update UI
-            ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general'].forEach(feature => {
+            ['inventory', 'rehabilitation', 'dentistry', 'cardiology', 'medicalImaging', 'specialty-general', 'orl'].forEach(feature => {
                 const checkbox = document.getElementById(`pkg-check-${feature}`);
                 const row = document.getElementById(`pkg-option-${feature}`);
                 if (checkbox && row) {
@@ -385,7 +402,7 @@ function selectPackageType(packageId) {
         });
 
         const presetSpecialty = preset.features.includes('rehabilitation')
-            ? 'mpr'
+            ? 'rehabilitation'
             : preset.features.includes('cardiology')
                 ? 'cardiology'
                 : preset.features.includes('dentistry')
@@ -514,6 +531,7 @@ async function savePackageConfig() {
         // Optional features
         featureKineStaff: mprEnabled,
         featureRehabilitation: mprEnabled,
+        featureORL: document.getElementById('pkg-check-orl')?.checked || enabledSpecialties.includes('orl'),
         featureDentistry: dentistryEnabled,
         featureCardiology: cardiologyEnabled,
         featureMedicalImaging: medicalImagingEnabled,

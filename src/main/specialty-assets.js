@@ -6,7 +6,7 @@ import { query, queryOne, run } from './database-unified.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.resolve(__dirname, '../../assets');
 const SHARED_CONFIG_PATH = path.resolve(__dirname, '../shared/specialty-config.json');
-const SPECIALTY_KEYS = ['general', 'mpr', 'cardiology', 'dentistry'];
+const SPECIALTY_KEYS = ['orl', 'dentistry', 'general'];
 
 function readJsonFile(filePath, fallback) {
   try {
@@ -16,12 +16,15 @@ function readJsonFile(filePath, fallback) {
   }
 }
 
-export function normalizeSpecialtyKey(value = 'general') {
+export function normalizeSpecialtyKey(value = 'orl') {
   const raw = String(value || '').trim().toLowerCase();
-  if (['mpr', 'rehabilitation', 'reeducation', 'rééducation', 'medecine physique', 'médecine physique'].includes(raw)) return 'mpr';
-  if (['cardiology', 'cardiologie', 'cardiologue', 'cardio'].includes(raw)) return 'cardiology';
-  if (['dentistry', 'dentiste', 'dentaire', 'dentist'].includes(raw)) return 'dentistry';
-  return 'general';
+  if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
+  if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
+  if (['rehabilitation', 'mpr', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique', 'kiné', 'kinesitherapie'].includes(raw)) return 'rehabilitation';
+  if (['cardiology', 'cardiologie', 'cardiologue', 'cardiologist'].includes(raw)) return 'cardiology';
+  if (['dentistry', 'dentiste', 'dentaire', 'dentist', 'chirurgien-dentiste', 'médecin dentiste', 'medecin dentiste'].includes(raw)) return 'dentistry';
+  if (['urology', 'urologue', 'urologie', 'urologist'].includes(raw)) return 'urology';
+  return 'orl';
 }
 
 export function getSpecialtyConfig() {
@@ -35,7 +38,7 @@ export function getSpecialtyConfig() {
 export function parseEnabledSpecialties(value, fallbackConfig = null) {
   if (Array.isArray(value)) {
     const keys = value.map(normalizeSpecialtyKey);
-    return [...new Set(keys.length ? keys : ['general'])];
+    return [...new Set(keys.length ? keys : ['orl', 'dentistry'])];
   }
 
   if (typeof value === 'string' && value.trim()) {
@@ -43,16 +46,18 @@ export function parseEnabledSpecialties(value, fallbackConfig = null) {
       return parseEnabledSpecialties(JSON.parse(value), fallbackConfig);
     } catch (_) {
       const keys = value.split(',').map(normalizeSpecialtyKey);
-      return [...new Set(keys.length ? keys : ['general'])];
+      return [...new Set(keys.length ? keys : ['orl', 'dentistry'])];
     }
   }
 
   const config = fallbackConfig || {};
-  const legacyKeys = ['general'];
-  if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureRehabilitation === '1' || config.featureKineStaff === 1 || config.featureKineStaff === true || config.featureKineStaff === '1') legacyKeys.push('mpr');
-  if (config.featureCardiology === 1 || config.featureCardiology === true || config.featureCardiology === '1') legacyKeys.push('cardiology');
-  if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1') legacyKeys.push('dentistry');
-  return [...new Set(legacyKeys)];
+  const enabledKeys = [];
+  if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
+  if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureRehabilitation === '1' || config.activeSpecialty === 'rehabilitation' || config.activeSpecialty === 'mpr') enabledKeys.push('rehabilitation');
+  if (config.featureCardiology === 1 || config.featureCardiology === true || config.featureCardiology === '1' || config.activeSpecialty === 'cardiology') enabledKeys.push('cardiology');
+  if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1' || config.activeSpecialty === 'dentistry') enabledKeys.push('dentistry');
+  if (config.activeSpecialty === 'general') enabledKeys.push('general');
+  return enabledKeys.length ? [...new Set(enabledKeys)] : ['orl', 'dentistry'];
 }
 
 function medicationArrayFromPayload(payload) {

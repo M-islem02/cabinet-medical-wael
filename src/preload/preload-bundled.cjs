@@ -436,6 +436,21 @@ contextBridge.exposeInMainWorld('api', {
     syncConsultation: (consultationId, equipmentIds) => ipcRenderer.invoke('equipment:syncConsultation', consultationId, equipmentIds)
   },
 
+  // API Opérations & Interventions (Module Transversal)
+  operation: {
+    create: (data) => ipcRenderer.invoke('operation:create', data),
+    getAll: (filters) => ipcRenderer.invoke('operation:getAll', filters),
+    getByPatient: (patientId) => ipcRenderer.invoke('operation:getByPatient', patientId),
+    getById: (id) => ipcRenderer.invoke('operation:getById', id),
+    update: (id, data) => ipcRenderer.invoke('operation:update', id, data),
+    delete: (id) => ipcRenderer.invoke('operation:delete', id),
+    getTypesCatalog: (specialty) => ipcRenderer.invoke('operation:getTypesCatalog', specialty),
+    saveTypeCatalog: (data) => ipcRenderer.invoke('operation:saveTypeCatalog', data),
+    deleteTypeCatalog: (id) => ipcRenderer.invoke('operation:deleteTypeCatalog', id),
+    checkStockAvailability: (consumables) => ipcRenderer.invoke('operation:checkStockAvailability', consumables),
+    getStats: (filters) => ipcRenderer.invoke('operation:getStats', filters)
+  },
+
   // API Analyses médicales
   analysis: {
     create: (data) => ipcRenderer.invoke('analysis:create', data),

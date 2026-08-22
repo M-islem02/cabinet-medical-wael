@@ -82,16 +82,26 @@ function populateSpecialtyOptions(selectedSpecialty = '') {
     ? getAvailablePracticeSpecialties()
     : [];
 
-  specialtySelect.innerHTML = availableSpecialties.length
+  const isAllSelected = String(selectedSpecialty || '').trim().toLowerCase() === 'all';
+  const isTestUser = String(currentUsername || '').trim().toLowerCase().includes('test');
+  const allOption = '<option value="all">Toutes les spécialités (Test / Démo)</option>';
+
+  const baseOptions = availableSpecialties.length
     ? availableSpecialties
         .map((specialty) => `<option value="${specialty.key}">${specialty.label}</option>`)
         .join('')
-    : '<option value="general">Médecin généraliste</option>';
+    : '<option value="orl">Médecin ORL</option>';
 
-  if (selectedSpecialty) {
+  specialtySelect.innerHTML = (isTestUser || isAllSelected ? allOption : '') + baseOptions;
+
+  if (isAllSelected) {
+    specialtySelect.value = 'all';
+  } else if (selectedSpecialty) {
     specialtySelect.value = selectedSpecialty;
   } else if (availableSpecialties.length === 1) {
     specialtySelect.value = availableSpecialties[0].key;
+  } else if (isTestUser) {
+    specialtySelect.value = 'all';
   }
 }
 
@@ -332,15 +342,13 @@ window.toggleSpecialtyField = function() {
   
   if (group) {
     if (role === 'doctor' || role === 'dentist') {
-      const availableSpecialties = typeof getAvailablePracticeSpecialties === 'function'
-        ? getAvailablePracticeSpecialties()
-        : [{ key: 'general', label: 'Médecin généraliste' }];
-      const singleSpecialty = availableSpecialties.length <= 1;
+      const optionCount = specialtySelect?.options?.length || 0;
+      const singleSpecialty = optionCount <= 1;
       group.style.display = singleSpecialty ? 'none' : '';
       group.classList.toggle('is-visible', !singleSpecialty);
       if (specialtySelect) specialtySelect.required = true;
-      if (singleSpecialty && specialtySelect) {
-        specialtySelect.value = availableSpecialties[0]?.key || 'general';
+      if (singleSpecialty && specialtySelect && specialtySelect.options?.length) {
+        specialtySelect.value = specialtySelect.options[0].value;
       }
     } else {
       group.style.display = 'none';

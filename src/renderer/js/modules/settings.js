@@ -21,7 +21,9 @@ let selectedSignedLicenseContent = '';
 
 function ensureSettingsAdminCardsVisibility() {
   const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
-  const isDoctorAdminUser = currentUserIsAdmin === true && !isSuperAdminUser;
+  const role = typeof currentUserRole !== 'undefined' ? currentUserRole : (localStorage.getItem('currentUserRole') || '');
+  const isDoctor = role === 'doctor' || role === 'dentist' || role === 'test';
+  const isAdmin = currentUserIsAdmin === true || isDoctor || isSuperAdminUser;
   const userManagementCard = document.getElementById('user-management-card');
   const licenseInfoCard = document.getElementById('license-info-card');
   const dbConfigCard = document.getElementById('db-config-card');
@@ -30,11 +32,16 @@ function ensureSettingsAdminCardsVisibility() {
     if (!card) return;
     card.classList.toggle('role-hidden', !visible);
     card.classList.toggle('hidden', !visible);
-    card.style.display = visible ? '' : 'none';
-    card.setAttribute('aria-hidden', String(!visible));
+    if (visible) {
+      card.style.removeProperty('display');
+      card.removeAttribute('aria-hidden');
+    } else {
+      card.style.display = 'none';
+      card.setAttribute('aria-hidden', 'true');
+    }
   };
 
-  setCardVisibility(userManagementCard, isSuperAdminUser || isDoctorAdminUser);
+  setCardVisibility(userManagementCard, isAdmin || isSuperAdminUser);
   setCardVisibility(licenseInfoCard, isSuperAdminUser);
   setCardVisibility(dbConfigCard, isSuperAdminUser);
 }
@@ -42,6 +49,7 @@ function ensureSettingsAdminCardsVisibility() {
 function switchSettingsPage(page = 'general') {
   document.documentElement.classList.add('settings-pages-ready');
   ensureSettingsAdminCardsVisibility();
+  const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
 
   const visiblePages = new Set();
   document.querySelectorAll('[data-settings-page]').forEach((card) => {
@@ -53,9 +61,16 @@ function switchSettingsPage(page = 'general') {
   });
 
   document.querySelectorAll('.settings-page-tab').forEach((button) => {
-    const hasVisibleCards = visiblePages.has(button.dataset.settingsTab || '');
-    button.classList.toggle('role-hidden', !hasVisibleCards);
-    button.disabled = !hasVisibleCards;
+    const tabName = button.dataset.settingsTab || '';
+    const isSuperAdminOnly = tabName === 'license' || tabName === 'database';
+    const isVisible = isSuperAdminOnly ? isSuperAdminUser : visiblePages.has(tabName);
+    button.classList.toggle('role-hidden', !isVisible);
+    button.disabled = !isVisible;
+    if (!isVisible) {
+      button.style.display = 'none';
+    } else {
+      button.style.removeProperty('display');
+    }
   });
 
   const requestedPage = page || 'general';
@@ -70,16 +85,39 @@ function switchSettingsPage(page = 'general') {
   document.querySelectorAll('[data-settings-page]').forEach((card) => {
     if (card.classList.contains('role-hidden')) {
       card.classList.remove('settings-page-hidden');
+      card.style.display = 'none';
       return;
     }
     const pages = String(card.dataset.settingsPage || '')
       .split(/\s+/)
       .filter(Boolean);
-    card.classList.toggle('settings-page-hidden', !pages.includes(activeSettingsPage));
+    const matches = pages.includes(activeSettingsPage);
+    card.classList.toggle('settings-page-hidden', !matches);
+    if (matches) {
+      card.style.removeProperty('display');
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
   });
 
   if (activeSettingsPage === 'prescriptions' && typeof loadPrescriptionTemplateSettings === 'function') {
     loadPrescriptionTemplateSettings();
+  }
+  if (activeSettingsPage === 'users' && typeof loadUsersList === 'function') {
+    loadUsersList();
+  }
+  if (activeSettingsPage === 'license' && typeof loadLicenseStatus === 'function') {
+    loadLicenseStatus();
+  }
+  if (activeSettingsPage === 'database' && typeof refreshDbStatus === 'function') {
+    refreshDbStatus();
+  }
+  if (activeSettingsPage === 'devices' && typeof refreshDeviceOptions === 'function') {
+    refreshDeviceOptions();
+  }
+  if (activeSettingsPage === 'operations' && typeof loadSettingsOperationsCatalog === 'function') {
+    loadSettingsOperationsCatalog();
   }
 }
 
@@ -909,7 +947,9 @@ async function loadLicenseStatus() {
   if (!licenseInfo) return;
 
   loadLicenseMachineId();
-  const canManageLicense = currentUserIsSuperAdmin;
+  const role = typeof currentUserRole !== 'undefined' ? currentUserRole : (localStorage.getItem('currentUserRole') || '');
+  const isSuperAdmin = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
+  const canManageLicense = isSuperAdmin || currentUserIsAdmin || role === 'doctor' || role === 'dentist' || role === 'test';
 
   const maskLicenseKey = (licenseKey) => (licenseKey ? '*****' : '-');
 
@@ -1584,6 +1624,14 @@ async function useCurrentMachineIdInSettings() {
   } catch (_) {}
 }
 
+function setSettingsPresetDays(days) {
+  const expiryInput = document.getElementById('settings-gen-expiry');
+  if (!expiryInput) return;
+  const now = new Date();
+  now.setDate(now.getDate() + Number(days));
+  expiryInput.value = now.toISOString().split('T')[0];
+}
+
 function setSettingsPresetDuration(months) {
   const expiryInput = document.getElementById('settings-gen-expiry');
   if (!expiryInput) return;
@@ -1670,6 +1718,246 @@ async function activateSettingsGeneratedLocally() {
   }
 }
 
+// ─── TYPES D'OPÉRATIONS & NOMENCLATURE CATALOG MANAGEMENT ────────────────────
+let settingsOperationsCatalogData = [];
+let settingsOperationsCurrentPage = 1;
+const SETTINGS_OPERATIONS_PAGE_SIZE = 10;
+
+async function loadSettingsOperationsCatalog(page = 1) {
+  const tbody = document.getElementById('settings-operations-catalog-tbody');
+  if (!tbody) return;
+
+  const filterSpecialty = document.getElementById('settings-op-specialty-filter')?.value || null;
+
+  try {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center" style="padding: 24px; color: #64748b;">Chargement des types d\'opérations...</td></tr>';
+    const result = await window.api.operation.getTypesCatalog(filterSpecialty);
+    settingsOperationsCatalogData = result && result.success ? (result.data || []) : [];
+    settingsOperationsCurrentPage = Number(page) || 1;
+    renderSettingsOperationsCatalogTable();
+  } catch (error) {
+    console.error('Error loading settings operations catalog:', error);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="color: #ef4444; padding: 18px;">Erreur lors du chargement : ${error.message}</td></tr>`;
+  }
+}
+
+function renderSettingsOperationsCatalogTable() {
+  const tbody = document.getElementById('settings-operations-catalog-tbody');
+  if (!tbody) return;
+
+  if (!settingsOperationsCatalogData.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center" style="padding: 36px 16px;">
+          <div class="ant-empty" style="display:flex; flex-direction:column; align-items:center;">
+            <div style="font-size:14px; font-weight:600; color:#1e293b; margin-bottom:4px;">Aucun type d'acte configuré</div>
+            <div style="font-size:12.5px; color:#64748b; margin-bottom:12px;">Ajoutez votre premier acte ou sélectionnez une autre spécialité.</div>
+            <button type="button" class="btn btn-primary btn-small" onclick="openOperationTypeEditModal()">+ Ajouter un acte</button>
+          </div>
+        </td>
+      </tr>
+    `;
+    renderSettingsOperationsPagination(0, 1, 1);
+    return;
+  }
+
+  const total = settingsOperationsCatalogData.length;
+  const totalPages = Math.max(1, Math.ceil(total / SETTINGS_OPERATIONS_PAGE_SIZE));
+  if (settingsOperationsCurrentPage > totalPages) settingsOperationsCurrentPage = totalPages;
+  if (settingsOperationsCurrentPage < 1) settingsOperationsCurrentPage = 1;
+
+  const startIndex = (settingsOperationsCurrentPage - 1) * SETTINGS_OPERATIONS_PAGE_SIZE;
+  const pageItems = settingsOperationsCatalogData.slice(startIndex, startIndex + SETTINGS_OPERATIONS_PAGE_SIZE);
+
+  const specialtyLabels = {
+    orl: 'ORL',
+    dentistry: 'Dentisterie',
+    general: 'Général'
+  };
+
+  const specialtyBadges = {
+    orl: 'background: #eff6ff; color: #1677ff; border: 1px solid #bfdbfe;',
+    dentistry: 'background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;',
+    general: 'background: #f8fafc; color: #475569; border: 1px solid #e2e8f0;'
+  };
+
+  tbody.innerHTML = pageItems.map(item => {
+    const specialty = item.specialty || 'general';
+    const specLabel = specialtyLabels[specialty] || specialty;
+    const specBadge = specialtyBadges[specialty] || specialtyBadges.general;
+    const costFormatted = (Number(item.defaultCost) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
+    const duration = item.defaultDuration ? `${item.defaultDuration} min` : '—';
+    const code = item.code || '—';
+    const category = item.category || 'Chirurgie';
+
+    return `
+      <tr>
+        <td style="font-family: monospace; font-weight: 700; color: #1677ff;">${escapeHTML(code)}</td>
+        <td>
+          <div style="font-weight: 700; color: #1e293b;">${escapeHTML(item.name || '')}</div>
+          ${item.description ? `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">${escapeHTML(item.description)}</div>` : ''}
+        </td>
+        <td>
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; ${specBadge}">${specLabel}</span>
+        </td>
+        <td>
+          <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; background: #f1f5f9; color: #334155;">${escapeHTML(category)}</span>
+        </td>
+        <td style="font-weight: 700; color: #166534;">${costFormatted}</td>
+        <td style="font-size: 13px; color: #475569;">${duration}</td>
+        <td class="text-right" style="white-space: nowrap;">
+          <button type="button" class="btn btn-secondary btn-small" onclick="openOperationTypeEditModal('${item.id}')" style="height: 28px; padding: 0 8px; font-size: 12px; margin-right: 4px;">
+            Modifier
+          </button>
+          <button type="button" class="btn btn-danger btn-small" onclick="deleteSettingsOperationType('${item.id}')" style="height: 28px; padding: 0 8px; font-size: 12px;">
+            Supprimer
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  renderSettingsOperationsPagination(total, settingsOperationsCurrentPage, totalPages);
+}
+
+function renderSettingsOperationsPagination(total, page, totalPages) {
+  const infoEl = document.getElementById('settings-operations-pagination-info');
+  const controlsEl = document.getElementById('settings-operations-pagination-controls');
+  if (!infoEl || !controlsEl) return;
+
+  if (total === 0) {
+    infoEl.textContent = 'Aucun acte';
+    controlsEl.innerHTML = '';
+    return;
+  }
+
+  const start = (page - 1) * SETTINGS_OPERATIONS_PAGE_SIZE + 1;
+  const end = Math.min(total, page * SETTINGS_OPERATIONS_PAGE_SIZE);
+  infoEl.textContent = `Affichage de ${start} à ${end} sur ${total} actes (10 par page)`;
+
+  let html = `
+    <button type="button" class="btn btn-secondary btn-small" onclick="changeSettingsOperationsPage(${page - 1})" ${page <= 1 ? 'disabled' : ''} style="height:30px; padding:0 10px; font-size:12px;">
+      ◀ Précédent
+    </button>
+    <span style="font-size:13px; font-weight:600; color:#334155; padding:0 6px;">Page ${page} / ${totalPages}</span>
+    <button type="button" class="btn btn-secondary btn-small" onclick="changeSettingsOperationsPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''} style="height:30px; padding:0 10px; font-size:12px;">
+      Suivant ▶
+    </button>
+  `;
+  controlsEl.innerHTML = html;
+}
+
+function changeSettingsOperationsPage(newPage) {
+  settingsOperationsCurrentPage = Number(newPage) || 1;
+  renderSettingsOperationsCatalogTable();
+}
+
+function openOperationTypeEditModal(typeId = null) {
+  const form = document.getElementById('operation-type-form');
+  if (form) form.reset();
+
+  const titleEl = document.getElementById('modal-op-type-title');
+  const idInput = document.getElementById('op-type-id');
+  const specSelect = document.getElementById('op-type-specialty');
+  const codeInput = document.getElementById('op-type-code');
+  const nameInput = document.getElementById('op-type-name');
+  const catSelect = document.getElementById('op-type-category');
+  const costInput = document.getElementById('op-type-cost');
+  const durationInput = document.getElementById('op-type-duration');
+  const descInput = document.getElementById('op-type-desc');
+
+  if (typeId) {
+    const item = settingsOperationsCatalogData.find(t => String(t.id) === String(typeId));
+    if (item) {
+      if (titleEl) titleEl.textContent = 'Modifier le Type d\'Opération';
+      if (idInput) idInput.value = item.id;
+      if (specSelect) specSelect.value = item.specialty || 'orl';
+      if (codeInput) codeInput.value = item.code || '';
+      if (nameInput) nameInput.value = item.name || '';
+      if (catSelect) catSelect.value = item.category || 'Chirurgie';
+      if (costInput) costInput.value = item.defaultCost || 0;
+      if (durationInput) durationInput.value = item.defaultDuration || 30;
+      if (descInput) descInput.value = item.description || '';
+    }
+  } else {
+    if (titleEl) titleEl.textContent = 'Nouveau Type d\'Opération / Acte';
+    if (idInput) idInput.value = '';
+    const activeSpecialty = (typeof getCurrentActiveSpecialty === 'function') ? getCurrentActiveSpecialty() : 'orl';
+    if (specSelect) specSelect.value = activeSpecialty || 'orl';
+    if (catSelect) catSelect.value = 'Chirurgie';
+    if (costInput) costInput.value = '';
+    if (durationInput) durationInput.value = '30';
+  }
+
+  showModal('modal-operation-type-edit');
+}
+
+async function saveSettingsOperationType(event) {
+  if (event) event.preventDefault();
+
+  const id = document.getElementById('op-type-id')?.value || null;
+  const specialty = document.getElementById('op-type-specialty')?.value || 'orl';
+  const code = document.getElementById('op-type-code')?.value || '';
+  const name = document.getElementById('op-type-name')?.value || '';
+  const category = document.getElementById('op-type-category')?.value || 'Chirurgie';
+  const defaultCost = parseFloat(document.getElementById('op-type-cost')?.value) || 0;
+  const defaultDuration = parseInt(document.getElementById('op-type-duration')?.value, 10) || 30;
+  const description = document.getElementById('op-type-desc')?.value || '';
+
+  if (!name.trim()) {
+    showNotification('Le libellé de l\'acte est obligatoire', 'warning');
+    return;
+  }
+
+  try {
+    const payload = {
+      id: id || undefined,
+      specialty,
+      code,
+      name: name.trim(),
+      category,
+      defaultCost,
+      defaultDuration,
+      description: description.trim()
+    };
+
+    const res = await window.api.operation.saveTypeCatalog(payload);
+    if (res && res.success) {
+      showNotification('Type d\'opération enregistré avec succès', 'success');
+      closeModal('modal-operation-type-edit');
+      await loadSettingsOperationsCatalog();
+      if (typeof loadOperationsCatalog === 'function') {
+        await loadOperationsCatalog();
+      }
+    } else {
+      showNotification('Erreur : ' + (res?.error || 'Impossible d\'enregistrer'), 'error');
+    }
+  } catch (error) {
+    console.error('Error saving operation type:', error);
+    showNotification('Erreur : ' + error.message, 'error');
+  }
+}
+
+async function deleteSettingsOperationType(typeId) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce type d\'opération du catalogue ?')) return;
+
+  try {
+    const res = await window.api.operation.deleteTypeCatalog(typeId);
+    if (res && res.success) {
+      showNotification('Type d\'opération supprimé', 'success');
+      await loadSettingsOperationsCatalog();
+      if (typeof loadOperationsCatalog === 'function') {
+        await loadOperationsCatalog();
+      }
+    } else {
+      showNotification('Erreur : ' + (res?.error || 'Suppression impossible'), 'error');
+    }
+  } catch (error) {
+    console.error('Error deleting operation type:', error);
+    showNotification('Erreur : ' + error.message, 'error');
+  }
+}
+
 window.refreshDeviceOptions = refreshDeviceOptions;
 window.loadPublicBookingShareData = loadPublicBookingShareData;
 window.copyPublicBookingLink = copyPublicBookingLink;
@@ -1685,8 +1973,14 @@ window.savePracticeSettings = savePracticeSettings;
 window.savePeripheralSettings = savePeripheralSettings;
 window.savePublicBookingSettings = savePublicBookingSettings;
 window.useCurrentMachineIdInSettings = useCurrentMachineIdInSettings;
+window.setSettingsPresetDays = setSettingsPresetDays;
 window.setSettingsPresetDuration = setSettingsPresetDuration;
-window.generateClientTokenInSettings = generateClientTokenInSettings;
 window.copySettingsGeneratedToken = copySettingsGeneratedToken;
+window.switchSettingsPage = switchSettingsPage;
 window.saveSettingsGeneratedFile = saveSettingsGeneratedFile;
 window.activateSettingsGeneratedLocally = activateSettingsGeneratedLocally;
+window.loadSettingsOperationsCatalog = loadSettingsOperationsCatalog;
+window.changeSettingsOperationsPage = changeSettingsOperationsPage;
+window.openOperationTypeEditModal = openOperationTypeEditModal;
+window.saveSettingsOperationType = saveSettingsOperationType;
+window.deleteSettingsOperationType = deleteSettingsOperationType;

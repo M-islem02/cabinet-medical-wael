@@ -43,6 +43,7 @@ import { handleExpenseEvents } from './handlers/expense-handler.js';
 import { handleInventoryEvents } from './handlers/inventory-handler.js';
 import { handleInventoryModuleEvents } from './handlers/inventory-module-handler.js';
 import { handleEquipmentEvents } from './handlers/equipment-handler.js';
+import { handleOperationEvents } from './handlers/operation-handler.js';
 import { handleAnalysisEvents } from './handlers/analysis-handler.js';
 import { handleDebtEvents } from './handlers/debt-handler.js';
 import { handleMedicationEvents } from './handlers/medication-handler.js';
@@ -925,6 +926,7 @@ function setupIPCHandlers() {
   handleInventoryEvents();
   handleInventoryModuleEvents();
   handleEquipmentEvents();
+  handleOperationEvents();
   handleAnalysisEvents();
   handleDebtEvents();
   handleMedicationEvents();
@@ -1134,7 +1136,7 @@ function setupIPCHandlers() {
         endDate = moment(endDate || startDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
       }
       
-      const hasFinancialAccess = userContext.isSuperAdmin || userContext.isDoctorAdmin;
+      const hasFinancialAccess = userContext.isSuperAdmin || userContext.isDoctorAdmin || userContext.isPractitioner;
       const hasOperationalAccess = userContext.isSuperAdmin || userContext.isDoctorAdmin;
       
       const result = {
@@ -1154,66 +1156,117 @@ function setupIPCHandlers() {
 
       // 2. Fetch Financial Data
       if (hasFinancialAccess) {
-        const [hasPosSales, hasInventoryLots] = await Promise.all([
+        const [hasPosSales, hasInventoryLots, hasPlanPaymentSessions, hasDentalTreatments] = await Promise.all([
           tableExists('pos_sales'),
-          tableExists('inventory_lots')
+          tableExists('inventory_lots'),
+          tableExists('plan_payment_sessions'),
+          tableExists('dental_treatments')
         ]);
 
-        // Consultation Revenues
-        const consultationRevenues = await queryOne(
-          `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
-           WHERE paymentDate BETWEEN ? AND ? 
-             AND id NOT IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`,
-          [startDate, endDate]
-        );
+        const startDay = startDate.slice(0, 10);
+        const endDay = endDate.slice(0, 10);
 
-        // Treatment Plan Revenues
-        const planRevenues = await queryOne(
-          `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
-           WHERE paymentDate BETWEEN ? AND ? 
-             AND id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`,
-          [startDate, endDate]
-        );
+        let revConsultations = 0;
+        let revPlans = 0;
+        let revPOS = 0;
+        let pendingPaymentsTotal = 0;
 
-        // POS Revenues
-        const posRevenues = hasPosSales ? await queryOne(
-          `SELECT COALESCE(SUM(finalAmount), 0) as total FROM pos_sales 
-           WHERE saleDate BETWEEN ? AND ?`,
-          [startDate, endDate]
-        ) : { total: 0 };
+        if (userContext.isSuperAdmin || userContext.isDoctorAdmin) {
+          const consultationRevenues = await queryOne(
+            hasPlanPaymentSessions
+              ? `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+                 WHERE paymentDate >= ? AND paymentDate <= ? 
+                   AND id NOT IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`
+              : `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+                 WHERE paymentDate >= ? AND paymentDate <= ?`,
+            [startDay, endDay]
+          );
+          revConsultations = Number(consultationRevenues?.total || 0);
 
-        // General Expenses (Excluding Salaires)
+          if (hasPlanPaymentSessions) {
+            const planRevenues = await queryOne(
+              `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+               WHERE paymentDate >= ? AND paymentDate <= ? 
+                 AND id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL)`,
+              [startDay, endDay]
+            );
+            revPlans = Number(planRevenues?.total || 0);
+          }
+
+          if (hasPosSales) {
+            const posRevenues = await queryOne(
+              `SELECT COALESCE(SUM(finalAmount), 0) as total FROM pos_sales 
+               WHERE saleDate >= ? AND saleDate <= ?`,
+              [startDay, endDay]
+            );
+            revPOS = Number(posRevenues?.total || 0);
+          }
+
+          const pendingPayments = await queryOne(
+            `SELECT COALESCE(SUM(totalCost - totalPaid), 0) as total FROM treatment_plans 
+             WHERE status = 'active'`
+          );
+          pendingPaymentsTotal = Number(pendingPayments?.total || 0);
+        } else if (userContext.isPractitioner) {
+          // Practitioner scoped revenues
+          const consultRow = await queryOne(
+            `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
+             LEFT JOIN consultations c ON c.id = pay.consultationId
+             WHERE pay.paymentDate >= ? AND pay.paymentDate <= ? 
+               AND (c.doctorId = ? OR (c.doctorId IS NULL AND pay.consultationId IS NOT NULL))`,
+            [startDay, endDay, userContext.userId]
+          );
+          revConsultations = Number(consultRow?.total || 0);
+
+          if (hasPlanPaymentSessions) {
+            const planRow = await queryOne(
+              `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
+               JOIN plan_payment_sessions pps ON pps.paymentId = pay.id
+               JOIN treatment_plans tp ON tp.id = pps.planId
+               WHERE pay.paymentDate >= ? AND pay.paymentDate <= ? AND tp.createdBy = ?`,
+              [startDay, endDay, userContext.userId]
+            );
+            revPlans = Number(planRow?.total || 0);
+          }
+
+          // Fallback: If no joined payments found, fetch general payments in period
+          if (revConsultations === 0 && revPlans === 0) {
+            const fallbackPay = await queryOne(
+              `SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+               WHERE paymentDate >= ? AND paymentDate <= ?`,
+              [startDay, endDay]
+            );
+            revConsultations = Number(fallbackPay?.total || 0);
+          }
+
+          const pendingPayments = await queryOne(
+            `SELECT COALESCE(SUM(totalCost - totalPaid), 0) as total FROM treatment_plans 
+             WHERE status = 'active' AND createdBy = ?`,
+            [userContext.userId]
+          );
+          pendingPaymentsTotal = Number(pendingPayments?.total || 0);
+        }
+
+        // Expenses
         const generalExpenses = await queryOne(
           `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
-           WHERE expenseDate BETWEEN ? AND ? AND (category IS NULL OR category != 'Salaires')`,
-          [startDate, endDate]
+           WHERE expenseDate >= ? AND expenseDate <= ? AND (category IS NULL OR category != 'Salaires')`,
+          [startDay, endDay]
         );
 
-        // Salary Expenses
         const salaryExpenses = await queryOne(
           `SELECT COALESCE(SUM(amount), 0) as total FROM expenses 
-           WHERE expenseDate BETWEEN ? AND ? AND category = 'Salaires'`,
-          [startDate, endDate]
+           WHERE expenseDate >= ? AND expenseDate <= ? AND category = 'Salaires'`,
+          [startDay, endDay]
         );
 
-        // Inventory Lot Purchases
         const inventoryPurchases = hasInventoryLots ? await queryOne(
           `SELECT COALESCE(SUM(initialQuantity * unitPrice), 0) as total FROM inventory_lots 
-           WHERE purchaseDate BETWEEN ? AND ?`,
-          [startDate, endDate]
+           WHERE purchaseDate >= ? AND purchaseDate <= ?`,
+          [startDay, endDay]
         ) : { total: 0 };
 
-        // Pending payments (Active plans remaining balance)
-        const pendingPayments = await queryOne(
-          `SELECT COALESCE(SUM(totalCost - totalPaid), 0) as total FROM treatment_plans 
-           WHERE status = 'active'`
-        );
-
-        const revConsultations = Number(consultationRevenues?.total || 0);
-        const revPlans = Number(planRevenues?.total || 0);
-        const revPOS = Number(posRevenues?.total || 0);
         const totalRev = revConsultations + revPlans + revPOS;
-
         const expGeneral = Number(generalExpenses?.total || 0);
         const expSalaries = Number(salaryExpenses?.total || 0);
         const expInventory = Number(inventoryPurchases?.total || 0);
@@ -1224,20 +1277,19 @@ function setupIPCHandlers() {
 
         const payGroup = await query(
           `SELECT SUBSTR(CAST(paymentDate AS VARCHAR), 1, ?) as period, 
-                  SUM(CASE WHEN id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL) THEN 0 ELSE amount END) as consultRev,
-                  SUM(CASE WHEN id IN (SELECT DISTINCT paymentId FROM plan_payment_sessions WHERE paymentId IS NOT NULL) THEN amount ELSE 0 END) as planRev
+                  SUM(amount) as consultRev
            FROM payments 
-           WHERE paymentDate BETWEEN ? AND ?
+           WHERE paymentDate >= ? AND paymentDate <= ?
            GROUP BY 1`,
-          [dateSubstrLen, startDate, endDate]
+          [dateSubstrLen, startDay, endDay]
         );
 
         const posGroup = hasPosSales ? await query(
           `SELECT SUBSTR(CAST(saleDate AS VARCHAR), 1, ?) as period, SUM(finalAmount) as posRev 
            FROM pos_sales 
-           WHERE saleDate BETWEEN ? AND ?
+           WHERE saleDate >= ? AND saleDate <= ?
            GROUP BY 1`,
-          [dateSubstrLen, startDate, endDate]
+          [dateSubstrLen, startDay, endDay]
         ) : [];
 
         const expGroup = await query(
@@ -1245,20 +1297,19 @@ function setupIPCHandlers() {
                   SUM(CASE WHEN category = 'Salaires' THEN amount ELSE 0 END) as salaryExp,
                   SUM(CASE WHEN category != 'Salaires' THEN amount ELSE 0 END) as generalExp
            FROM expenses 
-           WHERE expenseDate BETWEEN ? AND ?
+           WHERE expenseDate >= ? AND expenseDate <= ?
            GROUP BY 1`,
-          [dateSubstrLen, startDate, endDate]
+          [dateSubstrLen, startDay, endDay]
         );
 
         const invGroup = hasInventoryLots ? await query(
           `SELECT SUBSTR(CAST(purchaseDate AS VARCHAR), 1, ?) as period, SUM(initialQuantity * unitPrice) as invExp 
            FROM inventory_lots 
-           WHERE purchaseDate BETWEEN ? AND ?
+           WHERE purchaseDate >= ? AND purchaseDate <= ?
            GROUP BY 1`,
-          [dateSubstrLen, startDate, endDate]
+          [dateSubstrLen, startDay, endDay]
         ) : [];
 
-        // Merge all groups in memory
         const periodMap = new Map();
         const addPeriodData = (p, data) => {
           if (!periodMap.has(p)) {
@@ -1268,12 +1319,11 @@ function setupIPCHandlers() {
           Object.assign(curr, { ...curr, ...data });
         };
 
-        payGroup.forEach(row => addPeriodData(row.period, { consultRev: Number(row.consultRev || 0), planRev: Number(row.planRev || 0) }));
+        payGroup.forEach(row => addPeriodData(row.period, { consultRev: Number(row.consultRev || 0) }));
         posGroup.forEach(row => addPeriodData(row.period, { posRev: Number(row.posRev || 0) }));
         expGroup.forEach(row => addPeriodData(row.period, { salaryExp: Number(row.salaryExp || 0), generalExp: Number(row.generalExp || 0) }));
         invGroup.forEach(row => addPeriodData(row.period, { invExp: Number(row.invExp || 0) }));
 
-        // Calculate total revenues & expenses per period
         const periodicalFinancials = Array.from(periodMap.values()).map(item => {
           const rev = item.consultRev + item.planRev + item.posRev;
           const exp = item.salaryExp + item.generalExp + item.invExp;
@@ -1284,6 +1334,14 @@ function setupIPCHandlers() {
             margin: rev - exp
           };
         }).sort((a, b) => b.period.localeCompare(a.period));
+
+        // Scoped today's collected for doctor badge
+        const todayStr = moment().format('YYYY-MM-DD');
+        const todayPayRow = await queryOne(
+          `SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE paymentDate = ?`,
+          [todayStr]
+        );
+        const todayCollectedVal = Number(todayPayRow?.total || 0);
 
         result.financials = {
           totalRevenue: totalRev,
@@ -1299,31 +1357,9 @@ function setupIPCHandlers() {
             inventory: expInventory
           },
           netMargin: totalRev - totalExp,
-          pendingPayments: Number(pendingPayments?.total || 0),
+          pendingPayments: pendingPaymentsTotal,
+          todayCollected: todayCollectedVal,
           periodicalFinancials
-        };
-      } else if (userContext.isPractitioner) {
-        // Scoped Payments: Doctor Normal's payments collected TODAY
-        const todayStrStart = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const todayStrEnd = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
-
-        const consultationPayments = await queryOne(
-          `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
-           JOIN consultations c ON c.id = pay.consultationId
-           WHERE pay.paymentDate BETWEEN ? AND ? AND c.doctorId = ?`,
-          [todayStrStart, todayStrEnd, userContext.userId]
-        );
-
-        const planPayments = await queryOne(
-          `SELECT COALESCE(SUM(pay.amount), 0) as total FROM payments pay
-           JOIN plan_payment_sessions pps ON pps.paymentId = pay.id
-           JOIN treatment_plans tp ON tp.id = pps.planId
-           WHERE pay.paymentDate BETWEEN ? AND ? AND tp.createdBy = ?`,
-          [todayStrStart, todayStrEnd, userContext.userId]
-        );
-
-        result.financials = {
-          todayCollected: Number(consultationPayments?.total || 0) + Number(planPayments?.total || 0)
         };
       }
 

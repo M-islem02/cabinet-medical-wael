@@ -36,6 +36,7 @@ const BOOLEAN_COLUMN_NAMES = new Set([
   'featurerehabilitation',
   'featuredentistry',
   'featurecardiology',
+  'featureorl',
   'featuremedicalimaging',
   'featuredebts',
   'featurecalendar',
@@ -128,7 +129,26 @@ const RESULT_KEY_MAP = new Map([
   ['isactive', 'isActive'],
   ['isadmin', 'isAdmin'],
   ['issuperadmin', 'isSuperAdmin'],
-  ['lastlogin', 'lastLogin']
+  ['lastlogin', 'lastLogin'],
+  // Computed aliases for payment queries
+  ['patientfirstname', 'patientFirstName'],
+  ['patientlastname', 'patientLastName'],
+  ['resolvedpatientid', 'resolvedPatientId'],
+  // Computed aliases for appointment/waiting-room queries
+  ['assigneddoctorname', 'assignedDoctorName'],
+  ['doctorfirstname', 'doctorFirstName'],
+  ['doctorlastname', 'doctorLastName'],
+  ['assignedtoname', 'assignedToName'],
+  // Consultation keys
+  ['consultationdate', 'consultationDate'],
+  ['consultationtype', 'consultationType'],
+  ['bloodpressure', 'bloodPressure'],
+  ['clinicalexamination', 'clinicalExamination'],
+  ['cim10code', 'cim10Code'],
+  ['unpaidamount', 'unpaidAmount'],
+  ['isunpaid', 'isUnpaid'],
+  ['unpaidduedate', 'unpaidDueDate'],
+  ['kineid', 'kineId']
 ]);
 
 function normalizeResultRow(row) {
@@ -207,7 +227,8 @@ export function loadConfig() {
 
 function canBootstrapDefaultLocalDatabase(config) {
   const host = String(config.host || '').trim().toLowerCase();
-  const configPath = path.join(app.getPath('userData'), 'database-config.json');
+  const userDataDir = app?.getPath ? app.getPath('userData') : path.join(os.homedir(), '.config', 'physiocare');
+  const configPath = path.join(userDataDir, 'database-config.json');
   return !fs.existsSync(configPath)
     && (host === 'localhost' || host === '127.0.0.1' || host === '::1')
     && config.database === DEFAULT_POSTGRES_CONFIG.database
@@ -477,6 +498,11 @@ export async function initializeDatabase() {
   // The database and application role are provisioned manually before the
   // software is installed. Network clients must never require access to the
   // PostgreSQL maintenance database just to start MedCareSO.
+  if (pool) {
+    await pool.end().catch(() => {});
+    pool = null;
+  }
+
   const createApplicationPool = () => new Pool({
     host: dbConfig.host,
     port: dbConfig.port,

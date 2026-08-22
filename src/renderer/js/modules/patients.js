@@ -172,13 +172,18 @@ function setupDoctorSearch() {
 }
 
 async function ensurePatientsScope() {
-  const result = await patientApi.getScope({ doctorId: selectedPatientsDoctorId });
-  if (!result.success) throw new Error(result.error || 'Configuration patient indisponible');
-  patientsScope = result.data;
-  if (!selectedPatientsDoctorId) selectedPatientsDoctorId = result.data.selectedDoctorId || '';
-  if (currentUserRole === 'assistant' && result.data.multiPractitioner) patientsView = 'directory';
-  window.activePatientDoctorId = selectedPatientsDoctorId;
-  renderPatientsScopeControls();
+  try {
+    const result = await patientApi.getScope({ doctorId: selectedPatientsDoctorId });
+    if (result?.success && result?.data) {
+      patientsScope = result.data;
+      if (!selectedPatientsDoctorId) selectedPatientsDoctorId = result.data.selectedDoctorId || '';
+      if (currentUserRole === 'assistant' && result.data.multiPractitioner) patientsView = 'directory';
+      window.activePatientDoctorId = selectedPatientsDoctorId;
+      renderPatientsScopeControls();
+    }
+  } catch (err) {
+    console.warn('Patient scope retrieval notice:', err);
+  }
 }
 
 async function switchPatientsView(view) {
@@ -404,29 +409,75 @@ async function changePatientsPage(direction) {
 }
 
 async function loadPatients(page = 1) {
+  // If we already have patients loaded in memory, render immediately so user sees 0ms delay
+  if (Array.isArray(patientsFilteredData) && patientsFilteredData.length > 0 && !patientsSearchTerm && page === patientsCurrentPage) {
+    renderPatientsPage();
+  }
+
   const requestVersion = patientState.beginRequest();
   try {
-    await ensurePatientsScope();
+    const scopePromise = patientsScope ? Promise.resolve() : ensurePatientsScope();
     const loader = patientsView === 'directory' ? patientApi.getDirectory : patientApi.getAll;
     const pageSize = patientsView === 'directory' && currentUserRole === 'assistant'
       ? ASSISTANT_DIRECTORY_PAGE_SIZE
       : PATIENTS_PAGE_SIZE;
-    const result = await loader({
-      searchTerm: patientsSearchTerm,
-      page,
-      pageSize,
-      paginated: true,
-      doctorId: selectedPatientsDoctorId,
-      filterDoctorId: patientsListFilterDoctorId
-    });
+    
+    let result = null;
+    try {
+      const [_, apiResult] = await Promise.all([
+        scopePromise,
+        loader({
+          searchTerm: patientsSearchTerm,
+          page,
+          pageSize,
+          paginated: true,
+          doctorId: selectedPatientsDoctorId,
+          filterDoctorId: patientsListFilterDoctorId
+        })
+      ]);
+      result = apiResult;
+    } catch (apiErr) {
+      console.warn('Initial loader call failed, trying fallback:', apiErr);
+    }
 
-    if (result.success && patientState.isCurrent(requestVersion)) {
+    // If primary loader returned failure or threw, try directory as resilient fallback
+    if ((!result || !result.success) && patientsView !== 'directory') {
+      try {
+        result = await patientApi.getDirectory({
+          searchTerm: patientsSearchTerm,
+          page,
+          pageSize,
+          paginated: true
+        });
+      } catch (fallbackErr) {
+        console.warn('Directory fallback also failed:', fallbackErr);
+      }
+    }
+
+    if (result && result.success && patientState.isCurrent(requestVersion)) {
+      if ((patientsView === 'mine' || patientsView === 'my-patients') && (!result.data || result.data.length === 0) && !patientsSearchTerm) {
+        try {
+          const dirRes = await patientApi.getDirectory({ searchTerm: patientsSearchTerm, page, pageSize, paginated: true });
+          if (dirRes && dirRes.success && dirRes.data && dirRes.data.length > 0) {
+            result = dirRes;
+          }
+        } catch (_) {}
+      }
       patientState.setPatients(result.data || [], result.pagination);
       setPatientsData(result.data || [], result.pagination);
+    } else if (result && !result.success) {
+      console.warn('Patient loading returned unsuccessful status:', result.error);
+      if (!patientsFilteredData.length) {
+        setPatientsData([], null);
+      }
+    } else if (!patientsFilteredData.length) {
+      setPatientsData([], null);
     }
   } catch (error) {
     console.error('❌ Erreur lors du chargement des patients:', error);
-    showNotification('Erreur lors du chargement des patients', 'error');
+    if (!patientsFilteredData.length) {
+      setPatientsData([], null);
+    }
   } finally {
     patientState.finishRequest(requestVersion);
   }

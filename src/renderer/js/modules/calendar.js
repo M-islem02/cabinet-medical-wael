@@ -1544,6 +1544,7 @@ function patientStartsWithSearch(patient, rawSearchTerm) {
     `${patient?.lastName || ''} ${patient?.firstName || ''}`.trim(),
     `${patient?.firstName || ''} ${patient?.lastName || ''}`.trim(),
     patient?.phone,
+    patient?.cin,
     patient?.socialSecurityNumber,
     patient?.email
   ];
@@ -1552,7 +1553,8 @@ function patientStartsWithSearch(patient, rawSearchTerm) {
     const normalizedCandidate = normalizePatientSearchText(candidate);
     if (!normalizedCandidate) return false;
     if (normalizedCandidate.startsWith(searchTerm)) return true;
-    return normalizedCandidate.split(/\s+/).some((part) => part.startsWith(searchTerm));
+    if (normalizedCandidate.includes(searchTerm)) return true;
+    return normalizedCandidate.split(/\s+/).some((part) => part.startsWith(searchTerm) || part.includes(searchTerm));
   });
 }
 
@@ -1587,8 +1589,9 @@ async function searchPatientsByPrefix(searchTerm, staticPatients = null) {
     return [];
   }
 
-  if (Array.isArray(staticPatients)) {
-    return staticPatients.filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
+  if (Array.isArray(staticPatients) && staticPatients.length > 0) {
+    const matched = staticPatients.filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
+    if (matched.length > 0) return matched;
   }
 
   if (patientSearchResultCache.has(normalizedTerm)) {
@@ -1596,18 +1599,35 @@ async function searchPatientsByPrefix(searchTerm, staticPatients = null) {
   }
 
   try {
+    let patients = [];
     const result = await appointmentApi.searchPatients({
       searchTerm: normalizedTerm,
       limit: 50
     });
-    const patients = normalizePatientSearchResponse(result)
+    patients = normalizePatientSearchResponse(result)
       .filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
+
+    // If backend returns empty, fallback to local static list or cached directory
+    if (!patients.length) {
+      const fallbackList = (Array.isArray(staticPatients) && staticPatients.length > 0)
+        ? staticPatients
+        : (Array.isArray(window.patients) && window.patients.length > 0
+            ? window.patients
+            : (Array.isArray(window._orlPatientsCache) ? window._orlPatientsCache : []));
+      if (fallbackList.length > 0) {
+        patients = fallbackList.filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
+      }
+    }
+
     patients.forEach(storePatientSearchRecord);
     patientSearchResultCache.set(normalizedTerm, patients);
     return patients;
   } catch (error) {
     console.error('Error searching patients:', error);
-    return [];
+    const fallbackList = (Array.isArray(staticPatients) && staticPatients.length > 0)
+      ? staticPatients
+      : (Array.isArray(window.patients) && window.patients.length > 0 ? window.patients : []);
+    return fallbackList.filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
   }
 }
 
@@ -1716,10 +1736,11 @@ function renderPatientDropdown(dropdownId, patients) {
     patients,
     onSelect: (patient, patientName) => {
       storePatientSearchRecord(patient);
+      const hasCustomCallback = typeof searchInput._patientSearchOnSelect === 'function';
       setLazyPatientFieldValue(valueInput.id, patient.id, patientName, {
-        triggerChange: valueInput.tagName === 'SELECT'
+        triggerChange: valueInput.tagName === 'SELECT' && !hasCustomCallback
       });
-      if (typeof searchInput._patientSearchOnSelect === 'function') {
+      if (hasCustomCallback) {
         searchInput._patientSearchOnSelect(patient);
       }
     }
@@ -1774,13 +1795,8 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
     const value = String(rawTerm || '').trim();
 
     if (value.length < minChars) {
-      if (options.hideWhenEmpty) {
-        dropdown.innerHTML = '';
-        closeDropdown();
-        return;
-      }
-      dropdown.classList.add('active');
-      createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
+      dropdown.innerHTML = '';
+      closeDropdown();
       return;
     }
 
@@ -1790,9 +1806,9 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
     const patients = await searchPatientsByPrefix(value, options.staticPatients || null);
     if (currentRequestId !== searchRequestId) return;
 
-    renderPatientDropdown(dropdownId, patients);
+    renderPatientDropdown(dropdownId, Array.isArray(patients) ? patients.slice(0, 10) : []);
     if (!patients.length) {
-      createPatientSearchMessage(dropdown, options.noResultsMessage || 'Aucun patient commence par cette recherche');
+      createPatientSearchMessage(dropdown, options.noResultsMessage || 'Aucun patient trouvé pour cette recherche');
     }
   };
 
@@ -1802,13 +1818,9 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
       runSearch(currentValue);
       return;
     }
-    if (options.hideWhenEmpty) {
-      dropdown.innerHTML = '';
-      closeDropdown();
-      return;
-    }
-    dropdown.classList.add('active');
-    createPatientSearchMessage(dropdown, options.emptyMessage || 'Tapez la premiere lettre du patient');
+    // Never show dropdown on focus when empty
+    dropdown.innerHTML = '';
+    closeDropdown();
   });
 
   searchInput.addEventListener('input', (event) => {
@@ -1822,8 +1834,14 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
 
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      runSearch(event.target.value);
-    }, Number(options.debounceMs || 150));
+      const val = event.target.value.trim();
+      if (!val || val.length < minChars) {
+        dropdown.innerHTML = '';
+        closeDropdown();
+        return;
+      }
+      runSearch(val);
+    }, Number(options.debounceMs || 80));
   });
 
   searchInput.addEventListener('blur', () => {
@@ -1859,6 +1877,11 @@ function initSearchablePatientSelect(searchInputId, valueInputId, dropdownId, co
       event.preventDefault();
       if (highlighted) {
         highlighted.click();
+      } else {
+        const firstOption = dropdown.querySelector('.searchable-select-option');
+        if (firstOption) {
+          firstOption.click();
+        }
       }
     } else if (event.key === 'Escape') {
       closeDropdown();

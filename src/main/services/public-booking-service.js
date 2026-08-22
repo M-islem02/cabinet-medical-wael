@@ -1475,17 +1475,18 @@ function renderPortalHtml(shareData) {
 async function requestHandler(req, res) {
   try {
     const settings = await getBookingSettings();
-    if (!settings || !settings.publicBookingEnabled) {
-      sendJson(res, 503, { success: false, error: 'Le portail RDV du cabinet est désactivé.' });
-      return;
-    }
-
-    const token = settings.publicBookingToken;
+    const token = settings?.publicBookingToken || '';
     const url = new URL(req.url || '/', 'http://localhost');
     const pathParts = url.pathname.split('/').filter(Boolean);
 
     if (url.pathname === '/health') {
       sendJson(res, 200, { success: true, running: true });
+      return;
+    }
+
+    const isMobileRoute = pathParts[0] === 'mobile' || (pathParts[0] === 'api' && pathParts[1] === 'mobile');
+    if (!isMobileRoute && (!settings || !settings.publicBookingEnabled)) {
+      sendJson(res, 503, { success: false, error: 'Le portail RDV du cabinet est désactivé.' });
       return;
     }
 
@@ -1867,6 +1868,9 @@ export function handlePublicBookingEvents() {
 
   ipcMain.handle('publicBooking:getShareData', async () => {
     try {
+      if (!bookingServerState.running) {
+        await syncPublicBookingServerWithSettings();
+      }
       const shareData = await buildShareData();
       return { success: true, data: { ...shareData, running: bookingServerState.running } };
     } catch (error) {

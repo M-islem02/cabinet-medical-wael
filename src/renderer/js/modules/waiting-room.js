@@ -290,10 +290,10 @@ function detectWaitingRoomChanges(list) {
   // New entries
   list.forEach(item => {
     if (!lastWaitingSnapshot[item.id]) {
-      showNotification(`🩺 Nouveau patient en attente: ${item.lastName || ''} ${item.firstName || ''}`.trim(), 'info');
+      showNotification(`Nouveau patient en salle d'attente: ${item.lastName || ''} ${item.firstName || ''}`.trim(), 'info');
     } else if (lastWaitingSnapshot[item.id] !== item.status) {
       const statusLabel = item.status === 'in-consultation' ? 'en consultation' : item.status === 'completed' ? 'terminé' : 'en attente';
-      showNotification(`🔔 Statut mis à jour: ${item.lastName || ''} ${item.firstName || ''} → ${statusLabel}`.trim(), 'info');
+      showNotification(`Statut mis à jour: ${item.lastName || ''} ${item.firstName || ''} → ${statusLabel}`.trim(), 'info');
     }
   });
 
@@ -335,7 +335,7 @@ function renderWaitingRoom() {
     let sectionHtml = `<div class="waiting-section">
       <div class="waiting-section-header ${headerClass}">
         <h4>${title}</h4>
-        <span>${items.length}</span>
+        <span class="ant-tag">${items.length}</span>
       </div>`;
 
     pageRows.forEach((item, index) => {
@@ -362,13 +362,13 @@ function renderWaitingRoom() {
   };
   
   // In consultation section
-  html += buildSection(inConsultation, 'inConsultation', '👨‍⚕️ En consultation', 'waiting-section-header-live');
+  html += buildSection(inConsultation, 'inConsultation', 'En consultation', 'waiting-section-header-live');
   
   // Waiting section
-  html += buildSection(waiting, 'waiting', '⏳ En attente', 'waiting-section-header-queue');
+  html += buildSection(waiting, 'waiting', 'En attente', 'waiting-section-header-queue');
   
   // Completed section
-  html += buildSection(completed, 'completed', '✅ Terminés', 'waiting-section-header-done');
+  html += buildSection(completed, 'completed', 'Terminés', 'waiting-section-header-done');
   
   container.innerHTML = html;
 }
@@ -408,12 +408,12 @@ function renderWaitingItem(item, status, position = null) {
             <span class="waiting-status-chip waiting-status-chip-${status}">${statusLabel}</span>
           </div>
           <div class="waiting-metadata">
-            <span>🕐 Arrivée: ${timeStr}</span>
+            <span>Arrivée: ${timeStr}</span>
             <span>${item.reason || 'Consultation'}</span>
-            ${item.assignedDoctorName ? `<span>👨‍⚕️ ${item.assignedDoctorName}</span>` : ''}
+            ${item.assignedDoctorName ? `<span>Dr. ${item.assignedDoctorName}</span>` : ''}
           </div>
-          ${status === 'waiting' && position ? `<div class="waiting-queue-note ${patientsBefore === 0 ? 'first' : ''}">${patientsBefore === 0 ? '🟢 ' : '👥 '}${patientsBeforeText}</div>` : ''}
-          ${item.notes ? `<div class="waiting-note">📝 ${item.notes}</div>` : ''}
+          ${status === 'waiting' && position ? `<div class="waiting-queue-note ${patientsBefore === 0 ? 'first' : ''}">${patientsBeforeText}</div>` : ''}
+          ${item.notes ? `<div class="waiting-note">${item.notes}</div>` : ''}
         </div>
       </div>
       <div class="waiting-actions">
@@ -439,12 +439,12 @@ function getWaitingActions(item, status) {
   if (status === 'waiting') {
     if (isAssistant) {
       // Assistant: no actions on waiting patients (just adds them)
-      return `<span class="waiting-inline-status waiting-inline-status-queue">⏳ En attente</span>`;
+      return `<span class="waiting-inline-status waiting-inline-status-queue">En attente</span>`;
     }
     // Doctor: can start consultation
     return `
-      <button class="btn btn-small btn-success" onclick="startConsultation('${item.id}')" title="Commencer la consultation">
-        ▶️ Consulter
+      <button class="btn btn-small btn-primary" onclick="startConsultation('${item.id}')" title="Commencer la consultation" style="background: #0d7377; border-color: #0d7377;">
+        Consulter
       </button>
     `;
   }
@@ -452,19 +452,19 @@ function getWaitingActions(item, status) {
   if (status === 'in-consultation') {
     if (isAssistant) {
       // Assistant: no action, just sees status
-      return `<span class="waiting-inline-status waiting-inline-status-live">👨‍⚕️ En consultation</span>`;
+      return `<span class="waiting-inline-status waiting-inline-status-live">En consultation</span>`;
     }
     // Doctor: can terminate consultation
     return `
       <button class="btn btn-small btn-success" onclick="completeConsultation('${item.id}')" title="Terminer la consultation">
-        ✅ Terminer
+        Terminer
       </button>
     `;
   }
   
   if (status === 'completed') {
     // Both roles just see completed status (stays in history)
-    return `<span class="waiting-inline-status waiting-inline-status-done">✓ Terminé</span>`;
+    return `<span class="waiting-inline-status waiting-inline-status-done">Terminé</span>`;
   }
   
   return '';
@@ -573,6 +573,13 @@ async function startConsultation(waitingId) {
       : null;
     if (!patient) return;
 
+    if (typeof setSelectedPatient === 'function') {
+      await setSelectedPatient(item.patientId, { patient, source: 'waiting-room' });
+    }
+    if (typeof selectORLPatient === 'function') {
+      await selectORLPatient(item.patientId, { patient, fromGlobalSync: false });
+    }
+
     const statusResult = await window.api.waitingRoom.updateStatus(waitingId, 'in-consultation');
     if (statusResult?.success === false) {
       throw new Error(statusResult.error || 'Impossible de démarrer la consultation');
@@ -582,7 +589,7 @@ async function startConsultation(waitingId) {
       // Notify assistant that consultation started
       await window.api.notification.create({
         type: 'consultation-started',
-        title: '👨‍⚕️ Consultation démarrée',
+        title: 'Consultation démarrée',
         message: `${item.lastName} ${item.firstName} est en consultation`,
         relatedType: 'waiting-room',
         relatedId: waitingId,

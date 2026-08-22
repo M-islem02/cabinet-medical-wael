@@ -3,33 +3,187 @@
  */
 
 const SAVED_CREDENTIALS_KEY = 'medcareso_saved_credentials';
-const CREDENTIALS_VALIDITY_MS = 24 * 60 * 60 * 1000; // 24 heures
+const SAVED_ACCOUNTS_KEY = 'medcareso_saved_accounts';
+const CREDENTIALS_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getSavedAccountsList() {
+  const now = Date.now();
+  let accounts = [];
+
+  try {
+    const rawList = localStorage.getItem(SAVED_ACCOUNTS_KEY);
+    if (rawList) {
+      const parsed = JSON.parse(rawList);
+      if (Array.isArray(parsed)) {
+        accounts = parsed.filter(acc => acc && acc.username && acc.savedAt && (now - Number(acc.savedAt) < CREDENTIALS_VALIDITY_MS));
+      }
+    }
+  } catch (e) {
+    console.warn('Erreur lecture liste comptes:', e);
+  }
+
+  // Also include legacy single credentials if not already in list
+  try {
+    const rawSingle = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    if (rawSingle) {
+      const single = JSON.parse(rawSingle);
+      if (single && single.username && single.savedAt && (now - Number(single.savedAt) < CREDENTIALS_VALIDITY_MS)) {
+        const existingIdx = accounts.findIndex(a => a.username.toLowerCase() === single.username.toLowerCase());
+        if (existingIdx === -1) {
+          accounts.unshift({
+            username: single.username,
+            password: single.password || '',
+            savedAt: single.savedAt
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Erreur lecture identifiants simples:', e);
+  }
+
+  return accounts;
+}
+
+function renderSavedAccountsUI() {
+  const section = document.getElementById('saved-accounts-section');
+  const list = document.getElementById('saved-accounts-list');
+  if (!section || !list) return;
+
+  const accounts = getSavedAccountsList();
+  if (!accounts || accounts.length === 0) {
+    section.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+
+  const currentUsername = (document.getElementById('username')?.value || '').trim().toLowerCase();
+
+  list.innerHTML = accounts.map(acc => {
+    const initial = (acc.username || 'U').charAt(0).toUpperCase();
+    const isActive = acc.username.toLowerCase() === currentUsername;
+    const safeUser = escapeHTML(acc.username);
+    return `
+      <div class="saved-account-item ${isActive ? 'active' : ''}" data-username="${safeUser}" onclick="selectSavedAccount('${safeUser}')" title="Cliquer pour se connecter avec ${safeUser}">
+        <div class="saved-account-info">
+          <div class="saved-account-avatar">${initial}</div>
+          <div style="min-width: 0;">
+            <div class="saved-account-name">${safeUser}</div>
+            <div class="saved-account-role">Compte mémorisé</div>
+          </div>
+        </div>
+        <div class="saved-account-actions">
+          <button type="button" class="saved-account-btn-delete" title="Oublier ce compte" onclick="removeSavedAccount('${safeUser}', event)">
+            ✕
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  section.classList.remove('hidden');
+}
+
+function selectSavedAccount(username) {
+  const accounts = getSavedAccountsList();
+  const acc = accounts.find(a => a.username.toLowerCase() === username.toLowerCase());
+  if (!acc) return;
+
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const rememberCheckbox = document.getElementById('remember-credentials');
+  const submitButton = document.querySelector('#login-form button[type="submit"]');
+
+  if (usernameInput) usernameInput.value = acc.username;
+  if (passwordInput) passwordInput.value = acc.password || '';
+  if (rememberCheckbox) rememberCheckbox.checked = true;
+
+  // Highlight active item
+  document.querySelectorAll('.saved-account-item').forEach(item => {
+    const itemUser = (item.dataset.username || '').toLowerCase();
+    item.classList.toggle('active', itemUser === acc.username.toLowerCase());
+  });
+
+  if (submitButton) {
+    submitButton.focus();
+  }
+}
+
+function removeSavedAccount(username, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  let accounts = getSavedAccountsList();
+  accounts = accounts.filter(a => a.username.toLowerCase() !== username.toLowerCase());
+  localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(accounts));
+
+  try {
+    const rawSingle = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    if (rawSingle) {
+      const single = JSON.parse(rawSingle);
+      if (single && single.username && single.username.toLowerCase() === username.toLowerCase()) {
+        localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      }
+    }
+  } catch (e) {}
+
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  if (usernameInput && usernameInput.value.trim().toLowerCase() === username.toLowerCase()) {
+    if (accounts.length > 0) {
+      selectSavedAccount(accounts[0].username);
+    } else {
+      usernameInput.value = '';
+      if (passwordInput) passwordInput.value = '';
+      const rememberCheckbox = document.getElementById('remember-credentials');
+      if (rememberCheckbox) rememberCheckbox.checked = false;
+    }
+  }
+
+  renderSavedAccountsUI();
+}
 
 function loadSavedCredentials() {
   try {
-    const raw = localStorage.getItem(SAVED_CREDENTIALS_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (data && data.savedAt && (Date.now() - Number(data.savedAt) < CREDENTIALS_VALIDITY_MS)) {
+    const accounts = getSavedAccountsList();
+    if (accounts.length > 0) {
+      const latest = accounts[0];
       const usernameInput = document.getElementById('username');
       const passwordInput = document.getElementById('password');
       const rememberCheckbox = document.getElementById('remember-credentials');
       const submitButton = document.querySelector('#login-form button[type="submit"]');
 
-      if (usernameInput && data.username) usernameInput.value = data.username;
-      if (passwordInput && data.password) passwordInput.value = data.password;
+      if (usernameInput && latest.username) usernameInput.value = latest.username;
+      if (passwordInput && latest.password) passwordInput.value = latest.password;
       if (rememberCheckbox) rememberCheckbox.checked = true;
+
+      renderSavedAccountsUI();
       if (submitButton) {
         submitButton.focus();
       }
       return true;
     } else {
       localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      localStorage.removeItem(SAVED_ACCOUNTS_KEY);
+      renderSavedAccountsUI();
       return false;
     }
   } catch (e) {
     console.warn('Erreur lors de la lecture des identifiants mémorisés:', e);
     localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+    localStorage.removeItem(SAVED_ACCOUNTS_KEY);
     return false;
   }
 }
@@ -37,14 +191,32 @@ function loadSavedCredentials() {
 function persistCredentials(username, password, remember) {
   try {
     if (remember) {
+      const now = Date.now();
       localStorage.setItem(SAVED_CREDENTIALS_KEY, JSON.stringify({
         username,
         password,
-        savedAt: Date.now()
+        savedAt: now
       }));
+
+      let accounts = getSavedAccountsList();
+      const existingIdx = accounts.findIndex(a => a.username.toLowerCase() === username.toLowerCase());
+      if (existingIdx >= 0) {
+        accounts[existingIdx] = { username, password, savedAt: now };
+      } else {
+        accounts.unshift({ username, password, savedAt: now });
+      }
+      localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(accounts));
     } else {
       localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      let accounts = getSavedAccountsList();
+      accounts = accounts.filter(a => a.username.toLowerCase() !== username.toLowerCase());
+      if (accounts.length > 0) {
+        localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(accounts));
+      } else {
+        localStorage.removeItem(SAVED_ACCOUNTS_KEY);
+      }
     }
+    renderSavedAccountsUI();
   } catch (e) {
     console.warn('Erreur lors de l\'enregistrement des identifiants:', e);
   }
@@ -112,11 +284,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
-  // Charger les identifiants enregistrés s'ils ont moins de 24h
+  // Charger les identifiants enregistrés s'ils sont valides
   const hasSaved = loadSavedCredentials();
   if (!hasSaved) {
     document.getElementById('username')?.focus();
   }
+
+  document.getElementById('username')?.addEventListener('input', (e) => {
+    const current = (e.target.value || '').trim().toLowerCase();
+    document.querySelectorAll('.saved-account-item').forEach(item => {
+      const itemUser = (item.dataset.username || '').toLowerCase();
+      item.classList.toggle('active', itemUser === current);
+    });
+  });
 });
 
 // Soumettre le formulaire de connexion

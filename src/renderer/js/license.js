@@ -32,6 +32,14 @@ function switchTab(tab) {
   }
 }
 
+function setPresetDays(days) {
+  const dateInput = document.getElementById('gen-expiry-date');
+  if (!dateInput) return;
+  const now = new Date();
+  now.setDate(now.getDate() + Number(days));
+  dateInput.value = now.toISOString().split('T')[0];
+}
+
 function setPresetDuration(months) {
   const dateInput = document.getElementById('gen-expiry-date');
   if (months === 0) {
@@ -216,6 +224,7 @@ function showMessage(element, message, type = 'info') {
 window.chooseLicenseFile = chooseLicenseFile;
 window.validateAndActivate = validateAndActivate;
 window.switchTab = switchTab;
+window.setPresetDays = setPresetDays;
 window.setPresetDuration = setPresetDuration;
 window.useCurrentMachineId = useCurrentMachineId;
 window.generateClientToken = generateClientToken;

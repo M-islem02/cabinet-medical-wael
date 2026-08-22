@@ -1614,7 +1614,8 @@ async function saveSickLeave(e) {
   
   try {
     const numberOfDays = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1);
-    const diagnosis = buildSickLeaveDiagnosisText(templateFields);
+    const customPreviewText = document.getElementById('sickleave-preview-text')?.value;
+    const diagnosis = customPreviewText?.trim() || buildSickLeaveDiagnosisText(templateFields);
 
     const sickLeaveData = {
       patientId,

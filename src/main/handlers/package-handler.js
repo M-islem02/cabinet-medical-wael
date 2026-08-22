@@ -149,8 +149,8 @@ function sanitizePackageConfig(rawConfig = {}) {
     enabledSpecialties: safeEnabledSpecialties,
     activeSpecialty,
     cabinetType,
-    featureRehabilitation: safeEnabledSpecialties.includes('mpr'),
-    featureKineStaff: safeEnabledSpecialties.includes('mpr'),
+    featureRehabilitation: safeEnabledSpecialties.includes('rehabilitation'),
+    featureKineStaff: safeEnabledSpecialties.includes('rehabilitation'),
     featureCardiology: safeEnabledSpecialties.includes('cardiology'),
     featureDentistry: safeEnabledSpecialties.includes('dentistry')
   };

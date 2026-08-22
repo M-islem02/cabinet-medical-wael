@@ -1,0 +1,2355 @@
+/* ==========================================================================
+   MedCareSO - Ant Design Component Library
+   Implementation of Ant Design v5 styles for Vanilla JS/HTML.
+   ========================================================================== */
+
+/* ========== 1. Collapse / Accordion (.ant-collapse) ========== */
+.ant-collapse {
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+}
+
+.ant-collapse-borderless {
+  border: none;
+  background: transparent;
+}
+
+.ant-collapse-item {
+  border-bottom: 1px solid #d9d9d9;
+}
+
+.ant-collapse-item:last-child {
+  border-bottom: none;
+}
+
+.ant-collapse-header {
+  cursor: pointer;
+  padding: 12px 16px;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-collapse-header:hover {
+  background: #fafafa;
+}
+
+.ant-collapse-item:first-child .ant-collapse-header {
+  border-radius: 8px 8px 0 0;
+}
+
+.ant-collapse-item:last-child .ant-collapse-header {
+  border-radius: 0 0 8px 8px;
+}
+
+.ant-collapse-item.is-collapsed:last-child .ant-collapse-header {
+  border-radius: 0 0 8px 8px;
+}
+.ant-collapse-item:not(.is-collapsed):last-child .ant-collapse-header {
+  border-radius: 0;
+}
+
+.ant-collapse-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0,0,0,0.88);
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  align-items: center;
+}
+
+.ant-collapse-content {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+}
+
+.ant-collapse-item:last-child .ant-collapse-content {
+  border-radius: 0 0 8px 8px;
+}
+
+.ant-collapse-item.is-collapsed .ant-collapse-content {
+  display: none;
+}
+
+.ant-collapse-item.is-collapsed .ant-collapse-header {
+  border-bottom: none;
+}
+
+.ant-collapse-arrow {
+  transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-collapse-item.is-collapsed .ant-collapse-arrow {
+  transform: rotate(-90deg);
+}
+
+.ant-collapse-extra {
+  margin-left: auto;
+}
+
+
+/* ========== 2. Tabs Card Type (.ant-tabs-card) ========== */
+.ant-tabs-card {
+  width: 100%;
+}
+
+.ant-tabs-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #f0f0f0;
+  overflow-x: auto;
+}
+
+.ant-tabs-tab {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0,0,0,0.65);
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), border-color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-tabs-tab:hover {
+  color: #1677ff;
+}
+
+.ant-tabs-tab.active {
+  background: #ffffff;
+  color: #1677ff;
+  font-weight: 600;
+  border-color: #f0f0f0;
+  border-bottom: 1px solid #ffffff;
+  position: relative;
+  z-index: 1;
+  margin-bottom: -1px;
+}
+
+.ant-tabs-tab:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: -2px;
+}
+
+.ant-tabs-content {
+  padding-top: 16px;
+}
+
+.ant-tabs-pane {
+  display: none;
+}
+
+.ant-tabs-pane.active {
+  display: block;
+}
+
+.ant-tabs-tab .ant-tabs-icon {
+  font-size: 16px;
+  color: inherit;
+}
+
+
+/* ========== 3. Searchable Select (.ant-select) ========== */
+.ant-select {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.ant-select-selector {
+  position: relative !important;
+  height: 34px !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  padding: 0 28px 0 11px !important;
+  display: flex !important;
+  align-items: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.ant-select-selector:hover {
+  border-color: #4096ff !important;
+}
+
+.ant-select.open .ant-select-selector,
+.ant-select-selector:focus-visible {
+  border-color: #4096ff !important;
+  box-shadow: 0 0 0 2px rgba(5,145,255,0.1) !important;
+  outline: none !important;
+}
+
+.ant-select-selection-search {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ant-select-selection-search input,
+.ant-select-selection-search input.ant-select-search-input,
+.ant-select-selection-search input.form-control,
+.ant-select-selection-search input:focus,
+.ant-select-selection-search input:focus-visible {
+  border: none !important;
+  outline: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  font-size: 13.5px !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+.ant-select-search-icon {
+  position: absolute !important;
+  left: 10px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  color: #94a3b8 !important;
+  z-index: 2 !important;
+}
+
+.ant-select.has-search-icon .ant-select-selector {
+  padding: 0 28px 0 32px !important;
+}
+
+.ant-select.has-search-icon .ant-select-selection-placeholder,
+.ant-select.has-search-icon .ant-select-selection-item {
+  left: 32px !important;
+}
+
+.ant-select.has-search-icon .ant-select-selection-search input {
+  padding-left: 0 !important;
+}
+
+.ant-select-selection-placeholder {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  left: 11px !important;
+  right: 28px !important;
+  color: #94a3b8 !important;
+  font-size: 13px !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.ant-select-selection-item {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  left: 11px !important;
+  right: 28px !important;
+  font-size: 13.5px !important;
+  color: #0f172a !important;
+  font-weight: 550 !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.ant-select-arrow {
+  position: absolute !important;
+  right: 10px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: rgba(0,0,0,0.25) !important;
+  pointer-events: none !important;
+}
+
+.ant-select-clear {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: rgba(0,0,0,0.25);
+  background: #fff;
+}
+
+.ant-select-clear:hover {
+  color: rgba(0,0,0,0.45);
+}
+
+.ant-select-dropdown {
+  position: absolute;
+  z-index: 1050;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: var(--ant-shadow-dropdown, 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05));
+  padding: 4px;
+  max-height: 256px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.ant-select-option {
+  padding: 5px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.ant-select-option:hover {
+  background: #f5f5f5;
+}
+
+.ant-select-option.selected {
+  background: #e6f4ff;
+  font-weight: 600;
+}
+
+.ant-select-option-content {
+  flex: 1;
+}
+
+.ant-select-option-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1677ff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.ant-select-option-secondary {
+  font-size: 12px;
+  color: rgba(0,0,0,0.45);
+}
+
+.ant-select-empty {
+  padding: 14px 12px;
+  text-align: center;
+  color: rgba(0,0,0,0.45);
+  font-size: 12.5px;
+}
+
+.ant-select-footer-info {
+  padding: 8px 12px;
+  border-top: 1px solid #f0f0f0;
+  text-align: center;
+  color: #8c8c8c;
+  font-size: 12px;
+  background: #fafafa;
+}
+
+
+/* ========== 4. Dropdown Menu (.ant-dropdown) ========== */
+.ant-dropdown {
+  position: absolute;
+  z-index: 1050;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: var(--ant-shadow-dropdown, 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05));
+  padding: 4px;
+  min-width: 160px;
+}
+
+.ant-dropdown-menu-item {
+  padding: 5px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-dropdown-menu-item:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+.ant-dropdown-menu-item-danger {
+  color: #ff4d4f;
+}
+
+.ant-dropdown-menu-item-danger:hover {
+  background: #fff2f0;
+}
+
+.ant-dropdown-menu-item-disabled {
+  color: rgba(0,0,0,0.25);
+  cursor: not-allowed;
+}
+
+.ant-dropdown-menu-item-disabled:hover {
+  background: transparent;
+}
+
+.ant-dropdown-menu-item .ant-dropdown-menu-item-icon {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.ant-dropdown-menu-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: #f0f0f0;
+}
+
+
+/* ========== 5. Segmented Control (.ant-segmented) ========== */
+.ant-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 4px;
+  border-radius: 9px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.ant-segmented-item {
+  padding: 7px 18px;
+  font-size: 13.5px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.645, 0.045, 0.355, 1);
+  color: #475569;
+  user-select: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ant-segmented-item:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.ant-segmented-item.active {
+  background: #ffffff;
+  color: #0f766e;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-weight: 700;
+}
+
+.ant-segmented-item:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 1px;
+}
+
+/* Full-Width Document Sub-Tabs in Patient Details (6 Tabs) */
+#patient-docs-segmented.ant-segmented,
+#patient-docs-segmented {
+  display: flex !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: #f8fafc !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 5px !important;
+  gap: 6px !important;
+  margin-bottom: 18px !important;
+}
+
+#patient-docs-segmented .ant-segmented-item {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 10px 8px !important;
+  font-size: 14.5px !important;
+  font-weight: 650 !important;
+  border-radius: 8px !important;
+  white-space: nowrap !important;
+  color: #334155 !important;
+  transition: all 0.2s ease !important;
+}
+
+#patient-docs-segmented .ant-segmented-item:hover {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+#patient-docs-segmented .ant-segmented-item.active {
+  background: #ffffff !important;
+  color: #1677ff !important;
+  font-weight: 750 !important;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.16), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  border: 1.5px solid #93c5fd !important;
+}
+
+
+/* ========== 6. Checkable Tag (.ant-tag-checkable) ========== */
+.ant-tag-checkable,
+.orl-preset-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 28px !important;
+  padding: 4px 14px !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+}
+
+.ant-tag-checkable:hover,
+.orl-preset-chip:hover {
+  color: #0d9488 !important;
+  border-color: #0d9488 !important;
+  background: #e6f7f7 !important;
+}
+
+.ant-tag-checkable.checked,
+.orl-preset-chip.active {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+  border-color: #0d9488 !important;
+  font-weight: 500 !important;
+}
+
+.ant-tag-checkable:focus-visible,
+.orl-preset-chip:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 1px;
+}
+
+
+/* ========== 7. InputNumber (.ant-input-number) ========== */
+.ant-input-number {
+  display: inline-flex;
+  height: 32px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  background: #fff;
+}
+
+.ant-input-number:hover {
+  border-color: #4096ff;
+}
+
+.ant-input-number:focus-within {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(5,145,255,0.1);
+}
+
+.ant-input-number input {
+  border: none;
+  outline: none;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  padding: 0 8px;
+  height: 100%;
+  background: transparent;
+}
+
+.ant-input-number-suffix {
+  padding: 0 8px;
+  color: rgba(0,0,0,0.45);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  background: #fafafa;
+  border-left: 1px solid #f0f0f0;
+}
+
+
+/* ========== 8. Breadcrumb (.ant-breadcrumb) ========== */
+.ant-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(0,0,0,0.45);
+}
+
+.ant-breadcrumb-item {
+  color: rgba(0,0,0,0.45);
+}
+
+.ant-breadcrumb-item:last-child {
+  color: rgba(0,0,0,0.88);
+  font-weight: 500;
+}
+
+.ant-breadcrumb-separator {
+  color: rgba(0,0,0,0.25);
+  margin: 0 4px;
+}
+
+
+/* ========== 9. Descriptions (.ant-descriptions) ========== */
+.ant-descriptions {
+  width: 100%;
+}
+
+.ant-descriptions-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+}
+
+.ant-descriptions-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ant-descriptions-item-label {
+  font-size: 13px;
+  color: rgba(0,0,0,0.45);
+  font-weight: 400;
+}
+
+.ant-descriptions-item-content {
+  font-size: 14px;
+  color: rgba(0,0,0,0.88);
+}
+
+
+/* ========== 10. Badge (.ant-badge) ========== */
+.ant-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ant-badge-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: center;
+  border-radius: 10px;
+  background: #ff4d4f;
+  color: #ffffff;
+}
+
+.ant-badge-count-sm {
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 4px;
+}
+
+.ant-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ant-badge-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ant-badge-status-success .ant-badge-status-dot {
+  background: #52c41a;
+}
+
+.ant-badge-status-warning .ant-badge-status-dot {
+  background: #faad14;
+}
+
+.ant-badge-status-error .ant-badge-status-dot {
+  background: #ff4d4f;
+}
+
+.ant-badge-status-processing .ant-badge-status-dot {
+  background: #1677ff;
+}
+
+.ant-badge-status-default .ant-badge-status-dot {
+  background: #d9d9d9;
+}
+
+.ant-badge-count-teal {
+  background: #0d9488;
+}
+
+
+/* ========== 11. Drawer (.ant-drawer) ========== */
+.ant-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.ant-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 1001;
+  background: #ffffff;
+  box-shadow: -6px 0 16px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.7, 0.3, 0.1, 1);
+}
+
+.ant-drawer.closed {
+  transform: translateX(100%);
+}
+
+.ant-drawer-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.ant-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0,0,0,0.88);
+}
+
+.ant-drawer-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0,0,0,0.45);
+  transition: background 0.2s, color 0.2s;
+}
+
+.ant-drawer-close:hover {
+  background: rgba(0,0,0,0.04);
+  color: rgba(0,0,0,0.88);
+}
+
+.ant-drawer-close:focus-visible {
+  outline: 2px solid #1677ff;
+}
+
+.ant-drawer-body {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.ant-drawer-footer {
+  padding: 12px 24px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ant-drawer-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+/* ========== 12. Popconfirm (.ant-popconfirm) ========== */
+.ant-popconfirm {
+  position: absolute;
+  z-index: 1060;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: var(--ant-shadow-dropdown, 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05));
+  padding: 12px 16px;
+  max-width: 300px;
+  border: 1px solid #f0f0f0;
+}
+
+.ant-popconfirm-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0,0,0,0.88);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ant-popconfirm-description {
+  font-size: 14px;
+  color: rgba(0,0,0,0.65);
+  margin-bottom: 12px;
+}
+
+.ant-popconfirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ant-popconfirm-icon {
+  color: #faad14;
+  font-size: 16px;
+}
+
+.ant-popconfirm-arrow {
+  /* Implementation of an arrow requires pseudo-elements and specific positioning relative to trigger */
+}
+
+
+/* ========== 13. Tag Variants (.ant-tag) ========== */
+.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+  background: #fafafa;
+  color: rgba(0,0,0,0.88);
+}
+
+.ant-tag-blue {
+  color: #1677ff;
+  background: #e6f4ff;
+  border-color: #91caff;
+}
+
+.ant-tag-green,
+.ant-tag-success {
+  color: #52c41a;
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.ant-tag-red,
+.ant-tag-error {
+  color: #ff4d4f;
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+
+.ant-tag-orange,
+.ant-tag-warning {
+  color: #fa8c16;
+  background: #fff7e6;
+  border-color: #ffd591;
+}
+
+.ant-tag-cyan,
+.ant-tag-processing {
+  color: #13c2c2;
+  background: #e6fffb;
+  border-color: #87e8de;
+}
+
+.ant-tag-purple {
+  color: #722ed1;
+  background: #f9f0ff;
+  border-color: #d3adf7;
+}
+
+.ant-tag-teal {
+  color: #0d9488;
+  background: #e6f7f7;
+  border-color: #5eead4;
+}
+
+
+/* ========== 14. Progress Bar (.ant-progress) ========== */
+.ant-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ant-progress-outer {
+  flex: 1;
+  height: 8px;
+  background: rgba(0,0,0,0.04);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.ant-progress-inner {
+  height: 100%;
+  background: #1677ff;
+  border-radius: 100px;
+  transition: width 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.ant-progress-text {
+  font-size: 12px;
+  color: rgba(0,0,0,0.65);
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: right;
+}
+
+.ant-progress-sm .ant-progress-outer {
+  height: 4px;
+}
+
+
+/* ========== 15. Document Preview Specific (.doc-*) ========== */
+.doc-canvas {
+  background: #ffffff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  border: 1px solid #d9d9d9;
+  margin: 0 auto;
+}
+
+.doc-canvas-a4 {
+  width: 794px;
+  min-height: 1123px;
+  padding: 60px;
+}
+
+.doc-canvas-a5 {
+  width: 559px;
+  min-height: 794px;
+  padding: 40px;
+}
+
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #0d9488;
+  margin-bottom: 24px;
+}
+
+.doc-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(0,0,0,0.88);
+  text-align: center;
+  margin: 24px 0;
+}
+
+.doc-section {
+  margin-bottom: 16px;
+}
+
+.doc-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+@media print {
+  .doc-canvas {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* ========== 16. KPI Pattern & Cards (.ant-kpi-row, .ant-kpi-card) ========== */
+.ant-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ant-kpi-card {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ant-kpi-card:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.ant-kpi-card-highlighted {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.25) !important;
+  margin-bottom: 16px;
+}
+
+.ant-kpi-card-highlighted .ant-kpi-title {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 14px;
+}
+
+.ant-kpi-card-highlighted .ant-kpi-value {
+  color: #ffffff !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  margin: 6px 0 !important;
+}
+
+.ant-kpi-card-highlighted .ant-kpi-tag {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.ant-kpi-title {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ant-kpi-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 4px 0;
+  line-height: 1.2;
+}
+
+.ant-kpi-suffix {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+  margin-left: 4px;
+}
+
+.ant-kpi-card-highlighted .ant-kpi-suffix {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ========== 17. Wrapping Pill Tabs (.orl-tab-pills-wrap) ========== */
+.orl-tab-pills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+}
+
+.orl-tab-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 20px !important;
+  font-size: 13.5px;
+  font-weight: 500;
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.88);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  user-select: none;
+}
+
+.orl-tab-pill-btn:hover {
+  color: #1677ff;
+  border-color: #4096ff;
+  background: #ffffff;
+}
+
+.orl-tab-pill-btn.active {
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
+  font-weight: 600;
+}
+
+.orl-tab-pill-btn.active svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.orl-tab-pill-btn.is-completed::after {
+  content: '✓';
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #52c41a;
+  margin-left: 2px;
+}
+
+.orl-tab-pill-btn.active.is-completed::after {
+  color: #ffffff;
+}
+
+/* ========== 18. Ant Design Empty State (.ant-empty) ========== */
+.ant-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+}
+
+.ant-empty-image {
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.ant-empty-description {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13.5px;
+}
+
+/* ========== 19. Uniform Buttons & Action Bars (Spec 12) ========== */
+.orl-toolbar-card .lazy-patient-select-wrapper,
+#orl-patient-selector-lazy-patient-wrapper {
+  width: 300px !important;
+  min-width: 240px !important;
+  max-width: 360px !important;
+  flex: 0 1 300px !important;
+  margin: 0 !important;
+}
+
+.orl-toolbar-card .searchable-select-input {
+  height: 36px !important;
+  border-radius: 6px !important;
+  font-size: 13.5px !important;
+  padding: 0 12px !important;
+  border: 1px solid #d9d9d9 !important;
+  width: 100% !important;
+}
+
+.orl-toolbar-card .searchable-select-input:focus {
+  border-color: #4096ff !important;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1) !important;
+}
+
+.orl-toolbar-card .btn,
+.patients-toolbar .btn,
+.section-header .btn {
+  height: 36px !important;
+  line-height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.orl-toolbar-card select,
+.orl-toolbar-card .ant-select-selector {
+  height: 34px !important;
+  line-height: 32px !important;
+  border-radius: 6px !important;
+  font-size: 13.5px !important;
+}
+
+/* Form Date Inputs */
+input[type="date"].form-control,
+input[type="date"].ant-input {
+  height: 34px !important;
+  padding: 0 11px !important;
+  border-radius: 6px !important;
+  border: 1px solid #d9d9d9 !important;
+  background: #ffffff !important;
+  font-size: 13.5px !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+}
+
+input[type="date"].form-control:hover,
+input[type="date"].ant-input:hover {
+  border-color: #4096ff !important;
+}
+
+input[type="date"].form-control:focus,
+input[type="date"].ant-input:focus {
+  border-color: #4096ff !important;
+  box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1) !important;
+  outline: none !important;
+}
+
+/* ========== 20. ORL Print Preview Modal Overlay & Sheet (A4 WYSIWYG) ========== */
+.orl-preview-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  transform: none !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 100000 !important;
+  display: none !important;
+  pointer-events: none !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  padding: 30px 16px !important;
+  box-sizing: border-box !important;
+}
+
+.orl-preview-modal-overlay.is-open {
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+#orl,
+.orl-top-action-bar,
+.orl-workspace-layout,
+.orl-sider,
+.orl-main-content,
+.orl-content-area {
+  position: relative !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+}
+
+.orl-top-action-bar {
+  z-index: 5 !important;
+}
+
+.orl-top-action-bar button,
+.orl-section-step-item,
+.orl-subtab-btn,
+.orl-add-subject-btn,
+.orl-step-dot,
+#orl button,
+#orl .btn,
+#orl input,
+#orl select,
+#orl textarea {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* ==========================================================================
+   Operation Modals (Centered, Responsive, Full-width)
+   ========================================================================== */
+#modal-operation.modal,
+#modal-operation {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 1180px !important;
+  width: 95vw !important;
+  max-height: 96vh !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+}
+
+#modal-operation .modal-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  max-height: 96vh !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+#modal-operation-view.modal,
+#modal-operation-view {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 850px !important;
+  width: 92vw !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+}
+
+#modal-operation-view .modal-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* ==========================================================================
+   Medical Document Modals & 2-Column Live Workstation
+   (Inputs on Left, Real-time Document Preview on Right)
+   ========================================================================== */
+.medical-document-modal.modal,
+#modal-orientation.modal,
+#modal-bonpour.modal,
+#modal-rapport.modal,
+#modal-add-sickleave.modal,
+#modal-facture.modal {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  max-width: 1260px !important;
+  width: 96vw !important;
+  max-height: 94vh !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+}
+
+.medical-document-modal .modal-content,
+#modal-orientation .modal-content,
+#modal-bonpour .modal-content,
+#modal-rapport .modal-content,
+#modal-add-sickleave .modal-content,
+#modal-facture .modal-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  max-height: 94vh !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+}
+
+.document-workstation-layout {
+  display: grid !important;
+  grid-template-columns: 1.05fr 0.95fr !important;
+  gap: 20px !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.document-workstation-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+.document-workstation-preview {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  height: 100% !important;
+}
+
+.document-workstation-preview .document-live-preview {
+  min-height: 420px !important;
+  max-height: 520px !important;
+  overflow-y: auto !important;
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+.orl-preview-modal-dialog {
+  width: 100% !important;
+  max-width: 960px !important;
+  margin: 0 auto 40px auto !important;
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transform: none !important;
+}
+
+.orl-printable-sheet {
+  width: 210mm !important;
+  min-height: 297mm !important;
+  background: #ffffff !important;
+  padding: 16mm 18mm !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25) !important;
+  box-sizing: border-box !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  color: #1e293b !important;
+  line-height: 1.5 !important;
+  border-radius: 2px !important;
+}
+
+/* ==========================================================================
+   Medical Imaging Ant Design Toolbar
+   ========================================================================== */
+#medical-imaging .imaging-toolbar {
+  display: flex !important;
+  gap: 16px !important;
+  align-items: flex-end !important;
+  flex-wrap: wrap !important;
+  background: #fafafa !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 16px !important;
+}
+
+#medical-imaging .imaging-toolbar .form-group {
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+#medical-imaging .imaging-toolbar .form-group:first-child {
+  flex: 1 1 300px !important;
+}
+
+#medical-imaging .imaging-toolbar .form-group label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: rgba(0, 0, 0, 0.65) !important;
+  margin: 0 !important;
+}
+
+/* ==========================================================================
+   Module ORL — Reconstruction Complète (Spec 14)
+   2-Column Layout, Sider Navigation, Grille KPI 2x2, WYSIWYG Report
+   ========================================================================== */
+.orl-workspace-layout {
+  display: flex !important;
+  gap: 20px !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+}
+
+.orl-workspace-layout.orl-view-hidden,
+#orl-history-view.orl-view-hidden,
+#orl-empty-view.orl-view-hidden,
+.orl-view-hidden {
+  display: none !important;
+}
+
+.orl-sider {
+  width: 320px !important;
+  min-width: 320px !important;
+  max-width: 320px !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  position: sticky !important;
+  top: 16px !important;
+  overflow: visible !important;
+  z-index: 50 !important;
+}
+
+.orl-patient-card {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  background: #fafafa !important;
+  border: 1px solid #f0f0f0 !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 60 !important;
+  margin-bottom: 16px !important;
+}
+
+.orl-patient-card select,
+.orl-patient-card input,
+.orl-patient-card .form-control,
+.orl-patient-card .ant-select {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
+  z-index: 70 !important;
+}
+
+.ant-select-hidden-native,
+select.lazy-patient-select-native,
+select.ant-select-hidden-native,
+select[aria-hidden="true"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  position: absolute !important;
+  pointer-events: none !important;
+}
+
+.orl-top-patient-search .ant-select-selector {
+  height: 38px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  background: #ffffff !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.orl-top-patient-search .ant-select.open .ant-select-selector,
+.orl-top-patient-search .ant-select-selector:hover,
+.orl-top-patient-search .ant-select-selector:focus-visible {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12) !important;
+}
+
+.orl-patient-card .ant-select-dropdown,
+.ant-select-dropdown {
+  position: absolute !important;
+  z-index: 99999 !important;
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.20), 0 4px 12px rgba(0, 0, 0, 0.10) !important;
+  padding: 6px !important;
+  max-height: 280px !important;
+  overflow-y: auto !important;
+  border: 1px solid #cbd5e1 !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+.patients-search-wrap input[type="search"],
+.patients-search-wrap input[type="text"],
+#patients-search {
+  padding-left: 36px !important;
+  box-sizing: border-box !important;
+}
+
+.orl-section-steps {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+}
+
+.orl-section-step-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 12px 16px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  background: #ffffff !important;
+  border: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+}
+
+.orl-section-step-item:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  transform: translateX(2px) !important;
+}
+
+.orl-section-step-item.active {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12) !important;
+}
+
+.orl-section-step-item .ant-step-circle {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50% !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  border: 1.5px solid #e2e8f0 !important;
+  transition: all 0.2s !important;
+}
+
+.orl-section-step-item.active .ant-step-circle {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+
+.orl-section-step-item.is-completed .ant-step-circle {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #16a34a !important;
+}
+
+.orl-section-step-item .ant-step-icon {
+  font-size: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.orl-section-step-item .ant-step-label {
+  flex: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 14.5px !important;
+}
+
+.orl-content-area {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Enhanced typography, inputs & textareas for ORL page */
+#orl {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  color: #0f172a;
+}
+
+#orl label {
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin-bottom: 8px !important;
+  display: block;
+  letter-spacing: -0.1px;
+}
+
+#orl .form-control,
+#orl input[type="text"],
+#orl input[type="date"],
+#orl input[type="number"],
+#orl select,
+#orl textarea {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+  color: #0f172a !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+  box-sizing: border-box !important;
+}
+
+#orl select,
+#orl select.form-control {
+  height: 42px !important;
+  min-height: 42px !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  line-height: normal !important;
+  padding: 0 34px 0 12px !important;
+  vertical-align: middle !important;
+  display: block !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 15px 15px !important;
+}
+
+#orl input[type="text"],
+#orl input[type="date"],
+#orl input[type="number"],
+#orl .form-control:not(textarea):not(select) {
+  height: 42px !important;
+  min-height: 42px !important;
+  font-size: 14.5px !important;
+  line-height: normal !important;
+  padding: 0 12px !important;
+}
+
+#orl textarea {
+  font-size: 14.5px !important;
+  padding: 10px 14px !important;
+  line-height: 1.55 !important;
+  min-height: 85px;
+  resize: vertical;
+}
+
+#orl .form-control:focus,
+#orl input[type="text"]:focus,
+#orl input[type="date"]:focus,
+#orl select:focus,
+#orl textarea:focus {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12) !important;
+  outline: none !important;
+  background-color: #ffffff !important;
+}
+
+#orl textarea::placeholder,
+#orl input::placeholder {
+  font-size: 14px !important;
+  color: #94a3b8 !important;
+  font-style: normal !important;
+}
+
+#orl .orl-subtab-btn {
+  font-size: 14.5px !important;
+  padding: 9px 18px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}
+
+#orl .ant-checkable-tag {
+  font-size: 13.5px !important;
+  padding: 7px 15px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+}
+
+.orl-kpi-grid-2x2 {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 14px !important;
+  margin-bottom: 20px !important;
+}
+
+.orl-kpi-card-2x2 {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 14px 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.orl-kpi-card-2x2:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.orl-kpi-icon-badge {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* WYSIWYG Report Sheet */
+.orl-report-wysiwyg-container {
+  background: transparent !important;
+}
+
+.orl-wysiwyg-sheet {
+  background: #ffffff !important;
+  box-shadow: 0 0 0 1px #f0f0f0, 0 8px 30px rgba(0, 0, 0, 0.08) !important;
+  margin: 0 auto 30px auto !important;
+  border-radius: 4px !important;
+  box-sizing: border-box !important;
+  transition: width 0.25s ease, min-height 0.25s ease !important;
+}
+
+.orl-wysiwyg-sheet.format-a4 {
+  width: 794px !important;
+  min-height: 1123px !important;
+  padding: 44px 50px !important;
+}
+
+.orl-wysiwyg-sheet.format-a5 {
+  width: 559px !important;
+  min-height: 794px !important;
+  padding: 28px 32px !important;
+}
+
+.orl-wysiwyg-editor {
+  outline: none !important;
+  min-height: 350px !important;
+  line-height: 1.7 !important;
+  font-size: 13.5px !important;
+  color: #111827 !important;
+  background: #ffffff !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+.orl-wysiwyg-editor h3 {
+  margin: 16px 0 6px 0 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #111827 !important;
+  border-left: none !important;
+  padding: 0 0 3px 0 !important;
+  letter-spacing: 0.3px !important;
+}
+
+.orl-wysiwyg-editor p {
+  margin: 0 0 6px 0 !important;
+  line-height: 1.6 !important;
+  color: #1f2937 !important;
+}
+
+.orl-wysiwyg-editor ul {
+  margin: 4px 0 8px 18px !important;
+  padding: 0 !important;
+}
+
+.orl-wysiwyg-editor li {
+  margin-bottom: 3px !important;
+}
+
+/* ORL Pagination Footer & Subject Builder */
+.orl-pagination-footer {
+  margin-top: 24px !important;
+  padding: 12px 18px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+
+.orl-pagination-step-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.orl-step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.orl-step-dot:hover {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.orl-step-dot.active {
+  background: #1677ff;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.35);
+}
+
+.orl-step-dot.completed {
+  background: #0d9488;
+  color: #ffffff;
+}
+
+.orl-add-subject-btn {
+  height: 28px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  border-radius: 14px !important;
+  border: 1px solid #d9d9d9 !important;
+  background: #ffffff !important;
+  color: #1677ff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  font-weight: 600 !important;
+}
+
+.orl-add-subject-btn:hover {
+  border-color: #1677ff !important;
+  background: #f0f7ff !important;
+}
+
+.orl-add-subject-btn.is-included {
+  background: #f6ffed !important;
+  border-color: #b7eb8f !important;
+  color: #389e0d !important;
+}
+
+/* ORL Master Card & Nested Sub-Tabs ("one inside of the other") */
+.orl-master-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.orl-master-card-header {
+  padding: 12px 16px !important;
+  background: #fafafa !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+}
+
+.orl-subtab-bar {
+  display: inline-flex !important;
+  background: #f1f5f9 !important;
+  padding: 3px !important;
+  border-radius: 8px !important;
+  gap: 3px !important;
+  flex-wrap: wrap !important;
+}
+
+.orl-subtab-btn {
+  border: none !important;
+  background: transparent !important;
+  color: #475569 !important;
+  padding: 7px 14px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.orl-subtab-btn:hover {
+  color: #1677ff !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+.orl-subtab-btn.active {
+  background: #ffffff !important;
+  color: #1677ff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06) !important;
+}
+
+.orl-master-card-body {
+  padding: 20px !important;
+  background: #ffffff !important;
+  min-height: 220px !important;
+}
+
+.orl-subtab-pane {
+  display: none !important;
+}
+
+.orl-subtab-pane.active {
+  display: block !important;
+  animation: fadeIn 0.2s ease-in-out !important;
+}
+
+@media (max-width: 1024px) {
+  .orl-workspace-layout {
+    flex-direction: column !important;
+  }
+  .orl-sider {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: static !important;
+  }
+  .orl-kpi-grid-2x2 {
+    grid-template-columns: 1fr !important;
+  }
+  .orl-wysiwyg-sheet.format-a4,
+  .orl-wysiwyg-sheet.format-a5 {
+    width: 100% !important;
+    padding: 20px !important;
+  }
+}
+
+/* Equipment Detail Modal Polishing */
+#modal-equipment-detail .equipment-detail-modal {
+  width: 860px !important;
+  max-width: 95vw !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05) !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+}
+
+#modal-equipment-detail .equipment-detail-modal-header {
+  padding: 16px 24px !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+  background: #ffffff !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+#modal-equipment-detail .equipment-detail-modal-header h2 {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+  margin: 0 !important;
+}
+
+#modal-equipment-detail .equipment-detail-kicker {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #1677ff !important;
+  letter-spacing: 0.5px !important;
+  margin-bottom: 2px !important;
+  text-transform: uppercase !important;
+}
+
+#modal-equipment-detail .equipment-detail-modal-body {
+  padding: 20px 24px !important;
+  max-height: 75vh !important;
+  overflow-y: auto !important;
+  background: #fbfbfb !important;
+}
+
+/* ========== Ant Design Timeline Component ========== */
+.ant-timeline {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 8px 12px;
+}
+
+.ant-timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+  margin: 0;
+}
+
+.ant-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.ant-timeline-item-tail {
+  position: absolute;
+  top: 10px;
+  left: 6px;
+  height: calc(100% - 10px);
+  border-left: 2px solid #e2e8f0;
+}
+
+.ant-timeline-item-head {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  background-color: #ffffff;
+  border: 3px solid #1677ff;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.ant-timeline-item-content {
+  position: relative;
+  margin-left: 26px;
+  top: -2px;
+}
+
+/* ========== Patient Two-Column Document Viewer ========== */
+.patient-docs-twocolumn {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.patient-docs-list-col {
+  width: 38%;
+  min-width: 300px;
+  max-height: 600px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.patient-docs-preview-col {
+  flex: 1;
+  min-width: 380px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  min-height: 480px;
+}
+
+.patient-doc-item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.patient-doc-item-card:hover {
+  border-color: #1677ff;
+  background: #f8fafc;
+}
+
+.patient-doc-item-card.active {
+  border-color: #1677ff;
+  background: #f0f7ff;
+  box-shadow: 0 0 0 1px #1677ff;
+}
+
+/* ==========================================================================
+   Ant Design Vertical Tabs Layout (Reusable Sider + Content)
+   ========================================================================== */
+.ant-vertical-tabs-layout {
+  display: flex !important;
+  gap: 20px !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+}
+
+.ant-vertical-tabs-sider {
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 10px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  position: sticky !important;
+  top: 16px !important;
+}
+
+.ant-vertical-tabs-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.ant-vertical-tabs-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  background: transparent !important;
+  border: none !important;
+  border-left: 3.5px solid transparent !important;
+  border-radius: 8px !important;
+  color: #334155 !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.ant-vertical-tabs-item:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.ant-vertical-tabs-item.active {
+  background: #e6f0ff !important;
+  color: #1677ff !important;
+  font-weight: 750 !important;
+  border-left: 3.5px solid #1677ff !important;
+}
+
+.ant-vertical-tabs-item svg {
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+  color: currentColor !important;
+}
+
+.ant-vertical-tabs-content {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* Ant Design Style Filter Toolbar */
+.ant-filter-toolbar-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+}
+
+.ant-filter-active {
+  border-color: #1677ff !important;
+  background-color: #f0f7ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08) !important;
+}
+
+.ant-rangepicker-wrapper {
+  transition: all 0.2s ease;
+}
+
+.ant-rangepicker-wrapper.ant-filter-active {
+  border-color: #1677ff !important;
+  background-color: #f0f7ff !important;
+}
+
+/* Operation Modal 2-Column Responsive Layout */
+.operation-modal-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.operation-modal-row-clinical {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .operation-modal-row-2col,
+  .operation-modal-row-clinical {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Patient Details UI Enhancements (Cards, Table, Sider, Segmented, Filter) */
+#patient-details .ant-vertical-tabs-sider {
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+}
+
+#patient-details .ant-vertical-tabs-item {
+  height: 48px !important;
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  padding: 0 16px !important;
+}
+
+#patient-details .table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  width: 100% !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+#patient-details .table thead th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+#patient-details .table tbody td {
+  padding: 12px 16px !important;
+  font-size: 13.5px !important;
+  vertical-align: middle !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+#patient-details .table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+#patient-details .table-actions .btn {
+  height: 32px !important;
+  padding: 0 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+}
+
+

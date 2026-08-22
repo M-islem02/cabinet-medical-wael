@@ -148,15 +148,17 @@ async function loadSupplierSelects() {
 
 async function loadPatientSelectForPOS() {
     try {
-        let result = await inventoryApi.getPatientDirectory({ page: 1, pageSize: 100, paginated: true });
-        if (!result?.success) {
+        let result = null;
+        if (window.api?.patient?.getAll) {
             result = await inventoryApi.getPatients({ page: 1, pageSize: 100, paginated: true });
+        }
+        if (!result?.success && window.api?.patient?.getDirectory) {
+            result = await inventoryApi.getPatientDirectory({ page: 1, pageSize: 100, paginated: true });
         }
         const sel = document.getElementById('pos-patient-select');
         if (!sel) return;
         if (!result?.success) {
-            sel.innerHTML = '<option value="">-- Aucun patient disponible --</option>';
-            showNotification(result?.error || 'Erreur lors du chargement des patients', 'error');
+            sel.innerHTML = '<option value="">-- Aucun patient --</option>';
             return;
         }
         sel.innerHTML = '<option value="">-- Aucun --</option>' +
@@ -174,7 +176,7 @@ function switchInventoryTab(tabName) {
         tabName = 'pos';
     }
     inventoryTabState.activeTab = tabName;
-    document.querySelectorAll('#inventory .module-tabs-inline [data-tab]').forEach(btn => {
+    document.querySelectorAll('#inventory .inventory-tab-btn, #inventory [data-tab]').forEach(btn => {
         const isActive = btn.dataset.tab === tabName;
         btn.classList.toggle('active', isActive);
         btn.setAttribute('aria-selected', String(isActive));
@@ -182,6 +184,21 @@ function switchInventoryTab(tabName) {
     document.querySelectorAll('#inventory .inventory-tab-content').forEach(c => c.style.display = 'none');
     const target = document.getElementById('inventory-tab-' + (tabName === 'sales' ? 'pos' : tabName));
     if (target) target.style.display = 'block';
+
+    const sectionMeta = {
+        articles: { title: 'Articles & Stocks', subtitle: 'Catalogue complet des consommables, médicaments et dispositifs' },
+        suppliers: { title: 'Fournisseurs', subtitle: 'Gestion des coordonnées, contacts et conditions fournisseurs' },
+        lots: { title: 'Lots & Traçabilité', subtitle: 'Suivi des numéros de lot, dates de péremption et alertes' },
+        history: { title: 'Historique des Approvisionnements & Mouvements', subtitle: 'Journal détaillé des entrées, sorties et réajustements de stock' },
+        orders: { title: 'Bons de Commande & Réceptions', subtitle: 'Création, validation et suivi de livraison des commandes' },
+        pos: { title: 'Point de Vente (Vente directe)', subtitle: 'Comptoir de vente directe et facturation immédiate' },
+        sales: { title: 'Historique des Ventes & Encaissements', subtitle: 'Revue des tickets de caisse, ventes et règlements' }
+    };
+
+    const titleEl = document.getElementById('inventory-active-section-title');
+    const subEl = document.getElementById('inventory-active-section-subtitle');
+    if (titleEl && sectionMeta[tabName]) titleEl.textContent = sectionMeta[tabName].title;
+    if (subEl && sectionMeta[tabName]) subEl.textContent = sectionMeta[tabName].subtitle;
 
     const checkoutPanel = document.getElementById('pos-checkout-panel');
     const salesHistory = document.getElementById('pos-sales-history');
@@ -217,10 +234,22 @@ async function loadInventoryStats() {
         const expiringEl = document.getElementById('inventory-expiring');
         const totalValueEl = document.getElementById('stat-stock-value');
 
+        const lowCount = Number(stats.lowStockCount || 0);
+        const expCount = Number(stats.expiringCount || 0);
+
         if (totalItemsEl) totalItemsEl.textContent = stats.totalItems || 0;
-        if (lowStockEl) lowStockEl.textContent = stats.lowStockCount || 0;
-        if (expiringEl) expiringEl.textContent = stats.expiringCount || 0;
-        if (totalValueEl) totalValueEl.textContent = formatCurrency(stats.totalValue || 0);
+        if (lowStockEl) {
+            lowStockEl.textContent = lowCount;
+            lowStockEl.style.color = lowCount > 0 ? '#ef4444' : 'inherit';
+        }
+        if (expiringEl) {
+            expiringEl.textContent = expCount;
+            expiringEl.style.color = expCount > 0 ? '#ef4444' : 'inherit';
+        }
+        if (totalValueEl) {
+            totalValueEl.textContent = formatCurrency(stats.totalValue || 0);
+            totalValueEl.style.color = '#22c55e';
+        }
     } catch (error) {
         console.error('Error loading inventory stats:', error);
     }
@@ -280,17 +309,10 @@ function displayInventory() {
     const rows = Array.isArray(inventoryData) ? inventoryData : [];
     if (rows.length === 0) {
         const hasActiveFilters = Boolean(inventoryFilters.category || inventoryFilters.lowStock || inventoryFilters.search);
-        tbody.innerHTML = `
-            <tr><td colspan="8" class="module-empty-cell">
-                <div class="module-empty-state">
-                    <span class="module-empty-state-icon" aria-hidden="true">+</span>
-                    <strong>Aucun article trouvé</strong>
-                    <p>${hasActiveFilters ? 'Aucun article ne correspond aux filtres sélectionnés.' : 'Ajoutez le premier article à votre inventaire.'}</p>
-                    ${hasActiveFilters
-                        ? '<button class="btn btn-secondary btn-sm" onclick="resetInventoryFilters()">Réinitialiser les filtres</button>'
-                        : '<button class="btn btn-primary btn-sm" onclick="openInventoryModal()">+ Ajouter un article</button>'}
-                </div>
-            </td></tr>`;
+        const actionBtn = hasActiveFilters
+            ? '<button type="button" class="btn btn-secondary" onclick="resetInventoryFilters()" style="height: 36px; padding: 0 16px;">Réinitialiser les filtres</button>'
+            : '<button type="button" class="btn btn-primary" onclick="openInventoryModal()" style="height: 36px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Ajouter un article</button>';
+        tbody.innerHTML = buildInventoryEmptyRow(8, 'Aucun article en stock', hasActiveFilters ? 'Aucun article ne correspond aux critères de recherche sélectionnés.' : 'Ajoutez votre premier article ou médicament pour initialiser votre stock.', actionBtn);
         renderInventoryPagination();
         return;
     }
@@ -303,23 +325,28 @@ function displayInventory() {
         const supplier = item.supplierName || item.supplier || '-';
         const priceDisplay = canSeeInventoryPrices ? (purchasePrice ? formatCurrency(purchasePrice) : '-') : '<span style="color:#94a3b8">—</span>';
         return `
-        <tr class="inventory-row" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-            <td style="padding: 16px;">
+        <tr class="inventory-row" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 14px 16px;">
                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <strong style="color: #1e293b; font-size: 15px;">${item.name}</strong>
-                    ${isLowStock ? '<span style="background: #fee2e2; color: #dc2626; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; width: fit-content;">Stock bas</span>' : ''}
+                    <strong style="color: #1e293b; font-size: 14px;">${item.name}</strong>
+                    ${isLowStock ? '<span class="ant-tag ant-tag-error" style="width: fit-content;">Stock bas</span>' : ''}
                 </div>
             </td>
-            <td style="padding: 16px;"><span style="background: #f1f5f9; padding: 4px 10px; border-radius: 8px; font-size: 13px; color: #64748b;">${item.category || 'Non classé'}</span></td>
-            <td style="padding: 16px;"><span style="font-weight: 700; font-size: 18px; color: ${isLowStock ? '#dc2626' : '#059669'};">${item.quantity}</span> <span style="color: #94a3b8; font-size: 13px;">${item.unit || 'unité(s)'}</span></td>
-            <td style="padding: 16px; color: #64748b;">${minQty}</td>
-            <td class="inventory-price-col" style="padding: 16px; font-weight: 500; color: #1e293b;">${priceDisplay}</td>
-            <td style="padding: 16px; color: #64748b;">${sellingPrice ? formatCurrency(sellingPrice) : '-'}</td>
-            <td style="padding: 16px; color: #64748b;">${supplier}</td>
-            <td style="padding: 16px;">
-                <div class="inventory-actions">
-                    <button onclick="openInventoryArticleDetails('${item.id}')" class="inventory-action-btn inventory-action-btn-edit">Détails</button>
-                    <button onclick="deleteInventoryItem('${item.id}')" class="inventory-action-btn inventory-action-btn-delete">Supprimer</button>
+            <td style="padding: 14px 16px;"><span class="ant-tag">${item.category || 'Non classé'}</span></td>
+            <td style="padding: 14px 16px;"><span style="font-weight: 700; font-size: 15px; color: ${isLowStock ? '#ef4444' : '#22c55e'};">${item.quantity}</span> <span style="color: #94a3b8; font-size: 12.5px;">${item.unit || 'unité(s)'}</span></td>
+            <td style="padding: 14px 16px; color: #64748b;">${minQty}</td>
+            <td class="inventory-price-col" style="padding: 14px 16px; font-weight: 500; color: #1e293b;">${priceDisplay}</td>
+            <td style="padding: 14px 16px; color: #64748b;">${sellingPrice ? formatCurrency(sellingPrice) : '—'}</td>
+            <td style="padding: 14px 16px; color: #64748b;">${supplier}</td>
+            <td style="padding: 14px 16px;">
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="openInventoryArticleDetails('${item.id}')" class="btn btn-secondary btn-small" style="height: 28px; padding: 0 10px; font-size: 12.5px;" title="Détails de l'article">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Détails
+                    </button>
+                    <button onclick="deleteInventoryItem('${item.id}')" class="btn btn-danger btn-small" style="height: 28px; padding: 0 8px; font-size: 12.5px;" title="Supprimer l'article">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
                 </div>
             </td>
         </tr>`;
@@ -608,13 +635,40 @@ async function adjustStock(event) {
 
 // ─── SUPPLIERS ────────────────────────────────────────────────────────────────
 
-function buildInventoryEmptyRow(colspan, title, description) {
-    return `<tr><td colspan="${colspan}" class="module-empty-cell">
-        <div class="module-empty-state">
-            <strong>${title}</strong>
-            <p>${description}</p>
+function buildInventoryEmptyRow(colspan, title, description, buttonHtml = '') {
+    return `<tr><td colspan="${colspan}" class="module-empty-cell" style="padding: 48px 24px !important; text-align: center;">
+        <div class="ant-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 16px;">
+                <svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 18h48v36a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4V18z" fill="#f8fafc"/>
+                    <path d="M8 18l6-10h36l6 10H8z" fill="#f1f5f9"/>
+                    <line x1="26" y1="34" x2="38" y2="34"/>
+                </svg>
+            </div>
+            <div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 6px;">${title}</div>
+            <div style="font-size: 13.5px; color: #64748b; max-width: 420px; line-height: 1.5; margin-bottom: ${buttonHtml ? '16px' : '0'};">${description}</div>
+            ${buttonHtml}
         </div>
     </td></tr>`;
+}
+
+function buildInventoryEmptyPanel(title, description, buttonHtml = '') {
+    return `
+        <div class="ant-empty" style="padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 16px;">
+                <svg viewBox="0 0 64 64" width="60" height="60" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 6h24l12 12v38a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#f8fafc"/>
+                    <polyline points="40 6 40 18 52 18"/>
+                    <line x1="22" y1="28" x2="42" y2="28"/>
+                    <line x1="22" y1="36" x2="42" y2="36"/>
+                    <line x1="22" y1="44" x2="34" y2="44"/>
+                </svg>
+            </div>
+            <div style="font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 6px;">${title}</div>
+            <div style="font-size: 13.5px; color: #64748b; max-width: 420px; line-height: 1.5; margin-bottom: ${buttonHtml ? '16px' : '0'};">${description}</div>
+            ${buttonHtml}
+        </div>
+    `;
 }
 
 async function loadSuppliers() {
@@ -632,7 +686,11 @@ function displaySuppliers() {
     const tbody = document.getElementById('suppliers-tbody');
     if (!tbody) return;
     if (!suppliersData.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(5, 'Aucun fournisseur', 'Ajoutez un fournisseur pour commencer.');
+        const search = document.getElementById('supplier-search')?.value.trim() || '';
+        const actionBtn = search
+            ? '<button type="button" class="btn btn-secondary" onclick="document.getElementById(\'supplier-search\').value=\'\'; filterSuppliers();" style="height: 36px; padding: 0 16px;">Effacer la recherche</button>'
+            : '<button type="button" class="btn btn-primary" onclick="openSupplierModal()" style="height: 36px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Ajouter un fournisseur</button>';
+        tbody.innerHTML = buildInventoryEmptyRow(5, 'Aucun fournisseur enregistré', search ? 'Aucun fournisseur ne correspond à votre recherche.' : 'Ajoutez vos fournisseurs et laboratoires partenaires pour organiser vos réapprovisionnements.', actionBtn);
         return;
     }
     tbody.innerHTML = suppliersData.map(s => {
@@ -785,7 +843,8 @@ function displayLots() {
     const tbody = document.getElementById('lots-tbody');
     if (!tbody) return;
     if (!lotsData.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(8, 'Aucun lot', 'Ajoutez un lot ou modifiez les filtres.');
+        const actionBtn = '<button type="button" class="btn btn-primary" onclick="openInventoryLotModal()" style="height: 36px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nouveau lot</button>';
+        tbody.innerHTML = buildInventoryEmptyRow(8, 'Aucun lot enregistré', 'Gérez la traçabilité de vos articles périssables, numéros de lot et dates d\'expiration.', actionBtn);
         return;
     }
     const today = new Date().toISOString().slice(0, 10);
@@ -918,7 +977,7 @@ function displayPurchaseHistory() {
     const tbody = document.getElementById('purchase-history-tbody');
     if (!tbody) return;
     if (!purchaseHistoryData.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(7, 'Aucun historique', 'Aucun achat ne correspond à cette période.');
+        tbody.innerHTML = buildInventoryEmptyRow(7, 'Aucun historique d\'achats', 'Les réceptions de commandes et achats de stock apparaîtront automatiquement ici.');
         return;
     }
     tbody.innerHTML = purchaseHistoryData.map(p => `
@@ -969,7 +1028,8 @@ function displayPurchaseOrders() {
     const container = document.getElementById('orders-list');
     if (!container) return;
     if (!purchaseOrdersData.length) {
-        container.innerHTML = '<div class="module-empty-state inventory-panel-empty"><strong>Aucune commande</strong><p>Créez une commande pour commencer.</p></div>';
+        const actionBtn = '<button type="button" class="btn btn-primary" onclick="openPurchaseOrderModal()" style="height: 36px; padding: 0 16px; display: inline-flex; align-items: center; gap: 6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nouveau bon de commande</button>';
+        container.innerHTML = buildInventoryEmptyPanel('Aucun bon de commande', 'Créez un bon de commande pour suivre vos demandes de réapprovisionnement auprès des fournisseurs.', actionBtn);
         return;
     }
     const statusLabels = { draft: 'Brouillon', partial: 'Partiel', received: 'Reçu' };
@@ -1185,7 +1245,7 @@ function renderPOSCart() {
     const tbody = document.getElementById('pos-cart-tbody');
     if (!tbody) return;
     if (!posCart.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(5, 'Panier vide', 'Recherchez un article pour l’ajouter à la vente.');
+        tbody.innerHTML = buildInventoryEmptyRow(5, 'Panier vide', 'Recherchez un article ci-dessus pour l’ajouter à la vente en cours.');
     } else {
         tbody.innerHTML = posCart.map((item, idx) => `
             <tr>
@@ -1261,7 +1321,7 @@ function displayPOSSales() {
     const tbody = document.getElementById('pos-sales-tbody');
     if (!tbody) return;
     if (!posSalesData.length) {
-        tbody.innerHTML = buildInventoryEmptyRow(6, 'Aucune vente', 'Aucune vente enregistrée.');
+        tbody.innerHTML = buildInventoryEmptyRow(6, 'Aucune vente enregistrée', 'L\'historique des ventes et encaissements réalisés à la caisse apparaîtra ici.');
         return;
     }
     tbody.innerHTML = posSalesData.map(s => {
@@ -1510,6 +1570,19 @@ function setupInventoryEventListeners() {
     if (lowStockCheckbox && !lowStockCheckbox.dataset.boundInventoryLowStock) {
         lowStockCheckbox.addEventListener('change', async () => { inventoryFilters.lowStock = lowStockCheckbox.checked; await loadInventory(1); });
         lowStockCheckbox.dataset.boundInventoryLowStock = '1';
+    }
+    const moreAddBtn = document.getElementById('inventory-more-add-btn');
+    if (moreAddBtn && !moreAddBtn.dataset.boundDropdown && typeof AntDropdown !== 'undefined') {
+        AntDropdown.create(moreAddBtn, [
+            { key: 'supplier', label: 'Nouveau fournisseur', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>' },
+            { key: 'order', label: 'Nouvelle commande', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 12 18 15 15"/></svg>' },
+        ], {
+            onClick: (key) => {
+                if (key === 'supplier') openSupplierModal();
+                if (key === 'order') openPurchaseOrderModal();
+            }
+        });
+        moreAddBtn.dataset.boundDropdown = '1';
     }
     setupPOSArticleSearch();
 }

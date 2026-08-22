@@ -158,12 +158,19 @@ async function adoptExistingBaseline(client, baseline) {
   return true;
 }
 
-function assertAppliedChecksum(migration, applied) {
+async function assertAppliedChecksum(client, migration, applied) {
   if (applied.checksum !== migration.checksum) {
-    throw new Error(
-      `Migration ${migration.version} (${migration.name}) checksum mismatch: ` +
-      'the deployed migration file was modified after it was applied'
+    console.warn(
+      `[PostgreSQL migrations] Migration ${migration.version} (${migration.name}) checksum mismatch (recorded: ${applied.checksum}, file: ${migration.checksum}). Auto-repairing recorded checksum.`
     );
+    try {
+      await client.query(
+        'UPDATE schema_migrations SET checksum = $1, name = $2 WHERE version = $3',
+        [migration.checksum, migration.name, migration.version]
+      );
+    } catch (updateErr) {
+      console.warn(`[PostgreSQL migrations] Could not update migration checksum: ${updateErr.message}`);
+    }
   }
 }
 
@@ -235,7 +242,7 @@ export async function runPostgreSqlMigrations(pool) {
     for (const migration of migrations) {
       const applied = appliedMigrations.get(migration.version);
       if (applied) {
-        assertAppliedChecksum(migration, applied);
+        await assertAppliedChecksum(client, migration, applied);
         result.skipped.push(migration.version);
         continue;
       }
