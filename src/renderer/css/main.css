@@ -12521,7 +12521,13 @@ body.assistant-mode #payment-requests-section {
 }
 
 /* Targeted large patient/document modals */
-#modal-patient,
+#modal-patient {
+  max-width: 980px !important;
+  width: min(980px, calc(100vw - 32px)) !important;
+  height: auto;
+  max-height: calc(100vh - 32px) !important;
+}
+
 #modal-view-consultation,
 #modal-consultation,
 #modal-analysis,
@@ -12532,8 +12538,8 @@ body.assistant-mode #payment-requests-section {
 #modal-add-prescription,
 #modal-add-sickleave,
 #modal-orientation {
-  max-width: 75vw !important;
-  width: 75vw !important;
+  max-width: 1180px !important;
+  width: min(1180px, calc(100vw - 32px)) !important;
   height: auto;
   max-height: calc(100vh - 32px) !important;
 }

@@ -4825,88 +4825,88 @@
                 <h2 id="modal-patient-title">Ajouter un Patient</h2>
                 <button class="close-btn" onclick="closeModal('modal-patient')">&times;</button>
             </div>
-            <form id="patient-form" class="modal-body patient-form-shell">
-                <div class="patient-form-layout">
-                    <div class="patient-form-column patient-form-column-primary">
-                        <div class="patient-photo-card">
-                            <input type="file" id="patient-photo-input" accept="image/*" style="display: none;">
-                            <button type="button" class="patient-photo-trigger"
-                                onclick="triggerPatientPhotoPicker('modal')">
-                                <img id="patient-photo-preview" class="patient-photo-preview" data-patient-photo-preview
-                                    data-photo-scope="modal" alt="Photo du patient">
-                                <span class="patient-photo-trigger-label">Ajouter ou modifier la photo</span>
-                            </button>
+            <form id="patient-form" class="modal-body patient-form-shell" style="padding: 20px 24px; max-height: calc(94vh - 130px); overflow-y: auto;">
+                
+                <!-- Section 1 : Identité & Photo alignées au sommet -->
+                <div style="display: flex; gap: 18px; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
+                    <div class="patient-photo-card" style="flex-shrink: 0;">
+                        <input type="file" id="patient-photo-input" accept="image/*" style="display: none;">
+                        <button type="button" class="patient-photo-trigger" onclick="triggerPatientPhotoPicker('modal')" style="width: 88px; height: 88px; border-radius: 14px; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1.5px dashed #cbd5e1; background: #ffffff; cursor: pointer; transition: all 0.2s ease;">
+                            <img id="patient-photo-preview" class="patient-photo-preview" data-patient-photo-preview data-photo-scope="modal" alt="Photo" style="width: 50px; height: 50px; border-radius: 10px; object-fit: cover;">
+                            <span class="patient-photo-trigger-label" style="font-size: 10.5px; color: #0284c7; font-weight: 600; margin-top: 3px;">Photo</span>
+                        </button>
+                    </div>
+                    <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Nom *</label>
+                            <input type="text" id="patient-lastName" class="form-control" required style="height: 36px; font-size: 13px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Prénom *</label>
+                            <input type="text" id="patient-firstName" class="form-control" required style="height: 36px; font-size: 13px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date de Naissance</label>
+                            <input type="date" id="patient-dateOfBirth" class="form-control" style="height: 36px; font-size: 13px;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Âge</label>
+                            <input type="text" id="patient-age-display" class="form-control" readonly placeholder="Calculé automatiquement" style="height: 36px; font-size: 13px; background: #f1f5f9;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2 : Deux Colonnes Équilibrées (50% / 50%) -->
+                <div class="patient-form-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start;">
+                    
+                    <!-- Colonne Gauche : Coordonnées & Identification -->
+                    <div class="patient-form-column" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Numéro d'identification nationale (NIN)</label>
+                            <input type="text" id="patient-socialSecurityNumber" class="form-control" placeholder="13 chiffres" style="height: 36px; font-size: 13px;">
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Nom *</label>
-                                <input type="text" id="patient-lastName" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Prénom *</label>
-                                <input type="text" id="patient-firstName" class="form-control" required>
-                            </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Numéro(s) de Téléphone (1er & 2ème)</label>
+                            <input type="text" id="patient-phone" class="form-control" placeholder="Ex: 0555 12 34 56 / 0770 98 76 54" style="height: 36px; font-size: 13px;">
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Date de Naissance</label>
-                                <input type="date" id="patient-dateOfBirth" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Âge</label>
-                                <input type="text" id="patient-age-display" class="form-control" readonly
-                                    placeholder="Calculé automatiquement">
-                            </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Email</label>
+                            <input type="email" id="patient-email" class="form-control" placeholder="patient@email.com" style="height: 36px; font-size: 13px;">
                         </div>
 
-                        <div class="form-group">
-                            <label>Numéro d'identification nationale</label>
-                            <input type="text" id="patient-socialSecurityNumber" class="form-control"
-                                placeholder="13 chiffres">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Adresse</label>
+                            <input type="text" id="patient-address" class="form-control" placeholder="Adresse du domicile" style="height: 36px; font-size: 13px;">
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Numéro(s) de Téléphone (1er & 2ème)</label>
-                                <input type="text" id="patient-phone" class="form-control" placeholder="Ex: 0555 12 34 56 / 0770 98 76 54">
+                        <div class="form-row" style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Ville</label>
+                                <input type="text" id="patient-city" class="form-control" placeholder="Ex: Alger" style="height: 36px; font-size: 13px;">
                             </div>
-                            <div class="form-group">
-                                <label>Email</label>
-                                <input type="email" id="patient-email" class="form-control" placeholder="patient@email.com">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Code postal</label>
+                                <input type="text" id="patient-zipCode" class="form-control" placeholder="Ex: 16000" style="height: 36px; font-size: 13px;">
                             </div>
                         </div>
                     </div>
-                    <div class="patient-form-column patient-form-column-secondary">
-                        <div class="form-group">
-                            <label>Adresse</label>
-                            <input type="text" id="patient-address" class="form-control">
-                        </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Ville</label>
-                                <input type="text" id="patient-city" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Code postal</label>
-                                <input type="text" id="patient-zipCode" class="form-control">
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Sexe</label>
-                                <select id="patient-gender" class="form-control">
+                    <!-- Colonne Droite : Données Médicales & Urgence -->
+                    <div class="patient-form-column" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Sexe</label>
+                                <select id="patient-gender" class="form-control" style="height: 36px; font-size: 13px;">
                                     <option value="">Sélectionner</option>
                                     <option value="M">Homme</option>
                                     <option value="F">Femme</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>Groupe Sanguin</label>
-                                <select id="patient-bloodType" class="form-control">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Groupe Sanguin</label>
+                                <select id="patient-bloodType" class="form-control" style="height: 36px; font-size: 13px;">
                                     <option value="">Sélectionner</option>
                                     <option value="O+">O+</option>
                                     <option value="O-">O-</option>
@@ -4920,52 +4920,45 @@
                             </div>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Allergies</label>
-                                <input type="text" id="patient-allergies" class="form-control"
-                                    placeholder="Séparées par des virgules">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Allergies</label>
+                            <input type="text" id="patient-allergies" class="form-control" placeholder="Séparées par des virgules (ex: Pénicilline, Aspirine)" style="height: 36px; font-size: 13px;">
+                        </div>
+
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Contact d'Urgence</label>
+                                <input type="text" id="patient-emergencyContact" class="form-control" placeholder="Nom du contact" style="height: 36px; font-size: 13px;">
                             </div>
-                            <div class="form-group">
-                                <label>Contact d'Urgence</label>
-                                <input type="text" id="patient-emergencyContact" class="form-control">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Téléphone d'Urgence</label>
+                                <input type="tel" id="patient-emergencyPhone" class="form-control" placeholder="Numéro" style="height: 36px; font-size: 13px;">
                             </div>
                         </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Téléphone d'Urgence</label>
-                                <input type="tel" id="patient-emergencyPhone" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Historique médical</label>
-                                <textarea id="patient-medicalHistory" class="form-control" rows="3"></textarea>
-                            </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Historique médical / Antécédents</label>
+                            <textarea id="patient-medicalHistory" class="form-control" rows="2" placeholder="Antécédents personnels, familiaux, chirurgicaux..." style="font-size: 12.5px; line-height: 1.4; resize: vertical; min-height: 64px;"></textarea>
                         </div>
 
-                        <div id="patient-doctor-selector-container" class="form-row"
-                            style="display: none; margin-top: 1rem; padding: 1rem; background-color: var(--grey-100); border-radius: 8px;">
-                            <div class="form-group" style="width: 100%;">
-                                <label style="color: var(--primary); font-weight: 600;"><i class="fas fa-user-md"></i>
-                                    Médecin traitant *</label>
-                                <select id="patient-primaryDoctorId" class="form-control"
-                                    style="border-color: var(--primary);">
-                                    <option value="">Sélectionnez le médecin...</option>
-                                </select>
-                                <small class="text-muted">En tant qu'assistant(e), vous devez attribuer ce dossier à un
-                                    médecin.</small>
-                            </div>
+                        <div id="patient-doctor-selector-container" class="form-group" style="display: none; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin: 0;">
+                            <label style="color: #0284c7; font-weight: 700; font-size: 12.5px; margin-bottom: 4px; display: block;">
+                                🩺 Médecin traitant assigné *
+                            </label>
+                            <select id="patient-primaryDoctorId" class="form-control" style="border-color: #0284c7; height: 36px; font-size: 13px;">
+                                <option value="">Sélectionnez le médecin...</option>
+                            </select>
+                            <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">
+                                En tant qu'assistant(e), vous devez attribuer ce dossier à un médecin.
+                            </small>
                         </div>
-
                     </div>
                 </div>
 
-                <div class="modal-footer modal-footer-split">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-patient')">
-                        Annuler
-                    </button>
+                <div class="modal-footer modal-footer-split" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-patient')">Annuler</button>
                     <div class="modal-footer-actions">
-                        <button type="submit" id="patient-submit-btn" class="btn btn-primary">
+                        <button type="submit" id="patient-submit-btn" class="btn btn-primary" style="font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px;">
                             Enregistrer
                         </button>
                     </div>
