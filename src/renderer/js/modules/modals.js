@@ -199,6 +199,10 @@ function showModal(modalId) {
       if (typeof repairUiMojibake === 'function') {
         repairUiMojibake(modal);
       }
+      const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled])');
+      if (firstInput && typeof firstInput.focus === 'function') {
+        try { firstInput.focus(); } catch (_) {}
+      }
     });
   }
 }

@@ -1457,3 +1457,14 @@ table.table tbody tr:hover td,
   justify-content: flex-end !important;
   gap: 8px !important;
 }
+
+/* Ensure all input, textarea, select and editable fields always receive clicks, focus, and keyboard typing */
+input,
+textarea,
+select,
+.form-control,
+[contenteditable="true"] {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  pointer-events: auto !important;
+}
