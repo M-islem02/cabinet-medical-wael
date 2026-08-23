@@ -5530,108 +5530,96 @@
 
     <!-- Modal: Facture Document -->
     <div id="modal-facture" class="modal medical-document-modal">
-        <div class="modal-content modal-medium">
-            <div class="modal-header">
-                <h2>🧾 Facture personnalisée</h2>
-                <button class="close-btn" onclick="closeModal('modal-facture')">&times;</button>
+        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    🧾 Facture professionnelle
+                </h2>
+                <button class="close-btn" onclick="closeModal('modal-facture')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
             </div>
-            <div class="modal-body document-modal-body">
-                <div class="document-editor-hero document-editor-hero--blue">
-                    <div class="document-editor-brand">
-                        <div class="document-editor-logo">
-                            <img src="assets/logo.png" alt="Logo MedCareSO">
+            <div class="modal-body document-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
+                <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
+                <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
+                    
+                    <!-- Colonne Gauche : Formulaire de Saisie -->
+                    <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
+                                <strong id="facture-patient-name" style="font-size: 13.5px; color: #0f172a; margin-left: 6px;">-</strong>
+                            </div>
+                            <span id="facture-patient-contact" style="font-size: 12px; color: #64748b;">-</span>
                         </div>
-                        <div>
-                            <div class="document-editor-kicker">Document du cabinet</div>
-                            <div class="document-editor-title">Facture professionnelle</div>
-                            <div class="document-editor-subtitle">Edition claire pour impression, archivage et suivi du
-                                dossier patient.</div>
+
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date de facture</label>
+                                <input type="date" id="facture-invoice-date" class="form-control" style="height: 36px; font-size: 13px;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Désignation principale</label>
+                                <input type="text" id="facture-main-label" class="form-control" placeholder="Ex: Consultation ORL, Acte chirurgical..." style="height: 36px; font-size: 13px;">
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Nombre de séances / actes</label>
+                                <input type="number" id="facture-number-sessions" class="form-control" min="0" step="1" placeholder="Ex: 1" style="height: 36px; font-size: 13px;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Rythme / Fréquence</label>
+                                <input type="text" id="facture-rhythm" class="form-control" placeholder="Ex: Séance unique" style="height: 36px; font-size: 13px;">
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0;">
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Prix unitaire (DA)</label>
+                                <input type="number" id="facture-unit-price" class="form-control" min="0" step="0.01" placeholder="0.00" style="height: 36px; font-size: 13px;">
+                            </div>
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Prix total facture (DA)</label>
+                                <input type="number" id="facture-total-price" class="form-control" min="0" step="0.01" placeholder="0.00" style="height: 36px; font-size: 13px;">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <label style="margin-bottom: 0; font-weight: 650; font-size: 12.5px; color: #334155;">Éléments & prestations supplémentaires</label>
+                                <button type="button" class="btn btn-small btn-secondary" onclick="addFactureAdditionalItem()" style="font-size: 11px; height: 26px; padding: 0 8px;">+ Ajouter une ligne</button>
+                            </div>
+                            <div id="facture-additional-items"></div>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Notes / Mode de règlement</label>
+                            <textarea id="facture-notes" class="form-control" rows="2" placeholder="Ex: Règlement en espèces, virement, prise en charge..." style="font-size: 12.5px; line-height: 1.4; resize: vertical; min-height: 54px;"></textarea>
                         </div>
                     </div>
-                    <div class="document-editor-badge">Facture</div>
-                </div>
-                <div class="document-summary-grid">
-                    <div>
-                        <p><strong>Patient :</strong> <span id="facture-patient-name">-</span></p>
-                        <p><strong>Contact :</strong> <span id="facture-patient-contact">-</span></p>
-                    </div>
-                    <div>
-                        <p><strong>Âge :</strong> <span id="facture-age">-</span></p>
-                        <p><strong>Mis à jour :</strong> <span id="facture-updated">-</span></p>
-                    </div>
-                </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Date de facture</label>
-                        <input type="date" id="facture-invoice-date" class="form-control">
+                    <!-- Colonne Droite : Aperçu Visuel Feuille A5 Réaliste -->
+                    <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
+                        <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <span>Aperçu en direct de la facture</span>
+                                </label>
+                                <span style="font-size: 11px; font-weight: 600; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
+                            </div>
+                            <div id="facture-preview" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Désignation principale</label>
-                        <input type="text" id="facture-main-label" class="form-control"
-                            placeholder="Ex: Consultation, séance, acte médical">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nombre de séances</label>
-                        <input type="number" id="facture-number-sessions" class="form-control" min="0" step="1"
-                            placeholder="Ex: 10">
-                    </div>
-                    <div class="form-group">
-                        <label>Rythme</label>
-                        <input type="text" id="facture-rhythm" class="form-control"
-                            placeholder="Ex: 3 séances / semaine">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Prix unitaire (DA)</label>
-                        <input type="number" id="facture-unit-price" class="form-control" min="0" step="0.01"
-                            placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Prix total facture (DA)</label>
-                        <input type="number" id="facture-total-price" class="form-control" min="0" step="0.01"
-                            placeholder="0.00">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px;">
-                        <label style="margin-bottom: 0;">Éléments supplémentaires avant le résumé</label>
-                        <button type="button" class="btn btn-small btn-secondary" onclick="addFactureAdditionalItem()">+
-                            Ajouter une ligne</button>
-                    </div>
-                    <div id="facture-additional-items"></div>
-                    <small style="color: #666; display: block; margin-top: 6px;">
-                        Ajoutez d'autres actes comme consultation, injection, soin ou examen avec leur montant.
-                    </small>
-                </div>
-
-                <div class="form-group">
-                    <label>Notes / informations complémentaires</label>
-                    <textarea id="facture-notes" class="form-control" rows="3"
-                        placeholder="Ex: Règlement par virement, prise en charge CNAS..."></textarea>
-                </div>
-
-                <div class="form-group document-preview-card document-preview-span-full">
-                    <label>Aperçu de la facture</label>
-                    <div id="facture-preview" class="document-live-preview"></div>
-                    <small style="color: #666; display: block; margin-top: 6px;">
-                        L’aperçu se met à jour automatiquement pendant la saisie.
-                    </small>
                 </div>
             </div>
-            <div class="modal-footer modal-footer-split">
-                <button class="btn" onclick="closeModal('modal-facture')">Fermer</button>
-                <div class="modal-footer-actions">
-                    <button class="btn btn-primary" onclick="saveInvoiceDocument()">💾 Enregistrer</button>
-                    <button class="btn btn-secondary" onclick="printInvoiceDocument()">💾🖨️ Enregistrer et
-                        imprimer</button>
+            <div class="modal-footer modal-footer-split" style="padding: 12px 22px; border-top: 1px solid #e2e8f0;">
+                <button class="btn btn-secondary" onclick="closeModal('modal-facture')">Fermer</button>
+                <div class="modal-footer-actions" style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="saveFactureDocument()" style="background: #1d4ed8; border-color: #1e40af; font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                        💾🖨️ Enregistrer et imprimer
+                    </button>
+                    <button class="btn btn-secondary" onclick="printFactureDocument()">🖨️ Imprimer</button>
                 </div>
             </div>
         </div>
@@ -5953,46 +5941,36 @@
         </div>
     </div>
 
-    <!-- Modal: Add Sick Leave (Certificat médical) -->
+    <!-- Modal: Add Sick Leave (Certificat médical & Arrêt de travail) -->
     <div id="modal-add-sickleave" class="modal medical-document-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🪪 Certificat médical</h2>
-                <button class="close-btn" onclick="closeModal('modal-add-sickleave')">&times;</button>
+        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="sickleave-modal-main-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    🪪 Certificat médical
+                </h2>
+                <button class="close-btn" onclick="closeModal('modal-add-sickleave')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body document-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
                 <form id="sickleave-form">
                     <input type="hidden" id="sickleave-patient-id">
+                    <input type="hidden" id="sickleave-rest-days">
 
-                    <div class="document-editor-hero document-editor-hero--emerald">
-                        <div class="document-editor-brand">
-                            <div class="document-editor-logo">
-                                <img src="assets/logo.png" alt="Logo MedCareSO">
+                    <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
+                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
+                        
+                        <!-- Colonne Gauche : Formulaire de Saisie -->
+                        <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
+                                    <strong id="sickleave-patient-summary" style="font-size: 13.5px; color: #0f172a; margin-left: 6px;">-</strong>
+                                </div>
+                                <div id="sickleave-quick-chips" style="display: flex; gap: 6px;">
+                                    <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('certif_soins')" style="font-size: 11px; height: 26px; padding: 0 8px;">Soins ORL</button>
+                                    <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_maladie')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 3J</button>
+                                </div>
                             </div>
-                            <div>
-                                <div class="document-editor-kicker">Arrêt / certificat</div>
-                                <div class="document-editor-title">Certificat médical</div>
-                                <div class="document-editor-subtitle">Fenêtre plus claire pour préparer un certificat
-                                    propre avant impression.</div>
-                            </div>
-                        </div>
-                        <div class="document-editor-badge">Certificat</div>
-                    </div>
 
-                    <div class="document-summary-grid">
-                        <div>
-                            <p><strong>Patient :</strong> <span id="sickleave-patient-summary">-</span></p>
-                            <p><strong>Période :</strong> <span id="sickleave-period-summary">-</span></p>
-                        </div>
-                        <div>
-                            <p><strong>Sorties :</strong> <span id="sickleave-outings-summary">Non autorisées</span></p>
-                            <p><strong>Nombre de jours :</strong> <span id="sickleave-rest-summary">-</span></p>
-                        </div>
-                    </div>
-
-                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; margin-top: 10px;">
-                        <!-- Left Column: Inputs -->
-                        <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 10px;">
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div class="form-group" style="margin: 0;">
                                     <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date de début *</label>
@@ -6003,6 +5981,7 @@
                                     <input type="date" id="sickleave-end-date" class="form-control" required style="height: 36px; font-size: 13px;">
                                 </div>
                             </div>
+
                             <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px;">
                                 <div class="form-group" style="margin: 0;">
                                     <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Nombre de jours</label>
@@ -6013,49 +5992,45 @@
                                     <input type="text" id="sickleave-ipp-estimate" class="form-control" placeholder="Ex: 15%" style="height: 36px; font-size: 13px;">
                                 </div>
                             </div>
-                            <input type="hidden" id="sickleave-rest-days">
 
                             <div class="form-group" style="margin: 0;">
-                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Contexte médical / prise en charge *</label>
-                                <textarea id="sickleave-care-text" class="form-control" rows="4" placeholder="Décrivez la pathologie, la prise en charge, etc." required style="font-size: 13px; line-height: 1.4; resize: vertical; min-height: 80px;"></textarea>
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Contexte médical / Pathologie / Prise en charge *</label>
+                                <textarea id="sickleave-care-text" class="form-control" rows="4" placeholder="Décrivez la pathologie, la prise en charge ou les soins pratiqués..." required style="font-size: 13px; line-height: 1.4; resize: vertical; min-height: 80px;"></textarea>
                             </div>
 
-                            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin: 0; padding-top: 4px;">
-                                <input type="checkbox" id="sickleave-allowed-outings" style="width: 16px; height: 16px; accent-color: #059669; cursor: pointer;">
-                                <label for="sickleave-allowed-outings" style="margin: 0; cursor: pointer; font-weight: 650; font-size: 13px; color: #334155;">Autoriser les sorties</label>
+                            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin: 0;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="checkbox" id="sickleave-allowed-outings" style="width: 16px; height: 16px; accent-color: #059669; cursor: pointer;">
+                                    <label for="sickleave-allowed-outings" style="margin: 0; cursor: pointer; font-weight: 650; font-size: 13px; color: #334155;">Autoriser les sorties</label>
+                                </div>
+                                <button type="button" class="btn btn-outline btn-small" onclick="toggleSickLeaveRawTextEdit()" style="font-size: 11px; height: 24px; padding: 0 8px;">✏️ Modifier le texte brut</button>
+                            </div>
+
+                            <div id="sickleave-raw-text-container" style="display: none;" class="form-group">
+                                <label style="font-weight: 650; font-size: 12px; color: #475569; margin-bottom: 3px; display: block;">Texte exact du document (reflète la saisie) :</label>
+                                <textarea id="sickleave-preview-text" class="form-control" rows="4" style="font-size: 12.5px; line-height: 1.5; font-family: monospace; resize: vertical;"></textarea>
                             </div>
                         </div>
 
-                        <!-- Right Column: Live Preview / Editable Certificate Text -->
+                        <!-- Colonne Droite : Aperçu Visuel Feuille A5 Réaliste -->
                         <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
-                            <div class="form-group sickleave-preview-column" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                    <label style="margin: 0; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px; font-size: 13px;">
-                                        <span>📄 Aperçu &amp; Texte du certificat</span>
-                                        <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">✏️ Modifiable</span>
+                                    <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <span>Aperçu en direct du document A5</span>
                                     </label>
-                                    <button type="button" class="btn btn-secondary btn-small" onclick="resetSickLeavePreviewText()" style="height: 24px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="Réinitialiser le texte à partir des champs">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                                        Réinitialiser
-                                    </button>
+                                    <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
                                 </div>
-                                <textarea id="sickleave-preview-text" class="form-control" rows="8" placeholder="Le texte du certificat s'adapte automatiquement et peut être retapé directement ici..." style="flex: 1; font-family: inherit; font-size: 13.5px; line-height: 1.6; background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; resize: vertical; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03); min-height: 200px;"></textarea>
-                                <small style="color: #64748b; display: block; margin-top: 6px; font-size: 11.5px;">
-                                    💡 Vous pouvez modifier directement ce texte. Le document imprimé reflétera exactement vos modifications.
-                                </small>
+                                <div id="sickleave-live-preview-sheet" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="modal-footer modal-footer-split">
-                        <button type="button" class="btn btn-secondary"
-                            onclick="closeModal('modal-add-sickleave')">Annuler</button>
+                    <div class="modal-footer modal-footer-split" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-sickleave')">Annuler</button>
                         <div class="modal-footer-actions" style="display: flex; gap: 10px;">
-                            <button type="button" class="btn btn-secondary" onclick="previewSickLeaveDocumentModal()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-                                👁️ Aperçu d'impression
-                            </button>
-                            <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                            <button type="submit" class="btn btn-primary" style="background: #059669; border-color: #047857; font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
                                 💾🖨️ Enregistrer et imprimer
                             </button>
                         </div>

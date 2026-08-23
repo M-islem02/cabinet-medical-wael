@@ -858,8 +858,13 @@ const RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY = {
 };
 
 function getRapportOrganConfigForSpecialty(specialtyKey = '') {
-  const key = String(specialtyKey || '').trim().toLowerCase();
-  return RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key] || null;
+  let key = String(specialtyKey || '').trim().toLowerCase();
+  if (!key || !RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key]) {
+    key = typeof resolveActivePracticeSpecialty === 'function'
+      ? resolveActivePracticeSpecialty(window._packageConfig)
+      : (currentUserSpecialty || 'orl');
+  }
+  return RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key] || RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY['orl'] || null;
 }
 
 function getRapportOrganOptionsForSpecialty(specialtyKey = '') {
@@ -2379,41 +2384,27 @@ async function openOrientationModal(patientId, preset = null) {
     const modalHtml = `
       <div id="modal-orientation" class="modal medical-document-modal">
         <div class="modal-overlay" onclick="closeModal('modal-orientation')"></div>
-        <div class="modal-content modal-large">
-          <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white;">
-            <h2>Lettre d'orientation</h2>
-            <button class="close-btn" onclick="closeModal('modal-orientation')" style="color: white;">&times;</button>
+        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+          <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+              ✉️ Lettre d'orientation
+            </h2>
+            <button class="close-btn" onclick="closeModal('modal-orientation')" style="color: white; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
           </div>
-          <div class="modal-body document-modal-body orientation-modal-body" style="padding: 16px 24px; max-height: calc(94vh - 130px); overflow-y: auto;">
+          <div class="modal-body document-modal-body orientation-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
             <input type="hidden" id="orientation-patient-id">
-            
-            <div class="document-editor-hero document-editor-hero--emerald" style="margin-bottom: 12px; padding: 12px 18px; border-radius: 12px;">
-              <div class="document-editor-brand">
-                <div class="document-editor-logo" style="width: 48px; height: 48px;">
-                  ${typeof getDocumentEditorLogoHTML === 'function' ? getDocumentEditorLogoHTML() : '<span>MC</span>'}
-                </div>
-                <div>
-                  <div class="document-editor-kicker" style="font-size: 11px;">Courrier médical</div>
-                  <div class="document-editor-title" style="font-size: 17px;">Lettre d'orientation</div>
-                  <div class="document-editor-subtitle" style="font-size: 12px;">Adressez le patient à un confrère ou spécialiste avec un aperçu immédiat.</div>
-                </div>
-              </div>
-              <div class="document-editor-badge" style="font-size: 11px; padding: 3px 10px;">Orientation</div>
-            </div>
 
-            <div class="document-summary-grid" style="margin-bottom: 12px; padding: 8px 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-              <div>
-                <p style="margin: 0; font-size: 13px;"><strong>Patient :</strong> <span id="orientation-patient-name" style="font-weight: 700; color: #0f172a;"></span></p>
-              </div>
-              <div>
-                <p style="margin: 0; font-size: 13px;"><strong>Type :</strong> Orientation vers confrère, consœur ou spécialiste</p>
-              </div>
-            </div>
-
-            <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left, Live Preview on Right -->
-            <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; align-items: stretch;">
+            <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
+            <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
               <!-- Colonne Gauche : Formulaire de saisie -->
-              <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
+                    <strong id="orientation-patient-name" style="font-size: 13.5px; color: #0f172a; margin-left: 6px;"></strong>
+                  </div>
+                  <span style="font-size: 11.5px; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Orientation confrère</span>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                   <div class="form-group" style="margin: 0;">
                     <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date</label>

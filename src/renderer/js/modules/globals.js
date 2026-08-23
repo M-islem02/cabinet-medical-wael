@@ -570,7 +570,7 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
     }
   });
 
-  document.title = 'MedCareSO v1.1.1';
+  document.title = 'MedCareSO v1.0.9';
 }
 
 function normalizeConsultationActLookupToken(value) {
@@ -1270,16 +1270,148 @@ function resetSickLeavePreviewText() {
 
 function updateSickLeavePreview() {
   const preview = document.getElementById('sickleave-preview-text');
-  if (!preview) return '';
   const fields = getSickLeaveTemplateFieldsFromInputs();
   const template = buildSickLeaveDiagnosisText(fields);
-  if (!sickLeavePreviewManualEdited) {
+  if (preview && !sickLeavePreviewManualEdited) {
     preview.value = template;
   }
   autoResizeSickLeavePreview();
   updateSickLeaveSummary();
-  return preview.value || template;
+  renderSickLeaveDocumentPreview();
+  return preview?.value || template;
 }
+
+function renderSickLeaveDocumentPreview() {
+  const container = document.getElementById('sickleave-live-preview-sheet');
+  if (!container) return;
+
+  const form = document.getElementById('sickleave-form');
+  const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
+  const docTitle = documentKind === 'workstop' ? 'ARRÊT DE TRAVAIL' : 'CERTIFICAT MÉDICAL';
+  const docBadgeColor = documentKind === 'workstop' ? '#dc2626' : '#059669';
+  const docBadgeBg = documentKind === 'workstop' ? '#fef2f2' : '#ecfdf5';
+
+  const patientName = currentPatientData
+    ? `${currentPatientData.lastName || ''} ${currentPatientData.firstName || ''}`.trim()
+    : 'Patient';
+  const patientAge = currentPatientData?.birthDate || currentPatientData?.age
+    ? (currentPatientData.age ? `${currentPatientData.age} ans` : '')
+    : '';
+
+  const startValue = document.getElementById('sickleave-start-date')?.value;
+  const endValue = document.getElementById('sickleave-end-date')?.value;
+  const daysValue = document.getElementById('sickleave-days-display')?.value || document.getElementById('sickleave-rest-days')?.value || '1';
+  const outingsAllowed = document.getElementById('sickleave-allowed-outings')?.checked;
+  const previewText = document.getElementById('sickleave-preview-text')?.value || document.getElementById('sickleave-care-text')?.value || '';
+
+  const startLabel = startValue ? formatDateToDDMMYYYY(startValue) : '...';
+  const endLabel = endValue ? formatDateToDDMMYYYY(endValue) : '...';
+  const daysFormatted = typeof formatRestDaysWithWords === 'function' ? formatRestDaysWithWords(daysValue) : `${daysValue} jour(s)`;
+  const currentDate = new Date().toLocaleDateString('fr-FR');
+
+  const doctorName = typeof getCurrentDoctorDisplayName === 'function' ? getCurrentDoctorDisplayName() : 'Dr. MALOUM NADIR';
+  const specialtyTitle = 'Médecin Spécialiste en O.R.L & Chirurgie Cervico-Faciale';
+
+  const textHtml = (previewText || "Je soussigné(e) certifie avoir examiné ce jour le/la patient(e) sus-nommé(e)...")
+    .replace(/\n/g, '<br>');
+
+  container.innerHTML = `
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 22px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; min-height: 440px; display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <!-- En-tête Médical -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-bottom: 12px;">
+          <div>
+            <h3 style="margin: 0; font-size: 14px; font-weight: 750; color: #0f766e; text-transform: uppercase;">${escapeHTML(doctorName)}</h3>
+            <p style="margin: 2px 0 0; font-size: 11px; color: #475569; font-weight: 500;">${escapeHTML(specialtyTitle)}</p>
+            <p style="margin: 2px 0 0; font-size: 10px; color: #64748b;">Cabinet Médical d'Oto-Rhino-Laryngologie</p>
+          </div>
+          <div style="text-align: right;">
+            <span style="display: inline-block; padding: 3px 8px; font-size: 10.5px; font-weight: 700; color: ${docBadgeColor}; background: ${docBadgeBg}; border: 1px solid ${docBadgeColor}40; border-radius: 4px; text-transform: uppercase;">
+              ${docTitle}
+            </span>
+            <div style="font-size: 10.5px; color: #64748b; margin-top: 4px;">Le ${currentDate}</div>
+          </div>
+        </div>
+
+        <!-- Fiche Patient -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+          <div>
+            <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600;">Patient(e) :</span>
+            <strong style="color: #0f172a; font-size: 13px; margin-left: 6px;">${escapeHTML(patientName)}</strong>
+          </div>
+          ${patientAge ? `<div style="color: #475569; font-size: 11.5px;">Âge : <strong>${escapeHTML(patientAge)}</strong></div>` : ''}
+        </div>
+
+        <!-- Titre Centré -->
+        <div style="text-align: center; margin-bottom: 14px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; text-decoration: underline;">
+            ${docTitle}
+          </h2>
+        </div>
+
+        <!-- Corps du Document -->
+        <div style="font-size: 12.5px; line-height: 1.7; color: #1e293b; margin-bottom: 14px; min-height: 90px; white-space: pre-wrap; padding: 0 2px;">
+          ${textHtml}
+        </div>
+
+        <!-- Encadré Période & Sorties -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 11.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <span style="color: #166534; font-weight: 600;">Durée :</span>
+            <strong style="color: #15803d; margin-left: 4px;">${escapeHTML(daysFormatted)}</strong>
+            <span style="color: #64748b; margin-left: 4px;">(Du ${startLabel} au ${endLabel})</span>
+          </div>
+          <div>
+            <span style="color: #166534; font-weight: 600;">Sorties :</span>
+            <strong style="color: ${outingsAllowed ? '#15803d' : '#b91c1c'}; margin-left: 4px;">${outingsAllowed ? '✓ Autorisées' : '✗ Non autorisées'}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bas de page : Signature & Cachet -->
+      <div style="display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 6px;">
+        <div style="text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 8px 20px; min-width: 160px; background: #fafafa;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #475569; margin-bottom: 24px;">Cachet et Signature</div>
+          <div style="font-size: 10px; color: #94a3b8; font-style: italic;">Dr. ${escapeHTML(doctorName)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleSickLeaveRawTextEdit() {
+  const container = document.getElementById('sickleave-raw-text-container');
+  if (!container) return;
+  const isHidden = container.style.display === 'none';
+  container.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    document.getElementById('sickleave-preview-text')?.focus();
+  }
+}
+
+function applySickLeavePreset(presetKey) {
+  const careInput = document.getElementById('sickleave-care-text');
+  const daysDisplay = document.getElementById('sickleave-days-display');
+  const outingsCheckbox = document.getElementById('sickleave-allowed-outings');
+  if (!careInput) return;
+
+  if (presetKey === 'certif_soins') {
+    careInput.value = 'Soins ORL et surveillance médicale au cabinet.';
+    if (daysDisplay) daysDisplay.value = '1';
+    if (outingsCheckbox) outingsCheckbox.checked = true;
+  } else if (presetKey === 'arret_maladie') {
+    careInput.value = 'Infection des voies respiratoires supérieures (ORL) nécessitant repos et traitement médical.';
+    if (daysDisplay) daysDisplay.value = '3';
+    if (outingsCheckbox) outingsCheckbox.checked = true;
+  }
+
+  handleSickLeaveDaysChange();
+  updateSickLeavePreview();
+}
+
+window.toggleSickLeaveRawTextEdit = toggleSickLeaveRawTextEdit;
+window.applySickLeavePreset = applySickLeavePreset;
+window.renderSickLeaveDocumentPreview = renderSickLeaveDocumentPreview;
 
 function updateSickLeaveSummary() {
   const periodEl = document.getElementById('sickleave-period-summary');
