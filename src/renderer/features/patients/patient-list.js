@@ -33,7 +33,7 @@ export function renderPatientRows({
   clearChildren(tbody);
   if (!patients.length) {
     const row = createElement('tr', { className: 'empty-row' });
-    const cell = createElement('td', { attributes: { colspan: 6 } });
+    const cell = createElement('td', { attributes: { colspan: selectable ? 7 : 6 } });
     cell.innerHTML = `
       <div class="ant-empty" style="padding: 40px 0;">
         <div class="ant-empty-image">
@@ -49,7 +49,20 @@ export function renderPatientRows({
 
   for (const patient of patients) {
     const row = createElement('tr');
-    row.style.cursor = readOnly || directory ? 'default' : 'pointer';
+    row.style.cursor = readOnly ? 'default' : 'pointer';
+
+    if (selectable) {
+      const selectTd = createElement('td', { style: 'width: 44px; text-align: center;' });
+      const checkbox = createElement('input', {
+        attributes: { type: 'checkbox', className: 'patient-row-select', 'aria-label': `Sélectionner ${patient.firstName || ''} ${patient.lastName || ''}` }
+      });
+      checkbox.checked = selectedPatientIds.has(patient.id);
+      checkbox.addEventListener('click', (e) => e.stopPropagation());
+      checkbox.addEventListener('change', () => onToggleSelection?.(patient.id, checkbox.checked));
+      selectTd.appendChild(checkbox);
+      row.appendChild(selectTd);
+    }
+
     const values = directory
       ? [
           patient.lastName || '', patient.firstName || '',
@@ -63,40 +76,10 @@ export function renderPatientRows({
         ];
     values.forEach((value) => row.appendChild(createElement('td', { text: value })));
     const actions = createElement('td');
-    if (directory) {
-      const wrapper = createElement('div', { className: 'patients-table-actions' });
-      if (selectable && !patient.isAssigned) {
-        const label = createElement('label', { className: 'patient-assignment-checkbox' });
-        const checkbox = createElement('input', {
-          attributes: { type: 'checkbox', 'aria-label': `Ajouter ${patient.firstName || ''} ${patient.lastName || ''} à la liste du médecin` }
-        });
-        checkbox.checked = selectedPatientIds.has(patient.id);
-        checkbox.addEventListener('change', () => onToggleSelection?.(patient.id, checkbox.checked));
-        label.append(checkbox, createElement('span', { text: 'Sélectionner' }));
-        wrapper.appendChild(label);
-      } else {
-        const action = createElement('button', {
-          className: `btn btn-small patient-table-action ${patient.isAssigned ? 'btn-secondary' : 'btn-primary'}`,
-          text: patient.isAssigned ? 'Déjà ajouté' : 'Ajouter à ma liste',
-          attributes: patient.isAssigned ? { disabled: 'disabled' } : {}
-        });
-        if (!patient.isAssigned) action.addEventListener('click', () => onAttach?.(patient.id));
-        wrapper.appendChild(action);
-      }
-      if (assistantActions) {
-        const edit = createElement('button', { className: 'btn btn-small btn-primary patient-table-action', text: 'Modifier' });
-        const appointment = createElement('button', { className: 'btn btn-small btn-secondary patient-table-action', text: 'RDV' });
-        const history = createElement('button', { className: 'btn btn-small btn-secondary patient-table-action', text: 'Historique RDV' });
-        edit.addEventListener('click', () => onEdit?.(patient.id));
-        appointment.addEventListener('click', () => onAppointment?.(patient.id));
-        history.addEventListener('click', () => onAppointmentsHistory?.(patient.id));
-        wrapper.append(edit, appointment, history);
-      }
-      actions.appendChild(wrapper);
-    } else if (readOnly) {
+    const wrapper = createElement('div', { className: 'patients-table-actions' });
+    if (readOnly) {
       actions.appendChild(createElement('span', { text: 'Lecture seule' }));
     } else {
-      const wrapper = createElement('div', { className: 'patients-table-actions' });
       const edit = createElement('button', { className: 'btn btn-small btn-primary patient-table-action', text: 'Modifier' });
       const remove = createElement('button', {
         className: 'btn btn-small btn-danger patient-table-action',

@@ -145,7 +145,11 @@ function getPaymentFiltersFromInputs() {
 
 function getPaymentRequestFilters() {
   const isAssistant = typeof currentUserRole !== 'undefined' && currentUserRole === 'assistant';
-  const inputFilters = paymentListState.filters || {};
+  const inputFilters = { ...(paymentListState.filters || {}) };
+  const practitionerSelect = document.getElementById('payment-filter-practitioner');
+  if (practitionerSelect && practitionerSelect.value && !inputFilters.practitionerId) {
+    inputFilters.practitionerId = practitionerSelect.value;
+  }
 
   if (!isAssistant) {
     return inputFilters;
@@ -512,6 +516,13 @@ function wirePaymentServiceActDefaults(selectId, containerId, inputName) {
   select.dataset.boundActDefaults = '1';
 }
 
+function formatSingleLinePaymentText(text) {
+  if (!text || text === '-' || text === 'null') return '-';
+  const firstLine = String(text).split(/[\r\n]+/)[0].trim();
+  if (!firstLine) return '-';
+  return firstLine.replace(/\s+/g, ' ');
+}
+
 function buildPendingPaymentRow(request) {
   const data = JSON.parse(request.data || '{}');
   const createdAt = new Date(request.createdAt).toLocaleString('fr-FR');
@@ -520,10 +531,22 @@ function buildPendingPaymentRow(request) {
   const consultationRef = data.consultationId
     ? formatReferenceCode('Consultation', data.consultationId, request.createdAt)
     : '';
-  const serviceLabel = typeof escapeHTML === 'function' ? escapeHTML(data.service || '-') : (data.service || '-');
-  const detailsLabel = typeof escapeHTML === 'function'
-    ? escapeHTML(data.notes || 'Paiement demandé par le médecin, en attente d\'encaissement.')
-    : (data.notes || 'Paiement demandé par le médecin, en attente d\'encaissement.');
+
+  const rawService = (data.service || '').trim();
+  const firstLineService = formatSingleLinePaymentText(rawService);
+  const safeFirstLineService = typeof escapeHTML === 'function' ? escapeHTML(firstLineService) : firstLineService;
+  const safeFullService = typeof escapeHTML === 'function' ? escapeHTML(rawService || '-') : (rawService || '-');
+  const serviceLabel = rawService && rawService !== '-'
+    ? `<span class="payment-cell-truncate" style="display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeFullService}">${safeFirstLineService}</span>`
+    : '<span style="color:#94a3b8;">-</span>';
+
+  const rawNotes = (data.notes || 'Paiement demandé par le médecin, en attente d\'encaissement.').trim();
+  const firstLineNotes = formatSingleLinePaymentText(rawNotes);
+  const safeFirstLineNotes = typeof escapeHTML === 'function' ? escapeHTML(firstLineNotes) : firstLineNotes;
+  const safeFullNotes = typeof escapeHTML === 'function' ? escapeHTML(rawNotes) : rawNotes;
+  const detailsLabel = rawNotes
+    ? `<span class="payment-cell-truncate" style="display: block; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475569;" title="${safeFullNotes}">${safeFirstLineNotes}</span>`
+    : '<span style="color:#94a3b8;">-</span>';
 
   return `
     <tr class="pending-payment-row" data-request-id="${request.id}">
@@ -535,7 +558,7 @@ function buildPendingPaymentRow(request) {
       <td>
         <span class="payment-status-badge pending">Non reçu</span>
       </td>
-      <td>${consultationRef ? `${consultationRef}<br>${detailsLabel}` : detailsLabel}</td>
+      <td>${detailsLabel}</td>
       <td>
         <button class="btn btn-tiny btn-success" title="Encaisser / valider" onclick="collectPayment('${request.id}', '${data.patientId}', ${data.amount || 0})">Encaisser</button>
         ${currentUserRole !== 'assistant'
@@ -755,7 +778,12 @@ async function findExistingPaymentByConsultationId(consultationId) {
 async function loadPayments(filters = {}) {
   try {
     const isAssistant = typeof currentUserRole !== 'undefined' && currentUserRole === 'assistant';
-    const result = await window.api.payment.getAll(filters);
+    const practitionerSelect = document.getElementById('payment-filter-practitioner');
+    const effectiveFilters = { ...filters };
+    if (practitionerSelect && !effectiveFilters.practitionerId) {
+      if (practitionerSelect.value) effectiveFilters.practitionerId = practitionerSelect.value;
+    }
+    const result = await window.api.payment.getAll(effectiveFilters);
     const tbody = document.getElementById('payments-tbody');
     tbody.innerHTML = '';
 
@@ -799,10 +827,25 @@ async function loadPayments(filters = {}) {
       const consultationInfo = payment.consultationId
         ? formatReferenceCode('Consultation', payment.consultationId, payment.paymentDate)
         : 'Sans consultation';
-      const serviceInfo = typeof escapeHTML === 'function' ? escapeHTML(payment.description || '-') : (payment.description || '-');
+
+      const rawDescription = String(payment.description || '').trim();
+      const firstLineDesc = formatSingleLinePaymentText(rawDescription);
+      const safeFirstLineDesc = typeof escapeHTML === 'function' ? escapeHTML(firstLineDesc) : firstLineDesc;
+      const safeFullDesc = typeof escapeHTML === 'function' ? escapeHTML(rawDescription) : rawDescription;
+      const serviceInfo = rawDescription && rawDescription !== '-'
+        ? `<span class="payment-cell-truncate" style="display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeFullDesc}">${safeFirstLineDesc}</span>`
+        : '<span style="color:#94a3b8;">-</span>';
+
+      const rawNotes = String(payment.notes || '').trim();
+      const firstLineNotes = formatSingleLinePaymentText(rawNotes);
+      const safeFirstLineNotes = typeof escapeHTML === 'function' ? escapeHTML(firstLineNotes) : firstLineNotes;
+      const safeFullNotes = typeof escapeHTML === 'function' ? escapeHTML(rawNotes) : rawNotes;
       const detailsInfo = isAssistant
         ? '<span style="color:#94a3b8;">Non disponible</span>'
-        : (typeof escapeHTML === 'function' ? escapeHTML(payment.notes || '-') : (payment.notes || '-'));
+        : (rawNotes && rawNotes !== '-'
+            ? `<span class="payment-cell-truncate" style="display: block; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475569;" title="${safeFullNotes}">${safeFirstLineNotes}</span>`
+            : '<span style="color:#94a3b8;">-</span>');
+
       const amount = formatMoneyDZD(payment.amount);
 
       const actions = isAssistant
@@ -921,10 +964,12 @@ async function filterPayments() {
   const method = document.getElementById('payment-filter-method').value;
   const startDate = document.getElementById('payment-filter-start').value;
   const endDate = document.getElementById('payment-filter-end').value;
+  const practitionerSelect = document.getElementById('payment-filter-practitioner');
 
   if (method) filters.paymentMethod = method;
   if (startDate) filters.startDate = startDate;
   if (endDate) filters.endDate = endDate;
+  if (practitionerSelect?.value) filters.practitionerId = practitionerSelect.value;
 
   await loadPayments(filters);
 }
@@ -933,8 +978,33 @@ async function resetPaymentFilters() {
   document.getElementById('payment-filter-method').value = '';
   document.getElementById('payment-filter-start').value = '';
   document.getElementById('payment-filter-end').value = '';
+  const practitionerSelect = document.getElementById('payment-filter-practitioner');
+  if (practitionerSelect) {
+    practitionerSelect.value = typeof currentUserId === 'string' && ['doctor', 'dentist'].includes(currentUserRole) ? currentUserId : '';
+  }
   await loadPayments();
 }
+
+async function loadPaymentPractitionerFilter() {
+  const select = document.getElementById('payment-filter-practitioner');
+  if (!select || !window.api?.user?.getAll) return;
+  try {
+    const usersRes = await window.api.user.getAll();
+    const users = usersRes && usersRes.success ? (usersRes.data || []) : [];
+    const doctors = users.filter(u => u.role === 'doctor' || u.role === 'dentist' || u.role === 'admin' || u.isAdmin);
+    select.innerHTML = '<option value="">Tous les médecins</option>' +
+      doctors.map(d => {
+        const label = (d.firstName ? `${d.firstName} ${d.lastName || ''}` : d.username) || d.id;
+        return `<option value="${d.id}">${typeof escapeHTML === 'function' ? escapeHTML(label) : label}</option>`;
+      }).join('');
+    if (['doctor', 'dentist'].includes(currentUserRole) && currentUserId && doctors.some(d => d.id === currentUserId)) {
+      select.value = currentUserId;
+    }
+  } catch (e) {
+    console.warn('Impossible de charger la liste des médecins:', e);
+  }
+}
+window.loadPaymentPractitionerFilter = loadPaymentPractitionerFilter;
 
 async function deletePayment(paymentId) {
   if (currentUserRole === 'assistant') {
@@ -1183,10 +1253,12 @@ async function collectPayment(requestId, patientId, amount) {
           throw new Error(completionResult?.error || 'Impossible de clôturer la demande de paiement');
         }
         markPaymentRequestCompletedLocally(requestId);
-        showNotification(result.autoClosed ? 'Paiement encaissé — plan terminé' : 'Paiement de plan encaissé', 'success');
         await loadPendingPaymentRequests();
         if (typeof loadPayments === 'function') await loadPayments(null, { forcePending: true });
         if (typeof loadPaymentStats === 'function') await loadPaymentStats();
+        if (typeof loadPatientPayments === 'function' && typeof currentPatientId !== 'undefined') {
+          loadPatientPayments(currentPatientId);
+        }
         return;
       }
       showNotification('Erreur: ' + (result.error || 'Impossible d’encaisser'), 'error');
@@ -1463,10 +1535,26 @@ loadPayments = async function (filters = null, options = {}) {
       const consultationInfo = payment.consultationId
         ? formatReferenceCode('Consultation', payment.consultationId, payment.paymentDate)
         : 'Sans consultation';
-      const serviceInfo = typeof escapeHTML === 'function' ? escapeHTML(payment.description || '-') : (payment.description || '-');
+
+      const rawDescription = String(payment.description || '').trim();
+      const firstLineDesc = formatSingleLinePaymentText(rawDescription);
+      const safeFirstLineDesc = typeof escapeHTML === 'function' ? escapeHTML(firstLineDesc) : firstLineDesc;
+      const safeFullDesc = typeof escapeHTML === 'function' ? escapeHTML(rawDescription) : rawDescription;
+      const practitionerLabel = String(payment.practitionerName || '').trim();
+      const serviceInfo = rawDescription && rawDescription !== '-'
+        ? `<span class="payment-cell-truncate" style="display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${safeFullDesc}">${safeFirstLineDesc}</span>${practitionerLabel && !isAssistant ? `<span style="display:block; font-size:11px; color:#64748b; margin-top:2px;">${typeof escapeHTML === 'function' ? escapeHTML(practitionerLabel) : practitionerLabel}</span>` : ''}`
+        : '<span style="color:#94a3b8;">-</span>';
+
+      const rawNotes = String(payment.notes || '').trim();
+      const firstLineNotes = formatSingleLinePaymentText(rawNotes);
+      const safeFirstLineNotes = typeof escapeHTML === 'function' ? escapeHTML(firstLineNotes) : firstLineNotes;
+      const safeFullNotes = typeof escapeHTML === 'function' ? escapeHTML(rawNotes) : rawNotes;
       const detailsInfo = isAssistant
         ? '<span style="color:#94a3b8;">Non disponible</span>'
-        : (typeof escapeHTML === 'function' ? escapeHTML(payment.notes || '-') : (payment.notes || '-'));
+        : (rawNotes && rawNotes !== '-'
+            ? `<span class="payment-cell-truncate" style="display: block; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #475569;" title="${safeFullNotes}">${safeFirstLineNotes}</span>`
+            : '<span style="color:#94a3b8;">-</span>');
+
       const amount = formatMoneyDZD(payment.amount);
       const actions = isAssistant
         ? '<span style="color:#94a3b8; font-size:12px;">Verrouille</span>'

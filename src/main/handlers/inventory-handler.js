@@ -659,30 +659,7 @@ const DENTAL_INVENTORY_SEEDS = [
   }
 ];
 
-let dentalInventorySeeded = false;
-
 export async function ensureDentalInventory() {
-  if (dentalInventorySeeded) return;
-  try {
-    const now = moment().format('YYYY-MM-DD HH:mm:ss');
-    for (const item of DENTAL_INVENTORY_SEEDS) {
-      const existing = await queryOne('SELECT id FROM inventory WHERE id = ?', [item.id]);
-      if (!existing) {
-        await run(
-          `INSERT INTO inventory (
-            id, name, category, description, quantity, minQuantity, unit,
-            purchasePrice, sellingPrice, supplier, expirationDate, location, notes, isActive, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
-          [
-            item.id, item.name, item.category, item.description, item.quantity, item.minQuantity, item.unit,
-            item.purchasePrice, item.sellingPrice, item.supplier, item.expirationDate, item.location, item.notes,
-            now, now
-          ]
-        );
-      }
-    }
-    dentalInventorySeeded = true;
-  } catch (err) {
-    console.warn('[Inventory] Auto-seeding dental inventory notice:', err.message);
-  }
+  // Intentionally empty: inventory starts clean without automatic dental seeds
+  return;
 }

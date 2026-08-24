@@ -168,7 +168,8 @@ async function buildShareData() {
   const token = settings?.publicBookingToken || generateBookingToken();
   const localAddress = getLocalNetworkAddress();
   const localUrl = `http://${localAddress}:${port}/rdv/${token}`;
-  const mobileUrl = `http://${localAddress}:${port}/mobile/${token}`;
+  const buildVersion = Date.now();
+  const mobileUrl = `http://${localAddress}:${port}/mobile/${token}?v=${buildVersion}`;
   const publicUrl = String(settings?.publicBookingPublicUrl || '').trim() || localUrl;
 
   let qrDataUrl = null;
@@ -225,7 +226,7 @@ async function handleMobileUploadPhoto(payload) {
   const data = matches ? matches[2] : base64;
   const buffer = Buffer.from(data, 'base64');
 
-  const userDataDir = app?.getPath ? app.getPath('userData') : path.join(os.homedir(), '.config', 'physiocare');
+  const userDataDir = app?.getPath ? app.getPath('userData') : path.join(os.homedir(), '.config', 'medcareso');
   const attachmentsDir = path.join(userDataDir, 'attachments');
   if (!fs.existsSync(attachmentsDir)) {
     fs.mkdirSync(attachmentsDir, { recursive: true });
@@ -265,6 +266,109 @@ async function handleMobileUploadPhoto(payload) {
   return { success: true, data: { id: attachmentId, filePath } };
 }
 
+async function handleMobileWaitingCheckin(body = {}) {
+  try {
+    let { fullName, phone, reason, patientId } = body;
+    fullName = String(fullName || '').trim();
+    phone = phone ? String(phone).trim() : null;
+    reason = reason ? String(reason).trim() : 'Arrivée salle d\'attente';
+
+    if (!fullName && !patientId) {
+      return { success: false, error: 'Nom du patient requis' };
+    }
+
+    if (!patientId) {
+      let patient = null;
+      if (phone) {
+        patient = await queryOne('SELECT id FROM patients WHERE phone = ? LIMIT 1', [phone]);
+      }
+      if (!patient && fullName) {
+        const parts = fullName.split(/\s+/);
+        const firstName = parts.length > 1 ? parts.slice(1).join(' ') : fullName;
+        const lastName = parts.length > 1 ? parts[0] : '';
+        patient = await queryOne(
+          `SELECT id FROM patients 
+           WHERE (LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?))
+              OR (LOWER(firstName) = LOWER(?) AND LOWER(lastName) = LOWER(?))
+           LIMIT 1`,
+          [firstName, lastName, lastName, firstName]
+        );
+        if (!patient) {
+          patient = await queryOne(
+            `SELECT id FROM patients 
+             WHERE (LOWER(COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) = LOWER(?))
+                OR (LOWER(COALESCE(lastName, '') || ' ' || COALESCE(firstName, '')) = LOWER(?))
+             LIMIT 1`,
+            [fullName, fullName]
+          );
+        }
+      }
+
+      if (patient) {
+        patientId = patient.id;
+      } else {
+        const parts = fullName.split(/\s+/);
+        const firstName = parts.length > 1 ? parts.slice(1).join(' ') : fullName;
+        const lastName = parts.length > 1 ? parts[0] : 'Patient';
+        patientId = uuidv4();
+        const now = moment().format('YYYY-MM-DD HH:mm:ss');
+        await run(
+          `INSERT INTO patients (id, firstName, lastName, phone, gender, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, 'Autre', ?, ?)`,
+          [patientId, firstName, lastName, phone, now, now]
+        );
+      }
+    }
+
+    const today = moment().format('YYYY-MM-DD');
+    const now = moment().format('YYYY-MM-DD HH:mm:ss');
+
+    const doctor = await queryOne(
+      `SELECT id FROM users WHERE isActive = 1 AND isSuperAdmin = 0 AND role IN ('doctor', 'dentist') ORDER BY id ASC LIMIT 1`
+    );
+    const assignedTo = doctor?.id || null;
+
+    const existing = await queryOne(
+      `SELECT id, publicTicketCode FROM waiting_room 
+       WHERE patientId = ? AND DATE(arrivalTime) = ? AND status IN ('waiting', 'in-consultation') LIMIT 1`,
+      [patientId, today]
+    );
+    if (existing) {
+      return { success: true, data: { id: existing.id, ticketCode: existing.publicTicketCode, alreadyWaiting: true } };
+    }
+
+    const countRow = await queryOne(
+      'SELECT COUNT(*) AS count FROM waiting_room WHERE DATE(arrivalTime) = ?',
+      [today]
+    );
+    const ticketCode = `A-${String(Number(countRow?.count || 0) + 1).padStart(3, '0')}`;
+    const id = uuidv4();
+
+    await run(
+      `INSERT INTO waiting_room (
+         id, patientId, arrivalTime, reason, status, priority,
+         assignedTo, publicTicketCode, arrivalSource, createdAt, updatedAt
+       ) VALUES (?, ?, ?, ?, 'waiting', 0, ?, ?, 'mobile-app', ?, ?)`,
+      [id, patientId, now, reason, assignedTo, ticketCode, now, now]
+    );
+
+    broadcastRealtimeEvent({
+      type: 'waiting-room:new',
+      id,
+      patientId,
+      assignedTo,
+      ticketCode,
+      title: 'Nouvelle entrée en salle d\'attente',
+      message: `${fullName || 'Patient'} (${ticketCode}) est en salle d\'attente`
+    });
+
+    return { success: true, data: { id, ticketCode } };
+  } catch (err) {
+    console.error('Error in handleMobileWaitingCheckin:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 async function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -296,7 +400,9 @@ async function readJsonBody(req) {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   });
   res.end(JSON.stringify(payload));
 }
@@ -304,7 +410,9 @@ function sendJson(res, statusCode, payload) {
 function sendHtml(res, html) {
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   });
   res.end(html);
 }
@@ -515,6 +623,19 @@ async function createAppointmentFromPublicBooking(payload) {
   }
 
   const { appointmentId, patientId, bookingCode } = created;
+
+  broadcastRealtimeEvent({
+    type: 'appointment:new',
+    id: appointmentId,
+    patientId,
+    patientName: fullName,
+    date,
+    time,
+    type,
+    practitionerId: selectedPractitioner.id,
+    title: 'Nouveau rendez-vous enregistré',
+    message: `Rendez-vous pour ${fullName} le ${date} à ${time}`
+  });
 
   const createdAppointment = await getAppointmentDetailsById(appointmentId);
   let smsResult = { success: false, skipped: true };
@@ -1490,8 +1611,8 @@ async function requestHandler(req, res) {
       return;
     }
 
-    if (url.pathname === '/') {
-      res.writeHead(302, { Location: `/rdv/${token}` });
+    if (url.pathname === '/' || url.pathname === '') {
+      res.writeHead(302, { Location: `/mobile/${token}` });
       res.end();
       return;
     }
@@ -1502,20 +1623,22 @@ async function requestHandler(req, res) {
       return;
     }
 
-    if (pathParts[0] === 'rdv' && pathParts[1] === token && req.method === 'GET') {
+    if (pathParts[0] === 'rdv' && req.method === 'GET') {
       const shareData = await buildShareData();
       sendHtml(res, renderPortalHtml(shareData));
       return;
     }
 
-    if ((pathParts[0] === 'mobile' && (pathParts[1] === token || !pathParts[1])) && req.method === 'GET') {
+    if (pathParts[0] === 'mobile' && req.method === 'GET') {
       const shareData = await buildShareData();
       sendHtml(res, renderMobileCabinetHtml(shareData));
       return;
     }
 
-    if (pathParts[0] === 'api' && pathParts[1] === 'mobile' && (pathParts[2] === token || pathParts[2] === 'token')) {
-      const action = pathParts[3];
+    if (pathParts[0] === 'api' && pathParts[1] === 'mobile') {
+      const hasTokenInPath = pathParts.length >= 4;
+      const action = hasTokenInPath ? pathParts[3] : pathParts[2];
+      const subAction = hasTokenInPath ? pathParts[4] : pathParts[3];
 
       if (action === 'config' && req.method === 'GET') {
         const [types, practitioners] = await Promise.all([
@@ -1557,14 +1680,14 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (action === 'agenda' && pathParts[4] === 'book' && req.method === 'POST') {
+      if (action === 'agenda' && subAction === 'book' && req.method === 'POST') {
         const body = await readJsonBody(req);
         const result = await createAppointmentFromPublicBooking(body);
         sendJson(res, result.success ? 200 : 400, result);
         return;
       }
 
-      if (action === 'waiting-room' && req.method === 'GET') {
+      if (action === 'waiting-room' && (!subAction || subAction === 'list') && req.method === 'GET') {
         const today = moment().format('YYYY-MM-DD');
         const rows = await query(
           `SELECT w.*, p.firstName, p.lastName, p.phone
@@ -1596,7 +1719,7 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (action === 'waiting-room' && pathParts[4] === 'call-next' && req.method === 'POST') {
+      if (action === 'waiting-room' && subAction === 'call-next' && req.method === 'POST') {
         const today = moment().format('YYYY-MM-DD');
         const nextWaiting = await queryOne(
           `SELECT w.*, p.firstName, p.lastName
@@ -1640,7 +1763,7 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (action === 'waiting-room' && pathParts[4] === 'status' && req.method === 'POST') {
+      if (action === 'waiting-room' && subAction === 'status' && req.method === 'POST') {
         const body = await readJsonBody(req);
         if (body.id && body.status) {
           await run('UPDATE waiting_room SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [body.status, body.id]);
@@ -1652,28 +1775,33 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (action === 'waiting-room' && pathParts[4] === 'checkin' && req.method === 'POST') {
+      if (action === 'waiting-room' && subAction === 'checkin' && req.method === 'POST') {
         const body = await readJsonBody(req);
-        const result = await createPublicWaitingCheckIn(body);
+        const result = await handleMobileWaitingCheckin(body);
         sendJson(res, result.success ? 200 : 400, result);
         return;
       }
 
-      if (action === 'patients' && req.method === 'GET') {
+      if (action === 'patients' && (!subAction || subAction === 'list') && req.method === 'GET') {
         const q = String(url.searchParams.get('q') || '').trim();
-        const limit = Number(url.searchParams.get('limit')) || 30;
+        const limit = Number(url.searchParams.get('limit')) || 8;
         let rows = [];
         if (q) {
+          const pattern = `%${q}%`;
           rows = await query(
-            `SELECT id, firstName, lastName, phone, birthDate, cin
+            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies
              FROM patients
-             WHERE LOWER(firstName) LIKE LOWER(?) OR LOWER(lastName) LIKE LOWER(?) OR phone LIKE ? OR cin LIKE ?
-             ORDER BY lastName ASC LIMIT ?`,
-            [`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, limit]
+             WHERE (LOWER(COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) LIKE LOWER(?))
+                OR (LOWER(COALESCE(lastName, '') || ' ' || COALESCE(firstName, '')) LIKE LOWER(?))
+                OR (phone LIKE ?)
+                OR (LOWER(firstName) LIKE LOWER(?))
+                OR (LOWER(lastName) LIKE LOWER(?))
+             ORDER BY lastName ASC, firstName ASC LIMIT ?`,
+            [pattern, pattern, pattern, pattern, pattern, limit]
           );
         } else {
           rows = await query(
-            `SELECT id, firstName, lastName, phone, birthDate, cin
+            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies
              FROM patients
              ORDER BY createdAt DESC LIMIT ?`,
             [limit]
@@ -1683,17 +1811,73 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (action === 'patients' && pathParts[4] === 'create' && req.method === 'POST') {
+      if (action === 'patients' && subAction === 'create' && req.method === 'POST') {
         const body = await readJsonBody(req);
         const id = uuidv4();
         const now = moment().format('YYYY-MM-DD HH:mm:ss');
+        const firstName = String(body.firstName || '').trim();
+        const lastName = String(body.lastName || '').trim() || 'Patient';
+        const phone = body.phone ? String(body.phone).trim() : null;
+        const emergencyPhone = body.emergencyPhone || body.phone2 ? String(body.emergencyPhone || body.phone2).trim() : null;
+        const dateOfBirth = body.dateOfBirth || body.birthDate || null;
+        const gender = body.gender || 'Autre';
+        const socialSecurityNumber = body.socialSecurityNumber || body.nin ? String(body.socialSecurityNumber || body.nin).trim() : null;
+        const email = body.email ? String(body.email).trim() : null;
+        const address = body.address || null;
+        const city = body.city || null;
+        const zipCode = body.zipCode || null;
+        const bloodType = body.bloodType || null;
+        const allergies = body.allergies || null;
+        const medicalHistory = body.medicalHistory || null;
+        const emergencyContact = body.emergencyContact || null;
+
         await run(
-          `INSERT INTO patients (id, firstName, lastName, phone, birthDate, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [id, body.firstName || '', body.lastName || 'Patient', body.phone || null, body.birthDate || null, now, now]
+          `INSERT INTO patients (
+            id, firstName, lastName, phone, dateOfBirth, gender, socialSecurityNumber,
+            email, address, city, zipCode, bloodType, allergies, medicalHistory,
+            emergencyContact, emergencyPhone, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id, firstName, lastName, phone, dateOfBirth, gender, socialSecurityNumber,
+            email, address, city, zipCode, bloodType, allergies, medicalHistory,
+            emergencyContact, emergencyPhone, now, now
+          ]
         );
-        broadcastRealtimeEvent({ type: 'patient:new', id, firstName: body.firstName, lastName: body.lastName });
-        sendJson(res, 200, { success: true, data: { id } });
+
+        if (body.photoBase64 && typeof body.photoBase64 === 'string' && body.photoBase64.startsWith('data:image')) {
+          try {
+            const matches = body.photoBase64.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+            if (matches) {
+              const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+              const buffer = Buffer.from(matches[2], 'base64');
+              const fileName = `patient_${id}_${Date.now()}.${ext}`;
+              const uploadsDir = path.join(app.getPath('userData'), 'uploads', 'patients');
+              if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+              const filePath = path.join(uploadsDir, fileName);
+              fs.writeFileSync(filePath, buffer);
+
+              await run(
+                `INSERT INTO patient_attachments (id, patientId, fileName, filePath, fileType, fileSize, category, createdAt)
+                 VALUES (?, ?, ?, ?, ?, ?, 'photo', ?)`,
+                [uuidv4(), id, `Photo profil ${firstName} ${lastName}`, filePath, `image/${ext}`, buffer.length, now]
+              );
+            }
+          } catch (photoErr) {
+            console.warn('Mobile photo upload warning:', photoErr);
+          }
+        }
+
+        broadcastRealtimeEvent({
+          type: 'patient:new',
+          id,
+          firstName,
+          lastName,
+          phone,
+          title: 'Nouveau patient créé depuis le mobile',
+          message: `${lastName} ${firstName} (${phone || 'Sans tél'}) ajouté au cabinet`
+        });
+
+        sendJson(res, 200, { success: true, data: { id, firstName, lastName, phone, dateOfBirth, gender } });
         return;
       }
 
@@ -1722,8 +1906,11 @@ async function requestHandler(req, res) {
       }
     }
 
-    if (pathParts[0] === 'api' && pathParts[1] === 'rdv' && pathParts[2] === token) {
-      if (pathParts[3] === 'config' && req.method === 'GET') {
+    if (pathParts[0] === 'api' && pathParts[1] === 'rdv') {
+      const hasTokenInPath = pathParts.length >= 4;
+      const action = hasTokenInPath ? pathParts[3] : pathParts[2];
+
+      if (action === 'config' && req.method === 'GET') {
         const [types, practitioners] = await Promise.all([
           getDistinctAppointmentTypes(),
           getPublicPractitioners()
@@ -1740,7 +1927,7 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (pathParts[3] === 'queue' && req.method === 'GET') {
+      if (action === 'queue' && req.method === 'GET') {
         const result = await getPublicQueue(
           String(url.searchParams.get('tracking') || ''),
           String(url.searchParams.get('practitioner') || '')
@@ -1749,14 +1936,14 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (pathParts[3] === 'checkin' && req.method === 'POST') {
+      if (action === 'checkin' && req.method === 'POST') {
         const body = await readJsonBody(req);
         const result = await createPublicWaitingCheckIn(body);
         sendJson(res, result.success ? 200 : 400, result);
         return;
       }
 
-      if (pathParts[3] === 'slots' && req.method === 'GET') {
+      if (action === 'slots' && req.method === 'GET') {
         const result = await getSlotsForDate(
           url.searchParams.get('date'),
           url.searchParams.get('practitioner')
@@ -1765,7 +1952,7 @@ async function requestHandler(req, res) {
         return;
       }
 
-      if (pathParts[3] === 'book' && req.method === 'POST') {
+      if (action === 'book' && req.method === 'POST') {
         const body = await readJsonBody(req);
         const result = await createAppointmentFromPublicBooking(body);
         sendJson(res, result.success ? 200 : 400, result);

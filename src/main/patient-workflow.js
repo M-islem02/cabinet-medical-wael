@@ -4,16 +4,18 @@ function toNonNegativeInteger(value, fallback = 0) {
 }
 
 export function determinePatientWorkflow({
+  cabinetType = null,
   configuredDoctors = 1,
   configuredAssistants = 0,
   activeDoctors = 0,
   activeAssistants = 0
 } = {}) {
-  const doctorCapacity = Math.max(1, toNonNegativeInteger(configuredDoctors, 1));
+  const isExplicitSingle = String(cabinetType || '').toLowerCase() === 'single' || String(cabinetType || '').toLowerCase() === 'singulier';
+  const doctorCapacity = isExplicitSingle ? 1 : Math.max(1, toNonNegativeInteger(configuredDoctors, 1));
   const assistantCapacity = toNonNegativeInteger(configuredAssistants, 0);
-  const doctorCount = toNonNegativeInteger(activeDoctors, 0);
+  const doctorCount = isExplicitSingle ? 1 : toNonNegativeInteger(activeDoctors, 0);
   const assistantCount = toNonNegativeInteger(activeAssistants, 0);
-  const cabinetMode = doctorCapacity > 1 || doctorCount > 1;
+  const cabinetMode = !isExplicitSingle && (doctorCapacity > 1 || doctorCount > 1);
 
   return {
     cabinetMode,

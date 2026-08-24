@@ -148,7 +148,14 @@ const RESULT_KEY_MAP = new Map([
   ['unpaidamount', 'unpaidAmount'],
   ['isunpaid', 'isUnpaid'],
   ['unpaidduedate', 'unpaidDueDate'],
-  ['kineid', 'kineId']
+  ['kineid', 'kineId'],
+  // Sick leave / workstop / document keys
+  ['documentkind', 'documentKind'],
+  ['allowedoutings', 'allowedOutings'],
+  ['numberofdays', 'numberOfDays'],
+  ['startdate', 'startDate'],
+  ['enddate', 'endDate'],
+  ['patientdateofbirth', 'patientDateOfBirth']
 ]);
 
 function normalizeResultRow(row) {

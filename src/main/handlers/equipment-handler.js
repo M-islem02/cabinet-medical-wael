@@ -467,30 +467,7 @@ const DENTAL_EQUIPMENT_SEEDS = [
   }
 ];
 
-let dentalEquipmentSeeded = false;
-
 export async function ensureDentalEquipment() {
-  if (dentalEquipmentSeeded) return;
-  try {
-    for (const eq of DENTAL_EQUIPMENT_SEEDS) {
-      const existing = await queryOne('SELECT id FROM equipment WHERE id = ?', [eq.id]);
-      if (!existing) {
-        await run(
-          `INSERT INTO equipment (
-            id, name, category, brand, model, serialNumber, purchaseDate, warrantyEnd,
-            assignedRoom, status, lastMaintenanceDate, nextMaintenanceDate, notes, isActive, createdAt, updatedAt
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
-          [
-            eq.id, eq.name, eq.category, eq.brand, eq.model, eq.serialNumber, eq.purchaseDate, eq.warrantyEnd,
-            eq.assignedRoom, eq.status, eq.lastMaintenanceDate, eq.nextMaintenanceDate, eq.notes,
-            nowSql(), nowSql()
-          ]
-        );
-      }
-    }
-    dentalEquipmentSeeded = true;
-    console.log('[Equipment] 10 Dental equipments seeded successfully');
-  } catch (err) {
-    console.error('[Equipment] Auto-seeding dental equipment error:', err);
-  }
+  // Intentionally empty: equipment starts clean without automatic dental seeds
+  return;
 }

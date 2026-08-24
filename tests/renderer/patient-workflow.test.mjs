@@ -53,3 +53,19 @@ test('configured cabinet stays separated when one doctor is temporarily inactive
   assert.equal(workflow.globalDirectoryEnabled, true);
   assert.equal(workflow.assistantDoctorSelectorEnabled, false);
 });
+
+test('cabinetType single enforces single shared patient list even with multiple accounts', () => {
+  const workflow = determinePatientWorkflow({
+    cabinetType: 'single',
+    configuredDoctors: 3,
+    configuredAssistants: 2,
+    activeDoctors: 2,
+    activeAssistants: 1
+  });
+
+  assert.equal(workflow.cabinetMode, false);
+  assert.equal(workflow.workflowMode, 'doctor_assistant');
+  assert.equal(workflow.globalDirectoryEnabled, false);
+  assert.equal(workflow.assistantDoctorSelectorEnabled, false);
+});
+

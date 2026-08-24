@@ -331,7 +331,7 @@ function showSection(sectionId) {
 
     // Check role-based access for assistant
     if (currentUserRole === 'assistant') {
-      const assistantRestrictedSections = ['statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync'];
+      const assistantRestrictedSections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync', 'treatment-plans'];
       if (assistantRestrictedSections.includes(sectionId)) {
         showNotification('Accès non autorisé', 'error');
         return;
@@ -448,6 +448,7 @@ function showSection(sectionId) {
       switchPatientsView('mine');
     }
   } else if (sectionId === 'payments') {
+    if (typeof loadPaymentPractitionerFilter === 'function') loadPaymentPractitionerFilter();
     loadPayments();
     loadPaymentStats();
   } else if (sectionId === 'statistics') {

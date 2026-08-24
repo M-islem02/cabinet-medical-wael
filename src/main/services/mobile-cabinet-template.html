@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1677ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>__CABINET_NAME__ • Mobile</title>
+  <style>
+    :root {
+      --primary: #1677ff;
+      --primary-hover: #4096ff;
+      --primary-light: #e6f4ff;
+      --success: #52c41a;
+      --warning: #faad14;
+      --danger: #ff4d4f;
+      --bg: #f5f7fa;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 12px;
+      --bottom-nav-height: 60px;
+      --header-height: 56px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    [dir="rtl"] {
+      text-align: right;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      padding-top: var(--header-height);
+      padding-bottom: calc(var(--bottom-nav-height) + 16px);
+      min-height: 100vh;
+    }
+
+    /* Top Bar */
+    .mobile-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-lang {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--bottom-nav-height);
+      background: #ffffff;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      z-index: 100;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+
+    .nav-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      height: 100%;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.15s ease;
+      background: none;
+      border: none;
+    }
+
+    .nav-tab.active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .nav-tab-icon {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    /* Views */
+    .section-view {
+      display: none;
+      padding: 14px;
+      max-width: 600px;
+      margin: 0 auto;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .section-view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards & Controls */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      margin-bottom: 12px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .badge-primary { background: var(--primary-light); color: var(--primary); }
+    .badge-success { background: #f6ffed; color: var(--success); border: 1px solid #b7eb8f; }
+    .badge-warning { background: #fffbe6; color: var(--warning); border: 1px solid #ffe58f; }
+    .badge-danger { background: #fff2f0; color: var(--danger); border: 1px solid #ffccc7; }
+
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    .form-control {
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      background: #ffffff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea.form-control {
+      height: auto;
+      padding: 8px 12px;
+      resize: vertical;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:active { background: var(--primary-hover); }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-small {
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .btn-hero {
+      width: 100%;
+      height: 46px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 10px;
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+      cursor: pointer;
+    }
+
+    /* List Items */
+    .item-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .item-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f172a;
+    }
+
+    .item-sub {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    /* Modal Backdrop & Sheet */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-sheet {
+      background: #ffffff;
+      width: 100%;
+      max-width: 600px;
+      border-radius: 16px 16px 0 0;
+      padding: 18px 16px;
+      animation: slideUp 0.25s ease;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    /* Patient Search Dropdown */
+    .patient-dropdown-box {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+      z-index: 9999;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .patient-search-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: #ffffff;
+    }
+
+    .patient-search-item:hover, .patient-search-item:active {
+      background: var(--primary-light);
+    }
+
+    /* Toast */
+    #toast {
+      display: none;
+      position: fixed;
+      top: 66px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 99999;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="mobile-header">
+    <div class="header-title">
+      <span class="live-indicator"></span>
+      <span id="app-cabinet-name">__CABINET_NAME__</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-lang" onclick="toggleLanguage()">
+        🌐 <span id="lang-btn-text">AR</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Main View Area -->
+  <main>
+    <!-- ================= TAB 1: AGENDA ================= -->
+    <section id="tab-agenda" class="section-view active">
+      <div class="card" style="padding: 10px 12px; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <button class="btn btn-secondary btn-small" onclick="changeDate(-1)">◀</button>
+          <input type="date" id="agenda-date" class="form-control" style="max-width: 170px; text-align: center;" onchange="loadAgenda()">
+          <button class="btn btn-secondary btn-small" onclick="changeDate(1)">▶</button>
+          <button class="btn btn-primary btn-small" onclick="openNewAppointmentModal()">+ RDV</button>
+        </div>
+      </div>
+
+      <div id="agenda-list-container">
+        <div style="text-align: center; padding: 25px; color: var(--text-muted);">
+          ⏳ Chargement du planning...
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: SALLE D'ATTENTE ================= -->
+    <section id="tab-waiting" class="section-view">
+      <div class="card" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; text-align: center; padding: 18px 14px;">
+        <h3 id="txt-queue-title" style="margin-bottom: 4px;">Salle d’attente en direct</h3>
+        <p id="queue-status-sub" style="font-size: 13px; opacity: 0.9; margin-bottom: 12px;">0 patient(s) en attente</p>
+        <button class="btn-hero" onclick="callNextPatient()">
+          🔔 Appeler le Prochain Patient
+        </button>
+      </div>
+
+      <div class="card-header" style="margin-top: 10px;">
+        <span class="card-title">👥 File d’attente</span>
+        <button class="btn btn-secondary btn-small" onclick="openCheckinModal()">+ Entrée Patient</button>
+      </div>
+
+      <div id="waiting-list-container">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+          Aucun patient en attente
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: PATIENTS ================= -->
+    <section id="tab-patients" class="section-view">
+      <div class="card" style="padding: 10px 12px; margin-bottom: 10px;">
+        <div style="display: flex; gap: 8px;">
+          <input type="search" id="patients-search" class="form-control" placeholder="🔍 Rechercher (nom, tél, cin)..." oninput="searchPatients(this.value)">
+          <button class="btn btn-primary btn-small" onclick="openNewPatientModal()">+ Patient</button>
+        </div>
+      </div>
+
+      <div id="patients-list-container">
+        <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+          Tapez un nom pour rechercher un patient.
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: CAMÉRA / PHOTOS CLINIQUES ================= -->
+    <section id="tab-camera" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📷 Photo / Scanner Clinique</span>
+          <span class="badge badge-primary">Direct PC</span>
+        </div>
+        <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px;">
+          Prenez une photo avec votre smartphone (radio, lésion, tympan, ordonnance) : elle sera rattachée instantanément au dossier du patient sur le PC.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">1. Patient concerné</label>
+          <select id="camera-patient-select" class="form-control">
+            <option value="">-- Choisir le patient --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">2. Catégorie d'image</label>
+          <select id="camera-category-select" class="form-control">
+            <option value="radio">🩻 Radiographie / Scanner</option>
+            <option value="lesion">🔬 Lésion / Examen Visuel</option>
+            <option value="ordonnance">📄 Document / Ordonnance</option>
+            <option value="autre">📁 Autre Pièce Jointe</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">3. Prendre la photo</label>
+          <div class="photo-preview-box" onclick="document.getElementById('camera-input').click()" style="border: 2px dashed var(--primary); border-radius: 10px; padding: 25px; text-align: center; cursor: pointer; background: #f8fafc;">
+            <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoCapture(event)">
+            <div id="photo-prompt">
+              <span style="font-size: 32px;">📸</span>
+              <p style="font-weight: 600; color: var(--primary); margin-top: 6px;">Appuyez pour prendre la photo</p>
+            </div>
+            <img id="photo-preview-img" style="display: none; width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px;" alt="Aperçu">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Note / Légende (Optionnel)</label>
+          <input type="text" id="camera-notes" class="form-control" placeholder="Ex: Otoscopie OD, Radio thorax face...">
+        </div>
+
+        <button id="btn-upload-photo" class="btn btn-primary" onclick="uploadCapturedPhoto()" disabled style="width: 100%; height: 42px; font-weight: 700;">
+          📤 Envoyer instantanément au PC
+        </button>
+      </div>
+    </section>
+
+    <!-- ================= TAB 5: NOTES & DICTÉE ================= -->
+    <section id="tab-notes" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎙️ Dictée & Note Rapide</span>
+          <span class="badge badge-success">Live Sync</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Patient</label>
+          <select id="notes-patient-select" class="form-control">
+            <option value="">-- Sélectionner un patient --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Note / Compte-rendu</label>
+          <textarea id="notes-text" class="form-control" rows="4" placeholder="Tapez ou utilisez la dictée vocale..."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="mic-btn" class="btn btn-secondary" onclick="toggleVoiceDictation()" style="flex: 1; height: 42px;">
+            🎙️ Dictée vocale
+          </button>
+          <button class="btn btn-primary" onclick="sendQuickNote()" style="flex: 1; height: 42px;">
+            ✉️ Envoyer au PC
+          </button>
+        </div>
+        <p id="mic-status-label" style="font-size: 11.5px; color: var(--text-muted); text-align: center; margin-top: 6px;"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Nav Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-tab active" data-target="tab-agenda" onclick="switchTab('tab-agenda')">
+      <span class="nav-tab-icon">📅</span>
+      <span>Planning</span>
+    </button>
+    <button class="nav-tab" data-target="tab-waiting" onclick="switchTab('tab-waiting')">
+      <span class="nav-tab-icon">🪑</span>
+      <span>Attente</span>
+    </button>
+    <button class="nav-tab" data-target="tab-patients" onclick="switchTab('tab-patients')">
+      <span class="nav-tab-icon">👥</span>
+      <span>Patients</span>
+    </button>
+    <button class="nav-tab" data-target="tab-camera" onclick="switchTab('tab-camera')">
+      <span class="nav-tab-icon">📷</span>
+      <span>Photo</span>
+    </button>
+    <button class="nav-tab" data-target="tab-notes" onclick="switchTab('tab-notes')">
+      <span class="nav-tab-icon">🎙️</span>
+      <span>Dictée</span>
+    </button>
+  </nav>
+
+  <!-- ================= MODAL NOUVEAU RDV ================= -->
+  <div id="modal-appointment" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-appointment')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title">📅 Nouveau Rendez-vous</span>
+        <button class="btn-close" onclick="closeModal('modal-appointment')">✕</button>
+      </div>
+      <form onsubmit="saveNewAppointment(event)">
+        <div class="form-group" style="position: relative;">
+          <label class="form-label">Patient (Rechercher ou taper nouveau)</label>
+          <input type="text" id="modal-rdv-name" class="form-control" autocomplete="off" required placeholder="🔍 Taper nom du patient..." oninput="onRdvPatientNameInput(this.value)">
+          <input type="hidden" id="modal-rdv-patient-id" value="">
+          <div id="modal-rdv-patient-dropdown" class="patient-dropdown-box"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input type="tel" id="modal-rdv-phone" class="form-control" required placeholder="Ex: 0555 12 34 56">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="modal-rdv-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Heure</label>
+            <input type="time" id="modal-rdv-time" class="form-control" value="09:00" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type / Motif</label>
+          <select id="modal-rdv-type" class="form-control">
+            <option value="Consultation">Consultation</option>
+            <option value="Contrôle">Contrôle</option>
+            <option value="Urgence">Urgence</option>
+            <option value="Bilan">Bilan</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 10px; width: 100%; height: 42px; font-weight: 700;">Enregistrer le RDV</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL ENTRÉE SALLE D'ATTENTE ================= -->
+  <div id="modal-checkin" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-checkin')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title">🪑 Entrée Salle d'Attente</span>
+        <button class="btn-close" onclick="closeModal('modal-checkin')">✕</button>
+      </div>
+      <form onsubmit="submitCheckin(event)">
+        <div class="form-group" style="position: relative;">
+          <label class="form-label">Patient (Rechercher ou taper nouveau)</label>
+          <input type="text" id="modal-checkin-name" class="form-control" autocomplete="off" required placeholder="🔍 Taper nom du patient..." oninput="onCheckinPatientNameInput(this.value)">
+          <div id="modal-checkin-patient-dropdown" class="patient-dropdown-box"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input type="tel" id="modal-checkin-phone" class="form-control" required placeholder="Ex: 0555 12 34 56">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Motif de venue</label>
+          <input type="text" id="modal-checkin-reason" class="form-control" placeholder="Ex: Consultation, contrôle, urgence...">
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: 10px; width: 100%; height: 42px; font-weight: 700;">Valider l'Arrivée</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MODAL NOUVEAU PATIENT (PARITÉ COMPLÈTE PC) ================= -->
+  <div id="modal-patient" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-patient')">
+    <div class="modal-sheet" style="max-height: 92vh; overflow-y: auto;">
+      <div class="modal-header">
+        <span class="modal-title">👥 Ajouter un Patient</span>
+        <button class="btn-close" onclick="closeModal('modal-patient')">✕</button>
+      </div>
+      <form id="mobile-new-patient-form" onsubmit="saveNewPatient(event)">
+        <!-- Photo -->
+        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 12px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border);">
+          <div style="width: 52px; height: 52px; border-radius: 50%; overflow: hidden; background: #e2e8f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2px solid var(--primary);">
+            <img id="modal-pat-photo-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            <span id="modal-pat-photo-placeholder" style="font-size: 24px;">👤</span>
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label" style="margin-bottom: 4px; font-weight: 600;">Photo du patient</label>
+            <input type="file" id="modal-pat-photo-file" accept="image/*" capture="user" onchange="onPatientPhotoSelected(event)" style="font-size: 12px; width: 100%;">
+          </div>
+        </div>
+
+        <!-- Nom / Prénom -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Nom *</label>
+            <input type="text" id="modal-pat-lastname" class="form-control" required placeholder="Ex: Benali">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prénom *</label>
+            <input type="text" id="modal-pat-firstname" class="form-control" required placeholder="Ex: Mohamed">
+          </div>
+        </div>
+
+        <!-- Date de Naissance & Âge -->
+        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Date de Naissance</label>
+            <input type="date" id="modal-pat-birth" class="form-control" oninput="onBirthdateChange(this.value)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Âge</label>
+            <input type="text" id="modal-pat-age" class="form-control" readonly placeholder="Calculé auto" style="background: #f1f5f9; font-weight: 600;">
+          </div>
+        </div>
+
+        <!-- NIN & Sexe -->
+        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">NIN (13-18 chiffres)</label>
+            <input type="text" id="modal-pat-nin" class="form-control" placeholder="13 chiffres">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sexe</label>
+            <select id="modal-pat-gender" class="form-control">
+              <option value="">Sélectionner</option>
+              <option value="Homme">Homme</option>
+              <option value="Femme">Femme</option>
+              <option value="Enfant">Enfant</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Numéro(s) de Téléphone (1er & 2ème) -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Téléphone (1er) *</label>
+            <input type="tel" id="modal-pat-phone" class="form-control" required placeholder="Ex: 0555 12 34 56">
+          </div>
+          <div class="form-group">
+            <label class="form-label">2ème Téléphone</label>
+            <input type="tel" id="modal-pat-phone2" class="form-control" placeholder="Ex: 0770 98 76 54">
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="modal-pat-email" class="form-control" placeholder="patient@email.com">
+        </div>
+
+        <!-- Adresse -->
+        <div class="form-group">
+          <label class="form-label">Adresse</label>
+          <input type="text" id="modal-pat-address" class="form-control" placeholder="Adresse du domicile">
+        </div>
+
+        <!-- Ville & Code Postal -->
+        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Ville</label>
+            <input type="text" id="modal-pat-city" class="form-control" placeholder="Ex: Alger">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Code postal</label>
+            <input type="text" id="modal-pat-zip" class="form-control" placeholder="Ex: 16000">
+          </div>
+        </div>
+
+        <!-- Groupe Sanguin & Allergies -->
+        <div style="display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Groupe Sanguin</label>
+            <select id="modal-pat-blood" class="form-control">
+              <option value="">Sélectionner</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Allergies</label>
+            <input type="text" id="modal-pat-allergies" class="form-control" placeholder="Pénicilline, Aspirine...">
+          </div>
+        </div>
+
+        <!-- Contact d'Urgence & Téléphone d'Urgence -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Contact d'Urgence</label>
+            <input type="text" id="modal-pat-emergency-contact" class="form-control" placeholder="Nom du contact">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Téléphone d'Urgence</label>
+            <input type="tel" id="modal-pat-emergency-phone" class="form-control" placeholder="Numéro">
+          </div>
+        </div>
+
+        <!-- Historique médical / Antécédents (Secret Médical) -->
+        <div class="form-group">
+          <label class="form-label">Historique médical / Antécédents (Secret Médical)</label>
+          <textarea id="modal-pat-history" class="form-control" rows="3" placeholder="Antécédents personnels, familiaux, chirurgicaux..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top: 12px; width: 100%; height: 44px; font-weight: 700; font-size: 15px;">Créer la Fiche Patient</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = '__TOKEN__';
+    let currentLang = 'fr';
+    let capturedBase64Image = null;
+    let recognition = null;
+    let isRecording = false;
+
+    // Toast helper
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(function() { toast.style.display = 'none'; }, 2600);
+    }
+
+    // Tab switcher
+    function switchTab(targetId) {
+      document.querySelectorAll('.section-view').forEach(function(s) { s.classList.remove('active'); });
+      document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+
+      const sec = document.getElementById(targetId);
+      const btn = document.querySelector('[data-target="' + targetId + '"]');
+      if (sec) sec.classList.add('active');
+      if (btn) btn.classList.add('active');
+
+      if (targetId === 'tab-agenda') loadAgenda();
+      if (targetId === 'tab-waiting') loadWaitingRoom();
+      if (targetId === 'tab-patients') searchPatients('');
+      if (targetId === 'tab-camera' || targetId === 'tab-notes') loadPatientDropdowns();
+    }
+
+    // Language switcher
+    function toggleLanguage() {
+      currentLang = currentLang === 'fr' ? 'ar' : 'fr';
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+      document.getElementById('lang-btn-text').textContent = currentLang === 'fr' ? 'AR' : 'FR';
+      showToast(currentLang === 'ar' ? 'تم تحويل الواجهة للعربية' : 'Interface en Français');
+    }
+
+    // Modal Helpers
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function openNewAppointmentModal() {
+      document.getElementById('modal-rdv-date').value = document.getElementById('agenda-date').value;
+      openModal('modal-appointment');
+    }
+    function openCheckinModal() { openModal('modal-checkin'); }
+    function openNewPatientModal() { openModal('modal-patient'); }
+
+    function escapeHTML(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Date manipulation
+    function changeDate(days) {
+      const input = document.getElementById('agenda-date');
+      const d = new Date(input.value || new Date());
+      d.setDate(d.getDate() + days);
+      input.value = d.toISOString().split('T')[0];
+      loadAgenda();
+    }
+
+    // ================= 1. AGENDA API =================
+    async function loadAgenda() {
+      const date = document.getElementById('agenda-date').value;
+      const container = document.getElementById('agenda-list-container');
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/agenda?date=' + date);
+        const json = await res.json();
+        
+        if (!json.success || !json.data || !json.data.length) {
+          container.innerHTML = '<div class="card" style="text-align: center; color: var(--text-muted); padding: 30px;">Aucun rendez-vous pour cette date</div>';
+          return;
+        }
+
+        container.innerHTML = json.data.map(function(apt) {
+          const time = (apt.appointmentDateTime || '').slice(11, 16) || apt.time || '--:--';
+          const name = (apt.firstName || '') + ' ' + (apt.lastName || '') || apt.patientName || 'Patient';
+          const phone = apt.phone || '';
+          const status = apt.status || 'scheduled';
+          const statusMap = {
+            scheduled: { label: 'Planifié', class: 'badge-primary' },
+            waiting: { label: 'En attente', class: 'badge-warning' },
+            completed: { label: 'Terminé', class: 'badge-success' },
+            cancelled: { label: 'Annulé', class: 'badge-danger' }
+          };
+          const badge = statusMap[status] || { label: status, class: 'badge-primary' };
+
+          return '<div class="item-card">' +
+            '<div class="item-top">' +
+              '<span style="font-size: 15px; font-weight: 700; color: var(--primary);">⏰ ' + time + '</span>' +
+              '<span class="badge ' + badge.class + '">' + badge.label + '</span>' +
+            '</div>' +
+            '<div class="item-name">👤 ' + escapeHTML(name) + '</div>' +
+            '<div class="item-sub">' +
+              '<span>📋 ' + escapeHTML(apt.appointmentType || 'Consultation') + '</span>' +
+              (phone ? '<a href="tel:' + phone + '" style="color: var(--primary); text-decoration: none; font-weight: 600;">📞 ' + escapeHTML(phone) + '</a>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        container.innerHTML = '<div class="card" style="color: var(--danger); text-align: center;">Erreur de chargement de l\'agenda</div>';
+      }
+    }
+
+    // ================= 1. AGENDA AUTOCOMPLETE =================
+    let rdvPatientSearchTimer = null;
+    function onRdvPatientNameInput(val) {
+      clearTimeout(rdvPatientSearchTimer);
+      const dropdown = document.getElementById('modal-rdv-patient-dropdown');
+      if (!val || val.trim().length < 1) {
+        if (dropdown) dropdown.style.display = 'none';
+        return;
+      }
+      rdvPatientSearchTimer = setTimeout(async function() {
+        try {
+          const res = await fetch('/api/mobile/' + TOKEN + '/patients?q=' + encodeURIComponent(val.trim()) + '&limit=8');
+          const json = await res.json();
+          const list = json.data || [];
+          if (!list.length) {
+            dropdown.innerHTML = '<div style="padding: 12px 14px; font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">' +
+              '<span>➕ Nouveau patient ("' + escapeHTML(val) + '")</span>' +
+              '<span class="badge badge-primary">Nouveau</span>' +
+            '</div>';
+            dropdown.style.display = 'block';
+            return;
+          }
+          dropdown.innerHTML = list.slice(0, 8).map(function(p) {
+            const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
+            const phone = p.phone || '';
+            const birth = p.dateOfBirth ? ' • 🎂 ' + String(p.dateOfBirth).slice(0, 10) : '';
+            return '<div class="patient-search-item" onpointerdown="selectRdvPatient(\'' + escapeHTML(name) + '\', \'' + escapeHTML(phone) + '\', \'' + p.id + '\')" onclick="selectRdvPatient(\'' + escapeHTML(name) + '\', \'' + escapeHTML(phone) + '\', \'' + p.id + '\')">' +
+              '<div style="font-weight: 700; color: #0f172a; font-size: 14px;">👤 ' + escapeHTML(name) + '</div>' +
+              '<div style="font-size: 12px; color: #64748b;">' + (phone ? '📞 ' + escapeHTML(phone) : 'Sans téléphone') + birth + '</div>' +
+            '</div>';
+          }).join('');
+          dropdown.style.display = 'block';
+        } catch (e) {
+          console.error(e);
+        }
+      }, 150);
+    }
+
+    function selectRdvPatient(name, phone, id) {
+      document.getElementById('modal-rdv-name').value = name;
+      document.getElementById('modal-rdv-phone').value = phone || '';
+      document.getElementById('modal-rdv-patient-id').value = id || '';
+      const dropdown = document.getElementById('modal-rdv-patient-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    }
+
+    async function saveNewAppointment(e) {
+      e.preventDefault();
+      const patientId = document.getElementById('modal-rdv-patient-id') ? document.getElementById('modal-rdv-patient-id').value : null;
+      const payload = {
+        fullName: document.getElementById('modal-rdv-name').value,
+        phone: document.getElementById('modal-rdv-phone').value,
+        date: document.getElementById('modal-rdv-date').value,
+        time: document.getElementById('modal-rdv-time').value,
+        type: document.getElementById('modal-rdv-type').value,
+        reason: document.getElementById('modal-rdv-type').value || 'Consultation',
+        patientId: patientId || null
+      };
+
+      const res = await fetch('/api/mobile/' + TOKEN + '/agenda/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Rendez-vous enregistré');
+        closeModal('modal-appointment');
+        document.getElementById('modal-rdv-name').value = '';
+        document.getElementById('modal-rdv-phone').value = '';
+        if (document.getElementById('modal-rdv-patient-id')) document.getElementById('modal-rdv-patient-id').value = '';
+        loadAgenda();
+      } else {
+        alert(json.error || 'Erreur lors de la réservation');
+      }
+    }
+
+    // ================= 2. SALLE D'ATTENTE AUTOCOMPLETE =================
+    let checkinPatientSearchTimer = null;
+    function onCheckinPatientNameInput(val) {
+      clearTimeout(checkinPatientSearchTimer);
+      const dropdown = document.getElementById('modal-checkin-patient-dropdown');
+      if (!val || val.trim().length < 1) {
+        if (dropdown) dropdown.style.display = 'none';
+        return;
+      }
+      checkinPatientSearchTimer = setTimeout(async function() {
+        try {
+          const res = await fetch('/api/mobile/' + TOKEN + '/patients?q=' + encodeURIComponent(val.trim()) + '&limit=8');
+          const json = await res.json();
+          const list = json.data || [];
+          if (!list.length) {
+            dropdown.innerHTML = '<div style="padding: 12px 14px; font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">' +
+              '<span>➕ Nouveau patient ("' + escapeHTML(val) + '")</span>' +
+              '<span class="badge badge-primary">Nouveau</span>' +
+            '</div>';
+            dropdown.style.display = 'block';
+            return;
+          }
+          dropdown.innerHTML = list.slice(0, 8).map(function(p) {
+            const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
+            const phone = p.phone || '';
+            const birth = p.dateOfBirth ? ' • 🎂 ' + String(p.dateOfBirth).slice(0, 10) : '';
+            return '<div class="patient-search-item" onpointerdown="selectCheckinPatient(\'' + escapeHTML(name) + '\', \'' + escapeHTML(phone) + '\')" onclick="selectCheckinPatient(\'' + escapeHTML(name) + '\', \'' + escapeHTML(phone) + '\')">' +
+              '<div style="font-weight: 700; color: #0f172a; font-size: 14px;">👤 ' + escapeHTML(name) + '</div>' +
+              '<div style="font-size: 12px; color: #64748b;">' + (phone ? '📞 ' + escapeHTML(phone) : 'Sans téléphone') + birth + '</div>' +
+            '</div>';
+          }).join('');
+          dropdown.style.display = 'block';
+        } catch (e) {
+          console.error(e);
+        }
+      }, 150);
+    }
+
+    function selectCheckinPatient(name, phone) {
+      document.getElementById('modal-checkin-name').value = name;
+      document.getElementById('modal-checkin-phone').value = phone || '';
+      const dropdown = document.getElementById('modal-checkin-patient-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+    }
+
+    async function loadWaitingRoom() {
+      const container = document.getElementById('waiting-list-container');
+      const sub = document.getElementById('queue-status-sub');
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room');
+        const json = await res.json();
+        
+        const queue = json.data?.queue || [];
+        const inConsult = json.data?.inConsultation;
+
+        if (sub) {
+          sub.textContent = inConsult 
+            ? 'En consultation : ' + (inConsult.patientName || inConsult.ticketCode) + ' (+' + queue.length + ' en attente)'
+            : queue.length + ' patient(s) en attente';
+        }
+
+        if (!queue.length && !inConsult) {
+          container.innerHTML = '<div class="card" style="text-align: center; color: var(--text-muted); padding: 25px;">Aucun patient dans la salle d\'attente</div>';
+          return;
+        }
+
+        let html = '';
+        if (inConsult) {
+          html += '<div class="item-card" style="border: 2px solid var(--success); background: #f6ffed;">' +
+            '<div class="item-top">' +
+              '<span class="badge badge-success">🟢 EN CONSULTATION</span>' +
+              '<span style="font-weight: 700;">#' + (inConsult.ticketCode || '01') + '</span>' +
+            '</div>' +
+            '<div class="item-name">👤 ' + escapeHTML(inConsult.patientName || 'Patient') + '</div>' +
+            '<div class="item-actions">' +
+              '<button class="btn btn-secondary btn-small" onclick="updateWaitingStatus(\'' + inConsult.id + '\', \'completed\')">Terminer Consultation</button>' +
+            '</div>' +
+          '</div>';
+        }
+
+        html += queue.map(function(item, idx) {
+          const name = item.patientName || ('Patient #' + item.ticketCode);
+          return '<div class="item-card">' +
+            '<div class="item-top">' +
+              '<span style="font-weight: 700; color: var(--primary);">#' + (item.ticketCode || (idx+1)) + '</span>' +
+              '<span class="badge badge-warning">En attente</span>' +
+            '</div>' +
+            '<div class="item-name">👤 ' + escapeHTML(name) + '</div>' +
+            '<div class="item-sub">' +
+              '<span>🕒 Arrivé à ' + ((item.arrivalTime || '').slice(11, 16) || '--:--') + '</span>' +
+              (item.phone ? '<a href="tel:' + item.phone + '" style="color: var(--primary); text-decoration: none;">📞 ' + escapeHTML(item.phone) + '</a>' : '') +
+            '</div>' +
+            '<div class="item-actions">' +
+              '<button class="btn btn-primary btn-small" onclick="updateWaitingStatus(\'' + item.id + '\', \'in-consultation\')">▶ Faire entrer</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div class="card" style="color: var(--danger); text-align: center;">Erreur file d\'attente</div>';
+      }
+    }
+
+    async function callNextPatient() {
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room/call-next', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast('🔔 Appel patient : ' + (json.data?.patientName || 'Patient suivant'));
+          loadWaitingRoom();
+        } else {
+          showToast(json.error || 'Aucun patient en attente');
+        }
+      } catch (e) {
+        showToast('Erreur lors de l\'appel');
+      }
+    }
+
+    async function updateWaitingStatus(id, status) {
+      await fetch('/api/mobile/' + TOKEN + '/waiting-room/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, status: status })
+      });
+      loadWaitingRoom();
+    }
+
+    async function submitCheckin(e) {
+      e.preventDefault();
+      const payload = {
+        fullName: document.getElementById('modal-checkin-name').value,
+        phone: document.getElementById('modal-checkin-phone').value,
+        reason: document.getElementById('modal-checkin-reason').value
+      };
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room/checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Patient ajouté en salle d\'attente');
+          closeModal('modal-checkin');
+          document.getElementById('modal-checkin-name').value = '';
+          document.getElementById('modal-checkin-phone').value = '';
+          document.getElementById('modal-checkin-reason').value = '';
+          loadWaitingRoom();
+        } else {
+          alert(json.error || 'Erreur lors de l\'enregistrement de l\'arrivée');
+        }
+      } catch (err) {
+        alert('Erreur de connexion au serveur');
+      }
+    }
+
+    // ================= 3. PATIENTS API & CREATION =================
+    let searchDebounce = null;
+    function searchPatients(q) {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(async function() {
+        const container = document.getElementById('patients-list-container');
+        try {
+          const url = q && q.trim()
+            ? '/api/mobile/' + TOKEN + '/patients?q=' + encodeURIComponent(q.trim())
+            : '/api/mobile/' + TOKEN + '/patients';
+          const res = await fetch(url);
+          const json = await res.json();
+          const list = json.data || [];
+          if (!list.length) {
+            container.innerHTML = '<div class="card" style="text-align:center; padding:25px; color:var(--text-muted);">Aucun patient trouvé</div>';
+            return;
+          }
+          container.innerHTML = list.map(function(p) {
+            const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
+            const birth = p.dateOfBirth || p.birthDate;
+            const gender = p.gender || '';
+            const history = p.medicalHistory || p.allergies || '';
+            return '<div class="item-card" style="display:flex; flex-direction:column; gap:6px;">' +
+              '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+                '<div class="item-name" style="font-weight:700; color:#111827;">👤 ' + escapeHTML(name) + '</div>' +
+                (gender ? '<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:11px;">' + escapeHTML(gender) + '</span>' : '') +
+              '</div>' +
+              '<div class="item-sub" style="display:flex; flex-wrap:wrap; gap:8px; font-size:12.5px;">' +
+                (p.phone ? '<a href="tel:' + p.phone + '" style="color:var(--primary); font-weight:600; text-decoration:none;">📞 ' + escapeHTML(p.phone) + '</a>' : '<span style="color:#9ca3af;">Sans tél</span>') +
+                (birth ? '<span>🎂 ' + String(birth).slice(0,10) + '</span>' : '') +
+                (p.address ? '<span>📍 ' + escapeHTML(p.address) + '</span>' : '') +
+              '</div>' +
+              (history ? '<div style="font-size:11.5px; color:#b91c1c; background:#fef2f2; padding:4px 8px; border-radius:6px;">⚠️ ' + escapeHTML(history) + '</div>' : '') +
+              '<div class="item-actions" style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">' +
+                '<button class="btn btn-secondary btn-small" onclick="selectPatientForCamera(\'' + p.id + '\')">📷 Photo</button>' +
+                '<button class="btn btn-secondary btn-small" onclick="selectPatientForNote(\'' + p.id + '\')">🎙️ Note</button>' +
+                '<button class="btn btn-secondary btn-small" onclick="checkinExistingPatient(\'' + p.id + '\', \'' + escapeHTML(name) + '\', \'' + (p.phone || '') + '\')">📥 Salle d\'attente</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        } catch (e) {
+          console.error('Error fetching mobile patients:', e);
+        }
+      }, 250);
+    }
+
+    function checkinExistingPatient(patientId, name, phone) {
+      document.getElementById('modal-checkin-name').value = name || '';
+      document.getElementById('modal-checkin-phone').value = phone || '';
+      openModal('modal-checkin');
+    }
+
+    let newPatientPhotoBase64 = null;
+    function onPatientPhotoSelected(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        newPatientPhotoBase64 = e.target.result;
+        const img = document.getElementById('modal-pat-photo-preview');
+        const placeholder = document.getElementById('modal-pat-photo-placeholder');
+        if (img) {
+          img.src = newPatientPhotoBase64;
+          img.style.display = 'block';
+        }
+        if (placeholder) placeholder.style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function calculateAgeFromBirthdate(birthDateStr) {
+      if (!birthDateStr) return '';
+      const birth = new Date(birthDateStr);
+      if (isNaN(birth.getTime())) return '';
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age >= 0 ? age + ' an(s)' : '';
+    }
+
+    function onBirthdateChange(val) {
+      const ageEl = document.getElementById('modal-pat-age');
+      if (ageEl) ageEl.value = calculateAgeFromBirthdate(val);
+    }
+
+    async function saveNewPatient(e) {
+      e.preventDefault();
+      const payload = {
+        lastName: document.getElementById('modal-pat-lastname').value,
+        firstName: document.getElementById('modal-pat-firstname').value,
+        phone: document.getElementById('modal-pat-phone').value,
+        phone2: document.getElementById('modal-pat-phone2').value,
+        dateOfBirth: document.getElementById('modal-pat-birth').value,
+        nin: document.getElementById('modal-pat-nin').value,
+        gender: document.getElementById('modal-pat-gender').value,
+        email: document.getElementById('modal-pat-email').value,
+        address: document.getElementById('modal-pat-address').value,
+        city: document.getElementById('modal-pat-city').value,
+        zipCode: document.getElementById('modal-pat-zip').value,
+        bloodType: document.getElementById('modal-pat-blood').value,
+        allergies: document.getElementById('modal-pat-allergies').value,
+        emergencyContact: document.getElementById('modal-pat-emergency-contact').value,
+        emergencyPhone: document.getElementById('modal-pat-emergency-phone').value,
+        medicalHistory: document.getElementById('modal-pat-history').value,
+        photoBase64: newPatientPhotoBase64
+      };
+
+      const res = await fetch('/api/mobile/' + TOKEN + '/patients/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Fiche patient créée avec succès');
+        closeModal('modal-patient');
+        const form = document.getElementById('mobile-new-patient-form');
+        if (form) form.reset();
+        newPatientPhotoBase64 = null;
+        const img = document.getElementById('modal-pat-photo-preview');
+        const placeholder = document.getElementById('modal-pat-photo-placeholder');
+        if (img) { img.src = ''; img.style.display = 'none'; }
+        if (placeholder) placeholder.style.display = 'block';
+        loadPatientDropdowns();
+        searchPatients('');
+      } else {
+        alert(json.error || 'Erreur lors de la création du patient');
+      }
+    }
+
+    // ================= 4. CAMÉRA & UPLOAD PHOTO =================
+    function handlePhotoCapture(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        capturedBase64Image = e.target.result;
+        const img = document.getElementById('photo-preview-img');
+        img.src = capturedBase64Image;
+        img.style.display = 'block';
+        document.getElementById('photo-prompt').style.display = 'none';
+        document.getElementById('btn-upload-photo').disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function uploadCapturedPhoto() {
+      const patientId = document.getElementById('camera-patient-select').value;
+      if (!patientId) {
+        alert('Veuillez sélectionner un patient');
+        return;
+      }
+      if (!capturedBase64Image) {
+        alert('Veuillez prendre une photo');
+        return;
+      }
+
+      const btn = document.getElementById('btn-upload-photo');
+      btn.disabled = true;
+      btn.textContent = '⏳ Envoi vers le PC...';
+
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/upload-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: patientId,
+            category: document.getElementById('camera-category-select').value,
+            notes: document.getElementById('camera-notes').value,
+            base64: capturedBase64Image
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Photo enregistrée sur le PC !');
+          capturedBase64Image = null;
+          document.getElementById('photo-preview-img').style.display = 'none';
+          document.getElementById('photo-prompt').style.display = 'block';
+          document.getElementById('camera-notes').value = '';
+          btn.textContent = '📤 Envoyer instantanément au PC';
+        } else {
+          alert(json.error || 'Erreur lors de l\'envoi');
+          btn.disabled = false;
+          btn.textContent = '📤 Réessayer';
+        }
+      } catch (e) {
+        alert('Erreur de connexion avec le PC');
+        btn.disabled = false;
+        btn.textContent = '📤 Réessayer';
+      }
+    }
+
+    function selectPatientForCamera(id) {
+      switchTab('tab-camera');
+      setTimeout(function() {
+        document.getElementById('camera-patient-select').value = id;
+      }, 100);
+    }
+
+    function selectPatientForNote(id) {
+      switchTab('tab-notes');
+      setTimeout(function() {
+        document.getElementById('notes-patient-select').value = id;
+      }, 100);
+    }
+
+    async function loadPatientDropdowns() {
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/patients?limit=30');
+        const json = await res.json();
+        const list = json.data || [];
+        const options = '<option value="">-- Choisir le patient --</option>' + 
+          list.map(function(p) {
+            return '<option value="' + p.id + '">' + (p.lastName || '') + ' ' + (p.firstName || '') + ' (' + (p.phone || '') + ')</option>';
+          }).join('');
+
+        const sel1 = document.getElementById('camera-patient-select');
+        const sel2 = document.getElementById('notes-patient-select');
+        if (sel1) sel1.innerHTML = options;
+        if (sel2) sel2.innerHTML = options;
+      } catch (e) {}
+    }
+
+    // ================= 5. DICTÉE VOCALE & NOTES =================
+    function toggleVoiceDictation() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('La dictée vocale n\'est pas supportée par ce navigateur. Vous pouvez taper directement au clavier.');
+        return;
+      }
+
+      if (isRecording) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = currentLang === 'ar' ? 'ar-TN' : 'fr-FR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      const micBtn = document.getElementById('mic-btn');
+      const label = document.getElementById('mic-status-label');
+      const textarea = document.getElementById('notes-text');
+
+      recognition.onstart = function() {
+        isRecording = true;
+        micBtn.classList.add('recording');
+        label.textContent = '🎙️ Écoute en cours... Parlez maintenant';
+      };
+
+      recognition.onresult = function(event) {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        textarea.value = (textarea.value + ' ' + transcript).trim();
+      };
+
+      recognition.onerror = function() {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+        label.textContent = 'Erreur micro. Réessayez.';
+      };
+
+      recognition.onend = function() {
+        isRecording = false;
+        micBtn.classList.remove('recording');
+        label.textContent = 'Dictée terminée. Appuyez pour reprendre.';
+      };
+
+      recognition.start();
+    }
+
+    async function sendQuickNote() {
+      const patientId = document.getElementById('notes-patient-select').value;
+      const text = document.getElementById('notes-text').value;
+      if (!patientId) {
+        alert('Veuillez choisir un patient');
+        return;
+      }
+      if (!text.trim()) {
+        alert('Veuillez saisir une note');
+        return;
+      }
+
+      const res = await fetch('/api/mobile/' + TOKEN + '/quick-note', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: patientId, note: text })
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast('✅ Note transmise au PC');
+        document.getElementById('notes-text').value = '';
+      }
+    }
+
+    // Init
+    (function init() {
+      const today = new Date().toISOString().split('T')[0];
+      const agendaDate = document.getElementById('agenda-date');
+      if (agendaDate) agendaDate.value = today;
+      loadAgenda();
+      loadWaitingRoom();
+      setInterval(function() {
+        const waitingTab = document.getElementById('tab-waiting');
+        if (waitingTab && waitingTab.classList.contains('active')) {
+          loadWaitingRoom();
+        }
+      }, 4000);
+    }());
+  </script>
+</body>
+</html>

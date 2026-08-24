@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.qrserver.com; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
     <title>MedCareSO v1.0.9</title>
     <script>
         // Prevent sidebar/layout flicker before JS modules load.
@@ -79,13 +79,13 @@
                     </span>
                     <span class="label">Imagerie</span>
                 </a>
-                <a href="#" class="nav-item doctor-only hidden role-hidden feature-disabled" data-section="orl" onclick="event.preventDefault(); showSection('orl')" title="Module ORL & Explorations" style="display: none;">
+                <a href="#" class="nav-item hidden role-hidden feature-disabled" data-section="orl" onclick="event.preventDefault(); showSection('orl')" title="Module ORL & Explorations" style="display: none;">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                     </span>
                     <span class="label">Module ORL</span>
                 </a>
-                <a href="#" class="nav-item doctor-only" data-section="operations" onclick="event.preventDefault(); showSection('operations')" title="Opérations & Interventions">
+                <a href="#" class="nav-item" data-section="operations" onclick="event.preventDefault(); showSection('operations')" title="Opérations & Interventions">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                     </span>
@@ -1574,11 +1574,11 @@
                 <!-- Patients Section -->
                 <section id="patients" class="section">
                     <div class="card patients-container" style="padding: 20px; overflow: visible;">
-                        <div id="patients-scope-bar" class="patients-scope-bar" hidden style="margin-bottom: 16px;">
+                        <div id="patients-scope-bar" class="patients-scope-bar" hidden style="display: none; margin-bottom: 16px;">
                             <div class="patients-view-tabs" role="tablist" aria-label="Vue des patients">
-                                <button type="button" id="patients-my-list-tab" class="patients-view-tab active"
+                                <button type="button" id="patients-my-list-tab" class="patients-view-tab active" style="display: none;"
                                     onclick="switchPatientsView('mine')">Mes patients</button>
-                                <button type="button" id="patients-directory-tab" class="patients-view-tab"
+                                <button type="button" id="patients-directory-tab" class="patients-view-tab" style="display: none;"
                                     onclick="switchPatientsView('directory')">Répertoire global</button>
                             </div>
                             <label id="patients-list-filter-wrap" class="patients-doctor-scope patients-scope-field" hidden>
@@ -1605,6 +1605,21 @@
                             </div>
                         </div>
 
+                        <!-- Bulk actions bar for Assistant / Multi-assignment -->
+                        <div id="patients-bulk-bar" style="display: none; align-items: center; justify-content: space-between; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span id="patients-bulk-count" style="font-weight: 650; color: #166534; font-size: 13.5px;">0 patient(s) sélectionné(s)</span>
+                                <button type="button" class="btn btn-secondary btn-small" onclick="clearPatientSelection()" style="height: 30px; font-size: 12px;">Désélectionner tout</button>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 13px; font-weight: 600; color: #334155;">🩺 Assigner au médecin :</span>
+                                <select id="patients-bulk-doctor-select" class="form-control" style="width: 220px; height: 34px; font-size: 13px;"></select>
+                                <button type="button" class="btn btn-primary btn-small" onclick="assignSelectedPatientsToDoctor()" style="height: 34px; font-weight: 600; padding: 0 14px;">
+                                    ✓ Assigner
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="patients-toolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
                             <div class="patients-search-wrap" style="position: relative; flex: 1 1 320px; max-width: 480px;">
                                 <input type="text" id="patients-search" class="form-control ant-input" style="width: 100%; height: 36px; padding-left: 36px !important; box-sizing: border-box;"
@@ -1621,6 +1636,9 @@
                         <table id="patients-table" class="table patients-records-table">
                             <thead>
                                 <tr>
+                                    <th id="patients-th-select" style="width: 44px; text-align: center; display: none;">
+                                        <input type="checkbox" id="patients-select-all" onclick="toggleSelectAllPatients(this.checked)" title="Tout sélectionner">
+                                    </th>
                                     <th>Nom</th>
                                     <th>Prénom</th>
                                     <th>Date de Naissance</th>
@@ -1646,14 +1664,18 @@
                                     <span>Patients</span> / <span style="color: rgba(0,0,0,0.88); font-weight: 500;">Explorations Radiologiques & Clichés</span>
                                 </div>
                             </div>
-                            <div class="imaging-hero-actions" style="display: flex; gap: 10px;">
+                            <div class="imaging-hero-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" class="btn btn-primary" onclick="openImportRadioModal()" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border-color: #0284c7; color: white;">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                                    Importer depuis Radio
+                                </button>
                                 <button type="button" class="btn btn-secondary" onclick="pickMedicalImagingFolder()" style="height: 36px; display: inline-flex; align-items: center; gap: 6px;">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                                    Charger un dossier DICOM
+                                    Dossier DICOM
                                 </button>
-                                <button type="button" class="btn btn-primary" onclick="pickMedicalImagingFiles()" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                                <button type="button" class="btn btn-secondary" onclick="pickMedicalImagingFiles()" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                    Importer des fichiers
+                                    Fichiers
                                 </button>
                             </div>
                         </div>
@@ -2108,8 +2130,8 @@
                         </div>
                             <div id="tab-bonpour" class="tab-content">
                             <div style="margin-bottom: 15px;">
-                                <button class="btn btn-primary btn-small" onclick="openBonPourModal(currentPatientId)"
-                                    style="background: #8b5cf6;">+ Nouveau Faire Svp</button>
+                                <button class="btn btn-primary btn-small" id="patient-new-bonpour-btn" onclick="openBonPourModal(currentPatientId)"
+                                    style="background: #8b5cf6;">+ Nouvelle Demande de Bilan</button>
                             </div>
                             <table class="table">
                                 <thead>
@@ -2127,8 +2149,26 @@
                             <div id="details-bonpour-empty"
                                 style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
                                 <div style="font-size: 36px; margin-bottom: 10px;">📋</div>
-                                <div style="font-size: 14px;">Aucun faire svp enregistré</div>
+                                <div style="font-size: 14px;">Aucune demande de bilan enregistrée</div>
                             </div>
+                        </div>
+                            <div id="tab-factures" class="tab-content">
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn btn-primary btn-small" onclick="openPatientFactureModal()">+ Nouvelle
+                                    Facture</button>
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Montant</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="details-factures-tbody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
                         </div>
                             <div id="tab-orientations" class="tab-content">
                             <div style="margin-bottom: 15px;">
@@ -2155,27 +2195,97 @@
                                 <div style="font-size: 14px;">Aucune lettre d'orientation enregistrée</div>
                             </div>
                         </div>
-                        </div>
-
-                        <div id="patient-cat-facturation" class="patient-category-pane" style="display:none;">
-                            <div id="tab-factures" class="tab-content">
+                            <div id="tab-nasofibroscopies" class="tab-content">
                             <div style="margin-bottom: 15px;">
-                                <button class="btn btn-primary btn-small" onclick="openPatientFactureModal()">+ Nouvelle
-                                    Facture</button>
+                                <button class="btn btn-primary btn-small"
+                                    onclick="openNasofibroscopieModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1;">+
+                                    Nouvelle Nasofibroscopie</button>
                             </div>
                             <table class="table">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
-                                        <th>Montant</th>
+                                        <th>Fosses Nasales</th>
+                                        <th>Larynx</th>
+                                        <th>Conclusion</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="details-factures-tbody">
+                                <tbody id="details-nasofibroscopies-tbody">
                                     <!-- Populated by JS -->
                                 </tbody>
                             </table>
+                            <div id="details-nasofibroscopies-empty"
+                                style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
+                                <div style="font-size: 36px; margin-bottom: 10px;">🔬</div>
+                                <div style="font-size: 14px;">Aucun examen de nasofibroscopie enregistré</div>
+                            </div>
                         </div>
+                        <div id="tab-echographies" class="tab-content">
+                            <div style="margin-bottom: 15px;">
+                                <button class="btn btn-primary btn-small"
+                                    onclick="openEchographieCervicaleModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1;">+
+                                    Nouvelle Échographie</button>
+                            </div>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Thyroïde</th>
+                                        <th>Aires Ganglionnaires</th>
+                                        <th>Conclusion</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="details-echographies-tbody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                            <div id="details-echographies-empty"
+                                style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
+                                <div style="font-size: 36px; margin-bottom: 10px;">🩺</div>
+                                <div style="font-size: 14px;">Aucun compte-rendu d'échographie cervicale enregistré</div>
+                            </div>
+                        </div>
+                        </div>
+
+                        <div id="patient-cat-facturation" class="patient-category-pane" style="display:none;">
+                            <div id="tab-patient-payments" class="tab-content" style="display: block; opacity: 1;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 14px;">
+                                            <span style="font-size: 11.5px; color: #166534; font-weight: 600; text-transform: uppercase;">Total Payé</span>
+                                            <div id="patient-payments-total-paid" style="font-size: 18px; font-weight: 700; color: #15803d;">0 DA</div>
+                                        </div>
+                                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px;">
+                                            <span style="font-size: 11.5px; color: #475569; font-weight: 600; text-transform: uppercase;">Règlements</span>
+                                            <div id="patient-payments-count" style="font-size: 18px; font-weight: 700; color: #0f172a;">0</div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary btn-small" type="button" onclick="openRecordPaymentModal(currentPatientId)" style="height: 34px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        <span>Enregistrer un règlement</span>
+                                    </button>
+                                </div>
+
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Heure</th>
+                                            <th>Réf. Consultation</th>
+                                            <th>Motif / Prestation</th>
+                                            <th>Mode</th>
+                                            <th>Montant</th>
+                                            <th>Statut</th>
+                                            <th style="text-align: right;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="details-patient-payments-tbody">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                                <div id="patient-payments-pagination" class="patients-pagination" style="display:none; padding: 16px 20px 20px;"></div>
+                            </div>
                         </div>
 
                         <div id="patient-cat-rdv" class="patient-category-pane" style="display:none;">
@@ -2407,6 +2517,10 @@
                             <h3>Liste des Paiements <span id="payments-pending-badge" class="badge hidden"
                                     style="background:#f59e0b; color:#fff; margin-left:8px;">0</span></h3>
                             <div class="payments-filter-row">
+                                <select id="payment-filter-practitioner" class="form-control module-filter-category"
+                                    style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Tous les médecins</option>
+                                </select>
                                 <select id="payment-filter-method" class="form-control module-filter-category"
                                     style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                                     <option value="">Toutes les méthodes</option>
@@ -4113,6 +4227,15 @@
                                     </div>
                                 </div>
                                 <div class="form-row">
+                                    <div class="form-group" style="flex: 1 1 100%;">
+                                        <label>Intitulé / En-tête en arabe (Optionnel)</label>
+                                        <input type="text" id="cabinet-name-arabic" class="form-control" dir="rtl" placeholder="Ex: عيادة متخصصة في أمراض الأنف، الأذن و الحنجرة وجراحة الوجه و الرقبة">
+                                        <small class="settings-field-help" style="display:block; color:#64748b; margin-top:3px;">
+                                            Saisissez le texte arabe à afficher en haut à droite des documents, ou laissez vide pour le désactiver.
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="form-row">
                                     <div class="form-group">
                                         <label>Adresse du Cabinet</label>
                                         <input type="text" id="cabinet-address" class="form-control" placeholder="Adresse complète">
@@ -4176,6 +4299,14 @@
                                     <input type="text" id="doctor-specialty" class="form-control" placeholder="Ex: Médecin Spécialiste en ORL">
                                 </div>
 
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Tarif standard de la consultation (DZD)</label>
+                                        <input type="number" id="default-consultation-fee" class="form-control" placeholder="Ex: 2000" min="0" step="100">
+                                        <small style="color:#64748b;font-size:12px;margin-top:4px;display:block">Ce tarif est automatiquement pré-rempli lors de la création d'une consultation.</small>
+                                    </div>
+                                </div>
+
                                 <div class="form-group">
                                     <label>Types de traitements personnalisés (séparés par des virgules)</label>
                                     <textarea id="custom-treatment-types" class="form-control" rows="2" placeholder="Ex: Appareil amovible, Bagues en or, Laser..."></textarea>
@@ -4193,8 +4324,8 @@
                             <h3>Documents générés</h3>
                             <p class="settings-card-subtitle">Réglez ici les devis, ordonnances, rapports, factures et autres documents imprimés.</p>
 
-                            <!-- Ligne 1 : Mode couleur & Palette -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                            <!-- Ligne 1 : Mode couleur, Palette & Titre Demande de Bilan -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 16px; margin-bottom: 14px;">
                                 <div class="form-group" style="margin: 0;">
                                     <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Mode couleur des documents</label>
                                     <select id="document-color-mode" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
@@ -4204,16 +4335,36 @@
                                 </div>
 
                                 <div class="form-group" style="margin: 0;">
-                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Palette couleur des documents</label>
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Palette couleur</label>
                                     <input type="color" id="document-primary-color" class="form-control" value="#1a8c7e"
                                         style="height: 40px; padding: 4px; background: #ffffff; cursor: pointer; border-radius: 6px;">
                                 </div>
+
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Nom du document (Demande/Bilan)</label>
+                                    <input type="text" id="document-bonpour-title" class="form-control" placeholder="Ex: Demande de Bilan, Faire Svp..." value="Demande de Bilan"
+                                        style="height: 40px; font-size: 13px; background: #ffffff;">
+                                </div>
                             </div>
 
-                            <!-- Ligne 2 : Taille texte & Taille logo -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+                            <!-- Ligne 2 : Police du texte, Taille texte & Taille logo -->
+                            <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; margin-bottom: 14px;">
                                 <div class="form-group" style="margin: 0;">
-                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du texte des documents</label>
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Police / Typographie du texte</label>
+                                    <select id="document-font-family" class="form-control" style="height: 40px; font-size: 13px; background: #ffffff;">
+                                        <option value="segoe" selected>Segoe UI (Moderne &amp; Net)</option>
+                                        <option value="arial">Arial (Standard universel)</option>
+                                        <option value="times">Times New Roman (Médical classique)</option>
+                                        <option value="georgia">Georgia (Élégant &amp; Lisible)</option>
+                                        <option value="garamond">Garamond (Raffiné &amp; Prestige)</option>
+                                        <option value="tahoma">Tahoma (Compact &amp; Précis)</option>
+                                        <option value="trebuchet">Trebuchet MS (Dynamique)</option>
+                                        <option value="verdana">Verdana (Haute clarté)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du texte</label>
                                     <select id="document-text-scale" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
                                         <option value="90">Petit (90%)</option>
                                         <option value="100" selected>Normal (100%)</option>
@@ -4223,7 +4374,7 @@
                                 </div>
 
                                 <div class="form-group" style="margin: 0;">
-                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du logo des documents</label>
+                                    <label style="font-weight: 600; font-size: 13.5px; color: #1e293b; margin-bottom: 6px; display: block;">Taille du logo</label>
                                     <select id="document-logo-scale" class="form-control" style="height: 40px; font-size: 13.5px; background: #ffffff;">
                                         <option value="80">Petit (80%)</option>
                                         <option value="90" selected>Moyen (90%)</option>
@@ -4234,6 +4385,232 @@
                                         <option value="200">Double (200%)</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            <!-- Ligne 2.2 : Personnalisation En-tête (Dr. Nom & Spécialité & Infos Patient) -->
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <label style="font-weight: 700; font-size: 13.5px; color: #1e293b; margin: 0;">
+                                        En-tête des documents (Médecin, Spécialité, Patient)
+                                    </label>
+                                    <span style="font-size: 12px; color: #64748b;">Grand Dr. Nom &amp; Prénom (en gras), Spécialité sur 2 lignes</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Taille Dr. NOM &amp; PRÉNOM</label>
+                                        <select id="document-doctor-name-scale" class="form-control" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="90">Petit (90%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="110">Grand (110%)</option>
+                                            <option value="120" selected>Grand &amp; Gras (120% - Recommandé)</option>
+                                            <option value="130">Très grand (130%)</option>
+                                            <option value="140">Extra grand (140%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Taille Spécialité (2 lignes)</label>
+                                        <select id="document-specialty-scale" class="form-control" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="85">Petite (85%)</option>
+                                            <option value="90">Discrète (90%)</option>
+                                            <option value="100" selected>Normale (100%)</option>
+                                            <option value="110">Grande (110%)</option>
+                                            <option value="120">Très grande (120%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Taille Infos Patient &amp; Date</label>
+                                        <select id="document-meta-scale" class="form-control" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="85">Compacte (85%)</option>
+                                            <option value="90">Petite (90%)</option>
+                                            <option value="100" selected>Normale (100%)</option>
+                                            <option value="110">Grande (110%)</option>
+                                            <option value="120">Très grande (120%)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ligne 2.5 : Format des documents (Taille du papier A4 / A5) -->
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <label style="font-weight: 700; font-size: 13.5px; color: #1e293b; margin: 0;">
+                                        Format des documents (Taille du papier)
+                                    </label>
+                                    <span style="font-size: 12px; color: #64748b;">Personnalisez A4 ou A5 par type de document</span>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Format général par défaut</label>
+                                        <select id="default-document-page-size" class="form-control" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="A5" selected>Format A5 (Demi-page standard)</option>
+                                            <option value="A4">Format A4 (Pleine page standard)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Nasofibroscopie (ORL)</label>
+                                        <select id="doc-format-nasofibroscopie" class="form-control doc-custom-format-select" data-doc-type="nasofibroscopie" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="A5" selected>Format A5 (Demi-page)</option>
+                                            <option value="A4">Format A4 (Pleine page)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 12.5px; color: #334155; margin-bottom: 4px; display: block;">Échographie Cervicale</label>
+                                        <select id="doc-format-echographie_cervicale" class="form-control doc-custom-format-select" data-doc-type="echographie_cervicale" style="height: 38px; font-size: 13px; background: #ffffff;">
+                                            <option value="A5" selected>Format A5 (Demi-page)</option>
+                                            <option value="A4">Format A4 (Pleine page)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Ordonnance</label>
+                                        <select id="doc-format-prescription" class="form-control doc-custom-format-select" data-doc-type="prescription" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Certificat médical</label>
+                                        <select id="doc-format-certificate" class="form-control doc-custom-format-select" data-doc-type="certificate" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Lettre d'orientation</label>
+                                        <select id="doc-format-orientation" class="form-control doc-custom-format-select" data-doc-type="orientation" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Bon pour</label>
+                                        <select id="doc-format-bonpour" class="form-control doc-custom-format-select" data-doc-type="bonpour" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Arrêt de travail</label>
+                                        <select id="doc-format-sickleave" class="form-control doc-custom-format-select" data-doc-type="sickleave" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Compte-rendu &amp; Rapport</label>
+                                        <select id="doc-format-rapport" class="form-control doc-custom-format-select" data-doc-type="rapport" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="A5" selected>A5</option>
+                                            <option value="A4">A4</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ligne 2.6 : Taille du texte par document -->
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <label style="font-weight: 700; font-size: 13.5px; color: #1e293b; margin: 0;">
+                                        Taille du texte par document
+                                    </label>
+                                    <span style="font-size: 12px; color: #64748b;">Chaque type garde sa propre taille, sans affecter les autres</span>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Ordonnance</label>
+                                        <select id="doc-textscale-prescription" class="form-control doc-text-scale-select" data-doc-type="prescription" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Certificat médical</label>
+                                        <select id="doc-textscale-certificate" class="form-control doc-text-scale-select" data-doc-type="certificate" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Arrêt de travail</label>
+                                        <select id="doc-textscale-sickleave" class="form-control doc-text-scale-select" data-doc-type="sickleave" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Lettre d'orientation</label>
+                                        <select id="doc-textscale-orientation" class="form-control doc-text-scale-select" data-doc-type="orientation" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Bon pour</label>
+                                        <select id="doc-textscale-bonpour" class="form-control doc-text-scale-select" data-doc-type="bonpour" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Compte-rendu &amp; Rapport</label>
+                                        <select id="doc-textscale-rapport" class="form-control doc-text-scale-select" data-doc-type="rapport" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Nasofibroscopie</label>
+                                        <select id="doc-textscale-nasofibroscopie" class="form-control doc-text-scale-select" data-doc-type="nasofibroscopie" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label style="font-weight: 600; font-size: 11.5px; color: #475569; margin-bottom: 3px; display: block;">Échographie Cervicale</label>
+                                        <select id="doc-textscale-echographie_cervicale" class="form-control doc-text-scale-select" data-doc-type="echographie_cervicale" style="height: 34px; font-size: 12px; background: #ffffff;">
+                                            <option value="">Par défaut (curseur global)</option>
+                                            <option value="90">Très petit (90%)</option>
+                                            <option value="95">Petit (95%)</option>
+                                            <option value="100">Normal (100%)</option>
+                                            <option value="105">Grand (105%)</option>
+                                            <option value="110">Très grand (110%)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <small class="settings-field-help" style="display: block; margin-top: 8px;">
+                                    « Par défaut » utilise le curseur global ci-dessous. La taille choisie ici s'applique uniquement à ce type de document.
+                                </small>
                             </div>
 
                             <!-- Ligne 3 : Logo Cabinet & Watermark -->
@@ -4560,7 +4937,20 @@
                                 </div>
                             </div>
 
-                            <div class="imaging-device-bar" style="margin-top: 10px;">
+                            <div class="form-group" style="margin-top: 14px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px 16px; border-radius: 8px;">
+                                <label style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 4px; display: block;">
+                                    Dossier de sortie Appareil Radio (X-ray / Clichés réseau / USB)
+                                </label>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <input type="text" id="radio-export-folder-path" class="form-control" placeholder="Ex: \\RADIO-PC\export\ ou C:\Radio\Export ou /media/radio..." style="flex: 1; height: 38px; font-size: 13px;">
+                                    <button type="button" class="btn btn-secondary" onclick="pickRadioExportFolder()" style="height: 38px; white-space: nowrap; font-weight: 500;">Parcourir...</button>
+                                </div>
+                                <small style="display: block; margin-top: 4px; color: #64748b; font-size: 11.5px;">
+                                    Chemin local ou réseau où votre appareil de radiologie dépose ses clichés exportés.
+                                </small>
+                            </div>
+
+                            <div class="imaging-device-bar" style="margin-top: 12px;">
                                 <div class="imaging-device-actions">
                                     <button type="button" class="btn btn-secondary"
                                         onclick="refreshMedicalImagingDevices()">Actualiser les sources</button>
@@ -4701,6 +5091,38 @@
                             </div>
                         </div>
 
+                        <!-- Display Resolution & Adaptability Card -->
+                        <div class="settings-card" data-settings-page="general" id="display-resolution-card">
+                            <h3>🖥️ Résolution d'affichage & Adaptabilité écran</h3>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                                Optimisez l'affichage pour les écrans non-standards (écrans presque carrés ~1280×1024 / 1280×1050) afin d'éviter tout chevauchement ou coupure de fenêtres.
+                            </p>
+
+                            <!-- Détection automatique en lecture seule -->
+                            <div class="form-group" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Résolution détectée au démarrage</div>
+                                        <div id="detected-screen-resolution-text" style="font-size: 15px; font-weight: 700; color: #0f172a; margin-top: 2px;">Détection en cours...</div>
+                                    </div>
+                                    <span id="detected-screen-resolution-badge" class="badge badge-primary" style="font-size: 12px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Détecté</span>
+                                </div>
+                            </div>
+
+                            <!-- Mode d'affichage -->
+                            <div class="form-group">
+                                <label for="app-display-mode-select">Mode de mise en page adapté</label>
+                                <select id="app-display-mode-select" class="form-control" onchange="onDisplayModeChange(this.value)">
+                                    <option value="auto">Détection automatique (Recommandé)</option>
+                                    <option value="compact-square">Écran compact / presque carré (~1280×1024 / 1280×1050)</option>
+                                    <option value="standard">Écran large standard (16:9 / 16:10)</option>
+                                </select>
+                                <small class="settings-field-help">
+                                    Le mode « Écran compact / presque carré » adapte automatiquement les grilles, la hauteur des fenêtres modales et les marges pour que tout reste parfaitement accessible sans défilement excessif.
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- Interface Text Size Card -->
                         <div class="settings-card" data-settings-page="general" id="appearance-settings-card">
                             <h3>🎚️ Taille du texte de l'interface</h3>
@@ -4785,31 +5207,6 @@
                                 <div id="specialty-bases-list" class="specialty-bases-list">Chargement...</div>
                             </div>
                         </div>
-                        <!-- Document Format Preferences -->
-                        <div class="settings-card" id="settings-doc-formats" data-settings-page="documents">
-                          <div class="card-header">
-                            <h3>Format des documents</h3>
-                          </div>
-                          <p style="color:rgba(0,0,0,0.45); margin-bottom:16px;">Choisissez le format papier par défaut pour chaque type de document.</p>
-                          <table class="data-table" style="max-width:600px;">
-                            <thead>
-                              <tr>
-                                <th>Type de document</th>
-                                <th style="width:160px;">Format par défaut</th>
-                              </tr>
-                            </thead>
-                            <tbody id="settings-doc-formats-tbody">
-                              <tr><td>Ordonnance</td><td><div id="fmt-ordonnance" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Certificat médical</td><td><div id="fmt-certificat" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Arrêt de travail</td><td><div id="fmt-arret" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Facture</td><td><div id="fmt-facture" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Rapport / Compte-rendu ORL</td><td><div id="fmt-rapport" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Orientations</td><td><div id="fmt-orientation" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Compte-rendu opératoire</td><td><div id="fmt-operation" class="doc-format-toggle"></div></td></tr>
-                              <tr><td>Facture d'intervention / Acte</td><td><div id="fmt-operation_facture" class="doc-format-toggle"></div></td></tr>
-                            </tbody>
-                          </table>
-                        </div>
 
                     </div>
                 </section>
@@ -4820,7 +5217,7 @@
     <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop"></div>
     <div id="modal-patient" class="modal patient-sheet-modal">
-        <div class="modal-content modal-large">
+        <div class="modal-content modal-large" style="max-width: 1240px; width: min(1240px, 96vw);">
             <div class="modal-header">
                 <h2 id="modal-patient-title">Ajouter un Patient</h2>
                 <button class="close-btn" onclick="closeModal('modal-patient')">&times;</button>
@@ -5007,97 +5404,171 @@
                     <input type="text" id="consultation-reason" class="form-control">
                 </div>
 
-                <!-- ========= ACTES MEDICAUX (CHECKBOXES) ========= -->
+                <!-- ========= ACTES MEDICAUX (CHECKBOXES & RECHERCHE) ========= -->
                 <div class="form-section"
                     style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin: 0 0 15px 0; color: #1e40af;">Actes Réalisés</h4>
-                    <div class="acts-grid"
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-consultation" name="acts" value="consultation" checked>
-                            <span>Consultation médicale</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                        <h4 style="margin: 0; color: #1e40af; font-size: 14.5px; font-weight: 700;">Actes Réalisés</h4>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="consultation-act-search" class="form-control" placeholder="Rechercher un acte..." style="height: 32px; font-size: 12px; width: 190px;" onkeydown="if(event.key==='Enter'){event.preventDefault();openAddConsultationActModal(this.value);}">
+                            <button type="button" class="btn btn-primary btn-small" onclick="openAddConsultationActModal(document.getElementById('consultation-act-search')?.value)" style="height: 32px; font-size: 12px; padding: 0 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">+ Ajouter</button>
+                        </div>
+                    </div>
+                    <div id="consultation-acts-grid" class="acts-grid"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; width: 100%; box-sizing: border-box;">
+                        <label class="checkbox-label" id="label-act-consultation"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-consultation" name="acts" value="consultation" checked onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Consultation médicale</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-consultation" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2000 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('consultation')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-ecg" name="acts" value="ecg">
-                            <span>ECG de repos</span>
+                        <label class="checkbox-label" id="label-act-nasofibroscopie"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-nasofibroscopie" name="acts" value="nasofibroscopie" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Nasofibroscopie</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-nasofibroscopie" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">3000 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('nasofibroscopie')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-ecgstress" name="acts" value="ecgstress">
-                            <span>ECG d'effort</span>
+                        <label class="checkbox-label" id="label-act-endoscopie"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-endoscopie" name="acts" value="endoscopie" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Endoscopie ORL</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-endoscopie" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">3500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('endoscopie')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-echo" name="acts" value="echo">
-                            <span>Échographie</span>
+                        <label class="checkbox-label" id="label-act-radio"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-radio" name="acts" value="radio" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Radio / Radiographie</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-radio" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">1500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('radio')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-holtermapa" name="acts" value="holtermapa">
-                            <span>Holter / MAPA</span>
+                        <label class="checkbox-label" id="label-act-audiometrie"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-audiometrie" name="acts" value="audiometrie" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Audiométrie / Impédance</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-audiometrie" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('audiometrie')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-kine" name="acts" value="kine">
-                            <span>Séance Kiné</span>
+                        <label class="checkbox-label" id="label-act-lavage"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-lavage" name="acts" value="lavage" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Lavage d'oreille / Soins</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-lavage" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">1500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('lavage')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-reduction" name="acts" value="reduction">
-                            <span>Réduction</span>
+                        <label class="checkbox-label" id="label-act-paracentese"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-paracentese" name="acts" value="paracentese" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Paracentèse</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-paracentese" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('paracentese')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-infiltration" name="acts" value="infiltration">
-                            <span>Infiltration</span>
+                        <label class="checkbox-label" id="label-act-ablationcorpsetranger"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-ablationcorpsetranger" name="acts" value="ablationcorpsetranger" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Extraction corps étranger</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-ablationcorpsetranger" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2000 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('ablationcorpsetranger')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-electrothérapie" name="acts" value="electrotherapie">
-                            <span>Électrothérapie</span>
+                        <label class="checkbox-label" id="label-act-echo"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-echo" name="acts" value="echo" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Échographie</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-echo" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">3000 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('echo')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-massage" name="acts" value="massage">
-                            <span>Massage</span>
+                        <label class="checkbox-label" id="label-act-ecg"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-ecg" name="acts" value="ecg" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">ECG de repos</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-ecg" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">1500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('ecg')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-tecartherapie" name="acts" value="tecartherapie">
-                            <span>Tecarthérapie</span>
+                        <label class="checkbox-label" id="label-act-infiltration"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-infiltration" name="acts" value="infiltration" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Infiltration</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-infiltration" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('infiltration')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-ondesdechoc" name="acts" value="ondesdechoc">
-                            <span>Ondes de choc</span>
+                        <label class="checkbox-label" id="label-act-kine"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-kine" name="acts" value="kine" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Séance Kiné</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-kine" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">1500 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('kine')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-mesotherapie" name="acts" value="mesotherapie">
-                            <span>Mésothérapie</span>
+                        <label class="checkbox-label" id="label-act-other"
+                            style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="act-other" name="acts" value="other" onchange="onConsultationActsChanged()">
+                                <span class="act-name-span">Autre acte</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="act-price-badge" id="price-badge-other" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">2000 DZD</span>
+                                <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('other')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 4px; padding: 1px 6px; font-size: 11px; color: #475569; cursor: pointer;">Modifier</button>
+                            </div>
                         </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-lasertherapie" name="acts" value="lasertherapie">
-                            <span>Laser thérapie</span>
-                        </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-dryneedling" name="acts" value="dryneedling">
-                            <span>Dry needling</span>
-                        </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-osteopathie" name="acts" value="osteopathie">
-                            <span>Ostéopathie</span>
-                        </label>
-                        <label class="checkbox-label"
-                            style="display: flex; align-items: center; gap: 8px; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="act-other" name="acts" value="other">
-                            <span>Autre acte</span>
-                        </label>
+                    </div>
+
+                    <!-- Total Consultation Price Editor (Right below Acts) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-top: 14px; gap: 12px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 13.5px; font-weight: 700; color: #0f172a;">Tarif total de la consultation :</span>
+                            <input type="number" id="consultation-main-price" class="form-control" style="width: 140px; height: 36px; font-size: 15px; font-weight: 700; color: #059669; border-color: #10b981;" min="0" step="100" placeholder="2000" oninput="onConsultationMainPriceInput(this.value)">
+                            <span style="font-weight: 700; color: #64748b; font-size: 13px;">DZD</span>
+                        </div>
+                        <small style="color: #64748b; font-size: 12px;">Calculé automatiquement selon les actes cochés (modifiable directement si besoin)</small>
                     </div>
 
                     <!-- Kiné Selection (shown when kine is checked) -->
@@ -5172,7 +5643,7 @@
                         style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" id="consultation-unpaid" name="unpaid"
                             style="width: 20px; height: 20px;">
-                        <span style="font-weight: 600; color: #dc2626;">⚠️ Marquer le dossier comme impayé</span>
+                        <span style="font-weight: 600; color: #dc2626;">Marquer le dossier comme impayé</span>
                     </label>
                     <div id="unpaid-details" style="margin-top: 10px;">
                         <div class="form-row">
@@ -5204,10 +5675,10 @@
                         </div>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
                             <button type="button" class="btn btn-warning btn-small"
-                                onclick="openManualPaymentRequestFromConsultationDraft()">💰 Ouvrir Demande de
+                                onclick="openManualPaymentRequestFromConsultationDraft()">Ouvrir Demande de
                                 Paiement</button>
                             <button type="button" class="btn btn-success btn-small"
-                                onclick="openDirectPaymentFromConsultationDraft()">💵 Encaisser maintenant</button>
+                                onclick="openDirectPaymentFromConsultationDraft()">Encaisser maintenant</button>
                         </div>
                     </div>
                 </div>
@@ -5215,7 +5686,7 @@
                 <!-- File Attachments Section -->
                 <div class="form-section"
                     style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">📎 Joindre des fichiers</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">Joindre des fichiers</h4>
                     <p style="font-size: 12px; color: var(--text-light); margin: 0 0 10px 0;">Radios, Analyses, Rapports
                         médicaux, etc.</p>
                     <div style="padding: 15px; background: white; border-radius: 6px; border: 2px dashed #0066cc;">
@@ -5253,6 +5724,55 @@
                         Ajouter Ordonnance
                     </button>
                     <button type="button" id="consultation-save-btn" class="btn btn-primary" onclick="document.getElementById('consultation-form').dispatchEvent(new Event('submit', {cancelable: true}))">Enregistrer la consultation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ajouter un Acte Médical (Nom + Prix) -->
+    <div id="modal-add-consultation-act" class="modal" style="z-index: 100050;">
+        <div class="modal-content" style="max-width: 440px; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Ajouter un Acte Médical</h3>
+                <button type="button" class="close-btn" onclick="closeModal('modal-add-consultation-act')" style="font-size: 20px; line-height: 1; border: none; background: transparent; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 18px 20px;">
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155; margin-bottom: 6px; display: block;">Nom / Libellé de l'acte :</label>
+                    <input type="text" id="new-act-name-input" class="form-control" placeholder="Ex: Nasofibroscopie, Pansement, Radio..." style="height: 38px; font-size: 13.5px;" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('new-act-price-input')?.focus();}">
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155; margin-bottom: 6px; display: block;">Tarif de l'acte (DZD) :</label>
+                    <input type="number" id="new-act-price-input" class="form-control" placeholder="2000" min="0" step="100" value="2000" style="height: 38px; font-size: 14px; font-weight: 600; color: #059669;" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmAddConsultationAct();}">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-consultation-act')">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAddConsultationAct()" style="font-weight: 600;">Ajouter l'acte</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Modifier le Tarif d'un Acte -->
+    <div id="modal-edit-consultation-act" class="modal" style="z-index: 100050;">
+        <div class="modal-content" style="max-width: 420px; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">Modifier le tarif de l'acte</h3>
+                <button type="button" class="close-btn" onclick="closeModal('modal-edit-consultation-act')" style="font-size: 20px; line-height: 1; border: none; background: transparent; cursor: pointer; color: #64748b;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 18px 20px;">
+                <input type="hidden" id="edit-act-key-input">
+                <div style="margin-bottom: 14px; background: #f1f5f9; padding: 10px 12px; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                    <div style="font-size: 11.5px; color: #64748b; font-weight: 600;">Acte sélectionné :</div>
+                    <div id="edit-act-name-display" style="font-size: 14px; font-weight: 700; color: #1e293b; margin-top: 2px;">Consultation médicale</div>
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="font-weight: 600; font-size: 13px; color: #334155; margin-bottom: 6px; display: block;">Nouveau tarif (DZD) :</label>
+                    <input type="number" id="edit-act-price-input" class="form-control" min="0" step="100" style="height: 38px; font-size: 15px; font-weight: 700; color: #059669;" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmEditConsultationActPrice();}">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-consultation-act')">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmEditConsultationActPrice()" style="font-weight: 600;">Enregistrer</button>
                 </div>
             </div>
         </div>
@@ -5523,19 +6043,19 @@
 
     <!-- Modal: Facture Document -->
     <div id="modal-facture" class="modal medical-document-modal">
-        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+        <div class="modal-content modal-large" style="max-width: 1240px; width: min(1240px, 96vw); max-height: 94vh; height: 94vh;">
             <div class="modal-header" style="background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
                 <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
                     🧾 Facture professionnelle
                 </h2>
                 <button class="close-btn" onclick="closeModal('modal-facture')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
             </div>
-            <div class="modal-body document-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
-                <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
-                <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
+            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow: hidden;">
+                <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (38%), Live Preview on Right (62%) -->
+                <div class="document-workstation-layout">
                     
                     <!-- Colonne Gauche : Formulaire de Saisie -->
-                    <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="document-workstation-form">
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
@@ -5592,8 +6112,8 @@
                     </div>
 
                     <!-- Colonne Droite : Aperçu Visuel Feuille A5 Réaliste -->
-                    <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
-                        <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+                    <div class="document-workstation-preview">
+                        <div class="form-group document-preview-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
                                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -5601,7 +6121,7 @@
                                 </label>
                                 <span style="font-size: 11px; font-weight: 600; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
                             </div>
-                            <div id="facture-preview" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
+                            <div id="facture-preview" class="document-live-preview"></div>
                         </div>
                     </div>
                 </div>
@@ -5625,145 +6145,21 @@
                 <h2>📄 Rapport médical</h2>
                 <button class="close-btn" onclick="closeModal('modal-rapport')">&times;</button>
             </div>
-            <div class="modal-body document-modal-body">
-                <input type="hidden" id="rapport-specialty-key">
-                <div class="document-editor-hero document-editor-hero--slate">
-                    <div class="document-editor-brand">
-                        <div class="document-editor-logo">
-                            <img src="assets/logo.png" alt="Logo MedCareSO">
-                        </div>
-                        <div>
-                            <div id="rapport-hero-kicker" class="document-editor-kicker">Compte-rendu du cabinet</div>
-                            <div id="rapport-hero-title" class="document-editor-title">Rapport médical structuré</div>
-                            <div id="rapport-hero-subtitle" class="document-editor-subtitle">Rédaction plus propre,
-                                meilleure lecture et impression plus professionnelle.</div>
-                        </div>
-                    </div>
-                    <div id="rapport-hero-badge" class="document-editor-badge">Rapport</div>
-                </div>
-                <div class="document-summary-grid">
-                    <div>
-                        <p><strong>Patient :</strong> <span id="rapport-patient-name">-</span></p>
-                        <p><strong>Âge :</strong> <span id="rapport-age">-</span></p>
-                    </div>
-                    <div>
-                        <p><strong>Mis à jour :</strong> <span id="rapport-updated">-</span></p>
-                        <p><strong>Médecin :</strong> <span id="rapport-doctor">-</span></p>
-                        <p><strong>Type :</strong> <span id="rapport-type-label">-</span></p>
-                    </div>
-                </div>
-
-                <div id="rapport-view-banner"
-                    style="display: none; margin-bottom: 15px; padding: 10px 12px; border-radius: 8px; border: 1px solid #ffeeba; background: #fff8e1; color: #856404; font-size: 14px; align-items: center; gap: 8px;">
-                    <span>👁️ Rapport affiché en lecture seule. Cliquez sur <strong>Modifier</strong> pour
-                        l'éditer.</span>
-                </div>
-
-                <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; margin-top: 10px;">
-                    <!-- Left Column: Inputs -->
-                    <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 10px;">
-                        <div class="form-row" id="rapport-title-row" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin: 0;">
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Titre du rapport *</label>
-                                <input type="text" id="rapport-title" class="form-control" placeholder="Ex: COMPTE RENDU" required style="height: 36px; font-size: 13px;">
-                            </div>
-                            <div class="form-group" style="margin: 0;">
-                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date du rapport *</label>
-                                <input type="date" id="rapport-date" class="form-control" required style="height: 36px; font-size: 13px;">
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="rapport-motif-row" style="margin: 0;">
-                            <label id="rapport-label-motif" style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Indications *</label>
-                            <textarea id="rapport-motif" class="form-control" rows="3" placeholder="Ex: symptômes, douleurs, plainte du patient à l'arrivée..." required style="font-size: 13px; line-height: 1.4; resize: vertical; min-height: 60px;"></textarea>
-                        </div>
-
-                        <div class="form-group" id="rapport-organs-group" style="display: none; margin: 0;">
-                            <div class="rapport-organs-header" style="margin-bottom: 6px;">
-                                <div>
-                                    <label id="rapport-label-organ" style="margin-bottom: 0; font-weight: 650; font-size: 12.5px;">Organes / Zones examinés</label>
-                                    <p class="rapport-organs-help" style="font-size: 11px; margin: 0;">Ajoutez des organes puis remplissez leur description.</p>
-                                </div>
-                                <button type="button" id="rapport-add-organ-btn" class="btn btn-secondary btn-small" style="font-size: 11.5px; height: 26px; padding: 0 8px;">+ Ajouter un organe</button>
-                            </div>
-                            <div id="rapport-organs-empty" class="rapport-organs-empty" style="font-size: 12px; padding: 6px;">Aucun organe ajouté.</div>
-                            <div id="rapport-organs-list" class="rapport-organs-list" style="max-height: 150px; overflow-y: auto;"></div>
-                        </div>
-
-                        <div class="form-group" id="rapport-reco-group" style="margin: 0;">
-                            <label id="rapport-label-reco" style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Conclusion *</label>
-                            <textarea id="rapport-reco" class="form-control" rows="3" placeholder="Conclusion diagnostique, résumé final et suites à donner..." required style="font-size: 13px; line-height: 1.4; resize: vertical; min-height: 65px;"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Right Column: Live Document Preview -->
-                    <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
-                        <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
-                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1677ff" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    <span>Aperçu du rapport en direct</span>
-                                </label>
-                                <span style="font-size: 11px; font-weight: 600; color: #1677ff; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px;">⚡ Temps réel</span>
-                            </div>
-                            <div id="rapport-preview" class="document-live-preview document-live-preview--a5" style="flex: 1; min-height: 400px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer modal-footer-split">
-                <button class="btn" onclick="closeModal('modal-rapport')">Fermer</button>
-                <div class="modal-footer-actions">
-                    <button id="rapport-save-btn" class="btn btn-primary" onclick="saveRapportDocument()">💾
-                        Enregistrer</button>
-                    <button id="rapport-print-btn" class="btn btn-secondary" onclick="printRapportDocument()">💾🖨️
-                        Enregistrer et imprimer</button>
-                </div>
+            <div class="modal-body">
+                <div id="rapport-preview" class="document-live-preview"></div>
             </div>
         </div>
     </div>
 
+    <!-- Modal: Cardiology Profile View (Document Template Preview) -->
     <div id="modal-cardiology-profile-view" class="modal medical-document-modal">
-        <div class="modal-content modal-medium cardiology-profile-modal-content">
+        <div class="modal-content modal-large">
             <div class="modal-header">
-                <h2>💓 Bilan cardiologique</h2>
+                <h2>🫀 Profil Cardiologique - Modèle de Document</h2>
                 <button class="close-btn" onclick="closeModal('modal-cardiology-profile-view')">&times;</button>
             </div>
-            <div class="modal-body document-modal-body">
-                <div class="document-editor-hero document-editor-hero--crimson">
-                    <div class="document-editor-brand">
-                        <div class="document-editor-logo">
-                            <img src="assets/logo.png" alt="Logo MedCareSO">
-                        </div>
-                        <div>
-                            <div class="document-editor-kicker">Cardiologie</div>
-                            <div class="document-editor-title">Bilan cardiologique enregistré</div>
-                            <div class="document-editor-subtitle">Lecture rapide du motif, des explorations et de la
-                                conclusion sans repasser par une longue page.</div>
-                        </div>
-                    </div>
-                    <div class="document-editor-badge">Bilan</div>
-                </div>
-
-                <div class="document-summary-grid">
-                    <div>
-                        <p><strong>Patient :</strong> <span id="cardiology-view-patient-name">-</span></p>
-                        <p><strong>Motif :</strong> <span id="cardiology-view-motif">-</span></p>
-                    </div>
-                    <div>
-                        <p><strong>Date :</strong> <span id="cardiology-view-date">-</span></p>
-                        <p><strong>Tension :</strong> <span id="cardiology-view-blood-pressure">-</span></p>
-                    </div>
-                </div>
-
-                <div id="cardiology-profile-view-content" class="cardiology-profile-view-grid"></div>
-            </div>
-            <div class="modal-footer modal-footer-split">
-                <button class="btn" onclick="closeModal('modal-cardiology-profile-view')">Fermer</button>
-                <div class="modal-footer-actions">
-                    <button class="btn btn-primary" type="button"
-                        onclick="openViewedCardiologyProfileInWorkspace()">Modifier ce bilan</button>
-                </div>
+            <div class="modal-body">
+                <div id="cardiology-profile-preview" class="document-live-preview"></div>
             </div>
         </div>
     </div>
@@ -5936,23 +6332,23 @@
 
     <!-- Modal: Add Sick Leave (Certificat médical & Arrêt de travail) -->
     <div id="modal-add-sickleave" class="modal medical-document-modal">
-        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+        <div class="modal-content modal-large" style="max-width: 1240px; width: min(1240px, 96vw); max-height: 94vh; height: 94vh;">
             <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
                 <h2 id="sickleave-modal-main-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
                     🪪 Certificat médical
                 </h2>
                 <button class="close-btn" onclick="closeModal('modal-add-sickleave')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
             </div>
-            <div class="modal-body document-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
+            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow: hidden;">
                 <form id="sickleave-form">
                     <input type="hidden" id="sickleave-patient-id">
                     <input type="hidden" id="sickleave-rest-days">
 
-                    <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
-                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
+                    <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (38%), Live Preview on Right (62%) -->
+                    <div class="document-workstation-layout">
                         
                         <!-- Colonne Gauche : Formulaire de Saisie -->
-                        <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="document-workstation-form">
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
@@ -6000,14 +6396,19 @@
                             </div>
 
                             <div id="sickleave-raw-text-container" style="display: none;" class="form-group">
-                                <label style="font-weight: 650; font-size: 12px; color: #475569; margin-bottom: 3px; display: block;">Texte exact du document (reflète la saisie) :</label>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                    <label style="font-weight: 650; font-size: 12px; color: #475569; margin: 0;">Texte exact du document (reflète la saisie) :</label>
+                                    <button type="button" class="btn btn-secondary btn-small" onclick="saveSickLeaveRawTextAsDefaultTemplate()" style="font-size: 11px; height: 26px; padding: 0 10px; background: #f0fdf4; border: 1px solid #86efac; color: #15803d; font-weight: 600; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                        💾 Mémoriser comme texte par défaut
+                                    </button>
+                                </div>
                                 <textarea id="sickleave-preview-text" class="form-control" rows="4" style="font-size: 12.5px; line-height: 1.5; font-family: monospace; resize: vertical;"></textarea>
                             </div>
                         </div>
 
                         <!-- Colonne Droite : Aperçu Visuel Feuille A5 Réaliste -->
-                        <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
-                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+                        <div class="document-workstation-preview">
+                            <div class="form-group document-preview-card">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                     <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
                                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -6015,7 +6416,7 @@
                                     </label>
                                     <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
                                 </div>
-                                <div id="sickleave-live-preview-sheet" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
+                                <div id="sickleave-live-preview-sheet" class="document-live-preview"></div>
                             </div>
                         </div>
                     </div>
@@ -6033,11 +6434,238 @@
         </div>
     </div>
 
+    <!-- Modal: Nasofibroscopie Document (ORL) -->
+    <div id="modal-nasofibroscopie" class="modal medical-document-modal">
+        <div class="modal-content modal-large" style="max-width: 1300px; width: min(1300px, 96vw); max-height: 94vh; height: 94vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <h2 id="nasofibro-modal-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    Compte-rendu de Nasofibroscopie
+                </h2>
+                <button class="close-btn" onclick="closeModal('modal-nasofibroscopie')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow-y: auto; flex: 1; min-height: 0;">
+                <form id="nasofibro-form" onsubmit="event.preventDefault(); saveAndPrintNasofibroscopie();" style="height: 100%; display: flex; flex-direction: column;">
+                    <input type="hidden" id="nasofibro-patient-id">
+                    <input type="hidden" id="nasofibro-doc-id">
+
+                    <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left, Live Preview on Right -->
+                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: minmax(380px, 1fr) minmax(420px, 1.15fr); gap: 16px; flex: 1; min-height: 0;">
+                        
+                        <!-- Colonne Gauche : Formulaire de Saisie Scrollable -->
+                        <div class="document-workstation-form" style="overflow-y: auto; padding-right: 8px; display: flex; flex-direction: column; gap: 10px; max-height: calc(94vh - 145px);">
+                            
+                            <!-- Patient Banner & Date -->
+                            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <span style="font-size: 11px; color: #0369a1; font-weight: 600; text-transform: uppercase;">Patient :</span>
+                                    <strong id="nasofibro-patient-summary" style="font-size: 13.5px; color: #0f172a; margin-left: 6px;">-</strong>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #0369a1; margin: 0;">Date :</label>
+                                    <input type="date" id="nasofibro-date" class="form-control" style="height: 30px; font-size: 12.5px; width: 140px; padding: 2px 6px;">
+                                </div>
+                            </div>
+
+                            <!-- 1. Fosses Nasales (Droite / Gauche) -->
+                            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #ffffff;">
+                                <label style="font-weight: 800; font-size: 12.5px; color: #0369a1; text-transform: uppercase; margin-bottom: 8px; display: block;">Fosses Nasales</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Fosse Droite</span>
+                                        <textarea id="nasofibro-fosses-droite" class="form-control" rows="2" placeholder="Muqueuse, cornet inférieur, méat moyen..." style="font-size: 12.5px; resize: vertical; min-height: 52px;"></textarea>
+                                    </div>
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Fosse Gauche</span>
+                                        <textarea id="nasofibro-fosses-gauche" class="form-control" rows="2" placeholder="Muqueuse, cornet inférieur, méat moyen..." style="font-size: 12.5px; resize: vertical; min-height: 52px;"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Choanes & Cavum -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px;">CHOANES</label>
+                                    <textarea id="nasofibro-choanes" class="form-control" rows="2" placeholder="Libres, perméables..." style="font-size: 12.5px; resize: vertical; min-height: 50px;"></textarea>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px;">CAVUM (Rhinopharynx)</label>
+                                    <textarea id="nasofibro-cavum" class="form-control" rows="2" placeholder="Libre, bourrelets tubaires, végétations..." style="font-size: 12.5px; resize: vertical; min-height: 50px;"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- 3. Pharynx & Larynx -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px;">PHARYNX (Oropharynx / Hypopharynx)</label>
+                                    <textarea id="nasofibro-pharynx" class="form-control" rows="2" placeholder="Paroi postérieure, sinus piriformes..." style="font-size: 12.5px; resize: vertical; min-height: 50px;"></textarea>
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px;">LARYNX</label>
+                                    <textarea id="nasofibro-larynx" class="form-control" rows="2" placeholder="Cordes vocales, mobilité, aspect..." style="font-size: 12.5px; resize: vertical; min-height: 50px;"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- 4. Conclusion -->
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-weight: 800; font-size: 12.5px; color: #0284c7; margin-bottom: 4px; display: block;">CONCLUSION</label>
+                                <textarea id="nasofibro-conclusion" class="form-control" rows="3" placeholder="Synthèse de l'examen nasofibroscopique et conduite à tenir..." style="font-size: 13px; font-weight: 600; line-height: 1.4; resize: vertical; min-height: 60px;"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Colonne Droite : Aperçu Visuel Feuille A4 Réaliste -->
+                        <div class="document-workstation-preview" style="display: flex; flex-direction: column; min-height: 0; max-height: calc(94vh - 145px);">
+                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-shrink: 0;">
+                                    <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0284c7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <span>Aperçu en direct (Format A4)</span>
+                                    </label>
+                                    <span style="font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;">Mise à jour instantanée</span>
+                                </div>
+                                <div id="nasofibro-live-preview-sheet" class="document-live-preview" style="flex: 1; min-height: 420px; background: #475569; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.12);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer modal-footer-split" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-nasofibroscopie')">Annuler</button>
+                        <div class="modal-footer-actions" style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary" style="background: #0284c7; border-color: #0369a1; font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                                💾🖨️ Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Compte-rendu d'Échographie Cervicale -->
+    <div id="modal-echographie-cervicale" class="modal medical-document-modal">
+        <div class="modal-content modal-large" style="max-width: 1300px; width: min(1300px, 96vw); max-height: 94vh; height: 94vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <h2 id="echocervicale-modal-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                    Compte-rendu d'Échographie Cervicale
+                </h2>
+                <button class="close-btn" onclick="closeModal('modal-echographie-cervicale')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow-y: auto; flex: 1; min-height: 0;">
+                <form id="echocervicale-form" onsubmit="event.preventDefault(); saveAndPrintEchographieCervicale();" style="height: 100%; display: flex; flex-direction: column;">
+                    <input type="hidden" id="echocervicale-patient-id">
+                    <input type="hidden" id="echocervicale-doc-id">
+
+                    <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left, Live Preview on Right -->
+                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: minmax(380px, 1fr) minmax(420px, 1.15fr); gap: 16px; flex: 1; min-height: 0;">
+                        
+                        <!-- Colonne Gauche : Formulaire de Saisie Scrollable -->
+                        <div class="document-workstation-form" style="overflow-y: auto; padding-right: 8px; display: flex; flex-direction: column; gap: 10px; max-height: calc(94vh - 145px);">
+                            
+                            <!-- Patient Banner & Date -->
+                            <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <div>
+                                    <span style="font-size: 11px; color: #0369a1; font-weight: 600; text-transform: uppercase;">Patient :</span>
+                                    <strong id="echocervicale-patient-summary" style="font-size: 13.5px; color: #0f172a; margin-left: 6px;">-</strong>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #0369a1; margin: 0;">Date :</label>
+                                    <input type="date" id="echocervicale-date" class="form-control" style="height: 30px; font-size: 12.5px; width: 140px; padding: 2px 6px;">
+                                </div>
+                            </div>
+
+                            <!-- Technique -->
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 3px; display: block;">TECHNIQUE</label>
+                                <input type="text" id="echocervicale-technique" class="form-control" value="Balayage avec une sonde de 7-10 MHz de la région cervicale" style="font-size: 12.5px; height: 32px; padding: 2px 8px;">
+                            </div>
+
+                            <!-- A. Glande Thyroïde -->
+                            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #ffffff;">
+                                <label style="font-weight: 800; font-size: 12.5px; color: #0369a1; text-transform: uppercase; margin-bottom: 8px; display: block;">A. GLANDE THYROÏDE</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Lobe droit</span>
+                                        <textarea id="echocervicale-lobe-droit" class="form-control" rows="2" placeholder="Dimensions, échostructure, contours..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                                    </div>
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Lobe gauche</span>
+                                        <textarea id="echocervicale-lobe-gauche" class="form-control" rows="2" placeholder="Dimensions, échostructure, contours..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Isthme</span>
+                                    <textarea id="echocervicale-isthme" class="form-control" rows="2" placeholder="Épaisseur, aspect..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 44px;"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- B. Les Aires Ganglionnaires -->
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px; display: block;">B. LES AIRES GANGLIONNAIRES</label>
+                                <textarea id="echocervicale-aires" class="form-control" rows="2" placeholder="Adénopathies, taille, morphologie..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                            </div>
+
+                            <!-- C. Les Glandes Salivaires -->
+                            <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #ffffff;">
+                                <label style="font-weight: 800; font-size: 12.5px; color: #0369a1; text-transform: uppercase; margin-bottom: 8px; display: block;">C. LES GLANDES SALIVAIRES</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Glandes sous-mandibulaires</span>
+                                        <textarea id="echocervicale-glandes-sm" class="form-control" rows="2" placeholder="Taille, échostructure..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                                    </div>
+                                    <div>
+                                        <span style="font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 3px;">Glandes parotides</span>
+                                        <textarea id="echocervicale-parotides" class="form-control" rows="2" placeholder="Taille, échostructure..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- D. Axes Vasculaires -->
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px; display: block;">D. AXES VASCULAIRES</label>
+                                <textarea id="echocervicale-axes" class="form-control" rows="2" placeholder="Carotides, jugulaires, perméabilité..." style="font-size: 12px; font-style: italic; resize: vertical; min-height: 48px;"></textarea>
+                            </div>
+
+                            <!-- Conclusion -->
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-weight: 800; font-size: 12.5px; color: #0284c7; margin-bottom: 4px; display: block;">CONCLUSION</label>
+                                <textarea id="echocervicale-conclusion" class="form-control" rows="3" placeholder="Synthèse de l'échographie cervicale et conduite à tenir..." style="font-size: 13px; font-weight: 600; font-style: italic; line-height: 1.4; resize: vertical; min-height: 58px;"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Colonne Droite : Aperçu Visuel Feuille A4 Réaliste -->
+                        <div class="document-workstation-preview" style="display: flex; flex-direction: column; min-height: 0; max-height: calc(94vh - 145px);">
+                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-shrink: 0;">
+                                    <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0284c7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        <span>Aperçu en direct (Format A4)</span>
+                                    </label>
+                                    <span style="font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;">Mise à jour instantanée</span>
+                                </div>
+                                <div id="echocervicale-live-preview-sheet" class="document-live-preview" style="flex: 1; min-height: 420px; background: #475569; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.12);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer modal-footer-split" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-echographie-cervicale')">Annuler</button>
+                        <div class="modal-footer-actions" style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary" style="background: #0284c7; border-color: #0369a1; font-weight: 700; height: 38px; padding: 0 20px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                                💾🖨️ Enregistrer et imprimer
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Add Payment -->
     <div id="modal-add-payment" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="payment-modal-title">💰 Enregistrer un Paiement</h2>
+                <h2 id="payment-modal-title">Enregistrer un Paiement</h2>
                 <button class="close-btn" onclick="closeModal('modal-add-payment')">&times;</button>
             </div>
             <div class="modal-body">
@@ -6096,8 +6724,7 @@
                     </div>
 
                     <div class="payment-form-actions" style="display: flex; gap: 10px;">
-                        <button type="button" id="payment-save-btn" class="btn btn-primary" onclick="savePayment()">💾
-                            Enregistrer</button>
+                        <button type="button" id="payment-save-btn" class="btn btn-primary" onclick="savePayment()">Enregistrer</button>
                         <button type="button" class="btn btn-secondary"
                             onclick="closeModal('modal-add-payment')">Annuler</button>
                     </div>
@@ -6110,7 +6737,7 @@
     <div id="modal-payment-request" class="modal payment-request-modal">
         <div class="modal-content payment-request-shell">
             <div class="modal-header">
-                <h2>💰 Demander un Paiement</h2>
+                <h2>Demander un Paiement</h2>
                 <button class="close-btn" onclick="closeModal('modal-payment-request')">&times;</button>
             </div>
             <div class="modal-body">
@@ -7399,10 +8026,12 @@
             </div>
             
             <div class="modal-body" style="padding: 24px 20px; text-align: center; background: #ffffff;">
-                <div style="display: inline-flex; align-items: center; gap: 6px; background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 18px;">
+                <div id="mobile-server-status-badge" style="display: inline-flex; align-items: center; gap: 6px; background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 18px;">
                     <span style="display: inline-block; width: 6px; height: 6px; background: #52c41a; border-radius: 50%;"></span>
-                    Serveur Local Actif • Même réseau Wi-Fi
+                    <span id="mobile-server-status-text">Serveur Local Actif • Même réseau Wi-Fi</span>
                 </div>
+
+                <div id="mobile-share-warning" style="display: none; text-align: left; background: #fff7e6; border: 1px solid #ffd591; color: #ad4e00; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; line-height: 1.55; margin-bottom: 16px;"></div>
 
                 <!-- QR Code Container -->
                 <div id="mobile-qr-wrapper" style="position: relative; width: 210px; height: 210px; margin: 0 auto 18px; padding: 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center;">
@@ -7455,6 +8084,90 @@
                             Ouvrir
                         </button>
                     </div>
+
+                    <!-- Network IP Selector (Wi-Fi vs Phone Hotspot) -->
+                    <div id="mobile-ip-select-container" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label style="font-size: 11.5px; font-weight: 600; color: #475569; margin: 0;">Point d'accès / Réseau utilisé :</label>
+                            <button type="button" class="btn btn-secondary btn-small" onclick="refreshMobileAccessModal()" title="Actualiser le réseau" style="height: 24px; padding: 0 8px; font-size: 11px; background: #ffffff; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer;">🔄 Détecter l'IP</button>
+                        </div>
+                        <select id="mobile-ip-select" class="form-control" onchange="onMobileNetworkAddressChange(this.value)" style="width: 100%; height: 32px; font-size: 12px; border-radius: 6px; background: #ffffff; border: 1px solid #cbd5e1;"></select>
+                    </div>
+
+                    <!-- Hotspot Troubleshooting Tips -->
+                    <details style="margin-top: 10px; font-size: 11.5px; color: #475569; text-align: left; background: #f1f5f9; border-radius: 6px; padding: 6px 10px;">
+                        <summary style="font-weight: 600; cursor: pointer; color: #0284c7;">ℹ️ Astuces si écran blanc en Partage de Connexion (Hotspot)</summary>
+                        <div style="margin-top: 6px; line-height: 1.5;">
+                            • <strong>Changement de réseau</strong> : Cliquez sur <em>« Détecter l'IP »</em> pour régénérer le QR code avec la nouvelle adresse IP du hotspot.<br>
+                            • <strong>Réseau Windows</strong> : Assurez-vous que la connexion au hotspot est configurée en <em>Réseau Privé</em> dans Windows.<br>
+                            • <strong>Isolation du smartphone</strong> : Sur certains téléphones, désactivez l'option <em>« Isolation AP / Isolation des clients »</em> dans les paramètres du point d'accès.
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== MODAL: IMPORT DIRECT RADIO (X-RAY) ===================== -->
+    <div id="modal-import-radio" class="modal">
+        <div class="modal-overlay" onclick="closeModal('modal-import-radio')"></div>
+        <div class="modal-content" style="max-width: 920px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 0; border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                    <h2 style="margin: 0; color: white; font-size: 17px; font-weight: 700;">Importer des clichés depuis l'appareil Radio (X-ray)</h2>
+                </div>
+                <button class="close-btn" onclick="closeModal('modal-import-radio')" style="color: white; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 18px 22px; overflow-y: auto; flex: 1;">
+                <!-- Dossier source & statut -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Dossier d'export Radio configuré</div>
+                        <div id="radio-modal-folder-display" style="font-size: 13px; font-weight: 600; color: #0f172a; word-break: break-all; margin-top: 2px;">Non configuré</div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn btn-secondary btn-small" onclick="pickRadioExportFolderModal()">Changer dossier...</button>
+                        <button type="button" class="btn btn-primary btn-small" onclick="refreshRadioExportFilesModal()" style="background: #0284c7; border-color: #0284c7;">Actualiser</button>
+                    </div>
+                </div>
+
+                <!-- Patient & Meta -->
+                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-weight: 600; font-size: 12px; color: #475569; margin-bottom: 4px; display: block;">Attacher au Patient</label>
+                        <div id="radio-modal-patient-name" style="padding: 7px 12px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; font-weight: 600; color: #0369a1; font-size: 13.5px;">-</div>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label style="font-weight: 600; font-size: 12px; color: #475569; margin-bottom: 4px; display: block;">Famille d'examen</label>
+                        <select id="radio-modal-exam-family" class="form-control" style="height: 36px; font-size: 12.5px;">
+                            <option value="Radiographie ORL (Blondeau, Cavum, OPN)" selected>Radiographie (Blondeau, Cavum, OPN)</option>
+                            <option value="Cone Beam / CBCT (Massif facial & Rochers)">Cone Beam / CBCT</option>
+                            <option value="Scanner CT / TDM (Rochers, Sinus, Cou)">Scanner CT / TDM</option>
+                            <option value="Panoramique dentaire">Panoramique dentaire</option>
+                            <option value="Échographie Cervicale & Salivaire">Échographie Cervicale & Salivaire</option>
+                            <option value="Autre exploration">Autre exploration</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Liste des clichés trouvés -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 12.5px; font-weight: 700; color: #334155;">Clichés récents disponibles (<span id="radio-modal-files-count">0</span>)</span>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="toggleSelectAllRadioFiles()" style="font-size: 11.5px; padding: 2px 8px;">Tout cocher / décocher</button>
+                </div>
+
+                <div id="radio-modal-files-list" style="min-height: 200px; max-height: 340px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #fafafa; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px;">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #94a3b8;">Chargement des fichiers...</div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span id="radio-modal-selection-count" style="font-size: 12.5px; font-weight: 600; color: #475569;">0 cliché(s) sélectionné(s)</span>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-import-radio')">Annuler</button>
+                    <button type="button" id="radio-modal-import-btn" class="btn btn-primary" onclick="submitRadioFilesImport()" style="background: #0284c7; border-color: #0284c7; font-weight: 600;" disabled>
+                        Importer dans le dossier patient
+                    </button>
                 </div>
             </div>
         </div>
@@ -7766,6 +8479,7 @@
     <script type="module" src="js/modules/dentistry.js"></script>
     <script src="js/modules/sms-config.js"></script>
     <script src="js/modules/cloud-sync.js"></script>
+    <script src="js/modules/daily-summary.js"></script>
     <script src="js/modules/init.js"></script>
     <script type="module" src="app/bootstrap.js"></script>
 </body>

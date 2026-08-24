@@ -46,6 +46,7 @@ function normalizePaymentListRequest(filters = {}) {
     startDate: String(filters.startDate || '').trim(),
     endDate: String(filters.endDate || '').trim(),
     paymentMethod: String(filters.paymentMethod || '').trim(),
+    practitionerId: String(filters.practitionerId || '').trim(),
     paginated: filters.paginated === true || filters.page !== undefined || filters.pageSize !== undefined,
     page: toPositiveInt(filters.page, 1),
     pageSize: Math.min(100, toPositiveInt(filters.pageSize, 25))
@@ -130,8 +131,8 @@ export function handlePaymentEvents() {
 
       await run(
         `INSERT INTO payments
-         (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, practitionerId, practitionerName, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           patientId,
@@ -141,6 +142,8 @@ export function handlePaymentEvents() {
           paymentData.paymentMethod || 'Especes',
           toNullIfEmpty(paymentData.description),
           toNullIfEmpty(paymentData.notes),
+          toNullIfEmpty(paymentData.practitionerId) || (global.currentUser?.isSuperAdmin || global.currentUser?.isAdmin ? null : global.currentUser?.id) || null,
+          toNullIfEmpty(paymentData.practitionerName) || [global.currentUser?.firstName, global.currentUser?.lastName].filter(Boolean).join(' ') || null,
           now,
           now
         ]
@@ -267,6 +270,11 @@ export function handlePaymentEvents() {
       if (request.paymentMethod) {
         whereParts.push('payments.paymentmethod = ?');
         params.push(request.paymentMethod);
+      }
+
+      if (request.practitionerId) {
+        whereParts.push('payments.practitionerid = ?');
+        params.push(request.practitionerId);
       }
 
       const scope = getPaymentAccessScope('payments', 'patients');

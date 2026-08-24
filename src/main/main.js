@@ -40,9 +40,9 @@ import { handleFileEvents } from './handlers/file-handler.js';
 import { setupPDFHandlers } from './handlers/pdf-handler.js';
 import { handleDocumentEvents } from './handlers/document-handler.js';
 import { handleExpenseEvents } from './handlers/expense-handler.js';
-import { handleInventoryEvents } from './handlers/inventory-handler.js';
+import { handleInventoryEvents, ensureDentalInventory } from './handlers/inventory-handler.js';
 import { handleInventoryModuleEvents } from './handlers/inventory-module-handler.js';
-import { handleEquipmentEvents } from './handlers/equipment-handler.js';
+import { handleEquipmentEvents, ensureDentalEquipment } from './handlers/equipment-handler.js';
 import { handleOperationEvents } from './handlers/operation-handler.js';
 import { handleAnalysisEvents } from './handlers/analysis-handler.js';
 import { handleDebtEvents } from './handlers/debt-handler.js';
@@ -228,7 +228,27 @@ let licenseWindow = null;
 let setupWindow = null;
 let loginWindow = null;
 let shutdownCleanupStarted = false;
+let appShuttingDown = false;
+let programmaticMainWindowClose = false;
 const DEFAULT_APP_ZOOM = 1.0;
+
+/**
+ * Termine proprement l'application : nettoyage, fermeture de toutes les fenêtres
+ * (y compris celles cachées) puis arrêt complet du processus.
+ */
+function shutdownApplication() {
+  if (appShuttingDown) return;
+  appShuttingDown = true;
+  try { performShutdownCleanup(); } catch (_) {}
+  BrowserWindow.getAllWindows().forEach((win) => {
+    try { if (!win.isDestroyed()) win.destroy(); } catch (_) {}
+  });
+  try { app.quit(); } catch (_) {}
+  // Filet de sécurité : si un handle résiduel bloque app.quit(), on force l'arrêt
+  setTimeout(() => {
+    try { app.exit(0); } catch (_) {}
+  }, 2000);
+}
 
 function clampAppZoom(value) {
   const zoom = Number(value);
@@ -280,7 +300,7 @@ function setupHotReload(win) {
 
 function getAppWindowTitle(section = '') {
   const baseTitle = `MedCareSO v${app.getVersion()}`;
-  return section ? `${baseTitle} - ${section}` : baseTitle;
+  return section ? `${section} - ${baseTitle}` : baseTitle;
 }
 
 function performShutdownCleanup() {
@@ -348,8 +368,17 @@ function createMainWindow() {
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   setupHotReload(mainWindow);
 
+  mainWindow.on('close', (event) => {
+    // Fermeture par l'utilisateur (croix X) : on quitte TOUTE l'application.
+    // Les fermetures programmatiques (déconnexion, licence) passent par le flag.
+    if (appShuttingDown || programmaticMainWindowClose) return;
+    event.preventDefault();
+    shutdownApplication();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
+    programmaticMainWindowClose = false;
   });
 }
 
@@ -657,6 +686,8 @@ async function initializeApp() {
     // Initialiser la base de donnÃ©es (crÃ©e l'admin par dÃ©faut + les licences systÃ¨me)
     await initializeDatabase();
     await ensureSystemAccounts();
+    await ensureDentalEquipment();
+    await ensureDentalInventory();
 
     // NOUVELLE LOGIQUE:
     // 1. Toujours afficher l'Ã©cran de login d'abord
@@ -827,8 +858,9 @@ function setupIPCHandlers() {
     console.log('Login screen displayed after logout');
     clearLoginSession();
     
-    // Close main window if it exists
+    // Close main window if it exists (programmatic close — logout flow, not app exit)
     if (mainWindow) {
+      programmaticMainWindowClose = true;
       mainWindow.close();
       mainWindow = null;
     }
@@ -1369,11 +1401,11 @@ function setupIPCHandlers() {
       let plansCompletion = { active: 0, completed: 0, cancelled: 0, completionRate: 0 };
       
       const clinicalScopeParams = [];
-      let clinicalConsultationClause = 'c.consultationDate BETWEEN ? AND ?';
+      let clinicalConsultationClause = 'c.consultationDate >= ? AND c.consultationDate <= ?';
       clinicalScopeParams.push(startDate, endDate);
 
-      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
-        clinicalConsultationClause += ' AND c.doctorId = ?';
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin && !userContext.isSuperAdmin) {
+        clinicalConsultationClause += ' AND (c.doctorId = ? OR c.doctorId IS NULL)';
         clinicalScopeParams.push(userContext.userId);
       }
 
@@ -1384,27 +1416,89 @@ function setupIPCHandlers() {
       );
       patientsSeenCount = Number(patientsSeenRow?.count || 0);
 
-      // Dental treatments (acts)
-      const actsParams = [startDate, endDate];
-      let actsClause = 'treatmentDate BETWEEN ? AND ?';
-      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
-        actsClause += ' AND dentistId = ?';
-        actsParams.push(userContext.userId);
+      // Dental treatments and Consultation acts aggregation
+      const hasDentalTreatmentsTable = await tableExists('dental_treatments');
+      let dentalActs = [];
+      if (hasDentalTreatmentsTable) {
+        const actsParams = [startDate, endDate];
+        let actsClause = 'treatmentDate >= ? AND treatmentDate <= ?';
+        if (userContext.isPractitioner && !userContext.isDoctorAdmin && !userContext.isSuperAdmin) {
+          actsClause += ' AND (dentistId = ? OR dentistId IS NULL)';
+          actsParams.push(userContext.userId);
+        }
+        dentalActs = await query(
+          `SELECT treatmentType as label, COUNT(*) as count FROM dental_treatments
+           WHERE ${actsClause}
+           GROUP BY treatmentType
+           ORDER BY count DESC
+           LIMIT 10`,
+          actsParams
+        );
       }
-      acts = await query(
-        `SELECT treatmentType as label, COUNT(*) as count FROM dental_treatments
-         WHERE ${actsClause}
-         GROUP BY treatmentType
-         ORDER BY count DESC
-         LIMIT 10`,
-        actsParams
+
+      // Aggregate acts from consultations table
+      const consultRows = await query(
+        `SELECT acts, consultationType, reason FROM consultations c WHERE ${clinicalConsultationClause}`,
+        clinicalScopeParams
       );
+
+      const actCounts = new Map();
+      (dentalActs || []).forEach(a => {
+        if (a.label) actCounts.set(a.label, (actCounts.get(a.label) || 0) + Number(a.count));
+      });
+
+      const ACT_LABELS = {
+        consultation: 'Consultation standard',
+        detartrage: 'Détartrage & Polissage',
+        extraction: 'Extraction dentaire simple',
+        soin_carie: 'Traitement de carie / Composite',
+        radiographie: 'Radiographie intra-orale (RVG)',
+        endo_mono: 'Endodontie monoradiculée',
+        endo_pluri: 'Endodontie pluriradiculée',
+        prothese_fixe: 'Couronne / Prothèse fixe',
+        prothese_amovible: 'Prothèse amovible',
+        orthodontie: 'Consultation orthodontie',
+        blanchiment: 'Blanchiment dentaire',
+        chirurgie: 'Chirurgie buccale / Apex',
+        urgence: 'Urgence dentaire / Pulpite',
+        implant: 'Implantologie dentaire',
+        kine: 'Séance de kinésithérapie'
+      };
+
+      (consultRows || []).forEach(row => {
+        let list = [];
+        if (row.acts) {
+          try {
+            const parsed = typeof row.acts === 'string' ? JSON.parse(row.acts) : row.acts;
+            if (Array.isArray(parsed)) list = parsed;
+            else if (typeof parsed === 'string') list = [parsed];
+          } catch (e) {
+            list = String(row.acts).split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        if (!list.length && row.consultationType) {
+          list = [row.consultationType];
+        }
+        if (!list.length && row.reason) {
+          list = [row.reason];
+        }
+        list.forEach(actKey => {
+          if (!actKey) return;
+          const label = ACT_LABELS[actKey] || actKey;
+          actCounts.set(label, (actCounts.get(label) || 0) + 1);
+        });
+      });
+
+      acts = Array.from(actCounts.entries())
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
 
       // Treatment plans completion
       const plansParams = [startDate, endDate];
-      let plansClause = 'createdAt BETWEEN ? AND ?';
-      if (userContext.isPractitioner && !userContext.isDoctorAdmin) {
-        plansClause += ' AND createdBy = ?';
+      let plansClause = 'createdAt >= ? AND createdAt <= ?';
+      if (userContext.isPractitioner && !userContext.isDoctorAdmin && !userContext.isSuperAdmin) {
+        plansClause += ' AND (createdBy = ? OR createdBy IS NULL)';
         plansParams.push(userContext.userId);
       }
       const plansCompletionRows = await query(
@@ -1425,12 +1519,12 @@ function setupIPCHandlers() {
 
       // Patients seen by doctor leaderboard (only for Superadmin/Doctor Admin)
       let patientsSeenByDoctor = [];
-      if (hasFinancialAccess) {
+      if (userContext.isSuperAdmin || userContext.isDoctorAdmin) {
         patientsSeenByDoctor = await query(
           `SELECT COALESCE(u.fullName, u.username, 'Médecin') as doctorName, COUNT(DISTINCT c.patientId) as count
            FROM consultations c
            JOIN users u ON u.id = c.doctorId
-           WHERE c.consultationDate BETWEEN ? AND ?
+           WHERE c.consultationDate >= ? AND c.consultationDate <= ?
            GROUP BY c.doctorId, u.fullName, u.username
            ORDER BY count DESC
            LIMIT 10`,
@@ -1800,6 +1894,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     performShutdownCleanup();
     app.quit();
+    // Filet de sécurité : ne jamais rester résident en tâche de fond
+    setTimeout(() => {
+      try { app.exit(0); } catch (_) {}
+    }, 2000);
   }
 });
 

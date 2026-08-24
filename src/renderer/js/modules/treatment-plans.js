@@ -10,6 +10,15 @@ const PLAN_STATUS_META = {
 };
 
 const PLAN_TREATMENT_TYPES = {
+  orl: [
+    'Protocole chirurgical',
+    'Traitement multi-séances',
+    'Rééducation vestibulaire',
+    'Suivi post-opératoire',
+    'Désensibilisation / Allergologie',
+    'Chimiothérapie / Curiethérapie ORL',
+    'Autre'
+  ],
   dentistry: [
     'Bagues métalliques',
     'Bagues céramique',
@@ -554,20 +563,10 @@ async function populatePlanEquipmentPicker(selectedUsage = []) {
   if (!container) return;
   try {
     const result = await window.api.equipment.getAll({});
-    let rows = result?.success ? (result.data || []) : [];
+    const rows = result?.success ? (result.data || []) : [];
     if (!rows.length) {
-      rows = [
-        { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', status: 'available' },
-        { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', status: 'available' },
-        { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', status: 'available' },
-        { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', status: 'available' },
-        { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", status: 'available' },
-        { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', status: 'available' },
-        { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', status: 'available' },
-        { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', status: 'available' },
-        { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", status: 'available' },
-        { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', status: 'available' }
-      ];
+      container.innerHTML = '<div style="color:#64748b;font-size:12.5px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;grid-column:1/-1;">Aucun équipement enregistré (Optionnel).</div>';
+      return;
     }
     const selected = new Set((selectedUsage || []).map(item => String(item.equipmentId || '')));
     container.innerHTML = rows.map(item => `
@@ -576,7 +575,7 @@ async function populatePlanEquipmentPicker(selectedUsage = []) {
         <span><strong>${esc(item.name)}</strong><small>${esc(EQUIPMENT_STATUS_LABELS?.[item.status] || item.status || 'Disponible')}</small></span>
       </label>`).join('');
   } catch (error) {
-    container.innerHTML = '<span class="care-equipment-empty">Impossible de charger les équipements.</span>';
+    container.innerHTML = '<div style="color:#64748b;font-size:12.5px;padding:8px;">Aucun équipement disponible.</div>';
   }
 }
 
@@ -1161,6 +1160,12 @@ async function submitPayment(planId) {
       const msg = isEditPayment ? 'Encaissement modifié' : (result.autoClosed ? 'Paiement complet — plan clôturé ✅' : 'Paiement enregistré');
       showNotification(msg, 'success');
       loadTreatmentPlans();
+      if (typeof loadPatientPayments === 'function' && typeof currentPatientId !== 'undefined') {
+        loadPatientPayments(currentPatientId);
+      }
+      if (typeof loadPayments === 'function') {
+        loadPayments();
+      }
       const planFormModal = document.getElementById('create-plan-modal');
       const shouldRefreshPlanForm = planFormModal?.dataset.mode === 'edit' && planFormModal?.dataset.planId === planId;
       if (document.getElementById('edit-plan-modal') || shouldRefreshPlanForm) openEditPlanModal(planId);

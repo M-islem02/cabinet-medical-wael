@@ -284,7 +284,7 @@ function getPreviewTextHtml(text, emptyText = 'Aucun contenu pour le moment.') {
 }
 
 function buildDocumentPreviewShell({ kicker, title, subtitle, badge, meta = [], sections = [], highlight = null }) {
-  const metaHtml = meta.length ?`
+  const metaHtml = meta.length ? `
     <div class="document-live-preview-meta">
       ${meta.map((item) => `
         <div class="document-live-preview-meta-item">
@@ -295,7 +295,7 @@ function buildDocumentPreviewShell({ kicker, title, subtitle, badge, meta = [], 
     </div>
   ` : '';
 
-  const highlightHtml = highlight ?`
+  const highlightHtml = highlight ? `
     <div class="document-live-preview-highlight">
       <div class="document-live-preview-highlight-title">${escapeHTML(highlight.label)}</div>
       <div class="document-live-preview-highlight-value">${escapeHTML(highlight.value || '-')}</div>
@@ -310,244 +310,265 @@ function buildDocumentPreviewShell({ kicker, title, subtitle, badge, meta = [], 
   `).join('');
 
   return `
-    <div class="document-live-preview-header">
-      <div>
-        <div class="document-live-preview-kicker">${escapeHTML(kicker)}</div>
-        <div class="document-live-preview-title">${escapeHTML(title)}</div>
-        <div class="document-live-preview-subtitle">${escapeHTML(subtitle)}</div>
+    <div class="document-a5-sheet" style="width: 500px; min-width: 500px; max-width: 500px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 22px; box-shadow: 0 8px 25px rgba(0,0,0,0.18); font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; box-sizing: border-box;">
+      <div class="document-live-preview-header">
+        <div>
+          <div class="document-live-preview-kicker">${escapeHTML(kicker)}</div>
+          <div class="document-live-preview-title">${escapeHTML(title)}</div>
+          <div class="document-live-preview-subtitle">${escapeHTML(subtitle)}</div>
+        </div>
+        <div class="document-live-preview-badge">${escapeHTML(badge)}</div>
       </div>
-      <div class="document-live-preview-badge">${escapeHTML(badge)}</div>
+      ${metaHtml}
+      ${highlightHtml}
+      ${sectionsHtml}
     </div>
-    ${metaHtml}
-    ${highlightHtml}
-    ${sectionsHtml}
   `;
 }
 
 function renderFacturePreview() {
-  const previewEl = document.getElementById('facture-preview');
-  if (!previewEl) return;
+  const container = document.getElementById('facture-preview');
+  if (!container) return;
 
   autoComputeFactureTotal(false);
   const data = typeof normalizeFacturePayload === 'function'
-    ?normalizeFacturePayload(collectFactureFormData())
+    ? normalizeFacturePayload(collectFactureFormData())
     : collectFactureFormData();
   const totals = typeof calculateFactureTotals === 'function'
-    ?calculateFactureTotals(data)
+    ? calculateFactureTotals(data)
     : { baseTotal: Number(data.totalPrice) || 0, additionalTotal: 0, grandTotal: Number(data.totalPrice) || 0 };
-  const patientName = document.getElementById('facture-patient-name')?.textContent?.trim() || 'Patient';
-  const contact = document.getElementById('facture-patient-contact')?.textContent?.trim() || '-';
-  const invoiceDate = data.invoiceDate ?formatDateToDDMMYYYY(data.invoiceDate) : 'A preciser';
+  
+  const patient = currentPatientData || {
+    firstName: document.getElementById('facture-patient-name')?.textContent || 'Patient',
+    lastName: ''
+  };
+
+  const invoiceDate = data.invoiceDate ? formatDateToDDMMYYYY(data.invoiceDate) : (typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(new Date()) : new Date().toLocaleDateString('fr-FR'));
   const rawMainLabel = document.getElementById('facture-main-label')?.value?.trim() || '';
   const hasBaseRow = Boolean(rawMainLabel || data.numberOfSessions !== '' || data.unitPrice !== '' || totals.baseTotal);
   const baseDetails = [
-    data.numberOfSessions !== '' ? `${data.numberOfSessions} seance${Number(data.numberOfSessions) > 1 ? 's' : ''}` : '',
-    data.unitPrice !== '' ? `${formatDocumentCurrency(data.unitPrice)} / unite` : ''
-  ].filter(Boolean).join(' - ');
-  const detailRows = [];
+    data.numberOfSessions !== '' ? `${data.numberOfSessions} séance${Number(data.numberOfSessions) > 1 ? 's' : ''}` : '',
+    data.unitPrice !== '' ? `${formatDocumentCurrency(data.unitPrice)} / unité` : ''
+  ].filter(Boolean).join(' • ');
 
+  const invoiceRows = [];
   if (hasBaseRow) {
-    detailRows.push({
-      label: rawMainLabel || data.mainLabel || 'Consultation',
-      details: baseDetails || 'Prestation principale',
-      amount: (data.numberOfSessions !== '' || data.unitPrice !== '' || totals.baseTotal) ?totals.baseTotal : null
-    });
+    const hasBaseAmount = Boolean(totals.baseTotal || data.numberOfSessions !== '' || data.unitPrice !== '');
+    invoiceRows.push(`
+      <tr>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapePrintingHtml(rawMainLabel || data.mainLabel || 'Consultation')}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">${baseDetails || 'Prestation principale'}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasBaseAmount ? escapePrintingHtml(formatPrintCurrency(totals.baseTotal)) : '-'}</td>
+      </tr>
+    `);
   }
 
   (data.additionalItems || []).forEach((item) => {
-    detailRows.push({
-      label: item.label || 'Ligne supplementaire',
-      details: 'Montant',
-      amount: item.amount === '' || item.amount === null || item.amount === undefined ?null : Number(item.amount)
-    });
-  });
-
-  const tableRowsHtml = detailRows.length
-    ?detailRows.map((row) => `
-        <tr>
-          <td>${escapeHTML(row.label)}</td>
-          <td>${escapeHTML(row.details || '-')}</td>
-          <td>${row.amount === null ?'-' : escapeHTML(formatDocumentCurrency(row.amount))}</td>
-        </tr>
-      `).join('')
-    : `
+    const hasAmount = item.amount !== '' && item.amount !== null && item.amount !== undefined;
+    const amount = hasAmount ? Number(item.amount) : null;
+    invoiceRows.push(`
       <tr>
-        <td colspan="3">Aucune ligne de facturation ajoutée pour le moment.</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">${escapePrintingHtml(item.label || 'Ligne supplémentaire')}</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000;">Montant</td>
+        <td style="padding:2.2mm; border-bottom:1px solid #000; text-align:right; font-weight:700;">${hasAmount ? escapePrintingHtml(formatPrintCurrency(amount)) : '-'}</td>
       </tr>
-    `;
-  const totalLabel = data.totalPrice !== '' || totals.baseTotal || totals.additionalTotal
-    ?formatDocumentCurrency(totals.grandTotal)
-    : '-';
-  const baseTotalLabel = totals.baseTotal ?formatDocumentCurrency(totals.baseTotal) : '-';
-  const additionalTotalLabel = totals.additionalTotal ?formatDocumentCurrency(totals.additionalTotal) : '-';
-
-  previewEl.innerHTML = buildDocumentPreviewShell({
-    kicker: 'Document du cabinet',
-    title: 'Facture professionnelle',
-    subtitle: `Facture preparee pour ${patientName}`,
-    badge: 'Facture',
-    meta: [
-      { label: 'Patient', value: patientName },
-      { label: 'Date', value: invoiceDate },
-      { label: 'Contact', value: contact }
-    ],
-    highlight: {
-      label: 'Montant total',
-      value: totalLabel
-    },
-    sections: [
-      {
-        title: 'Details de facturation',
-        bodyHtml: `
-          <table class="document-live-preview-table">
-            <thead>
-              <tr>
-                <th>Designation</th>
-                <th>Details</th>
-                <th>Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRowsHtml}
-            </tbody>
-          </table>
-        `
-      },
-      {
-        title: 'Resume',
-        bodyHtml: `
-          <div class="document-live-preview-meta">
-            <div class="document-live-preview-meta-item">
-              <strong>Rythme</strong>
-              <span>${escapeHTML(data.rhythm || '-')}</span>
-            </div>
-            <div class="document-live-preview-meta-item">
-              <strong>Total principal</strong>
-              <span>${escapeHTML(baseTotalLabel)}</span>
-            </div>
-            <div class="document-live-preview-meta-item">
-              <strong>Autres montants</strong>
-              <span>${escapeHTML(additionalTotalLabel)}</span>
-            </div>
-          </div>
-        `
-      },
-      {
-        title: 'Notes complementaires',
-        bodyHtml: getPreviewTextHtml(data.notes, 'Aucune note complementaire.')
-      }
-    ]
+    `);
   });
+
+  const servicesTable = `
+    <table style="width:100%; border-collapse:collapse; font-size:10.8pt; margin-top:3mm;">
+      <thead>
+        <tr style="border-bottom:1.5px solid #000;">
+          <th style="text-align:left; padding:2.2mm; font-weight:700;">Désignation</th>
+          <th style="text-align:left; padding:2.2mm; font-weight:700;">Détails</th>
+          <th style="text-align:right; padding:2.2mm; font-weight:700;">Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${invoiceRows.length ? invoiceRows.join('') : `
+          <tr>
+            <td colspan="3" style="padding:2.2mm; border-bottom:1px solid #000;">Remplissez les champs de facturation pour visualiser le tableau.</td>
+          </tr>
+        `}
+      </tbody>
+    </table>
+  `;
+
+  const pageContent = `
+    <div style="margin-bottom: 4mm;">
+      <h3 style="font-size: ${typeof getPrintLayout === 'function' ? getPrintLayout('A5').sectionTitleFont : '11.5pt'}; margin-bottom: 2mm; border-bottom: 1px solid #000; padding-bottom: 1mm;">Détails de facturation</h3>
+      ${servicesTable}
+    </div>
+    <div style="margin-bottom: 4mm;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; font-size: 11.2pt; font-weight: 700;">
+        <span>Montant total</span>
+        <span>${escapePrintingHtml(formatPrintCurrency(totals.grandTotal))}</span>
+      </div>
+    </div>
+    ${data.notes ? `
+      <div class="content-box">
+        <h3>Notes</h3>
+        <div class="content-text">${formatPrintingRichTextHtml(data.notes, '')}</div>
+      </div>
+    ` : ''}
+  `;
+
+  if (typeof buildPrintableHtml === 'function') {
+    const html = buildPrintableHtml({
+      title: 'FACTURE',
+      subtitle: 'Facture',
+      dateLabel: invoiceDate,
+      patient,
+      bodyContentHtml: pageContent,
+      documentType: 'invoice',
+      documentNumber: 'FAC-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      pages: [pageContent]
+    });
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, html);
+    }
+  }
 }
 
 function renderRapportPreview() {
-  const previewEl = document.getElementById('rapport-preview');
-  if (!previewEl) return;
+  const container = document.getElementById('rapport-preview');
+  if (!container) return;
 
   const data = collectRapportFormData();
   const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
-    ?getPracticeSpecialtyMeta(data.specialtyKey)
-    : { report: { kicker: 'Compte-rendu medical', heroTitle: 'Rapport medical structure', badge: 'Rapport', typeLabel: 'Rapport medical', objectTitle: 'Objet du rapport', contextTitle: 'Contexte clinique', findingsTitle: 'Constatations / Examen', careTitle: 'Prise en charge', conclusionTitle: 'Conclusion et recommandations' } };
-  const patientName = document.getElementById('rapport-patient-name')?.textContent?.trim() || 'Patient';
-  const doctorName = document.getElementById('rapport-doctor')?.textContent?.trim() || 'Medecin';
-  const reportDate = data.date ?formatDateToDDMMYYYY(data.date) : 'A preciser';
+    ? getPracticeSpecialtyMeta(data.specialtyKey)
+    : { report: { kicker: 'Compte-rendu médical', heroTitle: 'Rapport médical structuré', badge: 'Rapport', typeLabel: 'Rapport médical', printTitle: 'COMPTE RENDU MÉDICAL' } };
+  
+  const patient = currentPatientData || {
+    firstName: document.getElementById('rapport-patient-name')?.textContent || 'Patient',
+    lastName: ''
+  };
+
+  const reportDate = data.date ? formatDateToDDMMYYYY(data.date) : (typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(new Date()) : new Date().toLocaleDateString('fr-FR'));
+
   const previewSections = [];
-
-  previewSections.push({
-    title: 'Indications',
-    bodyHtml: getPreviewTextHtml(data.motif, 'Les indications cliniques apparaitront ici.')
-  });
-
-  if (Array.isArray(data.organFindings) && data.organFindings.length) {
-    previewSections.push({
-      title: specialtyMeta.report.findingsTitle || 'Examen clinique',
-      bodyHtml: getPreviewTextHtml(
-        summarizeRapportOrganFindings(data.organFindings),
-        'Les constatations cliniques apparaitront ici.'
-      )
-    });
-  } else if (getRapportOrganOptionsForSpecialty(data.specialtyKey).length > 0) {
-    previewSections.push({
-      title: specialtyMeta.report.findingsTitle || 'Examen clinique',
-      bodyHtml: getPreviewTextHtml('', 'Ajoutez un ou plusieurs organes pour afficher les constatations.')
-    });
-  } else if (data.organTarget) {
-    previewSections.push({
-      title: specialtyMeta.report.findingsTitle || 'Examen clinique',
-      bodyHtml: getPreviewTextHtml(data.organTarget, 'Selectionnez un organe ou une zone.')
-    });
+  if (data.motif) {
+    previewSections.push(`
+      <div class="content-box">
+        <h3>Indications</h3>
+        <div class="content-text">${formatPrintingRichTextHtml(data.motif, '')}</div>
+      </div>
+    `);
   }
 
-  previewSections.push({
-    title: 'Conclusion',
-    bodyHtml: getPreviewTextHtml(data.recommandations, 'La conclusion du compte rendu apparaitra ici.')
-  });
+  if (Array.isArray(data.organFindings) && data.organFindings.length) {
+    previewSections.push(`
+      <div class="content-box">
+        <h3>${escapePrintingHtml(specialtyMeta?.report?.findingsTitle || 'Examen clinique')}</h3>
+        <div class="content-text">${formatPrintingRichTextHtml(summarizeRapportOrganFindings(data.organFindings), '')}</div>
+      </div>
+    `);
+  } else if (data.organTarget) {
+    previewSections.push(`
+      <div class="content-box">
+        <h3>${escapePrintingHtml(specialtyMeta?.report?.findingsTitle || 'Examen clinique')}</h3>
+        <div class="content-text">${formatPrintingRichTextHtml(data.organTarget, '')}</div>
+      </div>
+    `);
+  }
 
-  previewEl.innerHTML = buildDocumentPreviewShell({
-    kicker: specialtyMeta.report.kicker,
-    title: data.documentTitle || specialtyMeta.report.printTitle || specialtyMeta.report.heroTitle,
-    subtitle: `${specialtyMeta.report.typeLabel} etabli pour ${patientName} par ${doctorName}`,
-    badge: specialtyMeta.report.badge,
-    meta: [
-      { label: 'Patient', value: patientName },
-      { label: 'Date', value: reportDate },
-      { label: 'Emetteur', value: doctorName }
-    ],
-    sections: previewSections
-  });
+  if (data.recommandations) {
+    previewSections.push(`
+      <div class="content-box">
+        <h3>Conclusion</h3>
+        <div class="content-text">${formatPrintingRichTextHtml(data.recommandations, '')}</div>
+      </div>
+    `);
+  }
+
+  const pageContent = previewSections.length ? previewSections.join('') : `
+    <div class="content-box">
+      <h3>Observations</h3>
+      <div class="content-text">Remplissez les champs du formulaire pour visualiser le compte-rendu.</div>
+    </div>
+  `;
+
+  const reportTitle = (data.documentTitle || specialtyMeta?.report?.printTitle || 'COMPTE RENDU MÉDICAL').toUpperCase();
+
+  if (typeof buildPrintableHtml === 'function') {
+    const html = buildPrintableHtml({
+      title: reportTitle,
+      subtitle: specialtyMeta?.report?.typeLabel || 'Rapport médical',
+      dateLabel: reportDate,
+      patient,
+      bodyContentHtml: pageContent,
+      documentType: 'rapport',
+      documentNumber: 'RAP-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      pages: [pageContent]
+    });
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, html);
+    }
+  }
 }
 
 function renderOrientationPreview() {
-  const previewEl = document.getElementById('orientation-preview');
-  if (!previewEl) return;
+  const container = document.getElementById('orientation-preview');
+  if (!container) return;
 
-  const patientName = document.getElementById('orientation-patient-name')?.textContent?.trim() || 'Patient';
+  const patient = currentPatientData || {
+    firstName: document.getElementById('orientation-patient-name')?.textContent || 'Patient',
+    lastName: ''
+  };
+
+  const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : 'le patient';
   const dateValue = document.getElementById('orientation-date')?.value || '';
-  const dateLabel = dateValue ? formatDateToDDMMYYYY(dateValue) : 'A preciser';
-  const specialty = document.getElementById('orientation-specialty')?.value || 'Specialite a preciser';
+  const dateLabel = dateValue ? formatDateToDDMMYYYY(dateValue) : (typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(new Date()) : new Date().toLocaleDateString('fr-FR'));
+  const specialty = document.getElementById('orientation-specialty')?.value || '';
   const destinataire = document.getElementById('orientation-destinataire')?.value || 'confrere (consoeur)';
   const antecedents = document.getElementById('orientation-antecedents')?.value?.trim() || '';
   const symptoms = document.getElementById('orientation-symptoms')?.value?.trim() || '';
   const motif = document.getElementById('orientation-motif')?.value?.trim() || '';
-  const salutation = destinataire === 'confrere'
-    ? 'Cher confrere'
-    : destinataire === 'consoeur'
-      ? 'Chere consoeur'
-      : 'Cher confrere (consoeur)';
 
-  previewEl.innerHTML = buildDocumentPreviewShell({
-    kicker: 'Courrier medical',
-    title: "Lettre d'orientation",
-    subtitle: `Orientation vers ${specialty}`,
-    badge: 'Orientation',
-    meta: [
-      { label: 'Patient', value: patientName },
-      { label: 'Date', value: dateLabel },
-      { label: 'Specialite', value: specialty }
-    ],
-    sections: [
-      {
-        title: "Formule d'appel",
-        bodyHtml: getPreviewTextHtml(`${salutation},`)
-      },
-      {
-        title: 'Presentation du patient',
-        bodyHtml: getPreviewTextHtml(
-          antecedents
-            ? `Permettez-moi de vous adresser ${patientName}, avec pour antecedents: ${antecedents}.`
-            : `Permettez-moi de vous adresser ${patientName} pour avis specialise.`
-        )
-      },
-      {
-        title: 'Tableau clinique',
-        bodyHtml: getPreviewTextHtml(symptoms, 'Les symptomes ou le diagnostic apparaitront ici.')
-      },
-      {
-        title: "Motif de l'orientation",
-        bodyHtml: getPreviewTextHtml(motif, "Le motif de l'orientation apparaitra ici.")
-      }
-    ]
-  });
+  const normalizedDestinataire = String(destinataire || '').toLowerCase();
+  const salutation = normalizedDestinataire === 'confrere' || normalizedDestinataire === 'confrère'
+    ? 'Cher confrère,'
+    : normalizedDestinataire === 'consoeur' || normalizedDestinataire === 'consœur'
+      ? 'Chère consœur,'
+      : 'Cher confrère (consœur),';
+
+  const presentationSentence = antecedents
+    ? `Permettez-moi de vous adresser le patient(e) <strong>${escapeHTML(patientName)}</strong> aux antécédents de ${escapeHTML(antecedents)}.`
+    : `Permettez-moi de vous adresser le patient(e) <strong>${escapeHTML(patientName)}</strong>.`;
+
+  const letterContent = `
+    <div class="orientation-letter" style="font-size: 11pt; line-height: 1.7;">
+      <p class="orientation-salutation" style="margin-bottom: 3mm; font-weight: 600;">${escapeHTML(salutation)}</p>
+      <p style="margin-bottom: 3mm;">${presentationSentence}</p>
+      ${symptoms ? `<p style="margin-bottom: 3mm;">Qui présente: ${escapeHTML(symptoms)}.</p>` : ''}
+      ${motif ? `<p style="margin-bottom: 3mm;">Je vous le confie pour: ${escapeHTML(motif)}.</p>` : ''}
+      <p class="orientation-closing" style="margin-top: 4mm;">Avec mes remerciements anticipés et mes salutations confraternelles.</p>
+    </div>
+  `;
+
+  const pageContent = `
+    <div class="content-box orientation-letter-shell">
+      <div class="content-text orientation-letter">${letterContent}</div>
+    </div>
+  `;
+
+  const titleText = specialty ? `LETTRE D'ORIENTATION - ${specialty.toUpperCase()}` : "LETTRE D'ORIENTATION";
+
+  if (typeof buildPrintableHtml === 'function') {
+    const html = buildPrintableHtml({
+      title: titleText,
+      subtitle: `Orientation vers ${specialty || 'spécialité'}`,
+      dateLabel,
+      patient,
+      bodyContentHtml: pageContent,
+      documentType: 'orientation',
+      documentNumber: 'ORI-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      pages: [pageContent]
+    });
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, html);
+    }
+  }
 }
 
 function bindDocumentPreviewInputs(selectors, callback) {
@@ -1691,12 +1712,13 @@ async function openBonPourModal(patientId, preset = null) {
   // Create modal if it doesn't exist
   let modal = document.getElementById('modal-bonpour');
   if (!modal) {
+    const docTitle = typeof resolveBonPourDocumentTitle === 'function' ? resolveBonPourDocumentTitle() : 'Demande de Bilan';
     const modalHtml = `
       <div id="modal-bonpour" class="modal medical-document-modal">
         <div class="modal-overlay" onclick="closeModal('modal-bonpour')"></div>
         <div class="modal-content modal-large">
           <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); color: white;">
-            <h2>Faire Svp - Demande médicale</h2>
+            <h2 id="bonpour-modal-header-title">${escapeHTML(docTitle)} - Demande médicale</h2>
             <button class="close-btn" onclick="closeModal('modal-bonpour')" style="color: white;">&times;</button>
           </div>
           <div class="modal-body document-modal-body bonpour-modal-body">
@@ -1705,11 +1727,11 @@ async function openBonPourModal(patientId, preset = null) {
             <div class="document-editor-hero document-editor-hero--violet">
               <div class="document-editor-brand">
                 <div class="document-editor-logo">
-                  ${typeof getDocumentEditorLogoHTML === 'function' ?getDocumentEditorLogoHTML() : '<span>MC</span>'}
+                  ${typeof getDocumentEditorLogoHTML === 'function' ? getDocumentEditorLogoHTML() : '<span>MC</span>'}
                 </div>
                 <div>
                   <div class="document-editor-kicker">Demande médicale</div>
-                  <div class="document-editor-title">Faire Svp</div>
+                  <div class="document-editor-title" id="bonpour-modal-hero-title">${escapeHTML(docTitle)}</div>
                   <div class="document-editor-subtitle">Préparez une demande claire pour l'imagerie, les analyses ou un examen spécialisé.</div>
                 </div>
               </div>
@@ -1762,7 +1784,7 @@ async function openBonPourModal(patientId, preset = null) {
 
             <div class="bonpour-top-grid">
               <div class="form-group bonpour-details-card">
-                <label>Détails de la demande</label>
+                <label>Détails de la demande générée</label>
                 <textarea id="bonpour-details" class="form-control bonpour-details-source" rows="6" placeholder="Précisez les examens demandés..."></textarea>
                 <div class="bonpour-details-columns">
                   <textarea id="bonpour-details-left" class="form-control bonpour-details-column" rows="6" placeholder="- TDM des rochers sans injection&#10;- IRM des CAI avec Gadolinium&#10;- Panoramique dentaire"></textarea>
@@ -1785,17 +1807,23 @@ async function openBonPourModal(patientId, preset = null) {
                 </div>
               </div>
             </div>
-            
-            <div id="bonpour-specialty-presets-container" class="bonpour-specialty-presets-container" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block;">Modèles d'examens par spécialité</label>
+
+            <div id="bonpour-specialty-presets-container" class="bonpour-specialty-presets-container" style="background: #f8fafc; padding: 12px 16px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e2e8f0; width: 100%; box-sizing: border-box;">
+              <label style="font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: 6px; display: block;">⚡ Modèles d'examens rapides par spécialité :</label>
               <div id="bonpour-specialty-presets" class="patient-documents-chip-grid" style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <!-- Populated dynamically by JS -->
               </div>
             </div>
-            
-            <div class="orientation-quick-panel bonpour-check-panel" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="font-size: 13px; font-weight: 600; margin-bottom: 10px; display: block;">Examens courants (cochez pour ajouter)</label>
-              <div id="bonpour-quick-items" class="checkbox-grid bonpour-checkbox-grid">
+
+            <!-- SECTION COCHABLE DES ANALYSES & EXAMENS -->
+            <div class="orientation-quick-panel bonpour-check-panel" style="background: #ffffff; border: 1.5px solid #8b5cf6; padding: 14px 16px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.09); width: 100%; box-sizing: border-box;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 700; color: #6d28d9; margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <span>📋 Examens & Analyses à cocher directement :</span>
+                </label>
+                <span style="font-size: 12px; color: #6d28d9; font-weight: 600; background: #ede9fe; padding: 3px 10px; border-radius: 20px;">Cochez pour insérer automatiquement</span>
+              </div>
+              <div id="bonpour-quick-items" class="checkbox-grid bonpour-checkbox-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; max-height: none; overflow: visible; padding: 6px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fdfdfe;">
                 <!-- Populated by JS based on type -->
               </div>
             </div>
@@ -1819,8 +1847,8 @@ async function openBonPourModal(patientId, preset = null) {
   // Fill in patient info
   document.getElementById('bonpour-patient-id').value = patientId;
   document.getElementById('bonpour-patient-name').textContent = patientName;
-  document.getElementById('bonpour-date').value = today;
-  document.getElementById('bonpour-details').value = '';
+  const customTemplate = typeof getDocumentCustomTemplate === 'function' ? getDocumentCustomTemplate('bonpour') : null;
+  document.getElementById('bonpour-details').value = (!preset && customTemplate) ? customTemplate : '';
   document.getElementById('bonpour-indication').value = '';
   document.getElementById('bonpour-notes').value = '';
   document.getElementById('bonpour-type').value = preset?.type || 'analyses';
@@ -1983,37 +2011,54 @@ function updateBonPourContent() {
   
   const quickItems = {
     analyses: [
-      // Hématologie & Bilan pré-opératoire
-      'NFS complète (FNS / Plaquettes)', 'TP (Taux de prothrombine)', 'TCA (Temps de céphaline activée)', 'INR', 'Fibrinogène', 'Groupe sanguin Rhésus + RAI', 'Temps de saignement (TS)',
-      // Inflammation & Infection
-      'CRP (Protéine C-Réactive)', 'VS (Vitesse de sédimentation)', 'Procalcitonine',
-      // Bilan osseux & Pré-implantaire
-      'Calcémie', 'Phosphorémie', 'Vitamine D (25-OH-D3)', 'Phosphatases alcalines (PAL)', 'Parathormone (PTH)',
-      // Métabolisme, Rein & Foie
-      'Glycémie à jeun', 'HbA1c (Hémoglobine glyquée)', 'Urée sanguine', 'Créatininémie', 'Clairance de la créatinine (DFG)', 'Ionogramme sanguin (Na+, K+, Cl-)', 'Bilan hépatique (ASAT, ALAT, GGT, Bilirubine)', 'Bilan lipidique (Cholestérol, Triglycérides)',
-      // Bactériologie & Sérologies ORL / Dentaire
-      'Prélèvement pharyngé (Frottis de gorge)', 'Prélèvement otologique + Antibiogramme', 'Prélèvement de pus sinusal / endodontique', 'Sérologie EBV (MNI)', 'Sérologie CMV', 'Sérologie Toxoplasmose',
-      // Allergologie & Thyroïde
-      'Dosage des IgE totales', 'IgE spécifiques / RAST pneumallergènes', 'TSH ultra-sensible', 'T4 libre', 'Amylasémie'
+      // 1. Radiologie & Imagerie (En premier)
+      'RADIO DU THORAX',
+      'ECG',
+      'Orthopantomogramme (Panoramique dentaire)',
+      'Cone Beam 3D (CBCT)',
+      'Rx des os propres du nez (OPN)',
+      'Incidence de Blondeau (Sinus)',
+      'TDM des rochers sans injection',
+      'TDM des sinus de la face',
+      'IRM des CAI avec Gadolinium',
+      'Échographie cervicale et thyroïde',
+      // 2. Biologie & Analyses (Demande de Bilan)
+      'Groupage/Rh',
+      'FNS',
+      'TP/TCK',
+      'Glycémie à jeun',
+      'HbA1C',
+      'VS-CRP',
+      'Ionogramme sanguin',
+      'Urée-créatininémie',
+      'Calcémie-Phosphorémie',
+      'ASLO',
+      'Cholestérol total, HDL, LDL, TG',
+      'Fer sérique',
+      'Bilirubine totale et directe',
+      'TSH',
+      'FT3, FT4',
+      'Sérologie (HIV, Syphilis, VHB, VHC)',
+      'Bilan hépatique (ASAT, ALAT, GGT, PAL)',
+      'Vitamine D (25-OH-D3)',
+      'Anticorps anti-TPO / anti-TG',
+      'Prélèvement bactériologique + Antibiogramme',
+      'Autre : ______'
     ],
     scanner: [
-      // ORL & Rochers / Sinus
+      // ORL & Rochers / Sinus / Cou
       'TDM des rochers (Os temporaux) sans injection',
       'TDM des sinus de la face (Massif facial) sans injection',
-      'TDM des sinus de la face avec injection',
+      'TDM des sinus de la face avec injection de PDC',
       'TDM du cavum / rhino-pharynx',
       'TDM du cou et du larynx avec injection',
       'TDM des glandes salivaires (parotides / sous-maxillaires)',
-      // Dentaire & Maxillo-facial
-      'Dentascan maxillaire et mandibulaire 3D',
       'TDM maxillo-facial 3D',
+      'Dentascan maxillaire et mandibulaire 3D',
       'TDM des articulations temporo-mandibulaires (ATM)',
-      // Général
       'TDM cérébrale sans et avec injection',
       'TDM thoracique',
-      'TDM abdomino-pelvien',
-      'TDM rachis cervical',
-      'TDM rachis lombaire'
+      'TDM rachis cervical'
     ],
     irm: [
       // ORL & Tête et Cou
@@ -2023,34 +2068,25 @@ function updateBonPourContent() {
       'IRM du cou et des parties molles cervicales',
       'IRM des glandes salivaires (parotides et submandibulaires)',
       'IRM laryngo-pharyngée',
-      // Dentaire & Maxillo-facial
       'IRM des articulations temporo-mandibulaires (ATM bouche ouverte et fermée)',
       'IRM du plancher buccal et de la langue',
-      // Général
       'IRM cérébrale',
-      'IRM médullaire',
-      'IRM rachis cervical',
-      'IRM rachis lombaire'
+      'IRM médullaire / rachis cervical'
     ],
     radio: [
-      // Dentaire & Stomatologie / Cône Beam
-      'Orthopantomogramme (Panoramique dentaire numérique)',
-      'Cone Beam 3D (CBCT) maxillaire',
-      'Cone Beam 3D (CBCT) mandibulaire',
-      'Cone Beam 3D (CBCT) bi-maxillaire',
-      'Cone Beam 3D (CBCT) sectoriel / localisé',
-      'Téléradiographie de profil (Céphalométrie)',
-      'Téléradiographie de face',
-      'Radiographie rétro-alvéolaire ciblée',
-      'Cliché mordu occlusal',
-      'Radiographie des ATM bouche ouverte et fermée',
       // ORL & Crâne
       'Incidence de Blondeau (Sinus fronto-maxillaires)',
       'Incidence de Hirtz (Base du crâne)',
       'Rx cavum profil (Végétations adénoïdes)',
       'Rx des os propres du nez (OPN face et profil)',
       'Rx du thorax face',
-      'Rx du rachis cervical face et profil'
+      'Rx du rachis cervical face et profil',
+      // Dentaire & Panoramique
+      'Orthopantomogramme (Panoramique dentaire numérique)',
+      'Cone Beam 3D (CBCT) maxillaire',
+      'Cone Beam 3D (CBCT) mandibulaire',
+      'Cone Beam 3D (CBCT) bi-maxillaire',
+      'Radiographie des ATM bouche ouverte et fermée'
     ],
     echo: [
       // Échographie Cervico-Faciale & Doppler
@@ -2063,27 +2099,31 @@ function updateBonPourContent() {
       'Échographie abdominale générale'
     ],
     audio_orl: [
-      // Explorations ORL
+      // Explorations Spécifiques ORL
       'Audiométrie tonale liminaire (conduction aérienne et osseuse)',
-      'Audiométrie vocale (seuil d\'intelligibilité)',
-      'Tympanométrie avec recherche des réflexes stapédiens',
-      'Potentiels Évoqués Auditifs du tronc cérébral (PEA)',
+      'Audiométrie vocale (seuil d\'intelligibilité et discrimination)',
+      'Tympanométrie bilatérale',
+      'Recherche des réflexes stapédiens (ipsi et controlatéraux)',
+      'Potentiels Évoqués Auditifs du tronc cérébral (PEA / BERA)',
       'Vidéonystagmographie (VNG / Vestibulométrie)',
       'Épreuves caloriques vestibulaires',
-      'Oto-émissions acoustiques (OEA)',
+      'Oto-émissions acoustiques provoquées (OEAP / DPOEA)',
       'Nasofibroscopie diagnostique des VADS',
-      'Endoscopie des cordes vocales et du larynx'
+      'Laryngoscopie / Évaluation vidéo-stroboscopique des cordes vocales',
+      'Manométrie tubaire / Exploration trompe d\'Eustache',
+      'Rhinomanométrie antérieure'
     ],
     kine: [
       'Rééducation vestibulaire instrumentale / VNG',
       'Rééducation maxillo-faciale et des ATM',
       'Rééducation vocale et orthophonique',
+      'Rééducation tubaire fonctionnelle',
       'Kinésithérapie respiratoire de désencombrement',
-      'Rééducation fonctionnelle du rachis cervical',
       'Drainage lymphatique cervico-facial'
     ],
     emg: [
       'EMG du nerf facial (Bilan de paralysie faciale)',
+      'Électroneuronographie du nerf facial',
       'EMG / ENMG membres supérieurs',
       'EMG / ENMG membres inférieurs',
       'Vitesses de conduction motrice et sensitive'
@@ -2328,6 +2368,11 @@ async function printBonPour() {
       return;
     }
 
+    if (details && typeof saveDocumentCustomTemplate === 'function') {
+      const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : '';
+      saveDocumentCustomTemplate('bonpour', details, { patientName });
+    }
+
     closeModal('modal-bonpour');
     showNotification('Bon pour enregistre, impression en cours', 'success');
     void runBonPourPrintPipeline({
@@ -2384,20 +2429,20 @@ async function openOrientationModal(patientId, preset = null) {
     const modalHtml = `
       <div id="modal-orientation" class="modal medical-document-modal">
         <div class="modal-overlay" onclick="closeModal('modal-orientation')"></div>
-        <div class="modal-content modal-large" style="max-width: 1180px; width: 96vw; max-height: 94vh;">
+        <div class="modal-content modal-large" style="max-width: 1240px; width: min(1240px, 96vw); max-height: 94vh; height: 94vh;">
           <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;">
             <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
               ✉️ Lettre d'orientation
             </h2>
             <button class="close-btn" onclick="closeModal('modal-orientation')" style="color: white; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
           </div>
-          <div class="modal-body document-modal-body orientation-modal-body" style="padding: 16px 22px; max-height: calc(94vh - 130px); overflow-y: auto;">
+          <div class="modal-body document-modal-body orientation-modal-body" style="padding: 14px 20px; overflow: hidden;">
             <input type="hidden" id="orientation-patient-id">
 
-            <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (50%), Live Preview on Right (50%) -->
-            <div class="document-workstation-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch;">
+            <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left (38%), Live Preview on Right (62%) -->
+            <div class="document-workstation-layout">
               <!-- Colonne Gauche : Formulaire de saisie -->
-              <div class="document-workstation-form" style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="document-workstation-form">
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
                   <div>
                     <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient :</span>
@@ -2481,8 +2526,8 @@ async function openOrientationModal(patientId, preset = null) {
               </div>
 
               <!-- Colonne Droite : Aperçu en Direct -->
-              <div class="document-workstation-preview" style="display: flex; flex-direction: column; height: 100%;">
-                <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; height: 100%;">
+              <div class="document-workstation-preview">
+                <div class="form-group document-preview-card">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#059669" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -2490,7 +2535,7 @@ async function openOrientationModal(patientId, preset = null) {
                     </label>
                     <span style="font-size: 11px; font-weight: 600; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;">⚡ Mise à jour automatique</span>
                   </div>
-                  <div id="orientation-preview" class="document-live-preview" style="flex: 1; min-height: 440px; max-height: 520px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);"></div>
+                  <div id="orientation-preview" class="document-live-preview"></div>
                 </div>
               </div>
             </div>
@@ -2730,8 +2775,9 @@ async function runBonPourPrintPipeline({ patientId, title, dateLabel, patient, f
       pages.push(backPageContent);
     }
 
+    const docTitle = typeof resolveBonPourDocumentTitle === 'function' ? resolveBonPourDocumentTitle() : 'Demande de Bilan';
     await printFn({
-      title: 'Faire Svp',
+      title: docTitle,
       subtitle: title,
       dateLabel,
       patient,
@@ -2960,8 +3006,566 @@ function initDocFormatSettings() {
     });
   });
 }
-// Run when settings page might be visible
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(initDocFormatSettings, 1000);
-});
-window.initDocFormatSettings = initDocFormatSettings;
+// ==========================================
+// NASOFIBROSCOPIE (ORL DOCUMENT GENERATION)
+// ==========================================
+
+let currentNasofibroPatient = null;
+
+async function openNasofibroscopieModal(patientId, documentId = null, existingData = null) {
+  const targetPatientId = patientId || window.currentPatientId || null;
+  if (!targetPatientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient avant de créer une nasofibroscopie', 'warning');
+    }
+    return;
+  }
+
+  // Retrieve patient information
+  let patient = null;
+  try {
+    if (window.currentPatientData && (window.currentPatientData.id === targetPatientId || window.currentPatientData.patientId === targetPatientId)) {
+      patient = window.currentPatientData;
+    } else if (window.api && window.api.patient && typeof window.api.patient.getById === 'function') {
+      const res = await window.api.patient.getById(targetPatientId);
+      if (res && res.success && res.data) {
+        patient = res.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Erreur lors du chargement du patient pour la nasofibroscopie:', err);
+  }
+
+  currentNasofibroPatient = patient || { id: targetPatientId, firstName: '', lastName: '' };
+
+  const form = document.getElementById('nasofibro-form');
+  if (form) form.reset();
+
+  const patientIdInput = document.getElementById('nasofibro-patient-id');
+  const docIdInput = document.getElementById('nasofibro-doc-id');
+  const summaryEl = document.getElementById('nasofibro-patient-summary');
+  const dateInput = document.getElementById('nasofibro-date');
+  const modalTitle = document.getElementById('nasofibro-modal-title');
+
+  if (patientIdInput) patientIdInput.value = targetPatientId;
+  if (docIdInput) docIdInput.value = documentId || '';
+
+  const patientName = `${patient?.lastName || patient?.nom || ''} ${patient?.firstName || patient?.prenom || ''}`.trim() || 'Patient';
+  const patientAge = patient?.dateOfBirth ? (typeof computeAge === 'function' ? `${computeAge(patient.dateOfBirth)} ans` : '') : (patient?.age ? `${patient.age} ans` : '');
+  if (summaryEl) {
+    summaryEl.textContent = `${patientName}${patientAge ? ` (${patientAge})` : ''}`;
+  }
+
+  // Pre-fill fields if editing existing document
+  if (existingData) {
+    if (modalTitle) modalTitle.textContent = 'Modifier la Nasofibroscopie';
+    if (dateInput) dateInput.value = existingData.date ? String(existingData.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const fdEl = document.getElementById('nasofibro-fosses-droite');
+    const fgEl = document.getElementById('nasofibro-fosses-gauche');
+    const chEl = document.getElementById('nasofibro-choanes');
+    const cvEl = document.getElementById('nasofibro-cavum');
+    const phEl = document.getElementById('nasofibro-pharynx');
+    const lxEl = document.getElementById('nasofibro-larynx');
+    const cclEl = document.getElementById('nasofibro-conclusion');
+
+    if (fdEl) fdEl.value = existingData.fossesNasalesDroite || '';
+    if (fgEl) fgEl.value = existingData.fossesNasalesGauche || '';
+    if (chEl) chEl.value = existingData.choanes || '';
+    if (cvEl) cvEl.value = existingData.cavum || '';
+    if (phEl) phEl.value = existingData.pharynx || '';
+    if (lxEl) lxEl.value = existingData.larynx || '';
+    if (cclEl) cclEl.value = existingData.conclusion || '';
+  } else {
+    if (modalTitle) modalTitle.textContent = 'Compte-rendu de Nasofibroscopie';
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    const fdEl = document.getElementById('nasofibro-fosses-droite');
+    const fgEl = document.getElementById('nasofibro-fosses-gauche');
+    const chEl = document.getElementById('nasofibro-choanes');
+    const cvEl = document.getElementById('nasofibro-cavum');
+    const phEl = document.getElementById('nasofibro-pharynx');
+    const lxEl = document.getElementById('nasofibro-larynx');
+    const cclEl = document.getElementById('nasofibro-conclusion');
+    if (fdEl) fdEl.value = '';
+    if (fgEl) fgEl.value = '';
+    if (chEl) chEl.value = '';
+    if (cvEl) cvEl.value = '';
+    if (phEl) phEl.value = '';
+    if (lxEl) lxEl.value = '';
+    if (cclEl) cclEl.value = '';
+  }
+
+  // Bind live preview input events
+  bindNasofibroscopieLiveInputs();
+  updateNasofibroscopieLivePreview();
+
+  if (typeof openModal === 'function') {
+    openModal('modal-nasofibroscopie');
+  } else if (typeof showModal === 'function') {
+    showModal('modal-nasofibroscopie');
+  }
+}
+
+function bindNasofibroscopieLiveInputs() {
+  const ids = [
+    'nasofibro-date',
+    'nasofibro-fosses-droite', 'nasofibro-fosses-gauche',
+    'nasofibro-choanes', 'nasofibro-cavum',
+    'nasofibro-pharynx', 'nasofibro-larynx',
+    'nasofibro-conclusion'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.liveBound) {
+      el.addEventListener('input', updateNasofibroscopieLivePreview);
+      el.addEventListener('change', updateNasofibroscopieLivePreview);
+      el.dataset.liveBound = '1';
+    }
+  });
+}
+
+function applyNasofibroscopiePreset(presetKey) {
+  const fdEl = document.getElementById('nasofibro-fosses-droite');
+  const fgEl = document.getElementById('nasofibro-fosses-gauche');
+  const chEl = document.getElementById('nasofibro-choanes');
+  const cvEl = document.getElementById('nasofibro-cavum');
+  const phEl = document.getElementById('nasofibro-pharynx');
+  const lxEl = document.getElementById('nasofibro-larynx');
+  const cclEl = document.getElementById('nasofibro-conclusion');
+
+  if (fdEl) fdEl.value = '';
+  if (fgEl) fgEl.value = '';
+  if (chEl) chEl.value = '';
+  if (cvEl) cvEl.value = '';
+  if (phEl) phEl.value = '';
+  if (lxEl) lxEl.value = '';
+  if (cclEl) cclEl.value = '';
+
+  updateNasofibroscopieLivePreview();
+}
+
+function updateNasofibroscopieLivePreview() {
+  const container = document.getElementById('nasofibro-live-preview-sheet');
+  if (!container) return;
+
+  const dateVal = document.getElementById('nasofibro-date')?.value || new Date().toISOString().slice(0, 10);
+  const fdVal = document.getElementById('nasofibro-fosses-droite')?.value || '';
+  const fgVal = document.getElementById('nasofibro-fosses-gauche')?.value || '';
+  const chVal = document.getElementById('nasofibro-choanes')?.value || '';
+  const cvVal = document.getElementById('nasofibro-cavum')?.value || '';
+  const phVal = document.getElementById('nasofibro-pharynx')?.value || '';
+  const lxVal = document.getElementById('nasofibro-larynx')?.value || '';
+  const cclVal = document.getElementById('nasofibro-conclusion')?.value || '';
+
+  const patient = currentNasofibroPatient || window.currentPatientData || {
+    firstName: document.getElementById('nasofibro-patient-summary')?.textContent || 'Patient',
+    lastName: '',
+    dateOfBirth: null
+  };
+
+  const data = {
+    date: dateVal,
+    fossesNasalesDroite: fdVal,
+    fossesNasalesGauche: fgVal,
+    choanes: chVal,
+    cavum: cvVal,
+    pharynx: phVal,
+    larynx: lxVal,
+    conclusion: cclVal
+  };
+
+  const bodyHtml = typeof buildNasofibroscopieBodyHtml === 'function'
+    ? buildNasofibroscopieBodyHtml(data)
+    : (window.buildNasofibroscopieBodyHtml ? window.buildNasofibroscopieBodyHtml(data) : '');
+
+  const dateLabel = typeof formatPrintingDocumentDateLabel === 'function'
+    ? formatPrintingDocumentDateLabel(dateVal)
+    : new Date(dateVal).toLocaleDateString('fr-FR');
+
+  const buildDoc = typeof buildA4Html === 'function'
+    ? buildA4Html
+    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+
+  if (typeof buildDoc === 'function') {
+    const fullDocHtml = buildDoc({
+      title: 'NASOFIBROSCOPIE',
+      subtitle: 'Compte-rendu d\'exploration endoscopique ORL',
+      dateLabel,
+      patient,
+      bodyContentHtml: bodyHtml,
+      documentType: 'nasofibroscopie',
+      documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
+      pages: [bodyHtml]
+    });
+
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, fullDocHtml);
+    } else {
+      container.innerHTML = fullDocHtml;
+    }
+  }
+}
+
+async function saveAndPrintNasofibroscopie() {
+  const patientId = document.getElementById('nasofibro-patient-id')?.value || window.currentPatientId || null;
+  if (!patientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient', 'error');
+    }
+    return;
+  }
+
+  const existingDocId = document.getElementById('nasofibro-doc-id')?.value || null;
+  const date = document.getElementById('nasofibro-date')?.value || new Date().toISOString().slice(0, 10);
+  const fossesNasalesDroite = document.getElementById('nasofibro-fosses-droite')?.value || '';
+  const fossesNasalesGauche = document.getElementById('nasofibro-fosses-gauche')?.value || '';
+  const choanes = document.getElementById('nasofibro-choanes')?.value || '';
+  const cavum = document.getElementById('nasofibro-cavum')?.value || '';
+  const pharynx = document.getElementById('nasofibro-pharynx')?.value || '';
+  const larynx = document.getElementById('nasofibro-larynx')?.value || '';
+  const conclusion = document.getElementById('nasofibro-conclusion')?.value || '';
+
+  const docPayload = {
+    patientId,
+    documentType: 'nasofibroscopie',
+    title: 'NASOFIBROSCOPIE',
+    data: {
+      date,
+      fossesNasalesDroite,
+      fossesNasalesGauche,
+      choanes,
+      cavum,
+      pharynx,
+      larynx,
+      conclusion
+    }
+  };
+
+  if (existingDocId) {
+    docPayload.id = existingDocId;
+  }
+
+  try {
+    if (window.api && window.api.document && typeof window.api.document.save === 'function') {
+      const saveResult = await window.api.document.save(docPayload);
+      if (!saveResult || !saveResult.success) {
+        if (typeof showNotification === 'function') {
+          showNotification(saveResult?.error || 'Erreur lors de l\'enregistrement de la nasofibroscopie', 'error');
+        }
+        return;
+      }
+    }
+
+    if (typeof closeModal === 'function') {
+      closeModal('modal-nasofibroscopie');
+    }
+
+    if (typeof showNotification === 'function') {
+      showNotification('Nasofibroscopie enregistree, ouverture de l\'impression...', 'success');
+    }
+
+    // Refresh patient documents table if loaded
+    if (typeof loadPatientNasofibroscopies === 'function') {
+      loadPatientNasofibroscopies(patientId);
+    }
+
+    // Launch print window
+    const patient = currentNasofibroPatient || { id: patientId };
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderNasofibroscopieDocument === 'function') {
+      await renderNasofibroscopieDocument({
+        patient,
+        data: docPayload.data,
+        dateLabel,
+        onEdit: () => openNasofibroscopieModal(patientId, existingDocId, docPayload.data)
+      });
+    }
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement / impression de la nasofibroscopie:', err);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'enregistrement', 'error');
+    }
+  }
+}
+
+window.openNasofibroscopieModal = openNasofibroscopieModal;
+window.applyNasofibroscopiePreset = applyNasofibroscopiePreset;
+window.updateNasofibroscopieLivePreview = updateNasofibroscopieLivePreview;
+window.saveAndPrintNasofibroscopie = saveAndPrintNasofibroscopie;
+
+// ==========================================
+// ÉCHOGRAPHIE CERVICALE (EXPLORATION ÉCHOGRAPHIQUE)
+// ==========================================
+
+let currentEchoCervicalePatient = null;
+
+async function openEchographieCervicaleModal(patientId, documentId = null, existingData = null) {
+  const targetPatientId = patientId || window.currentPatientId || null;
+  if (!targetPatientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient avant de créer une échographie cervicale', 'warning');
+    }
+    return;
+  }
+
+  let patient = null;
+  try {
+    if (window.currentPatientData && (window.currentPatientData.id === targetPatientId || window.currentPatientData.patientId === targetPatientId)) {
+      patient = window.currentPatientData;
+    } else if (window.api && window.api.patient && typeof window.api.patient.getById === 'function') {
+      const res = await window.api.patient.getById(targetPatientId);
+      if (res && res.success && res.data) {
+        patient = res.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Erreur lors du chargement du patient pour l\'échographie cervicale:', err);
+  }
+
+  currentEchoCervicalePatient = patient || { id: targetPatientId, firstName: '', lastName: '' };
+
+  const form = document.getElementById('echocervicale-form');
+  if (form) form.reset();
+
+  const patientIdInput = document.getElementById('echocervicale-patient-id');
+  const docIdInput = document.getElementById('echocervicale-doc-id');
+  const summaryEl = document.getElementById('echocervicale-patient-summary');
+  const dateInput = document.getElementById('echocervicale-date');
+  const modalTitle = document.getElementById('echocervicale-modal-title');
+
+  if (patientIdInput) patientIdInput.value = targetPatientId;
+  if (docIdInput) docIdInput.value = documentId || '';
+
+  const patientName = `${patient?.lastName || patient?.nom || ''} ${patient?.firstName || patient?.prenom || ''}`.trim() || 'Patient';
+  const patientAge = patient?.dateOfBirth ? (typeof computeAge === 'function' ? `${computeAge(patient.dateOfBirth)} ans` : '') : (patient?.age ? `${patient.age} ans` : '');
+  if (summaryEl) {
+    summaryEl.textContent = `${patientName}${patientAge ? ` (${patientAge})` : ''}`;
+  }
+
+  const techEl = document.getElementById('echocervicale-technique');
+  const ldEl = document.getElementById('echocervicale-lobe-droit');
+  const lgEl = document.getElementById('echocervicale-lobe-gauche');
+  const isthmeEl = document.getElementById('echocervicale-isthme');
+  const airesEl = document.getElementById('echocervicale-aires');
+  const smEl = document.getElementById('echocervicale-glandes-sm');
+  const parotidesEl = document.getElementById('echocervicale-parotides');
+  const axesEl = document.getElementById('echocervicale-axes');
+  const cclEl = document.getElementById('echocervicale-conclusion');
+
+  if (existingData) {
+    if (modalTitle) modalTitle.textContent = 'Modifier le Compte-rendu d\'Échographie Cervicale';
+    if (dateInput) dateInput.value = existingData.date ? String(existingData.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    if (techEl) techEl.value = existingData.technique !== undefined ? existingData.technique : 'Balayage avec une sonde de 7-10 MHz de la région cervicale';
+    if (ldEl) ldEl.value = existingData.lobeDroit || '';
+    if (lgEl) lgEl.value = existingData.lobeGauche || '';
+    if (isthmeEl) isthmeEl.value = existingData.isthme || '';
+    if (airesEl) airesEl.value = existingData.airesGanglionnaires || '';
+    if (smEl) smEl.value = existingData.glandesSousMandibulaires || '';
+    if (parotidesEl) parotidesEl.value = existingData.glandesParotides || '';
+    if (axesEl) axesEl.value = existingData.axesVasculaires || '';
+    if (cclEl) cclEl.value = existingData.conclusion || '';
+  } else {
+    if (modalTitle) modalTitle.textContent = 'Compte-rendu d\'Échographie Cervicale';
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    if (techEl) techEl.value = 'Balayage avec une sonde de 7-10 MHz de la région cervicale';
+    if (ldEl) ldEl.value = '';
+    if (lgEl) lgEl.value = '';
+    if (isthmeEl) isthmeEl.value = '';
+    if (airesEl) airesEl.value = '';
+    if (smEl) smEl.value = '';
+    if (parotidesEl) parotidesEl.value = '';
+    if (axesEl) axesEl.value = '';
+    if (cclEl) cclEl.value = '';
+  }
+
+  bindEchographieCervicaleLiveInputs();
+  updateEchographieCervicaleLivePreview();
+
+  if (typeof openModal === 'function') {
+    openModal('modal-echographie-cervicale');
+  } else if (typeof showModal === 'function') {
+    showModal('modal-echographie-cervicale');
+  }
+}
+
+function bindEchographieCervicaleLiveInputs() {
+  const ids = [
+    'echocervicale-date',
+    'echocervicale-technique',
+    'echocervicale-lobe-droit',
+    'echocervicale-lobe-gauche',
+    'echocervicale-isthme',
+    'echocervicale-aires',
+    'echocervicale-glandes-sm',
+    'echocervicale-parotides',
+    'echocervicale-axes',
+    'echocervicale-conclusion'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.liveBound) {
+      el.addEventListener('input', updateEchographieCervicaleLivePreview);
+      el.addEventListener('change', updateEchographieCervicaleLivePreview);
+      el.dataset.liveBound = '1';
+    }
+  });
+}
+
+function updateEchographieCervicaleLivePreview() {
+  const container = document.getElementById('echocervicale-live-preview-sheet');
+  if (!container) return;
+
+  const dateVal = document.getElementById('echocervicale-date')?.value || new Date().toISOString().slice(0, 10);
+  const techVal = document.getElementById('echocervicale-technique')?.value || '';
+  const ldVal = document.getElementById('echocervicale-lobe-droit')?.value || '';
+  const lgVal = document.getElementById('echocervicale-lobe-gauche')?.value || '';
+  const isthmeVal = document.getElementById('echocervicale-isthme')?.value || '';
+  const airesVal = document.getElementById('echocervicale-aires')?.value || '';
+  const smVal = document.getElementById('echocervicale-glandes-sm')?.value || '';
+  const parotidesVal = document.getElementById('echocervicale-parotides')?.value || '';
+  const axesVal = document.getElementById('echocervicale-axes')?.value || '';
+  const cclVal = document.getElementById('echocervicale-conclusion')?.value || '';
+
+  const patient = currentEchoCervicalePatient || window.currentPatientData || {
+    firstName: document.getElementById('echocervicale-patient-summary')?.textContent || 'Patient',
+    lastName: '',
+    dateOfBirth: null
+  };
+
+  const data = {
+    date: dateVal,
+    technique: techVal,
+    lobeDroit: ldVal,
+    lobeGauche: lgVal,
+    isthme: isthmeVal,
+    airesGanglionnaires: airesVal,
+    glandesSousMandibulaires: smVal,
+    glandesParotides: parotidesVal,
+    axesVasculaires: axesVal,
+    conclusion: cclVal
+  };
+
+  const bodyHtml = typeof buildEchographieCervicaleBodyHtml === 'function'
+    ? buildEchographieCervicaleBodyHtml(data)
+    : (window.buildEchographieCervicaleBodyHtml ? window.buildEchographieCervicaleBodyHtml(data) : '');
+
+  const dateLabel = typeof formatPrintingDocumentDateLabel === 'function'
+    ? formatPrintingDocumentDateLabel(dateVal)
+    : new Date(dateVal).toLocaleDateString('fr-FR');
+
+  const buildDoc = typeof buildA4Html === 'function'
+    ? buildA4Html
+    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+
+  if (typeof buildDoc === 'function') {
+    const fullDocHtml = buildDoc({
+      title: 'ÉCHOGRAPHIE CERVICALE',
+      subtitle: 'Compte-rendu d\'exploration échographique cervicale',
+      dateLabel,
+      patient,
+      bodyContentHtml: bodyHtml,
+      documentType: 'echographie_cervicale',
+      documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
+      pages: [bodyHtml]
+    });
+
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, fullDocHtml);
+    } else {
+      container.innerHTML = fullDocHtml;
+    }
+  }
+}
+
+async function saveAndPrintEchographieCervicale() {
+  const patientId = document.getElementById('echocervicale-patient-id')?.value || window.currentPatientId || null;
+  if (!patientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient', 'error');
+    }
+    return;
+  }
+
+  const existingDocId = document.getElementById('echocervicale-doc-id')?.value || null;
+  const date = document.getElementById('echocervicale-date')?.value || new Date().toISOString().slice(0, 10);
+  const technique = document.getElementById('echocervicale-technique')?.value || '';
+  const lobeDroit = document.getElementById('echocervicale-lobe-droit')?.value || '';
+  const lobeGauche = document.getElementById('echocervicale-lobe-gauche')?.value || '';
+  const isthme = document.getElementById('echocervicale-isthme')?.value || '';
+  const airesGanglionnaires = document.getElementById('echocervicale-aires')?.value || '';
+  const glandesSousMandibulaires = document.getElementById('echocervicale-glandes-sm')?.value || '';
+  const glandesParotides = document.getElementById('echocervicale-parotides')?.value || '';
+  const axesVasculaires = document.getElementById('echocervicale-axes')?.value || '';
+  const conclusion = document.getElementById('echocervicale-conclusion')?.value || '';
+
+  const docPayload = {
+    patientId,
+    documentType: 'echographie_cervicale',
+    title: 'ÉCHOGRAPHIE CERVICALE',
+    data: {
+      date,
+      technique,
+      lobeDroit,
+      lobeGauche,
+      isthme,
+      airesGanglionnaires,
+      glandesSousMandibulaires,
+      glandesParotides,
+      axesVasculaires,
+      conclusion
+    }
+  };
+
+  if (existingDocId) {
+    docPayload.id = existingDocId;
+  }
+
+  try {
+    if (window.api && window.api.document && typeof window.api.document.save === 'function') {
+      const saveResult = await window.api.document.save(docPayload);
+      if (!saveResult || !saveResult.success) {
+        if (typeof showNotification === 'function') {
+          showNotification(saveResult?.error || 'Erreur lors de l\'enregistrement de l\'échographie cervicale', 'error');
+        }
+        return;
+      }
+    }
+
+    if (typeof closeModal === 'function') {
+      closeModal('modal-echographie-cervicale');
+    }
+
+    if (typeof showNotification === 'function') {
+      showNotification('Échographie cervicale enregistrée, ouverture de l\'impression...', 'success');
+    }
+
+    // Refresh patient documents table if loaded
+    if (typeof loadPatientEchographies === 'function') {
+      loadPatientEchographies(patientId);
+    }
+
+    // Launch print window
+    const patient = currentEchoCervicalePatient || { id: patientId };
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderEchographieCervicaleDocument === 'function') {
+      await renderEchographieCervicaleDocument({
+        patient,
+        data: docPayload.data,
+        dateLabel,
+        onEdit: () => openEchographieCervicaleModal(patientId, existingDocId, docPayload.data)
+      });
+    }
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement / impression de l\'échographie cervicale:', err);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'enregistrement', 'error');
+    }
+  }
+}
+
+window.openEchographieCervicaleModal = openEchographieCervicaleModal;
+window.bindEchographieCervicaleLiveInputs = bindEchographieCervicaleLiveInputs;
+window.updateEchographieCervicaleLivePreview = updateEchographieCervicaleLivePreview;
+window.saveAndPrintEchographieCervicale = saveAndPrintEchographieCervicale;
+

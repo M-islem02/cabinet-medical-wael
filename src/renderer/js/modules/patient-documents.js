@@ -750,8 +750,9 @@ async function reprintBonPour(documentId) {
     `;
 
     if (typeof sharedPrintScope !== 'undefined' && sharedPrintScope.openA5PrintDocument) {
+      const docTitle = typeof resolveBonPourDocumentTitle === 'function' ? resolveBonPourDocumentTitle() : 'Demande de Bilan';
       await sharedPrintScope.openA5PrintDocument({
-        title: 'FAIRE SVP',
+        title: docTitle,
         subtitle: payload.type || 'Prescription d\'actes',
         dateLabel: payload.date ? new Date(payload.date).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR'),
         patient: patient,
@@ -1106,7 +1107,355 @@ async function viewOrientation(documentId) {
   }
 }
 
-// Make orientation functions globally available
+// ==========================================
+// NASOFIBROSCOPIES PATIENT HISTORY
+// ==========================================
+
+async function loadPatientNasofibroscopies(patientId, options = {}) {
+  const tbody = document.getElementById('details-nasofibroscopies-tbody');
+  const emptyState = document.getElementById('details-nasofibroscopies-empty');
+  if (!tbody) return;
+
+  if (!patientId) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Veuillez sélectionner un patient</td></tr>';
+    if (emptyState) emptyState.style.display = 'none';
+    return;
+  }
+
+  if (!options.preserveContent) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Chargement...</td></tr>';
+  }
+  if (emptyState) emptyState.style.display = 'none';
+
+  try {
+    const list = await fetchPatientDocumentPage(patientId, 'nasofibroscopies', 'nasofibroscopie', options.page);
+
+    if (!list.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#0284c7" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f0f9ff" stroke="#38bdf8"/>
+                  <circle cx="32" cy="28" r="8" stroke="#0284c7" stroke-width="1.5"/>
+                  <path d="M22 44c0-5 4-8 10-8s10 3 10 8" stroke="#0284c7" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun examen de nasofibroscopie enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un compte-rendu d'exploration endoscopique ORL.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openNasofibroscopieModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1; display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvelle Nasofibroscopie
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const rowsHtml = list.map(item => {
+      const payload = parseDocumentPayload(item.payload);
+      const date = payload.date || item.updatedAt || item.createdAt;
+      const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
+      
+      const fossesD = payload.fossesNasalesDroite || '';
+      const fossesG = payload.fossesNasalesGauche || '';
+      const fossesSummary = (fossesD || fossesG) ? `${fossesD ? `D: ${fossesD}` : ''}${fossesG ? ` | G: ${fossesG}` : ''}` : 'Libres';
+      const fossesShort = fossesSummary.length > 35 ? fossesSummary.substring(0, 35) + '...' : fossesSummary;
+
+      const larynx = payload.larynx || 'Normal';
+      const larynxShort = larynx.length > 35 ? larynx.substring(0, 35) + '...' : larynx;
+
+      const conclusion = payload.conclusion || 'Examen normal';
+      const conclusionShort = conclusion.length > 40 ? conclusion.substring(0, 40) + '...' : conclusion;
+
+      return `
+        <tr>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td title="${escapeHTML(fossesSummary)}"><span class="ant-tag" style="background: #f0f9ff; color: #0369a1; border-color: #bae6fd; font-size: 12px;">${escapeHTML(fossesShort)}</span></td>
+          <td title="${escapeHTML(larynx)}"><span style="color: #334155; font-size: 12.5px;">${escapeHTML(larynxShort)}</span></td>
+          <td title="${escapeHTML(conclusion)}"><strong style="color: #0369a1; font-size: 12.5px;">${escapeHTML(conclusionShort)}</strong></td>
+          <td>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintNasofibroscopie('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="viewNasofibroscopie('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deleteNasofibroscopie('${item.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml + buildPatientDocumentPaginationRow('nasofibroscopies', 5);
+  } catch (error) {
+    console.error('Error loading nasofibroscopies:', error);
+    updatePatientDocumentPagination('nasofibroscopies', null);
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Erreur de chargement</td></tr>';
+  }
+}
+
+async function reprintNasofibroscopie(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Compte-rendu de nasofibroscopie introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    let patient = null;
+    try {
+      const patientResult = await window.api.patient.getById(doc.patientId);
+      if (patientResult && patientResult.success) {
+        patient = patientResult.data;
+      }
+    } catch (e) {
+      console.error('Error loading patient:', e);
+    }
+
+    const date = payload.date || doc.updatedAt || doc.createdAt;
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderNasofibroscopieDocument === 'function') {
+      await renderNasofibroscopieDocument({
+        patient: patient || { id: doc.patientId },
+        data: payload,
+        dateLabel,
+        documentNumber: doc.id,
+        onEdit: () => openNasofibroscopieModal(doc.patientId, doc.id, payload)
+      });
+    }
+  } catch (error) {
+    console.error('Error reprinting nasofibroscopie:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'impression', 'error');
+    }
+  }
+}
+
+async function viewNasofibroscopie(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Document introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    if (typeof openNasofibroscopieModal === 'function') {
+      await openNasofibroscopieModal(doc.patientId, doc.id, payload);
+    }
+  } catch (error) {
+    console.error('Error viewing nasofibroscopie:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'ouverture du document', 'error');
+    }
+  }
+}
+
+async function deleteNasofibroscopie(documentId) {
+  if (typeof deletePatientDocument === 'function') {
+    await deletePatientDocument(documentId, 'nasofibroscopie');
+    if (window.currentPatientId && typeof loadPatientNasofibroscopies === 'function') {
+      loadPatientNasofibroscopies(window.currentPatientId);
+    }
+  }
+}
+
+// ==========================================
+// ÉCHOGRAPHIES CERVICALES PATIENT HISTORY
+// ==========================================
+
+async function loadPatientEchographies(patientId, options = {}) {
+  const tbody = document.getElementById('details-echographies-tbody');
+  const emptyState = document.getElementById('details-echographies-empty');
+  if (!tbody) return;
+
+  if (!patientId) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Veuillez sélectionner un patient</td></tr>';
+    if (emptyState) emptyState.style.display = 'none';
+    return;
+  }
+
+  if (!options.preserveContent) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Chargement...</td></tr>';
+  }
+  if (emptyState) emptyState.style.display = 'none';
+
+  try {
+    const list = await fetchPatientDocumentPage(patientId, 'echographies', 'echographie_cervicale', options.page);
+
+    if (!list.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#0284c7" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f0f9ff" stroke="#38bdf8"/>
+                  <circle cx="32" cy="28" r="8" stroke="#0284c7" stroke-width="1.5"/>
+                  <path d="M22 44c0-5 4-8 10-8s10 3 10 8" stroke="#0284c7" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun compte-rendu d'échographie cervicale enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un compte-rendu d'exploration échographique cervicale.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openEchographieCervicaleModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1; display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvelle Échographie
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const rowsHtml = list.map(item => {
+      const payload = parseDocumentPayload(item.payload);
+      const date = payload.date || item.updatedAt || item.createdAt;
+      const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
+      
+      const ld = payload.lobeDroit || '';
+      const lg = payload.lobeGauche || '';
+      const thyroideSummary = (ld || lg) ? `D: ${ld || '-'}${lg ? ` | G: ${lg}` : ''}` : (payload.isthme ? `Isthme: ${payload.isthme}` : 'Aspect normal');
+      const thyroideShort = thyroideSummary.length > 35 ? thyroideSummary.substring(0, 35) + '...' : thyroideSummary;
+
+      const aires = payload.airesGanglionnaires || 'Libres';
+      const airesShort = aires.length > 35 ? aires.substring(0, 35) + '...' : aires;
+
+      const conclusion = payload.conclusion || 'Examen sans anomalie décelable';
+      const conclusionShort = conclusion.length > 40 ? conclusion.substring(0, 40) + '...' : conclusion;
+
+      return `
+        <tr>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td title="${escapeHTML(thyroideSummary)}"><span class="ant-tag" style="background: #f0f9ff; color: #0369a1; border-color: #bae6fd; font-size: 12px;">${escapeHTML(thyroideShort)}</span></td>
+          <td title="${escapeHTML(aires)}"><span style="color: #334155; font-size: 12.5px;">${escapeHTML(airesShort)}</span></td>
+          <td title="${escapeHTML(conclusion)}"><strong style="color: #0369a1; font-size: 12.5px;">${escapeHTML(conclusionShort)}</strong></td>
+          <td>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintEchographieCervicale('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="viewEchographieCervicale('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deleteEchographieCervicale('${item.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml + buildPatientDocumentPaginationRow('echographies', 5);
+  } catch (error) {
+    console.error('Error loading echographies:', error);
+    updatePatientDocumentPagination('echographies', null);
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Erreur de chargement</td></tr>';
+  }
+}
+
+async function reprintEchographieCervicale(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Compte-rendu d\'échographie cervicale introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    let patient = null;
+    try {
+      const patientResult = await window.api.patient.getById(doc.patientId);
+      if (patientResult && patientResult.success) {
+        patient = patientResult.data;
+      }
+    } catch (e) {
+      console.error('Error loading patient:', e);
+    }
+
+    const date = payload.date || doc.updatedAt || doc.createdAt;
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderEchographieCervicaleDocument === 'function') {
+      await renderEchographieCervicaleDocument({
+        patient: patient || { id: doc.patientId },
+        data: payload,
+        dateLabel,
+        documentNumber: doc.id,
+        onEdit: () => openEchographieCervicaleModal(doc.patientId, doc.id, payload)
+      });
+    }
+  } catch (error) {
+    console.error('Error reprinting echographie cervicale:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'impression', 'error');
+    }
+  }
+}
+
+async function viewEchographieCervicale(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Document introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    if (typeof openEchographieCervicaleModal === 'function') {
+      await openEchographieCervicaleModal(doc.patientId, doc.id, payload);
+    }
+  } catch (error) {
+    console.error('Error viewing echographie cervicale:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'ouverture du document', 'error');
+    }
+  }
+}
+
+async function deleteEchographieCervicale(documentId) {
+  if (typeof deletePatientDocument === 'function') {
+    await deletePatientDocument(documentId, 'echographie_cervicale');
+    if (window.currentPatientId && typeof loadPatientEchographies === 'function') {
+      loadPatientEchographies(window.currentPatientId);
+    }
+  }
+}
+
+// Make orientation, nasofibroscopie and echographie functions globally available
 window.loadPatientFactures = loadPatientFactures;
 window.openPatientFactureModal = openPatientFactureModal;
 window.openPatientLevelFactureModal = openPatientLevelFactureModal;
@@ -1123,3 +1472,13 @@ window.loadPatientOrientations = loadPatientOrientations;
 window.reprintOrientation = reprintOrientation;
 window.deleteOrientation = deleteOrientation;
 window.viewOrientation = viewOrientation;
+window.loadPatientNasofibroscopies = loadPatientNasofibroscopies;
+window.reprintNasofibroscopie = reprintNasofibroscopie;
+window.viewNasofibroscopie = viewNasofibroscopie;
+window.deleteNasofibroscopie = deleteNasofibroscopie;
+window.loadPatientEchographies = loadPatientEchographies;
+window.reprintEchographieCervicale = reprintEchographieCervicale;
+window.viewEchographieCervicale = viewEchographieCervicale;
+window.deleteEchographieCervicale = deleteEchographieCervicale;
+
+

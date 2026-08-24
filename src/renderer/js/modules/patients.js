@@ -6,7 +6,7 @@ import { eventBus } from '../../core/state/event-bus.js';
 import { registerLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
 
 // ========== PATIENTS ==========
-const PATIENTS_PAGE_SIZE = 15;
+const PATIENTS_PAGE_SIZE = 10;
 const ASSISTANT_DIRECTORY_PAGE_SIZE = 500;
 let patientsFilteredData = [];
 let patientsSearchTerm = '';
@@ -41,9 +41,24 @@ function createPatientActionButtons(patientId) {
   `;
 }
 
+function isMultiPractitionerActive() {
+  if (typeof getCabinetType === 'function' && getCabinetType() === 'single') {
+    return false;
+  }
+  if (typeof getEnabledPracticeSpecialties === 'function' && getEnabledPracticeSpecialties().length <= 1) {
+    return false;
+  }
+  return patientsScope?.multiPractitioner === true && patientsScope?.cabinetMode === true;
+}
+
 function renderPatientsRows(patients) {
   const tbody = document.getElementById('patients-tbody');
   if (!tbody) return;
+  const isMulti = isMultiPractitionerActive();
+  const isAssistant = currentUserRole === 'assistant';
+  const thSelect = document.getElementById('patients-th-select');
+  if (thSelect) thSelect.style.display = isAssistant ? '' : 'none';
+
   renderPatientRows({
     tbody,
     patients,
@@ -56,12 +71,13 @@ function renderPatientsRows(patients) {
     onToggleSelection: togglePatientSelection,
     onAppointment: openAppointmentForPatient,
     onAppointmentsHistory: showPatientAppointmentHistory,
-    directory: patientsView === 'directory',
-    multiPractitioner: patientsScope?.multiPractitioner === true,
-    selectable: currentUserRole === 'assistant' && patientsView === 'directory' && patientsScope?.multiPractitioner === true,
-    assistantActions: currentUserRole === 'assistant' && patientsView === 'directory',
+    directory: isMulti && patientsView === 'directory',
+    multiPractitioner: isMulti,
+    selectable: isAssistant,
+    assistantActions: isAssistant && isMulti && patientsView === 'directory',
     selectedPatientIds
   });
+  updatePatientsBulkBar();
 }
 
 function renderPatientsScopeControls() {
@@ -78,8 +94,20 @@ function renderPatientsScopeControls() {
   const assignSelectedButton = document.getElementById('patients-assign-selected-btn');
   const fourthHeading = document.querySelector('#patients-table thead th:nth-child(4)');
 
-  const assistantDirectoryMode = currentUserRole === 'assistant' && patientsScope?.multiPractitioner;
-  if (scopeBar) scopeBar.hidden = !patientsScope?.multiPractitioner;
+  const isMulti = isMultiPractitionerActive();
+  const assistantDirectoryMode = currentUserRole === 'assistant' && isMulti;
+  
+  if (scopeBar) {
+    scopeBar.hidden = !isMulti;
+    scopeBar.style.display = isMulti ? '' : 'none';
+  }
+  if (!isMulti) {
+    if (mineTab) mineTab.style.display = 'none';
+    if (directoryTab) directoryTab.style.display = 'none';
+  } else {
+    if (mineTab) mineTab.style.display = '';
+    if (directoryTab) directoryTab.style.display = '';
+  }
   if (listFilterWrap) listFilterWrap.hidden = !assistantDirectoryMode;
   if (doctorWrap) {
     doctorWrap.hidden = !(assistantDirectoryMode && (patientsScope?.practitioners?.length || 0) > 0);
@@ -92,7 +120,7 @@ function renderPatientsScopeControls() {
   if (assignSelectedButton) assignSelectedButton.disabled = selectedPatientIds.size === 0 || !selectedPatientsDoctorId;
   mineTab?.classList.toggle('active', patientsView === 'mine');
   directoryTab?.classList.toggle('active', patientsView === 'directory');
-  if (fourthHeading) fourthHeading.textContent = patientsView === 'directory' ? 'Médecins' : 'Numéro SS';
+  if (fourthHeading) fourthHeading.textContent = (isMulti && patientsView === 'directory') ? 'Médecins' : 'Numéro SS';
 
   if (doctorSelect && patientsScope?.practitioners) {
     doctorSelect.innerHTML = patientsScope.practitioners.map((doctor) => {
@@ -176,8 +204,13 @@ async function ensurePatientsScope() {
     const result = await patientApi.getScope({ doctorId: selectedPatientsDoctorId });
     if (result?.success && result?.data) {
       patientsScope = result.data;
+      const isMulti = isMultiPractitionerActive();
       if (!selectedPatientsDoctorId) selectedPatientsDoctorId = result.data.selectedDoctorId || '';
-      if (currentUserRole === 'assistant' && result.data.multiPractitioner) patientsView = 'directory';
+      if (!isMulti) {
+        patientsView = 'mine';
+      } else if (currentUserRole === 'assistant' && result.data.multiPractitioner) {
+        patientsView = 'directory';
+      }
       window.activePatientDoctorId = selectedPatientsDoctorId;
       renderPatientsScopeControls();
     }
@@ -310,8 +343,96 @@ async function openAppointmentForHistoryPatient() {
 function togglePatientSelection(patientId, isSelected) {
   if (isSelected) selectedPatientIds.add(patientId);
   else selectedPatientIds.delete(patientId);
+  updatePatientsBulkBar();
   renderPatientsScopeControls();
 }
+
+function toggleSelectAllPatients(isChecked) {
+  const patients = Array.isArray(patientsFilteredData) ? patientsFilteredData : [];
+  if (isChecked) {
+    patients.forEach(p => { if (p && p.id) selectedPatientIds.add(p.id); });
+  } else {
+    selectedPatientIds.clear();
+  }
+  const checkboxes = document.querySelectorAll('.patient-row-select');
+  checkboxes.forEach(cb => cb.checked = isChecked);
+  updatePatientsBulkBar();
+}
+window.toggleSelectAllPatients = toggleSelectAllPatients;
+
+function clearPatientSelection() {
+  selectedPatientIds.clear();
+  const selectAll = document.getElementById('patients-select-all');
+  if (selectAll) selectAll.checked = false;
+  const checkboxes = document.querySelectorAll('.patient-row-select');
+  checkboxes.forEach(cb => cb.checked = false);
+  updatePatientsBulkBar();
+}
+window.clearPatientSelection = clearPatientSelection;
+
+function updatePatientsBulkBar() {
+  const bulkBar = document.getElementById('patients-bulk-bar');
+  const countSpan = document.getElementById('patients-bulk-count');
+  const selectAll = document.getElementById('patients-select-all');
+  const doctorSelect = document.getElementById('patients-bulk-doctor-select');
+  
+  const count = selectedPatientIds.size;
+  if (!bulkBar) return;
+
+  if (count > 0 && currentUserRole === 'assistant') {
+    bulkBar.style.display = 'flex';
+    if (countSpan) countSpan.textContent = `${count} patient${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}`;
+    
+    // Populate doctor select if not populated
+    if (doctorSelect && patientsScope?.practitioners && doctorSelect.children.length === 0) {
+      doctorSelect.innerHTML = '<option value="">-- Sélectionner le médecin --</option>' +
+        patientsScope.practitioners.map(d => `<option value="${d.id}">${formatPractitionerName(d)}</option>`).join('');
+    }
+  } else {
+    bulkBar.style.display = 'none';
+  }
+
+  const patients = Array.isArray(patientsFilteredData) ? patientsFilteredData : [];
+  if (selectAll && patients.length > 0) {
+    selectAll.checked = patients.every(p => selectedPatientIds.has(p.id));
+  }
+}
+window.updatePatientsBulkBar = updatePatientsBulkBar;
+
+async function assignSelectedPatientsToDoctor() {
+  const patientIds = [...selectedPatientIds];
+  const doctorSelect = document.getElementById('patients-bulk-doctor-select');
+  const targetDoctorId = doctorSelect ? doctorSelect.value : '';
+
+  if (!targetDoctorId) {
+    showNotification('Veuillez sélectionner un médecin destinataire', 'warning');
+    return;
+  }
+  if (!patientIds.length) {
+    showNotification('Veuillez sélectionner au moins un patient', 'warning');
+    return;
+  }
+
+  try {
+    const results = await Promise.all(patientIds.map(patientId =>
+      window.api.patient.assignMedecin({ patientId, medecinId: targetDoctorId })
+    ));
+    const failed = results.filter(r => !r || !r.success);
+    if (failed.length) {
+      showNotification(`Erreur lors de l'assignation de certains patients: ${failed[0]?.error || 'Échec'}`, 'error');
+    } else {
+      const selectedDoctor = (patientsScope?.practitioners || []).find(d => d.id === targetDoctorId);
+      const doctorName = selectedDoctor ? formatPractitionerName(selectedDoctor) : 'le médecin';
+      showNotification(`✅ ${patientIds.length} patient${patientIds.length > 1 ? 's' : ''} assigné${patientIds.length > 1 ? 's' : ''} au ${doctorName}`, 'success');
+    }
+    clearPatientSelection();
+    await loadPatients(patientsCurrentPage);
+  } catch (err) {
+    console.error('Erreur assignation groupée:', err);
+    showNotification('Erreur lors de l\'assignation groupée', 'error');
+  }
+}
+window.assignSelectedPatientsToDoctor = assignSelectedPatientsToDoctor;
 
 async function assignSelectedPatientsToCurrentDoctor() {
   const patientIds = [...selectedPatientIds];
@@ -454,10 +575,18 @@ async function loadPatients(page = 1) {
       }
     }
 
-    if (result && result.success && patientState.isCurrent(requestVersion)) {
+    // Ignore les réponses périmées : une recherche plus récente a déjà pris le dessus
+    if (!patientState.isCurrent(requestVersion)) {
+      return;
+    }
+
+    if (result && result.success) {
       if ((patientsView === 'mine' || patientsView === 'my-patients') && (!result.data || result.data.length === 0) && !patientsSearchTerm) {
         try {
           const dirRes = await patientApi.getDirectory({ searchTerm: patientsSearchTerm, page, pageSize, paginated: true });
+          if (!patientState.isCurrent(requestVersion)) {
+            return;
+          }
           if (dirRes && dirRes.success && dirRes.data && dirRes.data.length > 0) {
             result = dirRes;
           }
@@ -467,15 +596,15 @@ async function loadPatients(page = 1) {
       setPatientsData(result.data || [], result.pagination);
     } else if (result && !result.success) {
       console.warn('Patient loading returned unsuccessful status:', result.error);
-      if (!patientsFilteredData.length) {
+      if (!patientsFilteredData || !patientsFilteredData.length) {
         setPatientsData([], null);
       }
-    } else if (!patientsFilteredData.length) {
+    } else if (!patientsFilteredData || !patientsFilteredData.length) {
       setPatientsData([], null);
     }
   } catch (error) {
     console.error('❌ Erreur lors du chargement des patients:', error);
-    if (!patientsFilteredData.length) {
+    if (!patientsFilteredData || !patientsFilteredData.length) {
       setPatientsData([], null);
     }
   } finally {
@@ -679,11 +808,31 @@ function resetSickLeaveFormFields({ prefillDates = false, documentKind = 'certif
 
   const modalTitle = document.querySelector('#modal-add-sickleave .modal-header h2');
   if (modalTitle) {
-    modalTitle.textContent = documentKind === 'workstop' ? '🪪 Arrêt de travail' : '🪪 Certificat médical';
+    modalTitle.textContent = documentKind === 'workstop' ? 'Arrêt de travail' : 'Certificat médical';
+  }
+
+  const quickChips = document.getElementById('sickleave-quick-chips');
+  if (quickChips) {
+    if (documentKind === 'workstop') {
+      quickChips.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_3j')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 3J</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_5j')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 5J</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_7j')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 7J</button>
+      `;
+    } else {
+      quickChips.innerHTML = `
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('certif_soins')" style="font-size: 11px; height: 26px; padding: 0 8px;">Soins ORL</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_maladie')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 3J</button>
+      `;
+    }
   }
 
   if (typeof updateSickLeaveSummary === 'function') {
     updateSickLeaveSummary();
+  }
+
+  if (typeof renderSickLeaveDocumentPreview === 'function') {
+    renderSickLeaveDocumentPreview();
   }
 }
 
@@ -729,9 +878,7 @@ function showPatientForm() {
   
   if (currentUserRole === 'assistant') {
     const drContainer = document.getElementById('patient-doctor-selector-container');
-    // The assistant already selected the working doctor above the patient list.
-    // Avoid asking for the same choice a second time in the patient form.
-    if (drContainer) drContainer.style.display = 'none';
+    if (drContainer) drContainer.style.display = 'block';
     window.selectedDoctorSpecialty = '';
     if (typeof applyPackageRestrictionsFromCache === 'function') {
       applyPackageRestrictionsFromCache(window._packageConfig || null);
@@ -744,6 +891,9 @@ function showPatientForm() {
           if (!user || !user.id || user.isSuperAdmin) return false;
           return user.role === 'doctor' || user.role === 'dentist';
         });
+        if (doctors.length > 0 && drContainer) {
+          drContainer.style.display = 'block';
+        }
         const select = document.getElementById('patient-primaryDoctorId');
         if (select) {
           select.innerHTML = '<option value="">-- Sélectionner un Médecin --</option>' + 
@@ -756,7 +906,7 @@ function showPatientForm() {
               return `<option value="${doctor.id}" data-specialty="${doctor.specialty || ''}">${displayName}${specialtyLabel ? ` (${specialtyLabel})` : ''}</option>`;
             }).join('');
 
-          select.value = selectedPatientsDoctorId || patientsScope?.selectedDoctorId || '';
+          select.value = selectedPatientsDoctorId || patientsScope?.selectedDoctorId || (doctors[0]?.id || '');
           select.onchange = (event) => {
             const selectedOption = event?.target?.selectedOptions?.[0] || null;
             window.selectedDoctorSpecialty = selectedOption?.dataset?.specialty || '';
@@ -813,9 +963,34 @@ async function editPatient(patientId) {
       document.getElementById('patient-emergencyContact').value = patient.emergencyContact || '';
       document.getElementById('patient-emergencyPhone').value = patient.emergencyPhone || '';
 
-      // Cacher le sélecteur de médecin lors de la modification
+      // Sélecteur de médecin pour l'assistant
       const drContainer = document.getElementById('patient-doctor-selector-container');
-      if (drContainer) drContainer.style.display = 'none';
+      if (currentUserRole === 'assistant') {
+        if (drContainer) drContainer.style.display = 'block';
+        patientApi.getUsers({ requestingUserId: currentUserId }).then(res => {
+          if (res.success) {
+            const doctors = (res.data || []).filter((user) => {
+              if (!user || !user.id || user.isSuperAdmin) return false;
+              return user.role === 'doctor' || user.role === 'dentist';
+            });
+            const select = document.getElementById('patient-primaryDoctorId');
+            if (select) {
+              select.innerHTML = '<option value="">-- Sélectionner un Médecin --</option>' + 
+                doctors.map((doctor) => {
+                  const displayName = doctor.fullName || doctor.username || 'Médecin';
+                  const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
+                    ? getPracticeSpecialtyMeta(doctor.specialty || doctor.role)
+                    : null;
+                  const specialtyLabel = specialtyMeta?.shortLabel || specialtyMeta?.label || '';
+                  return `<option value="${doctor.id}" data-specialty="${doctor.specialty || ''}">${displayName}${specialtyLabel ? ` (${specialtyLabel})` : ''}</option>`;
+                }).join('');
+              select.value = patient.primaryDoctorId || selectedPatientsDoctorId || '';
+            }
+          }
+        });
+      } else {
+        if (drContainer) drContainer.style.display = 'none';
+      }
 
       document.getElementById('patient-form').dataset.editingPatientId = patientId;
       updatePatientAgeDisplay();
@@ -844,14 +1019,12 @@ async function savePatient(e) {
   const patientData = collectPatientFormData();
   patientData.scopeDoctorId = selectedPatientsDoctorId;
 
-  // Ajout du champ médecin traitant si sélectionné par un assistant lors de la création
-  if (!editingPatientId && currentUserRole === 'assistant') {
+  // Ajout du champ médecin traitant si sélectionné par un assistant
+  if (currentUserRole === 'assistant') {
     const drVal = getValue('patient-primaryDoctorId') || selectedPatientsDoctorId;
-    if (!drVal) {
-      showNotification('❌ Veuillez sélectionner un médecin pour ce patient', 'error');
-      return;
+    if (drVal) {
+      patientData.primaryDoctorId = drVal;
     }
-    patientData.primaryDoctorId = drVal;
   }
 
   try {

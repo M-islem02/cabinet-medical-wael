@@ -203,28 +203,12 @@ function renderActsTable() {
     return `${icon} ${label}`;
   };
 
+  // Every entry here is a real payment grouped by description — never drop them
+  // (operation versements, etc.). Only exclude empty rows.
   const summaryEntries = Object.entries(actsSummary).filter(([, info]) => {
-    const actTypeValue = typeof window.resolveConsultationActValue === 'function'
-      ? window.resolveConsultationActValue(info?.actType || '')
-      : String(info?.actType || '').trim();
-    const descriptionValue = typeof window.resolveConsultationActValue === 'function'
-      ? window.resolveConsultationActValue(info?.description || '')
-      : String(info?.description || '').trim();
-
-    if (allowedActs && !allowedActs.has(actTypeValue) && !allowedActs.has(descriptionValue)) {
-      if (descriptionValue) {
-        return false;
-      }
-    }
     const quantity = Number(info?.quantity) || 0;
     const total = Number(info?.total) || 0;
     return quantity > 0 || total > 0;
-  }).filter(([actType]) => {
-    if (!allowedActs) return true;
-    const normalized = typeof window.resolveConsultationActValue === 'function'
-      ? window.resolveConsultationActValue(actType)
-      : String(actType || '').trim();
-    return allowedActs.has(normalized);
   });
 
   if (summaryEntries.length > 0) {
@@ -373,30 +357,62 @@ async function renderKineSummary() {
 /**
  * Print daily summary
  */
-function printDailySummary() {
+async function printDailySummary() {
+  const actsEntries = Object.entries(summaryData.actsSummary || {});
+  const actsRowsHtml = actsEntries.length
+    ? actsEntries.map(([actType, info]) => `
+        <tr>
+          <td>${escapeHTMLSummary(String(actType))}</td>
+          <td style="text-align:center;">${Number(info?.quantity) || 0}</td>
+          <td style="text-align:right;">${formatCurrency(info?.total || 0)}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:#999;">Aucun acte encaissé pour cette date</td></tr>';
+
+  const consultations = summaryData.consultations || [];
+  const consultRowsHtml = consultations.length
+    ? consultations.map(c => {
+        const dateTime = c.createdAt ? new Date(c.createdAt) : (c.consultationDate ? new Date(c.consultationDate) : null);
+        const timeStr = dateTime && !isNaN(dateTime.getTime()) && dateTime.getHours() !== 0
+          ? dateTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : '-';
+        const patientName = `${c.lastName || ''} ${c.firstName || ''}`.trim() || 'Patient inconnu';
+        return `
+          <tr>
+            <td>${timeStr}</td>
+            <td>${escapeHTMLSummary(patientName)}</td>
+            <td>${escapeHTMLSummary(String(c.type || '-'))}</td>
+            <td>${escapeHTMLSummary(String(c.reason || '-'))}</td>
+            <td>${escapeHTMLSummary(String(c.diagnosis || '-'))}</td>
+          </tr>`;
+      }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:#999;">Aucune consultation pour cette date</td></tr>';
+
   const printContent = `
     <!DOCTYPE html>
     <html>
     <head>
+      <meta charset="utf-8">
       <title>Résumé du ${formatDatePrint(summaryDate)}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        h1 { text-align: center; color: #1e40af; }
-        .date { text-align: center; color: #666; margin-bottom: 30px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
-        .stat-card { text-align: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
-        .stat-value { font-size: 32px; font-weight: bold; color: #1e40af; }
-        .stat-label { color: #666; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        body { font-family: Arial, sans-serif; padding: 20px; color: #1e293b; }
+        h1 { text-align: center; color: #1e40af; margin-bottom: 4px; }
+        .date { text-align: center; color: #666; margin-bottom: 24px; }
+        h2 { font-size: 16px; color: #1e40af; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; margin-top: 28px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 10px; }
+        .stat-card { text-align: center; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        .stat-value { font-size: 22px; font-weight: bold; color: #1e40af; }
+        .stat-label { color: #666; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 13px; }
         th { background: #f8fafc; }
-        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 50px; }
+        tr.total td { background: #f8fafc; font-weight: bold; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 40px; }
       </style>
     </head>
     <body>
-      <h1>📋 Résumé Journalier</h1>
+      <h1>Résumé Journalier</h1>
       <p class="date">${formatDatePrint(summaryDate)}</p>
-      
+
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">${summaryData.visits || 0}</div>
@@ -412,23 +428,77 @@ function printDailySummary() {
         </div>
         <div class="stat-card">
           <div class="stat-value">${summaryData.reductions || 0}</div>
-          <div class="stat-label">Réductions</div>
+          <div class="stat-label">Actes & Gestes</div>
         </div>
         <div class="stat-card">
           <div class="stat-value" style="color: #10b981;">${formatCurrency(summaryData.revenue || 0)}</div>
-          <div class="stat-label">Revenus</div>
+          <div class="stat-label">Total Encaissé</div>
         </div>
       </div>
-      
+
+      <h2>Détail par Type d'Acte</h2>
+      <table>
+        <thead>
+          <tr><th>Type d'Acte</th><th style="text-align:center;">Quantité</th><th style="text-align:right;">Montant Total</th></tr>
+        </thead>
+        <tbody>
+          ${actsRowsHtml}
+          <tr class="total"><td>TOTAL</td><td></td><td style="text-align:right;">${formatCurrency(actsEntries.reduce((s, [, i]) => s + (Number(i?.total) || 0), 0))}</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Consultations du Jour</h2>
+      <table>
+        <thead>
+          <tr><th>Heure</th><th>Patient</th><th>Type</th><th>Motif</th><th>Diagnostic</th></tr>
+        </thead>
+        <tbody>${consultRowsHtml}</tbody>
+      </table>
+
       <p class="footer">Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
     </body>
     </html>
   `;
-  
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(printContent);
-  printWindow.document.close();
-  printWindow.print();
+
+  // Preferred path: app print pipeline (silent print on the configured printer)
+  try {
+    if (window.api?.print?.html) {
+      const result = await window.api.print.html({
+        html: printContent,
+        pageSize: 'A4',
+        documentTitle: `Résumé journalier ${formatDatePrint(summaryDate)}`
+      });
+      if (!result?.success) throw new Error(result?.error || "Impression impossible");
+      if (typeof showNotification === 'function') showNotification("Résumé envoyé à l'impression", 'success');
+      return;
+    }
+  } catch (e) {
+    console.warn('Silent print failed, falling back to print dialog:', e);
+  }
+
+  // Fallback: hidden iframe + system print dialog
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+    iframe.srcdoc = printContent;
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } finally {
+        setTimeout(() => iframe.remove(), 1000);
+      }
+    };
+  } catch (e) {
+    console.error('Error printing daily summary:', e);
+    if (typeof showNotification === 'function') showNotification("Impossible d'imprimer le résumé", 'error');
+  }
 }
 
 /**

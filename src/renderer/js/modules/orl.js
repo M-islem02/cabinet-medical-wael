@@ -255,6 +255,15 @@ function handleGlobalPatientSelected(e) {
   }
 }
 
+export function deselectORLPatient(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  selectORLPatient(null);
+}
+window.deselectORLPatient = deselectORLPatient;
+
 export function renderORLHistoryList() {
   const listEl = document.getElementById('orl-history-list');
   const patientSubEl = document.getElementById('orl-history-view-patient-subtitle');
@@ -263,7 +272,24 @@ export function renderORLHistoryList() {
   let patient = window.currentPatientData;
   const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : (currentORLPatientId ? `Patient #${currentORLPatientId}` : 'Aucun patient sélectionné');
   if (patientSubEl) {
-    patientSubEl.innerHTML = currentORLPatientId ? `Patient : <strong style="color: #1677ff; font-size: 15.5px;">${patientName}</strong>` : `Patient : <em>Aucun patient sélectionné</em>`;
+    if (currentORLPatientId && patient) {
+      patientSubEl.innerHTML = `
+        <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+          <span style="font-size: 14px; font-weight: 600; color: #64748b;">Patient :</span>
+          <div class="orl-patient-selected-tag" style="display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; border: 1.5px solid #93c5fd; padding: 4px 10px 4px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(37,99,235,0.06);">
+            <div style="width: 22px; height: 22px; border-radius: 50%; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+              ${(patient.lastName?.[0] || patient.firstName?.[0] || 'P').toUpperCase()}
+            </div>
+            <strong style="color: #1d4ed8; font-size: 14.5px; font-weight: 750;">${escapeHTML(patientName)}</strong>
+            <button type="button" class="orl-deselect-btn" onclick="deselectORLPatient(event)" title="Désélectionner ce patient" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #ffffff; border: 1.5px solid #f87171; color: #dc2626; cursor: pointer; font-size: 13px; font-weight: 800; line-height: 1; padding: 0; margin-left: 6px; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(220,38,38,0.12);" onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#dc2626';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#f87171';">
+              ✕
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      patientSubEl.innerHTML = `Patient : <em style="color: #94a3b8;">Aucun patient sélectionné</em>`;
+    }
   }
 
   if (!currentORLPatientId) {
@@ -446,7 +472,7 @@ export async function refreshORLPatientList() {
         requireSearch: true,
         minSearchLength: 1,
         maxResults: 8,
-        allowClear: true,
+        allowClear: false,
         showAvatar: true,
         placeholder: 'Rechercher un patient (nom, prénom, tél)...',
         searchPromptText: 'Tapez au moins 1 caractère pour rechercher...',
@@ -531,6 +557,11 @@ export async function selectORLPatient(patientId, options = {}) {
 function updateORLPatientDisplay(patient) {
   const display = document.getElementById('orl-current-patient-display');
   const avatar = document.getElementById('orl-patient-avatar');
+  const siderDeselectBtn = document.getElementById('orl-sider-deselect-btn');
+
+  if (siderDeselectBtn) {
+    siderDeselectBtn.style.display = patient ? 'inline-flex' : 'none';
+  }
 
   if (!patient) {
     if (display) display.textContent = 'Aucun patient sélectionné';

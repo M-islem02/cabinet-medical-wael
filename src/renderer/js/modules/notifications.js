@@ -24,10 +24,49 @@ function showNotification(message, type = 'info') {
 function handleRealtimeEvent(payload = {}) {
   if (!payload?.type) return;
 
-  if (payload.type === 'waiting-room:new') {
-    showNotification(payload.title || 'Nouveau patient en salle d’attente', 'info');
+  if (payload.type === 'patient:new' || payload.type === 'patient:created' || payload.type === 'patient:updated') {
+    showNotification(payload.message || payload.title || 'Nouveau patient enregistré', 'info');
+    if (typeof loadPatients === 'function') loadPatients();
+    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+    if (typeof refreshPatientRecordsCache === 'function') refreshPatientRecordsCache();
+    return;
+  }
+
+  if (payload.type === 'appointment:new' || payload.type === 'appointment:created' || payload.type === 'appointment:updated') {
+    showNotification(payload.message || payload.title || 'Nouveau rendez-vous enregistré', 'info');
+    if (typeof loadAppointments === 'function') loadAppointments();
+    if (typeof loadCalendarEvents === 'function') loadCalendarEvents();
+    if (typeof renderCalendar === 'function') renderCalendar();
+    if (typeof loadTodayAppointments === 'function') loadTodayAppointments();
+    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+    return;
+  }
+
+  if (payload.type === 'waiting-room:new' || payload.type === 'waiting-room:update' || payload.type === 'waiting-room:call') {
+    if (payload.type === 'waiting-room:new') {
+      showNotification(payload.title || 'Nouveau patient en salle d’attente', 'info');
+    }
     if (typeof loadWaitingRoom === 'function') loadWaitingRoom();
     if (typeof updateWaitingRoomBadge === 'function') updateWaitingRoomBadge();
+    if (typeof loadWaitingRoomStats === 'function') loadWaitingRoomStats();
+    if (typeof loadDashboardStats === 'function') loadDashboardStats();
+    return;
+  }
+
+  if (payload.type === 'attachment:new' || payload.type === 'patient:photo') {
+    showNotification(payload.title || 'Nouvelle photo reçue depuis le mobile', 'info');
+    if (typeof currentPatientId !== 'undefined' && String(currentPatientId) === String(payload.patientId)) {
+      if (typeof loadPatientAttachments === 'function') loadPatientAttachments(payload.patientId);
+      if (typeof loadPatientConsultations === 'function') loadPatientConsultations(payload.patientId);
+    }
+    return;
+  }
+
+  if (payload.type === 'consultation:note') {
+    showNotification(payload.title || 'Nouvelle note reçue depuis le mobile', 'info');
+    if (typeof currentPatientId !== 'undefined' && String(currentPatientId) === String(payload.patientId)) {
+      if (typeof loadPatientConsultations === 'function') loadPatientConsultations(payload.patientId);
+    }
     return;
   }
 

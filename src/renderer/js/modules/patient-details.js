@@ -1237,14 +1237,17 @@ function renderImmediateMedicalSummary(patient) {
 async function renderPatientAssignedMedecins(patient) {
   const container = document.getElementById('patient-assigned-medecins');
   if (!container) return;
-  const isMultiple = typeof getCabinetType === 'function' && getCabinetType() === 'multiple';
-  container.style.display = isMultiple ? '' : 'none';
-  if (!isMultiple || !patient?.id) return;
+  if (!patient?.id) return;
 
   const usersResult = await window.api.user.getAll({ requestingUserId: currentUserId });
   const doctors = (usersResult.success ? usersResult.data : []).filter(user => user.role === 'doctor' || user.role === 'dentist');
+  if (!doctors.length || (doctors.length <= 1 && currentUserRole !== 'assistant')) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = '';
   const assigned = new Set((patient.assignedMedecins || []).map(user => user.id));
-  container.innerHTML = `<h4>Médecin(s) assigné(s)</h4><div class="patient-medecin-checklist">${doctors.map(user => `<label><input type="checkbox" value="${user.id}" ${assigned.has(user.id) ? 'checked' : ''}> ${user.name || user.fullName || user.username}</label>`).join('')}</div>`;
+  container.innerHTML = `<h4>Médecin(s) assigné(s)</h4><div class="patient-medecin-checklist" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">${doctors.map(user => `<label style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;"><input type="checkbox" value="${user.id}" ${assigned.has(user.id) ? 'checked' : ''}> ${user.name || user.fullName || user.username}</label>`).join('')}</div>`;
   container.querySelectorAll('input[type="checkbox"]').forEach(input => {
     input.addEventListener('change', async () => {
       const result = input.checked
@@ -1253,6 +1256,8 @@ async function renderPatientAssignedMedecins(patient) {
       if (!result.success) {
         input.checked = !input.checked;
         showNotification(result.error || 'Modification impossible', 'error');
+      } else {
+        showNotification(input.checked ? 'Médecin assigné avec succès' : 'Médecin retiré', 'success');
       }
     });
   });
@@ -1398,14 +1403,8 @@ async function showPatientDetails(patientId) {
     }
     resetPatientRecordsView('Chargement...');
       
-      // Load Default Tab based on role
-      // Assistants should only see appointments tab
-      if (currentUserRole === 'assistant') {
-        switchTab('tab-appointments');
-        enforceAssistantMode(); // Re-apply restrictions after loading patient details
-      } else {
-        switchTab('tab-consultations');
-      }
+      // Load Default Tab
+      switchTab('tab-consultations');
       return patient;
     }
     showNotification(result.error || 'Patient non trouvé', 'error');
@@ -1418,7 +1417,34 @@ async function showPatientDetails(patientId) {
 }
 
 
+function getAppScrollTop() {
+  const contentArea = document.querySelector('.content-area');
+  if (contentArea && contentArea.scrollTop > 0) return contentArea.scrollTop;
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent && mainContent.scrollTop > 0) return mainContent.scrollTop;
+  return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+}
+
+function setAppScrollTop(top) {
+  if (typeof top !== 'number' || top < 0) return;
+  const contentArea = document.querySelector('.content-area');
+  if (contentArea) {
+    contentArea.scrollTop = top;
+  }
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.scrollTop = top;
+  }
+  try {
+    window.scrollTo({ top, behavior: 'instant' });
+  } catch (_) {
+    window.scrollTo(0, top);
+  }
+}
+
 function switchPatientCategory(categoryKey) {
+  const currentScroll = getAppScrollTop();
+
   // Update category tab buttons
   document.querySelectorAll('#patient-category-tabs .patient-category-btn, #patient-category-tabs .ant-vertical-tabs-item, #patient-category-tabs .ant-tabs-tab').forEach(tab => {
     const isActive = tab.dataset.category === categoryKey || (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(categoryKey));
@@ -1441,15 +1467,24 @@ function switchPatientCategory(categoryKey) {
   const categoryTabMap = {
     'suivi': 'tab-consultations',
     'documents': 'tab-prescriptions',
-    'facturation': 'tab-factures',
+    'facturation': 'tab-patient-payments',
     'rdv': 'tab-appointments',
   };
   const defaultTab = categoryTabMap[categoryKey];
   if (defaultTab) switchTab(defaultTab);
+
+  if (currentScroll > 0) {
+    requestAnimationFrame(() => {
+      setAppScrollTop(currentScroll);
+      setTimeout(() => setAppScrollTop(currentScroll), 40);
+    });
+  }
 }
 window.switchPatientCategory = switchPatientCategory;
 
 function switchTab(tabId) {
+  const currentScroll = getAppScrollTop();
+
   // Initialize or update Segmented control for Documents category
   if (typeof AntSegmented !== 'undefined') {
     const docsSegmented = document.getElementById('patient-docs-segmented');
@@ -1460,6 +1495,7 @@ function switchTab(tabId) {
             { label: 'Ordonnances', value: 'tab-prescriptions' },
             { label: 'Certificats', value: 'tab-certificats' },
             { label: 'Arrêts', value: 'tab-arrets' },
+            { label: 'Factures', value: 'tab-factures' },
             { label: 'Rapports', value: 'tab-rapports' },
             { label: 'Bon Pour / Faire Svp', value: 'tab-bonpour' },
             { label: 'Orientations', value: 'tab-orientations' },
@@ -1481,10 +1517,6 @@ function switchTab(tabId) {
     }
   }
 
-  if (currentUserRole === 'assistant' && tabId !== 'tab-appointments') {
-    tabId = 'tab-appointments';
-  }
-
   // Update Tabs UI
   document.querySelectorAll('.tab-btn, .details-tab-btn, #patient-details .tab-btn').forEach(btn => {
     btn.classList.remove('active');
@@ -1503,6 +1535,14 @@ function switchTab(tabId) {
     targetPane.classList.add('active');
   }
 
+  // Restore scroll position so switching tabs never scrolls to top
+  if (currentScroll > 0) {
+    requestAnimationFrame(() => {
+      setAppScrollTop(currentScroll);
+      setTimeout(() => setAppScrollTop(currentScroll), 40);
+    });
+  }
+
   // Load Data
   if (tabId === 'tab-consultations') loadPatientConsultations(currentPatientId);
   if (tabId === 'tab-prescriptions') loadPatientPrescriptions(currentPatientId);
@@ -1514,6 +1554,7 @@ function switchTab(tabId) {
   if (tabId === 'tab-orientations') loadPatientOrientations(currentPatientId);
   if (tabId === 'tab-attachments') loadPatientAttachments(currentPatientId);
   if (tabId === 'tab-appointments') loadPatientAppointments(currentPatientId);
+  if (tabId === 'tab-patient-payments' || tabId === 'tab-facturation') loadPatientPayments(currentPatientId);
   if (tabId === 'tab-dental') loadPatientDentalTab(currentPatientId);
 }
 
@@ -1987,7 +2028,7 @@ function renderConsultationEquipmentWidget() {
         </span>
         <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Rechercher ou sélectionner un équipement ORL..." autocomplete="off" style="padding-left: 38px !important; padding-right: 32px; height: 38px; font-size: 13px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%; box-sizing: border-box;">
         <button type="button" id="consultation-eq-clear-btn" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; padding: 2px; line-height: 1; z-index: 5;" title="Effacer la recherche">&times;</button>
-        <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1200; background: #ffffff; border: 1px solid #d9d9d9; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); max-height: 280px; overflow-y: auto;"></div>
+        <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10080; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 14px 35px rgba(0,0,0,0.22); max-height: 320px; overflow-y: auto;"></div>
       </div>
       <div id="consultation-eq-selected-tags" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; margin-top: 10px; align-items: center;"></div>
       <div id="consultation-eq-hidden-inputs" style="display: none;"></div>
@@ -3252,7 +3293,8 @@ async function editSickLeave(sickLeaveId) {
       }
 
       // Set document kind from the record so the save path knows which type this is
-      const docKind = sickLeave.documentKind === 'workstop' ? 'workstop' : 'certificate';
+      const rawK = String(sickLeave.documentKind || sickLeave.documentkind || sickLeave.documentType || sickLeave.type || '').toLowerCase();
+      const docKind = rawK === 'workstop' || rawK === 'arret' ? 'workstop' : 'certificate';
       if (form) form.dataset.documentKind = docKind;
 
       const modalTitle = document.querySelector('#modal-add-sickleave .modal-header h2');
@@ -4566,6 +4608,354 @@ function addORLReportToConsultation() {
   }
 }
 window.addORLReportToConsultation = addORLReportToConsultation;
+
+// --- Patient Payments & Settlement History (10 per page) ---
+
+let patientPaymentsData = [];
+let patientPaymentsPage = 1;
+const PATIENT_PAYMENTS_PAGE_SIZE = 10;
+
+function formatPatientMoneyDZD(value) {
+  if (typeof formatMoneyDZD === 'function') {
+    return formatMoneyDZD(value);
+  }
+  return new Intl.NumberFormat('fr-DZ', {
+    style: 'currency',
+    currency: 'DZD'
+  }).format(Number(value) || 0);
+}
+
+async function loadPatientPayments(patientId, options = {}) {
+  const tbody = document.getElementById('details-patient-payments-tbody');
+  if (!tbody) return;
+
+  if (!patientId) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-row">Sélectionnez un patient</td></tr>';
+    return;
+  }
+
+  patientPaymentsPage = Number(options.page || 1);
+  const hasExistingContent = tbody.hasChildNodes() && tbody.innerHTML.trim() !== '' && !tbody.innerHTML.includes('Chargement...');
+  if (!hasExistingContent) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-row">Chargement des règlements...</td></tr>';
+  }
+
+  try {
+    const result = await window.api.payment.getByPatient(patientId);
+    if (!result || !result.success || !Array.isArray(result.data)) {
+      patientPaymentsData = [];
+    } else {
+      patientPaymentsData = result.data;
+    }
+    renderPatientPayments();
+  } catch (error) {
+    console.error('Erreur chargement paiements patient:', error);
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-row">Impossible de charger les règlements</td></tr>';
+  }
+}
+window.loadPatientPayments = loadPatientPayments;
+
+function renderPatientPayments() {
+  const tbody = document.getElementById('details-patient-payments-tbody');
+  const totalPaidEl = document.getElementById('patient-payments-total-paid');
+  const countEl = document.getElementById('patient-payments-count');
+  const paginationContainer = document.getElementById('patient-payments-pagination');
+
+  if (!tbody) return;
+
+  const totalPayments = patientPaymentsData.length;
+  let totalPaid = 0;
+
+  patientPaymentsData.forEach(p => {
+    totalPaid += Number(p.amount) || 0;
+  });
+
+  if (totalPaidEl) totalPaidEl.textContent = formatPatientMoneyDZD(totalPaid);
+  if (countEl) countEl.textContent = `${totalPayments} règlement${totalPayments > 1 ? 's' : ''}`;
+
+  if (!totalPayments) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="padding: 36px 16px;">
+          <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="ant-empty-image" style="margin-bottom: 12px;">
+              <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                <rect x="8" y="14" width="48" height="36" rx="4" fill="#f8fafc"/>
+                <line x1="8" y1="26" x2="56" y2="26"/>
+                <line x1="16" y1="36" x2="28" y2="36"/>
+              </svg>
+            </div>
+            <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun paiement enregistré</div>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Ce patient n'a aucun historique de règlement pour le moment.</div>
+            <button class="btn btn-primary btn-small" type="button" onclick="openRecordPaymentModal(currentPatientId)" style="height: 32px; font-weight: 600;">
+              Enregistrer un règlement
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+    if (paginationContainer) paginationContainer.style.display = 'none';
+    return;
+  }
+
+  const totalPages = Math.ceil(totalPayments / PATIENT_PAYMENTS_PAGE_SIZE) || 1;
+  patientPaymentsPage = Math.min(Math.max(1, patientPaymentsPage), totalPages);
+
+  const startIndex = (patientPaymentsPage - 1) * PATIENT_PAYMENTS_PAGE_SIZE;
+  const pageItems = patientPaymentsData.slice(startIndex, startIndex + PATIENT_PAYMENTS_PAGE_SIZE);
+
+  const methodLabels = {
+    'cash': 'Espèces',
+    'especes': 'Espèces',
+    'check': 'Chèque',
+    'cheque': 'Chèque',
+    'card': 'Carte',
+    'carte': 'Carte',
+    'transfer': 'Virement',
+    'virement': 'Virement'
+  };
+
+  tbody.innerHTML = pageItems.map(p => {
+    const date = p.paymentDate ? new Date(p.paymentDate).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+    const ref = p.consultationId ? `Consultation N°${p.consultationId}` : 'Règlement direct';
+    const rawMotif = String(p.description || p.notes || 'Acte médical / Soins').replace(/[\r\n]+/g, ' ').trim();
+    const methodKey = String(p.paymentMethod || 'cash').toLowerCase();
+    const method = methodLabels[methodKey] || p.paymentMethod || 'Espèces';
+    const amount = formatPatientMoneyDZD(p.amount);
+    const status = String(p.status || 'paid').toLowerCase();
+    const isPaid = status === 'paid' || status === 'payé' || status === 'regle';
+
+    const statusBadge = isPaid
+      ? '<span class="appointment-status-pill appointment-status-pill-completed" style="background:#f0fdf4; color:#166534; border:1px solid #bbf7d0;">Payé</span>'
+      : '<span class="appointment-status-pill appointment-status-pill-pending" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">Partiel / En attente</span>';
+
+    return `
+      <tr>
+        <td><strong style="color: #0f172a;">${escapeHTML(date)}</strong></td>
+        <td><span style="font-size: 12.5px; color: #475569;">${escapeHTML(ref)}</span></td>
+        <td style="max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span style="font-weight: 550; color: #1e293b;" title="${escapeHTML(rawMotif)}">${escapeHTML(rawMotif)}</span></td>
+        <td><span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-size: 12px; color: #334155; font-weight: 500;">${escapeHTML(method)}</span></td>
+        <td><strong style="font-size: 13.5px; color: #0d9488;">${amount}</strong></td>
+        <td>${statusBadge}</td>
+        <td style="text-align: right;">
+          <button class="btn btn-secondary btn-tiny" onclick="printPatientPaymentTicket('${p.id}')" title="Imprimer le reçu A5" style="height: 28px; padding: 0 10px; font-size: 12px; font-weight: 550; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Reçu A5</span>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (paginationContainer) {
+    if (totalPages <= 1) {
+      paginationContainer.style.display = 'none';
+    } else {
+      paginationContainer.style.display = 'flex';
+      paginationContainer.style.justifyContent = 'space-between';
+      paginationContainer.style.alignItems = 'center';
+      paginationContainer.innerHTML = `
+        <span style="font-size: 13px; color: #64748b;">
+          Affichage ${startIndex + 1}-${Math.min(startIndex + PATIENT_PAYMENTS_PAGE_SIZE, totalPayments)} sur ${totalPayments}
+        </span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-secondary btn-small" ${patientPaymentsPage <= 1 ? 'disabled' : ''} onclick="changePatientPaymentsPage(${patientPaymentsPage - 1})">
+            ◀ Précédent
+          </button>
+          <span style="font-size: 13px; font-weight: 600; color: #334155;">Page ${patientPaymentsPage} / ${totalPages}</span>
+          <button class="btn btn-secondary btn-small" ${patientPaymentsPage >= totalPages ? 'disabled' : ''} onclick="changePatientPaymentsPage(${patientPaymentsPage + 1})">
+            Suivant ▶
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+window.renderPatientPayments = renderPatientPayments;
+
+function changePatientPaymentsPage(page) {
+  patientPaymentsPage = page;
+  renderPatientPayments();
+}
+window.changePatientPaymentsPage = changePatientPaymentsPage;
+
+async function printPatientPaymentTicket(paymentId) {
+  const payment = patientPaymentsData.find(p => String(p.id) === String(paymentId));
+  if (!payment) {
+    showNotification('Paiement introuvable', 'error');
+    return;
+  }
+
+  let patient = currentPatientData;
+  if (!patient || !patient.id) {
+    try {
+      const pRes = await window.api.patient.getById(currentPatientId || payment.patientId);
+      if (pRes.success) patient = pRes.data;
+    } catch (_) {}
+  }
+  patient = patient || {};
+
+  const settings = window.currentPracticeSettings || (typeof cachedSettings !== 'undefined' ? cachedSettings : {}) || {};
+  const cabinetName = settings.cabinetName || 'Cabinet Médical';
+  const doctorName = settings.doctorName || 'Dr.';
+  const doctorSpecialty = settings.doctorSpecialty || 'Médecin Spécialiste ORL';
+  const cabinetPhone = settings.cabinetPhone || '';
+  const cabinetAddress = settings.cabinetAddress || '';
+
+  const paymentDateObj = payment.paymentDate ? new Date(payment.paymentDate) : new Date();
+  const dateStr = paymentDateObj.toLocaleDateString('fr-FR');
+  const timeStr = paymentDateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const rawId = String(payment.id || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const refCode = `REC-${paymentDateObj.getFullYear()}${String(paymentDateObj.getMonth() + 1).padStart(2, '0')}${String(paymentDateObj.getDate()).padStart(2, '0')}-${(rawId.slice(-4) || '0001')}`;
+
+  const amountDZD = formatPatientMoneyDZD(payment.amount);
+  const methodMap = {
+    'cash': 'Espèces', 'especes': 'Espèces', 'check': 'Chèque', 'cheque': 'Chèque',
+    'card': 'Carte Bancaire', 'carte': 'Carte Bancaire', 'transfer': 'Virement', 'virement': 'Virement'
+  };
+  const methodStr = methodMap[String(payment.paymentMethod || 'cash').toLowerCase()] || payment.paymentMethod || 'Espèces';
+
+  // Single line sanitized motif
+  const rawMotif = String(payment.description || payment.notes || 'Consultation médicale & Soins').replace(/[\r\n]+/g, ' ').trim();
+  const motifStr = rawMotif || 'Consultation médicale';
+
+  const patientFullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient';
+  const patientAge = patient.dateOfBirth ? (typeof computeAge === 'function' ? `${computeAge(patient.dateOfBirth)} ans` : '') : '';
+
+  const receiptHtml = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #000000; background: #ffffff; padding: 12px 16px; box-sizing: border-box; max-width: 100%; font-size: 13px; line-height: 1.45;">
+      
+      <!-- Top Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000000; padding-bottom: 12px; margin-bottom: 16px;">
+        <div style="flex: 1;">
+          <h2 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #000000;">${escapeHTML(cabinetName)}</h2>
+          <div style="font-size: 13.5px; font-weight: 700; color: #000000;">${escapeHTML(doctorName)}</div>
+          <div style="font-size: 11.5px; color: #222222;">${escapeHTML(doctorSpecialty)}</div>
+          ${cabinetAddress ? `<div style="font-size: 11px; color: #333333; margin-top: 2px;">${escapeHTML(cabinetAddress)}</div>` : ''}
+          ${cabinetPhone ? `<div style="font-size: 11px; color: #333333;">Tél: ${escapeHTML(cabinetPhone)}</div>` : ''}
+        </div>
+        <div style="text-align: right; min-width: 180px;">
+          <div style="font-size: 16px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; border: 1.5px solid #000000; padding: 4px 10px; display: inline-block; margin-bottom: 6px;">REÇU DE RÈGLEMENT</div>
+          <div style="font-size: 12px; font-weight: 700; color: #000000;">Réf : ${escapeHTML(refCode)}</div>
+          <div style="font-size: 11.5px; color: #222222;">Date : ${dateStr} à ${timeStr}</div>
+        </div>
+      </div>
+
+      <!-- Patient Information Box -->
+      <div style="border: 1px solid #000000; padding: 10px 14px; margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #444444;">Patient :</span>
+            <span style="font-size: 14px; font-weight: 800; color: #000000; margin-left: 6px;">${escapeHTML(patientFullName)}</span>
+            ${patientAge ? `<span style="font-size: 12px; color: #333333; margin-left: 8px;">(${patientAge})</span>` : ''}
+          </div>
+          ${patient.phone ? `<div><span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #444444;">Tél :</span> <span style="font-size: 12px; font-weight: 600;">${escapeHTML(patient.phone)}</span></div>` : ''}
+        </div>
+      </div>
+
+      <!-- Table Details -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
+        <thead>
+          <tr style="border-top: 1px solid #000000; border-bottom: 1px solid #000000;">
+            <th style="padding: 8px 6px; text-align: left; font-size: 11.5px; font-weight: 700; text-transform: uppercase;">Désignation / Motif</th>
+            <th style="padding: 8px 6px; text-align: center; font-size: 11.5px; font-weight: 700; text-transform: uppercase; width: 120px;">Mode</th>
+            <th style="padding: 8px 6px; text-align: right; font-size: 11.5px; font-weight: 700; text-transform: uppercase; width: 110px;">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #000000;">
+            <td style="padding: 10px 6px; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">
+              ${escapeHTML(motifStr)}
+            </td>
+            <td style="padding: 10px 6px; font-size: 12px; text-align: center;">
+              ${escapeHTML(methodStr)}
+            </td>
+            <td style="padding: 10px 6px; font-size: 13px; font-weight: 700; text-align: right;">
+              ${amountDZD}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Total Box -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
+        <div style="border: 2px solid #000000; padding: 10px 18px; text-align: right; min-width: 220px;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">TOTAL NET REÇU</div>
+          <div style="font-size: 18px; font-weight: 900; color: #000000;">${amountDZD}</div>
+        </div>
+      </div>
+
+      <!-- Signature & Footer -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 36px;">
+        <div style="font-size: 10px; color: #444444;">
+          Reçu délivré à titre de justificatif de paiement.<br>
+          Cabinet médical - Système MedCareSO.
+        </div>
+        <div style="text-align: center; width: 180px;">
+          <div style="font-size: 11.5px; font-weight: 700; margin-bottom: 40px;">Cachet & Signature</div>
+          <div style="border-bottom: 1px dotted #000000; width: 100%;"></div>
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  try {
+    if (typeof openA5PrintDocument === 'function') {
+      await openA5PrintDocument({
+        title: `Reçu de paiement - ${patientFullName}`,
+        bodyContentHtml: receiptHtml,
+        pageSize: 'A5'
+      });
+      return;
+    }
+  } catch (err) {
+    console.warn('Fallback to standard print window:', err);
+  }
+
+  const printWindow = window.open('', '_blank', 'width=650,height=750');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reçu de Paiement - ${escapeHTML(patientFullName)}</title>
+        <style>
+          @page { size: A5 portrait; margin: 10mm; }
+          body { margin: 0; padding: 0; background: #fff; }
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        ${receiptHtml}
+        <script>
+          window.onload = function() { window.print(); };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+}
+window.printPatientPaymentTicket = printPatientPaymentTicket;
+
+function openRecordPaymentModal(patientId) {
+  const pid = patientId || currentPatientId;
+  if (!pid) {
+    showNotification('Sélectionnez un patient', 'warning');
+    return;
+  }
+  if (typeof openPaymentRequestModal === 'function') {
+    openPaymentRequestModal(pid);
+  } else if (typeof window.openPaymentRequestModal === 'function') {
+    window.openPaymentRequestModal(pid);
+  }
+}
+window.openRecordPaymentModal = openRecordPaymentModal;
 
 // Navigate to dental tab from consultation modal
 function goToPatientDentalFromConsultation(patientId) {

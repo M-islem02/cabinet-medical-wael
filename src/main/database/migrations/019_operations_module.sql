@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS operation_types_catalog (
 
 CREATE INDEX IF NOT EXISTS idx_op_catalog_specialty ON operation_types_catalog(specialty);
 
--- Initial catalog seed for ORL, Dentistry, and General
+-- Initial catalog seed for ORL and General Surgery
 INSERT INTO operation_types_catalog (id, specialty, name, code, defaultCost, defaultDuration, description, isActive, isCustom)
 VALUES
     -- ORL
@@ -69,15 +69,7 @@ VALUES
     ('op_orl_9', 'orl', 'Biopsie ORL (Cavum, Larynx, Fosse nasale)', 'ORL-ACT-09', 12000.00, 20, 'Prélèvement biopsique à visée anatomopathologique', TRUE, FALSE),
     ('op_orl_10', 'orl', 'Freinectomie linguale ou labiale', 'ORL-ACT-10', 10000.00, 20, 'Section du frein de langue ou de lèvre', TRUE, FALSE),
 
-    -- Dentaire
-    ('op_dent_1', 'dentistry', 'Extraction dentaire simple', 'DENT-ACT-01', 3000.00, 20, 'Avulsion d''une dent permanente ou temporaire sans séparation de racines', TRUE, FALSE),
-    ('op_dent_2', 'dentistry', 'Extraction chirurgicale de dent de sagesse incluse', 'DENT-ACT-02', 15000.00, 45, 'Avulsion d''une troisième molaire incluse avec dégagement osseux et suture', TRUE, FALSE),
-    ('op_dent_3', 'dentistry', 'Pose d''implant dentaire ostéo-intégré', 'DENT-ACT-03', 60000.00, 60, 'Mise en place chirurgicale d''un implant en titane ou zircone', TRUE, FALSE),
-    ('op_dent_4', 'dentistry', 'Détartrage & Surfaçage radiculaire complet', 'DENT-ACT-04', 8000.00, 45, 'Assainissement parodontal sous-gingival par quadrant', TRUE, FALSE),
-    ('op_dent_5', 'dentistry', 'Pulpectomie & Obturation canalaire (Endodontie)', 'DENT-ACT-05', 10000.00, 45, 'Traitement endodontique complet mécanisé', TRUE, FALSE),
-    ('op_dent_6', 'dentistry', 'Greffe osseuse / Comblement de sinus (Sinus Lift)', 'DENT-ACT-06', 70000.00, 60, 'Augmentation du volume osseux sous-sinusien avant pose d''implants', TRUE, FALSE),
-
-    -- Général
+    -- Actes Chirurgicaux Généraux
     ('op_gen_1', 'general', 'Exérèse de kyste / lipome sous anesthésie locale', 'GEN-ACT-01', 12000.00, 30, 'Exérèse chirurgicale complète avec fermeture par suture', TRUE, FALSE),
     ('op_gen_2', 'general', 'Suture de plaie complexe / Parage', 'GEN-ACT-02', 8000.00, 30, 'Nettoyage, désinfection et suture plan par plan', TRUE, FALSE),
     ('op_gen_3', 'general', 'Drainage d''abcès ou hématome', 'GEN-ACT-03', 7000.00, 20, 'Incision, évacuation, drainage et méchage', TRUE, FALSE)

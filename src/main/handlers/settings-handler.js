@@ -43,6 +43,23 @@ function normalizeDocumentTypeColors(rawValue) {
   }
 }
 
+// Stocke une carte { typeDeDocument: valeur } en JSON (formats de page, tailles de texte…)
+function normalizeDocumentTypeMap(rawValue) {
+  try {
+    const parsed = typeof rawValue === 'string' ? (rawValue.trim() ? JSON.parse(rawValue) : {}) : rawValue;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const clean = {};
+    Object.entries(parsed).forEach(([key, val]) => {
+      if (!key) return;
+      if (typeof val === 'string' && val.trim()) clean[key] = val.trim();
+      else if (Number.isFinite(Number(val))) clean[key] = Number(val);
+    });
+    return Object.keys(clean).length ? JSON.stringify(clean) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function normalizeDocumentStyleVariant(value) {
   const raw = String(value || '').trim();
   if (raw === 'modern') return 'gradient-header';
@@ -149,9 +166,17 @@ export function handleSettingsEvents() {
   ipcMain.handle('settings:update', async (event, settingsData) => {
     console.log('⚙️ settings:update called', settingsData);
     try {
+      await ensureSettingsColumns();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const ownerUserId = getCurrentSettingsOwnerUserId();
       const existingSettings = await getScopedSettingsId(ownerUserId);
+
+      const defaultPageSize = String(settingsData.defaultDocumentPageSize || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
+      const docFontFamily = String(settingsData.documentFontFamily || 'segoe').trim();
+      const docBonPourTitle = String(settingsData.documentBonPourTitle || 'Demande de Bilan').trim();
+      const docNameScale = Math.min(160, Math.max(70, Number(settingsData.documentDoctorNameScale) || 120));
+      const specialtyScale = Math.min(150, Math.max(70, Number(settingsData.documentSpecialtyScale) || 100));
+      const metaScale = Math.min(150, Math.max(70, Number(settingsData.documentMetaScale) || 100));
 
       if (existingSettings) {
         // Mettre à jour
@@ -160,8 +185,8 @@ export function handleSettingsEvents() {
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
                doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
-           WHERE id = ?`,
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, documentFormats = ?, documentTextScales = ?, defaultDocumentPageSize = ?, documentFontFamily = ?, documentBonPourTitle = ?, documentDoctorNameScale = ?, documentSpecialtyScale = ?, documentMetaScale = ?, updatedAt = ?
+             WHERE id = ?`,
           [
             settingsData.cabinetName,
             settingsData.cabinetAddress,
@@ -191,6 +216,14 @@ export function handleSettingsEvents() {
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
+            normalizeDocumentTypeMap(settingsData.documentFormats),
+            normalizeDocumentTypeMap(settingsData.documentTextScales),
+            defaultPageSize,
+            docFontFamily,
+            docBonPourTitle,
+            docNameScale,
+            specialtyScale,
+            metaScale,
             now,
             existingSettings.id
           ]
@@ -203,8 +236,8 @@ export function handleSettingsEvents() {
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
             preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, documentFormats, documentTextScales, defaultDocumentPageSize, documentFontFamily, documentBonPourTitle, documentDoctorNameScale, documentSpecialtyScale, documentMetaScale, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -236,6 +269,14 @@ export function handleSettingsEvents() {
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
+            normalizeDocumentTypeMap(settingsData.documentFormats),
+            normalizeDocumentTypeMap(settingsData.documentTextScales),
+            defaultPageSize,
+            docFontFamily,
+            docBonPourTitle,
+            docNameScale,
+            specialtyScale,
+            metaScale,
             now
           ]
         );
@@ -254,9 +295,17 @@ export function handleSettingsEvents() {
   ipcMain.handle('settings:save', async (event, settingsData) => {
     console.log('⚙️ settings:save called', settingsData);
     try {
+      await ensureSettingsColumns();
       const now = moment().format('YYYY-MM-DD HH:mm:ss');
       const ownerUserId = getCurrentSettingsOwnerUserId();
       const existingSettings = await getScopedSettingsId(ownerUserId);
+
+      const defaultPageSize = String(settingsData.defaultDocumentPageSize || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
+      const docFontFamily = String(settingsData.documentFontFamily || 'segoe').trim();
+      const docBonPourTitle = String(settingsData.documentBonPourTitle || 'Demande de Bilan').trim();
+      const docNameScale = Math.min(160, Math.max(70, Number(settingsData.documentDoctorNameScale) || 120));
+      const specialtyScale = Math.min(150, Math.max(70, Number(settingsData.documentSpecialtyScale) || 100));
+      const metaScale = Math.min(150, Math.max(70, Number(settingsData.documentMetaScale) || 100));
 
       if (existingSettings) {
         // Mettre à jour
@@ -264,9 +313,9 @@ export function handleSettingsEvents() {
         await run(
           `UPDATE settings 
            SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
-               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, updatedAt = ?
-           WHERE id = ?`,
+               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
+               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, documentFormats = ?, documentTextScales = ?, defaultDocumentPageSize = ?, documentFontFamily = ?, documentBonPourTitle = ?, documentDoctorNameScale = ?, documentSpecialtyScale = ?, documentMetaScale = ?, updatedAt = ?
+             WHERE id = ?`,
           [
             settingsData.cabinetName,
             settingsData.cabinetAddress,
@@ -287,6 +336,7 @@ export function handleSettingsEvents() {
             settingsData.preferredPrinter || null,
             settingsData.preferredScanner || null,
             settingsData.preferredThermalPrinter || null,
+            settingsData.autoPrintAppointmentTicket ? 1 : 0,
             settingsData.publicBookingEnabled ? 1 : 0,
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
@@ -295,6 +345,14 @@ export function handleSettingsEvents() {
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
+            normalizeDocumentTypeMap(settingsData.documentFormats),
+            normalizeDocumentTypeMap(settingsData.documentTextScales),
+            defaultPageSize,
+            docFontFamily,
+            docBonPourTitle,
+            docNameScale,
+            specialtyScale,
+            metaScale,
             now,
             existingSettings.id
           ]
@@ -306,9 +364,9 @@ export function handleSettingsEvents() {
         await run(
           `INSERT INTO settings 
            (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
-            preferredPrinter, preferredScanner, preferredThermalPrinter, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
+            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, documentFormats, documentTextScales, defaultDocumentPageSize, documentFontFamily, documentBonPourTitle, documentDoctorNameScale, documentSpecialtyScale, documentMetaScale, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             id,
             ownerUserId,
@@ -331,6 +389,7 @@ export function handleSettingsEvents() {
             settingsData.preferredPrinter || null,
             settingsData.preferredScanner || null,
             settingsData.preferredThermalPrinter || null,
+            settingsData.autoPrintAppointmentTicket ? 1 : 0,
             settingsData.publicBookingEnabled ? 1 : 0,
             settingsData.publicBookingPort || 4580,
             settingsData.publicBookingPublicUrl || null,
@@ -339,6 +398,14 @@ export function handleSettingsEvents() {
             settingsData.cabinetLogoDataUrl || null,
             settingsData.cabinetWatermarkLogoDataUrl || null,
             settingsData.customTreatmentTypes || null,
+            normalizeDocumentTypeMap(settingsData.documentFormats),
+            normalizeDocumentTypeMap(settingsData.documentTextScales),
+            defaultPageSize,
+            docFontFamily,
+            docBonPourTitle,
+            docNameScale,
+            specialtyScale,
+            metaScale,
             now
           ]
         );

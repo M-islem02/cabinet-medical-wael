@@ -98,20 +98,6 @@ async function loadEquipmentList(page = 1) {
         const search = document.getElementById('equipment-search')?.value.trim() || '';
         const result = await window.api.equipment.getAll({ category, status, search });
         equipmentData = result.success ? result.data : [];
-        if (!equipmentData.length && !category && !status && !search) {
-            equipmentData = [
-                { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', category: 'dental_chair', brand: 'Castellini', model: 'Skema 6', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-12-10' },
-                { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', category: 'sterilization', brand: 'Euronda', model: 'E10 24L', assignedRoom: 'Salle de Stérilisation', status: 'available', nextMaintenanceDate: '2027-01-01' },
-                { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', category: 'ultrasonic', brand: 'EMS Dental', model: 'Piezon Master 700', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-15' },
-                { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', category: 'imaging', brand: 'Carestream Dental', model: 'RVG 6200 Taille 2', assignedRoom: 'Cabinet 1 (Radiologie Dentaire)', status: 'available', nextMaintenanceDate: '2027-03-01' },
-                { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", category: 'endo_motor', brand: 'Dentsply Sirona', model: 'X-Smart Plus & Propex II', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-10-12' },
-                { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', category: 'curing_lamp', brand: 'Ivoclar Vivadent', model: 'Bluephase PowerCure', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-05' },
-                { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', category: 'compressor', brand: 'Cattani', model: 'AC 200 avec Dessiccateur', assignedRoom: 'Local Technique', status: 'available', nextMaintenanceDate: '2026-12-20' },
-                { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', category: 'air_polisher', brand: 'EMS Dental', model: 'AIRFLOW One', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-12-01' },
-                { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", category: 'surgical_motor', brand: 'Bien-Air', model: 'Chiropro Plus 3rd Gen', assignedRoom: 'Salle de Chirurgie Dentaire', status: 'available', nextMaintenanceDate: '2027-01-15' },
-                { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', category: 'intraoral_camera', brand: 'Acteon', model: 'SoproCARE HD', assignedRoom: 'Cabinet 1 (Soins Dentaires)', status: 'available', nextMaintenanceDate: '2026-11-10' }
-            ];
-        }
         const totalPages = Math.max(1, Math.ceil(equipmentData.length / EQUIPMENT_PAGE_SIZE));
         equipmentPagination = {
             page: Math.min(Math.max(1, Number(page) || 1), totalPages),
@@ -163,6 +149,10 @@ function displayEquipmentList() {
                     <button onclick="showEquipmentDetail('${e.id}')" class="btn btn-secondary btn-small" style="height: 28px; padding: 0 10px; font-size: 12.5px;">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         Fiche
+                    </button>
+                    <button onclick="deleteEquipment('${e.id}')" class="btn btn-small equipment-action-delete" style="height: 28px; padding: 0 10px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;" title="Supprimer l'équipement">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Supprimer
                     </button>
                     <button id="equip-more-${e.id}" class="btn btn-small equip-more-action-btn" data-equip-id="${e.id}" style="height: 28px; padding: 0 6px;" title="Plus d'actions">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>

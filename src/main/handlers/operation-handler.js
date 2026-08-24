@@ -48,6 +48,7 @@ async function ensureOperationsTables() {
         equipmentUsed TEXT,
         consumablesUsed TEXT,
         cost NUMERIC(10,2) DEFAULT 0,
+        paidAmount NUMERIC(10,2) DEFAULT 0,
         paymentId VARCHAR(36),
         paymentStatus VARCHAR(30) DEFAULT 'unpaid',
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -57,7 +58,7 @@ async function ensureOperationsTables() {
     await run(`
       CREATE TABLE IF NOT EXISTS operation_types_catalog (
         id VARCHAR(36) PRIMARY KEY,
-        specialty VARCHAR(50) NOT NULL,
+        specialty VARCHAR(50) NOT NULL DEFAULT 'orl',
         name VARCHAR(150) NOT NULL,
         code VARCHAR(50),
         category VARCHAR(50) DEFAULT 'Chirurgie',
@@ -71,6 +72,23 @@ async function ensureOperationsTables() {
         createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Ensure all columns exist on existing databases
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'Chirurgie'`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS specialty VARCHAR(50) DEFAULT 'orl'`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS code VARCHAR(50)`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS defaultCost NUMERIC(10,2) DEFAULT 0`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS defaultDuration INTEGER DEFAULT 30`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS defaultEquipment TEXT`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS defaultConsumables TEXT`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS description TEXT`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS isActive BOOLEAN DEFAULT TRUE`);
+    await run(`ALTER TABLE operation_types_catalog ADD COLUMN IF NOT EXISTS isCustom BOOLEAN DEFAULT FALSE`);
+
+    await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'orl'`);
+    await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paidAmount NUMERIC(10,2) DEFAULT 0`);
+    await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paymentStatus VARCHAR(30) DEFAULT 'unpaid'`);
+    await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paymentId VARCHAR(36)`);
   } catch (e) {
     console.warn('ensureOperationsTables notice:', e.message);
   }
@@ -229,30 +247,6 @@ export function handleOperationEvents() {
         console.warn('Auto catalog persistence notice:', catErr);
       }
 
-      let paymentId = null;
-      let paymentStatus = data.paymentStatus || (cost > 0 && data.createPayment ? 'paid' : 'unpaid');
-
-      // Création automatique du paiement catégorisé "Paiement d'opération" si demandé
-      if (data.createPayment && cost > 0) {
-        try {
-          paymentId = uuidv4();
-          const paymentDate = operationDate;
-          const paymentMethod = data.paymentMethod || 'Espèces';
-          const description = `Paiement d'opération : ${operationType}`;
-          const notes = `Règlement intervention ${operationType} du ${operationDate} (${practitionerName || 'Cabinet'})`;
-          await run(
-            `INSERT INTO payments (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, createdAt, updatedAt)
-             VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
-            [paymentId, patientId, cost, paymentDate, paymentMethod, description, notes, nowSql(), nowSql()]
-          );
-          paymentStatus = 'paid';
-        } catch (pErr) {
-          console.warn('Payment auto-creation note (non-blocking):', pErr);
-          paymentId = null;
-          paymentStatus = 'unpaid';
-        }
-      }
-
       // Décrémentation automatique des consommables du stock Inventaire
       if (Array.isArray(data.consumablesUsed) && data.consumablesUsed.length > 0) {
         for (const item of data.consumablesUsed) {
@@ -302,17 +296,43 @@ export function handleOperationEvents() {
         }
       }
 
+      let paidAmount = toNum(data.paidAmount);
+      let paymentStatus = data.paymentStatus || 'unpaid';
+      let paymentId = null;
+
+      if (data.createPayment && cost > 0) {
+        const payAmount = (data.paymentAmount !== undefined && data.paymentAmount !== null && data.paymentAmount !== '') 
+          ? toNum(data.paymentAmount) 
+          : cost;
+        if (payAmount > 0) {
+          paymentId = uuidv4();
+          paidAmount = payAmount;
+          paymentStatus = paidAmount >= cost ? 'paid' : 'partial';
+          const pDate = data.paymentDate || moment().format('YYYY-MM-DD');
+          const pMethod = data.paymentMethod || 'Espèces';
+          const pDesc = `Règlement opération : ${operationType}${paidAmount < cost ? ' (Acompte)' : ' (Totalité)'}`;
+          const pNotes = `Opération du ${operationDate} — Montant: ${cost} DZD | Payé: ${paidAmount} DZD | Reste: ${Math.max(0, cost - paidAmount)} DZD`;
+          await run(
+            `INSERT INTO payments (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, practitionerId, practitionerName, createdAt, updatedAt)
+             VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [paymentId, patientId, paidAmount, pDate, pMethod, pDesc, pNotes, practitionerId || null, practitionerName || null, nowSql(), nowSql()]
+          );
+        }
+      } else if (paidAmount > 0) {
+        paymentStatus = paidAmount >= cost ? 'paid' : 'partial';
+      }
+
       await run(
         `INSERT INTO operations (
            id, patientId, operationDate, operationTime, operationType, operationCode, category,
            practitionerId, practitionerName, room, status, anesthesiaType, durationMinutes,
-           clinicalNotes, postOpInstructions, equipmentUsed, consumablesUsed, cost,
+           clinicalNotes, postOpInstructions, equipmentUsed, consumablesUsed, cost, paidAmount,
            paymentId, paymentStatus, createdAt, updatedAt
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, patientId, operationDate, operationTime, operationType, operationCode, category,
           practitionerId, practitionerName, room, status, anesthesiaType, durationMinutes,
-          clinicalNotes, postOpInstructions, equipmentUsed, consumablesUsed, cost,
+          clinicalNotes, postOpInstructions, equipmentUsed, consumablesUsed, cost, paidAmount,
           paymentId, paymentStatus, nowSql(), nowSql()
         ]
       );
@@ -508,6 +528,49 @@ export function handleOperationEvents() {
     }
   });
 
+  ipcMain.handle('operation:recordPayment', async (event, data) => {
+    try {
+      const { operationId, amount, paymentMethod, paymentDate, notes } = data || {};
+      if (!operationId) return { success: false, error: 'operationId requis' };
+      const op = await queryOne(`SELECT * FROM operations WHERE id = ?`, [operationId]);
+      if (!op) return { success: false, error: 'Opération introuvable' };
+
+      const cost = Number(op.cost) || 0;
+      const alreadyPaid = Number(op.paidAmount) || 0;
+      const remaining = Math.max(0, cost - alreadyPaid);
+      if (cost > 0 && alreadyPaid >= cost) {
+        return { success: false, error: 'Opération déjà réglée en totalité — aucun paiement supplémentaire possible' };
+      }
+      const payAmount = Number(amount) > 0 ? Math.min(Number(amount), remaining) : remaining;
+      if (payAmount <= 0) return { success: false, error: 'Montant invalide' };
+
+      const paymentId = uuidv4();
+      const pDate = paymentDate || moment().format('YYYY-MM-DD');
+      const pMethod = paymentMethod || 'Espèces';
+      const newPaidAmount = alreadyPaid + payAmount;
+      const paymentStatus = newPaidAmount >= cost ? 'paid' : 'partial';
+
+      const description = `Versement opération : ${op.operationType}${paymentStatus === 'paid' ? ' (Solde complet)' : ' (Acompte)'}`;
+      const pNotes = notes || `Opération du ${op.operationDate || pDate} — Montant: ${cost} DZD | Déjà payé: ${alreadyPaid} DZD | Ce versement: ${payAmount} DZD | Reste: ${Math.max(0, cost - newPaidAmount)} DZD`;
+
+      await run(
+        `INSERT INTO payments (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, practitionerId, practitionerName, createdAt, updatedAt)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [paymentId, op.patientId, payAmount, pDate, pMethod, description, pNotes, op.practitionerId || null, op.practitionerName || null, nowSql(), nowSql()]
+      );
+
+      await run(
+        `UPDATE operations SET paymentId = ?, paidAmount = ?, paymentStatus = ?, updatedAt = ? WHERE id = ?`,
+        [paymentId, newPaidAmount, paymentStatus, nowSql(), operationId]
+      );
+
+      return { success: true, data: { operationId, paymentId, paidAmount: newPaidAmount, paymentStatus } };
+    } catch (error) {
+      console.error('Error in operation:recordPayment:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // ── 3. STATISTIQUES DES OPÉRATIONS ───────────────────────────────────────
   ipcMain.handle('operation:getStats', async (event, filters = {}) => {
     try {
@@ -526,17 +589,17 @@ export function handleOperationEvents() {
         params.push(filters.endDate);
       }
 
-      const totalRow = await queryOne(`SELECT COUNT(*) AS total, COALESCE(SUM(cost), 0) AS totalCost FROM operations ${whereSql}`, params);
+      const totalRow = await queryOne(`SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN paymentStatus = 'paid' THEN cost ELSE 0 END), 0) AS totalCost FROM operations ${whereSql}`, params);
       const completedRow = await queryOne(`SELECT COUNT(*) AS completed FROM operations ${whereSql} AND status = 'completed'`, params);
       const scheduledRow = await queryOne(`SELECT COUNT(*) AS scheduled FROM operations ${whereSql} AND status = 'scheduled'`, params);
       const now = new Date();
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const startOfMonth = `${currentMonth}-01`;
       const endOfMonth = `${currentMonth}-31`;
-      const thisMonthRow = await queryOne(`SELECT COUNT(*) AS thisMonth, COALESCE(SUM(cost), 0) AS thisMonthCost FROM operations ${whereSql} AND operationDate >= ? AND operationDate <= ?`, [...params, startOfMonth, endOfMonth]);
+      const thisMonthRow = await queryOne(`SELECT COUNT(*) AS thisMonth, COALESCE(SUM(CASE WHEN paymentStatus = 'paid' THEN cost ELSE 0 END), 0) AS thisMonthCost FROM operations ${whereSql} AND operationDate >= ? AND operationDate <= ?`, [...params, startOfMonth, endOfMonth]);
 
       const topTypes = await query(
-        `SELECT operationType, COUNT(*) AS count, COALESCE(SUM(cost), 0) AS totalAmount
+        `SELECT operationType, COUNT(*) AS count, COALESCE(SUM(CASE WHEN paymentStatus = 'paid' THEN cost ELSE 0 END), 0) AS totalAmount
          FROM operations ${whereSql}
          GROUP BY operationType
          ORDER BY count DESC

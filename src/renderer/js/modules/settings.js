@@ -160,6 +160,18 @@ function updateDocumentStylePreview() {
   const style = normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value);
   const opacity = Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5));
   const logoDataUrl = document.getElementById('cabinet-logo-data')?.value || '';
+  const fontKey = String(document.getElementById('document-font-family')?.value || 'segoe').toLowerCase().trim();
+  const fontMap = {
+    segoe: '"Segoe UI", "Calibri", "Noto Sans", "Arial", sans-serif',
+    arial: 'Arial, Helvetica, "Nimbus Sans L", sans-serif',
+    times: '"Times New Roman", Times, "Liberation Serif", serif',
+    georgia: 'Georgia, "Bitstream Charter", "Century Schoolbook L", serif',
+    garamond: '"EB Garamond", "Garamond", "Baskerville", "Palatino Linotype", serif',
+    tahoma: 'Tahoma, Geneva, Verdana, sans-serif',
+    trebuchet: '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif',
+    verdana: 'Verdana, Geneva, sans-serif'
+  };
+  preview.style.fontFamily = fontMap[fontKey] || fontMap.segoe;
   preview.dataset.style = style;
   preview.style.setProperty('--preview-accent', accent);
   preview.style.setProperty('--preview-accent-soft', mixHexColor(accent, '#ffffff', 0.35));
@@ -488,10 +500,29 @@ async function loadPeripheralOptions(settings = {}) {
       : [];
 
     setSelectOptions('preferred-scanner', scannerOptions, settings.preferredScanner, 'Scanner USB');
+
+    const radioExportFolderEl = document.getElementById('radio-export-folder-path');
+    if (radioExportFolderEl) {
+      radioExportFolderEl.value = settings.radioExportFolderPath || '';
+    }
   } catch (error) {
     console.error('Error loading device options:', error);
   }
 }
+
+async function pickRadioExportFolder() {
+  try {
+    const res = await window.api.file.selectFolder();
+    if (res?.success && res.folderPath) {
+      const input = document.getElementById('radio-export-folder-path');
+      if (input) input.value = res.folderPath;
+      showNotification('Dossier Radio sélectionné : ' + res.folderPath, 'success');
+    }
+  } catch (err) {
+    console.error('Error selecting radio folder:', err);
+  }
+}
+window.pickRadioExportFolder = pickRadioExportFolder;
 
 async function loadPublicBookingShareData() {
   const statusEl = document.getElementById('public-booking-status');
@@ -641,6 +672,79 @@ function setupInterfaceTextScaleControls() {
 window.applyInterfaceTextScale = applyInterfaceTextScale;
 window.resetInterfaceTextScale = resetInterfaceTextScale;
 
+const APP_DISPLAY_MODE_STORAGE_KEY = 'medcareso_app_display_mode';
+let cachedDisplayInfo = null;
+
+async function loadDisplayResolutionSettings() {
+  const select = document.getElementById('app-display-mode-select');
+  const resText = document.getElementById('detected-screen-resolution-text');
+  const badge = document.getElementById('detected-screen-resolution-badge');
+
+  try {
+    const res = typeof window.api?.settings?.getDisplayInfo === 'function'
+      ? await window.api.settings.getDisplayInfo()
+      : (typeof window.api?.app?.getDisplayInfo === 'function' ? await window.api.app.getDisplayInfo() : null);
+
+    if (res && res.success && res.data) {
+      cachedDisplayInfo = res.data;
+      if (resText) {
+        resText.textContent = `${cachedDisplayInfo.formattedResolution} (${cachedDisplayInfo.ratioLabel})`;
+      }
+      if (badge) {
+        badge.className = cachedDisplayInfo.isSquareOrCompact ? 'badge badge-warning' : 'badge badge-success';
+        badge.textContent = cachedDisplayInfo.isSquareOrCompact ? 'Format compact détecté' : 'Format 16:9 standard';
+      }
+    } else {
+      const screenW = window.screen?.width || window.innerWidth;
+      const screenH = window.screen?.height || window.innerHeight;
+      const ratio = screenW / (screenH || 1);
+      const isSquare = ratio < 1.55;
+      cachedDisplayInfo = {
+        width: screenW,
+        height: screenH,
+        ratio: Number(ratio.toFixed(2)),
+        isSquareOrCompact: isSquare,
+        formattedResolution: `${screenW} × ${screenH}`,
+        ratioLabel: isSquare ? 'Format compact / carré (~5:4 ou 4:3)' : 'Format large (16:9 / 16:10)'
+      };
+      if (resText) {
+        resText.textContent = `${screenW} × ${screenH} (${cachedDisplayInfo.ratioLabel})`;
+      }
+      if (badge) {
+        badge.className = isSquare ? 'badge badge-warning' : 'badge badge-success';
+        badge.textContent = isSquare ? 'Format compact détecté' : 'Format standard';
+      }
+    }
+  } catch (err) {
+    console.warn('Error reading display info:', err);
+  }
+
+  const savedMode = localStorage.getItem(APP_DISPLAY_MODE_STORAGE_KEY) || 'auto';
+  if (select) {
+    select.value = savedMode;
+  }
+  applyDisplayMode(savedMode);
+}
+
+function onDisplayModeChange(mode) {
+  localStorage.setItem(APP_DISPLAY_MODE_STORAGE_KEY, mode || 'auto');
+  applyDisplayMode(mode);
+  if (typeof showNotification === 'function') {
+    showNotification('Mode d\'affichage d\'écran mis à jour', 'success');
+  }
+}
+
+function applyDisplayMode(mode = 'auto') {
+  const isCompact = mode === 'compact-square' || (mode === 'auto' && cachedDisplayInfo?.isSquareOrCompact);
+  document.documentElement.classList.toggle('display-compact-square', Boolean(isCompact));
+  document.body.classList.toggle('display-compact-square', Boolean(isCompact));
+  document.documentElement.setAttribute('data-screen-mode', isCompact ? 'compact-square' : 'standard');
+}
+
+window.loadDisplayResolutionSettings = loadDisplayResolutionSettings;
+window.onDisplayModeChange = onDisplayModeChange;
+window.applyDisplayMode = applyDisplayMode;
+
 async function loadSettings() {
   try {
     const result = await window.api.settings.get();
@@ -648,13 +752,20 @@ async function loadSettings() {
     cachedSettings = s;
     setupInterfaceTextScaleControls();
     loadInterfaceTextScale();
+    loadDisplayResolutionSettings();
     document.getElementById('cabinet-name').value = s.cabinetName || '';
+    if (document.getElementById('cabinet-name-arabic')) {
+      document.getElementById('cabinet-name-arabic').value = s.cabinetNameArabic || '';
+    }
     document.getElementById('cabinet-address').value = s.cabinetAddress || '';
     document.getElementById('cabinet-phone').value = s.cabinetPhone || DEFAULT_CABINET_PHONE;
     document.getElementById('cabinet-email').value = s.cabinetEmail || '';
     document.getElementById('doctor-name-input').value = s.doctorName || '';
     document.getElementById('doctor-rpps').value = s.doctorRPPS || '';
     document.getElementById('doctor-specialty').value = s.doctorSpecialty || '';
+    if (document.getElementById('default-consultation-fee')) {
+      document.getElementById('default-consultation-fee').value = s.defaultConsultationFee !== undefined && s.defaultConsultationFee !== null ? s.defaultConsultationFee : 2000;
+    }
     if(document.getElementById('custom-treatment-types')) document.getElementById('custom-treatment-types').value = s.customTreatmentTypes || '';
     const documentColorModeEl = document.getElementById('document-color-mode');
     if (documentColorModeEl) {
@@ -666,11 +777,37 @@ async function loadSettings() {
       const safeColor = normalizeHexColor(rawColor, '#1a8c7e');
       documentPrimaryColorEl.value = safeColor;
     }
+    const documentFontFamilyEl = document.getElementById('document-font-family');
+    if (documentFontFamilyEl) {
+      documentFontFamilyEl.value = s.documentFontFamily || 'segoe';
+    }
+    const documentBonPourTitleEl = document.getElementById('document-bonpour-title');
+    if (documentBonPourTitleEl) {
+      documentBonPourTitleEl.value = s.documentBonPourTitle || 'Demande de Bilan';
+    }
     const documentTextScaleEl = document.getElementById('document-text-scale');
     if (documentTextScaleEl) {
       const textScale = Number(s.documentTextScale);
       const safeScale = Number.isFinite(textScale) ? Math.min(120, Math.max(90, textScale)) : 100;
       documentTextScaleEl.value = String(safeScale);
+    }
+    const documentDoctorNameScaleEl = document.getElementById('document-doctor-name-scale');
+    if (documentDoctorNameScaleEl) {
+      const docNameScale = Number(s.documentDoctorNameScale);
+      const safeDocNameScale = Number.isFinite(docNameScale) ? Math.min(160, Math.max(70, docNameScale)) : 120;
+      documentDoctorNameScaleEl.value = String(safeDocNameScale);
+    }
+    const documentSpecialtyScaleEl = document.getElementById('document-specialty-scale');
+    if (documentSpecialtyScaleEl) {
+      const specScale = Number(s.documentSpecialtyScale);
+      const safeSpecScale = Number.isFinite(specScale) ? Math.min(150, Math.max(70, specScale)) : 100;
+      documentSpecialtyScaleEl.value = String(safeSpecScale);
+    }
+    const documentMetaScaleEl = document.getElementById('document-meta-scale');
+    if (documentMetaScaleEl) {
+      const metaScale = Number(s.documentMetaScale);
+      const safeMetaScale = Number.isFinite(metaScale) ? Math.min(150, Math.max(70, metaScale)) : 100;
+      documentMetaScaleEl.value = String(safeMetaScale);
     }
     const documentLogoScaleEl = document.getElementById('document-logo-scale');
     if (documentLogoScaleEl) {
@@ -697,6 +834,57 @@ async function loadSettings() {
     if (documentShowBarcodeEl) {
       documentShowBarcodeEl.checked = s.documentShowBarcode !== 0 && s.documentShowBarcode !== false;
     }
+
+    const defaultDocumentPageSizeEl = document.getElementById('default-document-page-size');
+    if (defaultDocumentPageSizeEl) {
+      const storedDefault = s.defaultDocumentPageSize || localStorage.getItem('medcareso_default_doc_page_size');
+      defaultDocumentPageSizeEl.value = String(storedDefault || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
+    }
+
+    let parsedDocFormats = {};
+    if (typeof s.documentFormats === 'string' && s.documentFormats.trim()) {
+      try { parsedDocFormats = JSON.parse(s.documentFormats); } catch {}
+    } else if (typeof s.documentFormats === 'object' && s.documentFormats) {
+      parsedDocFormats = s.documentFormats;
+    }
+    if (!parsedDocFormats || !Object.keys(parsedDocFormats).length) {
+      try {
+        const local = localStorage.getItem('medcareso_doc_formats');
+        if (local) parsedDocFormats = JSON.parse(local);
+      } catch {}
+    }
+
+    const defaultPageSize = String(storedDefault || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
+
+    document.querySelectorAll('.doc-custom-format-select').forEach(sel => {
+      const type = sel.dataset.docType;
+      if (type) {
+        if (parsedDocFormats && parsedDocFormats[type]) {
+          sel.value = String(parsedDocFormats[type]).toUpperCase() === 'A4' ? 'A4' : 'A5';
+        } else {
+          sel.value = defaultPageSize;
+        }
+      }
+    });
+
+    let parsedTextScales = {};
+    if (typeof s.documentTextScales === 'string' && s.documentTextScales.trim()) {
+      try { parsedTextScales = JSON.parse(s.documentTextScales); } catch {}
+    } else if (typeof s.documentTextScales === 'object' && s.documentTextScales) {
+      parsedTextScales = s.documentTextScales;
+    }
+    if (!parsedTextScales || !Object.keys(parsedTextScales).length) {
+      try {
+        const local = localStorage.getItem('medcareso_doc_text_scales');
+        if (local) parsedTextScales = JSON.parse(local);
+      } catch {}
+    }
+    document.querySelectorAll('.doc-text-scale-select').forEach(sel => {
+      const type = sel.dataset.docType;
+      const val = type ? Number(parsedTextScales[type]) : NaN;
+      sel.value = Number.isFinite(val) ? String(Math.min(120, Math.max(90, val))) : '';
+    });
+
     const autoPrintAppointmentTicketEl = document.getElementById('auto-print-appointment-ticket');
     if (autoPrintAppointmentTicketEl) {
       autoPrintAppointmentTicketEl.checked = s.autoPrintAppointmentTicket === 1 || s.autoPrintAppointmentTicket === true;
@@ -739,6 +927,29 @@ async function loadSettings() {
   }
 }
 
+function collectDocumentFormatsFromInputs() {
+  const formats = {};
+  document.querySelectorAll('.doc-custom-format-select').forEach(sel => {
+    const type = sel.dataset.docType;
+    if (type) {
+      formats[type] = sel.value === 'A4' ? 'A4' : 'A5';
+    }
+  });
+  return formats;
+}
+
+function collectDocumentTextScalesFromInputs() {
+  const scales = {};
+  document.querySelectorAll('.doc-text-scale-select').forEach(sel => {
+    const type = sel.dataset.docType;
+    const val = Number(sel.value);
+    if (type && Number.isFinite(val) && val >= 90 && val <= 120) {
+      scales[type] = Math.min(120, Math.max(90, val));
+    }
+  });
+  return scales;
+}
+
 function buildSettingsPayload({
   includePractice = true,
   includeDevices = true,
@@ -748,12 +959,14 @@ function buildSettingsPayload({
 
   return {
     cabinetName: includePractice ? document.getElementById('cabinet-name')?.value?.trim() || '' : (existing.cabinetName || ''),
+    cabinetNameArabic: includePractice ? document.getElementById('cabinet-name-arabic')?.value?.trim() || '' : (existing.cabinetNameArabic || ''),
     cabinetAddress: includePractice ? document.getElementById('cabinet-address')?.value?.trim() || '' : (existing.cabinetAddress || ''),
     cabinetPhone: includePractice ? document.getElementById('cabinet-phone')?.value?.trim() || '' : (existing.cabinetPhone || ''),
     cabinetEmail: includePractice ? document.getElementById('cabinet-email')?.value?.trim() || '' : (existing.cabinetEmail || ''),
     doctorName: includePractice ? document.getElementById('doctor-name-input')?.value?.trim() || '' : (existing.doctorName || ''),
     doctorRPPS: includePractice ? document.getElementById('doctor-rpps')?.value?.trim() || '' : (existing.doctorRPPS || ''),
     doctorSpecialty: includePractice ? document.getElementById('doctor-specialty')?.value?.trim() || '' : (existing.doctorSpecialty || ''),
+    defaultConsultationFee: includePractice ? (Number(document.getElementById('default-consultation-fee')?.value) || 2000) : (Number(existing.defaultConsultationFee) || 2000),
     customTreatmentTypes: includePractice ? document.getElementById('custom-treatment-types')?.value?.trim() || '' : (existing.customTreatmentTypes || ''),
     documentColorMode: includePractice ? (document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color') : (existing.documentColorMode === 'bw' ? 'bw' : 'color'),
     documentPrimaryColor: includePractice
@@ -769,9 +982,33 @@ function buildSettingsPayload({
           consultation: normalizeHexColor(String(existing.documentPrimaryColor || '').trim(), '#1a8c7e'),
           generic: normalizeHexColor(String(existing.documentPrimaryColor || '').trim(), '#1a8c7e')
         }),
+    defaultDocumentPageSize: includePractice
+      ? (document.getElementById('default-document-page-size')?.value === 'A4' ? 'A4' : 'A5')
+      : (existing.defaultDocumentPageSize || 'A5'),
+    documentFormats: includePractice
+      ? JSON.stringify(collectDocumentFormatsFromInputs())
+      : (typeof existing.documentFormats === 'string' ? existing.documentFormats : JSON.stringify(existing.documentFormats || {})),
+    documentTextScales: includePractice
+      ? JSON.stringify(collectDocumentTextScalesFromInputs())
+      : (typeof existing.documentTextScales === 'string' ? existing.documentTextScales : JSON.stringify(existing.documentTextScales || {})),
+    documentFontFamily: includePractice
+      ? (document.getElementById('document-font-family')?.value || 'segoe')
+      : (existing.documentFontFamily || 'segoe'),
+    documentBonPourTitle: includePractice
+      ? (document.getElementById('document-bonpour-title')?.value?.trim() || 'Demande de Bilan')
+      : (existing.documentBonPourTitle || 'Demande de Bilan'),
     documentTextScale: includePractice
       ? Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value) || 100))
       : (Math.min(120, Math.max(90, Number(existing.documentTextScale) || 100))),
+    documentDoctorNameScale: includePractice
+      ? Math.min(160, Math.max(70, Number(document.getElementById('document-doctor-name-scale')?.value) || 120))
+      : (Math.min(160, Math.max(70, Number(existing.documentDoctorNameScale) || 120))),
+    documentSpecialtyScale: includePractice
+      ? Math.min(150, Math.max(70, Number(document.getElementById('document-specialty-scale')?.value) || 100))
+      : (Math.min(150, Math.max(70, Number(existing.documentSpecialtyScale) || 100))),
+    documentMetaScale: includePractice
+      ? Math.min(150, Math.max(70, Number(document.getElementById('document-meta-scale')?.value) || 100))
+      : (Math.min(150, Math.max(70, Number(existing.documentMetaScale) || 100))),
     documentLogoScale: includePractice
       ? Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value) || 90))
       : (Math.min(200, Math.max(80, Number(existing.documentLogoScale) || 90))),
@@ -792,6 +1029,7 @@ function buildSettingsPayload({
     cabinetWatermarkLogoDataUrl: includePractice ? document.getElementById('cabinet-watermark-logo-data')?.value || '' : (existing.cabinetWatermarkLogoDataUrl || ''),
     preferredPrinter: includeDevices ? document.getElementById('preferred-printer')?.value || '' : (existing.preferredPrinter || ''),
     preferredScanner: includeDevices ? document.getElementById('preferred-scanner')?.value || '' : (existing.preferredScanner || ''),
+    radioExportFolderPath: includeDevices ? document.getElementById('radio-export-folder-path')?.value || '' : (existing.radioExportFolderPath || ''),
     preferredThermalPrinter: includeDevices ? document.getElementById('preferred-thermal-printer')?.value || '' : (existing.preferredThermalPrinter || ''),
     autoPrintAppointmentTicket: includeDevices
       ? Boolean(document.getElementById('auto-print-appointment-ticket')?.checked)
@@ -859,7 +1097,15 @@ async function saveSettings() {
     documentColorMode: document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color',
     documentPrimaryColor: normalizeHexColor(String(document.getElementById('document-primary-color')?.value || '').trim(), '#1a8c7e'),
     documentTypeColors: JSON.stringify(collectDocumentTypeColorsFromInputs()),
+    defaultDocumentPageSize: document.getElementById('default-document-page-size')?.value === 'A4' ? 'A4' : 'A5',
+    documentFormats: JSON.stringify(collectDocumentFormatsFromInputs()),
+    documentTextScales: JSON.stringify(collectDocumentTextScalesFromInputs()),
+    documentFontFamily: document.getElementById('document-font-family')?.value || 'segoe',
+    documentBonPourTitle: document.getElementById('document-bonpour-title')?.value?.trim() || 'Demande de Bilan',
     documentTextScale: Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value) || 100)),
+    documentDoctorNameScale: Math.min(160, Math.max(70, Number(document.getElementById('document-doctor-name-scale')?.value) || 120)),
+    documentSpecialtyScale: Math.min(150, Math.max(70, Number(document.getElementById('document-specialty-scale')?.value) || 100)),
+    documentMetaScale: Math.min(150, Math.max(70, Number(document.getElementById('document-meta-scale')?.value) || 100)),
     documentLogoScale: Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value) || 90)),
     documentStyleVariant: normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value),
     documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5)),
@@ -870,6 +1116,7 @@ async function saveSettings() {
     cabinetWatermarkLogoDataUrl: document.getElementById('cabinet-watermark-logo-data')?.value || '',
     preferredPrinter: document.getElementById('preferred-printer')?.value || '',
     preferredScanner: document.getElementById('preferred-scanner')?.value || '',
+    radioExportFolderPath: document.getElementById('radio-export-folder-path')?.value || '',
     preferredThermalPrinter: document.getElementById('preferred-thermal-printer')?.value || '',
     autoPrintAppointmentTicket: Boolean(document.getElementById('auto-print-appointment-ticket')?.checked),
     publicBookingEnabled: document.getElementById('public-booking-enabled')?.checked || false,
@@ -1606,14 +1853,78 @@ document.addEventListener('DOMContentLoaded', () => {
     updateWatermarkOpacityLabel(watermarkOpacityInput.value);
   }
 
-  ['document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-logo-scale'].forEach((id) => {
+  let documentSettingsAutoSaveTimer = null;
+  const triggerDocumentSettingsAutoSave = () => {
+    try {
+      const formats = collectDocumentFormatsFromInputs();
+      const textScales = collectDocumentTextScalesFromInputs();
+      const defaultPageSize = document.getElementById('default-document-page-size')?.value === 'A4' ? 'A4' : 'A5';
+      const docNameScale = Math.min(160, Math.max(70, Number(document.getElementById('document-doctor-name-scale')?.value) || 120));
+      const specialtyScale = Math.min(150, Math.max(70, Number(document.getElementById('document-specialty-scale')?.value) || 100));
+      const metaScale = Math.min(150, Math.max(70, Number(document.getElementById('document-meta-scale')?.value) || 100));
+      const textScale = Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value) || 100));
+
+      localStorage.setItem('medcareso_doc_formats', JSON.stringify(formats));
+      localStorage.setItem('medcareso_doc_text_scales', JSON.stringify(textScales));
+      localStorage.setItem('medcareso_default_doc_page_size', defaultPageSize);
+      localStorage.setItem('medcareso_doc_name_scale', String(docNameScale));
+      localStorage.setItem('medcareso_doc_spec_scale', String(specialtyScale));
+      localStorage.setItem('medcareso_doc_meta_scale', String(metaScale));
+      localStorage.setItem('medcareso_doc_text_scale', String(textScale));
+
+      if (cachedSettings) {
+        cachedSettings.documentFormats = JSON.stringify(formats);
+        cachedSettings.documentTextScales = JSON.stringify(textScales);
+        cachedSettings.defaultDocumentPageSize = defaultPageSize;
+        cachedSettings.documentDoctorNameScale = docNameScale;
+        cachedSettings.documentSpecialtyScale = specialtyScale;
+        cachedSettings.documentMetaScale = metaScale;
+        cachedSettings.documentTextScale = textScale;
+      }
+    } catch (_) {}
+
+    clearTimeout(documentSettingsAutoSaveTimer);
+    documentSettingsAutoSaveTimer = setTimeout(async () => {
+      try {
+        if (window.api?.settings?.save) {
+          const payload = buildSettingsPayload({
+            includePractice: true,
+            includeDevices: false,
+            includePublicBooking: false
+          });
+          const res = await window.api.settings.save(payload);
+          if (res?.success) {
+            cachedSettings = { ...(cachedSettings || {}), ...payload };
+          }
+        }
+      } catch (e) {
+        console.warn('Auto-save error:', e);
+      }
+    }, 400);
+  };
+
+  ['document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-doctor-name-scale', 'document-specialty-scale', 'document-meta-scale', 'document-logo-scale', 'document-font-family', 'default-document-page-size', 'document-bonpour-title'].forEach((id) => {
     const field = document.getElementById(id);
     if (field && !field.dataset.previewBound) {
-      field.addEventListener('input', updateDocumentStylePreview);
-      field.addEventListener('change', updateDocumentStylePreview);
+      field.addEventListener('input', () => {
+        updateDocumentStylePreview();
+        triggerDocumentSettingsAutoSave();
+      });
+      field.addEventListener('change', () => {
+        updateDocumentStylePreview();
+        triggerDocumentSettingsAutoSave();
+      });
       field.dataset.previewBound = '1';
     }
   });
+
+  document.querySelectorAll('.doc-custom-format-select, .doc-text-scale-select').forEach((sel) => {
+    if (!sel.dataset.autoBound) {
+      sel.addEventListener('change', triggerDocumentSettingsAutoSave);
+      sel.dataset.autoBound = '1';
+    }
+  });
+
   updateDocumentStylePreview();
 });
 
@@ -1789,8 +2100,10 @@ function renderSettingsOperationsCatalogTable() {
     const specialty = item.specialty || 'general';
     const specLabel = specialtyLabels[specialty] || specialty;
     const specBadge = specialtyBadges[specialty] || specialtyBadges.general;
-    const costFormatted = (Number(item.defaultCost) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
-    const duration = item.defaultDuration ? `${item.defaultDuration} min` : '—';
+    const costVal = item.defaultCost !== undefined ? item.defaultCost : (item.defaultcost !== undefined ? item.defaultcost : (item.cost || 0));
+    const costFormatted = (Number(costVal) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
+    const durationVal = item.defaultDuration !== undefined ? item.defaultDuration : (item.defaultduration !== undefined ? item.defaultduration : (item.duration || 30));
+    const duration = durationVal ? `${durationVal} min` : '—';
     const code = item.code || '—';
     const category = item.category || 'Chirurgie';
 
@@ -1879,8 +2192,10 @@ function openOperationTypeEditModal(typeId = null) {
       if (codeInput) codeInput.value = item.code || '';
       if (nameInput) nameInput.value = item.name || '';
       if (catSelect) catSelect.value = item.category || 'Chirurgie';
-      if (costInput) costInput.value = item.defaultCost || 0;
-      if (durationInput) durationInput.value = item.defaultDuration || 30;
+      const costVal = item.defaultCost !== undefined ? item.defaultCost : (item.defaultcost !== undefined ? item.defaultcost : (item.cost || 0));
+      const durationVal = item.defaultDuration !== undefined ? item.defaultDuration : (item.defaultduration !== undefined ? item.defaultduration : (item.duration || 30));
+      if (costInput) costInput.value = costVal;
+      if (durationInput) durationInput.value = durationVal;
       if (descInput) descInput.value = item.description || '';
     }
   } else {

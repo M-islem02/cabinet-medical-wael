@@ -296,6 +296,7 @@ contextBridge.exposeInMainWorld('api', {
     saveTypeCatalog: (data) => ipcRenderer.invoke('operation:saveTypeCatalog', data),
     deleteTypeCatalog: (id) => ipcRenderer.invoke('operation:deleteTypeCatalog', id),
     checkStockAvailability: (consumables) => ipcRenderer.invoke('operation:checkStockAvailability', consumables),
+    recordPayment: (data) => ipcRenderer.invoke('operation:recordPayment', data),
     getStats: (filters) => ipcRenderer.invoke('operation:getStats', filters)
   },
 

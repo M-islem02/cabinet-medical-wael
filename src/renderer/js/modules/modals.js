@@ -65,7 +65,8 @@ function enforceModalVisibility(modal) {
   modal.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
   modal.style.setProperty('visibility', 'visible', 'important');
   modal.style.setProperty('opacity', '1', 'important');
-  modal.style.setProperty('pointer-events', 'auto', 'important');
+  modal.style.setProperty('max-height', 'calc(100vh - 30px)', 'important');
+  modal.style.setProperty('overflow', 'hidden', 'important');
 
   const modalContent = modal.querySelector('.modal-content');
   if (modalContent) {
@@ -73,9 +74,23 @@ function enforceModalVisibility(modal) {
     modalContent.classList.remove('hidden');
     modalContent.removeAttribute('hidden');
     modalContent.style.setProperty('display', 'flex', 'important');
+    modalContent.style.setProperty('flex-direction', 'column', 'important');
+    modalContent.style.setProperty('max-height', 'calc(100vh - 30px)', 'important');
+    modalContent.style.setProperty('height', 'auto', 'important');
+    modalContent.style.setProperty('min-height', '0', 'important');
+    modalContent.style.setProperty('overflow', 'hidden', 'important');
     modalContent.style.setProperty('visibility', 'visible', 'important');
     modalContent.style.setProperty('opacity', '1', 'important');
     modalContent.style.setProperty('pointer-events', 'auto', 'important');
+  }
+
+  const modalBody = modal.querySelector('.modal-body');
+  if (modalBody) {
+    modalBody.style.setProperty('overflow-y', 'auto', 'important');
+    modalBody.style.setProperty('overflow-x', 'hidden', 'important');
+    modalBody.style.setProperty('flex', '1 1 auto', 'important');
+    modalBody.style.setProperty('min-height', '0', 'important');
+    modalBody.style.setProperty('max-height', 'calc(100vh - 160px)', 'important');
   }
 }
 
@@ -202,6 +217,23 @@ function showModal(modalId) {
       const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled])');
       if (firstInput && typeof firstInput.focus === 'function') {
         try { firstInput.focus(); } catch (_) {}
+      }
+
+      const previewEl = modal.querySelector('.document-live-preview');
+      if (previewEl && typeof fitDocumentPreviewA5 === 'function') {
+        fitDocumentPreviewA5(previewEl);
+        setTimeout(() => fitDocumentPreviewA5(previewEl), 60);
+        setTimeout(() => fitDocumentPreviewA5(previewEl), 200);
+      }
+
+      if (modalId === 'modal-add-sickleave' && typeof renderSickLeaveDocumentPreview === 'function') {
+        renderSickLeaveDocumentPreview();
+      } else if (modalId === 'modal-facture' && typeof renderFacturePreview === 'function') {
+        renderFacturePreview();
+      } else if (modalId === 'modal-orientation' && typeof renderOrientationPreview === 'function') {
+        renderOrientationPreview();
+      } else if (modalId === 'modal-rapport' && typeof renderRapportPreview === 'function') {
+        renderRapportPreview();
       }
     });
   }

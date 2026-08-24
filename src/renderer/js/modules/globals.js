@@ -536,15 +536,15 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
     || (localStorage.getItem('currentUserRole') === 'test');
 
   const specialtySectionMap = {
-    'orl': ['orl'],
+    'orl': ['orl', 'treatment-plans'],
     'dentistry': ['dentistry', 'treatment-plans'],
-    'mpr': ['rehabilitation', 'kine-staff', 'daily-summary'],
-    'rehabilitation': ['rehabilitation', 'kine-staff', 'daily-summary'],
-    'cardiology': ['cardiology']
+    'mpr': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
+    'rehabilitation': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
+    'cardiology': ['cardiology', 'treatment-plans']
   };
 
-  const allSpecialtySections = ['orl', 'dentistry', 'treatment-plans', 'rehabilitation', 'kine-staff', 'cardiology'];
-  const allowedSections = specialtySectionMap[currentSpecialty] || (currentSpecialty === 'general' ? [] : ['orl']);
+  const allSpecialtySections = ['orl', 'dentistry', 'rehabilitation', 'kine-staff', 'cardiology'];
+  const allowedSections = specialtySectionMap[currentSpecialty] || (currentSpecialty === 'general' ? ['treatment-plans'] : ['orl', 'treatment-plans']);
 
   allSpecialtySections.forEach((sectionId) => {
     const isAllowed = isTest || allowedSections.includes(sectionId);
@@ -570,6 +570,22 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
     }
   });
 
+  // Ensure treatment-plans is always visible and available for doctors/practitioners across all specialties
+  const plansNavItem = document.querySelector('.nav-item[data-section="treatment-plans"]');
+  const plansSection = document.getElementById('treatment-plans');
+  const isAssistant = (typeof currentUserRole !== 'undefined' && currentUserRole === 'assistant')
+    || (localStorage.getItem('currentUserRole') === 'assistant');
+  if (!isAssistant) {
+    if (plansNavItem) {
+      plansNavItem.dataset.featureDisabled = '0';
+      plansNavItem.classList.remove('feature-disabled', 'hidden', 'role-hidden', 'hidden-for-assistant');
+      plansNavItem.style.display = 'flex';
+    }
+    if (plansSection) {
+      plansSection.classList.remove('role-hidden', 'feature-disabled', 'hidden-for-assistant');
+    }
+  }
+
   document.title = 'MedCareSO v1.0.9';
 }
 
@@ -588,12 +604,61 @@ function normalizeConsultationActLookupToken(value) {
 
 function getAllowedConsultationActValues(config = window._packageConfig || null) {
   const activeSpecialty = resolveActivePracticeSpecialty(config);
-  return Object.entries(CONSULTATION_ACT_META)
+  const staticActs = Object.entries(CONSULTATION_ACT_META)
     .filter(([, meta]) => Array.isArray(meta.specialties) && meta.specialties.includes(activeSpecialty))
     .map(([actValue]) => actValue);
+
+  const customKeys = [];
+  if (typeof window !== 'undefined' && window.customConsultationActsMap) {
+    Object.keys(window.customConsultationActsMap).forEach((k) => {
+      if (!customKeys.includes(k)) customKeys.push(k);
+    });
+  }
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('medcareso_custom_consultation_acts_v2') : null;
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        Object.keys(saved).forEach((k) => {
+          if (!customKeys.includes(k)) customKeys.push(k);
+        });
+      }
+    }
+  } catch (_) { /* ignore */ }
+
+  return [...staticActs, ...customKeys];
 }
 
 function getConsultationActLabel(actValue, config = window._packageConfig || null) {
+  if (!actValue) return '';
+  const strVal = String(actValue).trim();
+  if (typeof window !== 'undefined' && window.customConsultationActsMap) {
+    if (window.customConsultationActsMap[strVal]?.label) {
+      return window.customConsultationActsMap[strVal].label;
+    }
+    const lower = strVal.toLowerCase();
+    if (window.customConsultationActsMap[lower]?.label) {
+      return window.customConsultationActsMap[lower].label;
+    }
+  }
+
+  // Fallback to localStorage for custom acts
+  if (strVal.startsWith('custom_')) {
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('medcareso_custom_consultation_acts_v2') : null;
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved[strVal]?.label) {
+          if (typeof window !== 'undefined') {
+            window.customConsultationActsMap = window.customConsultationActsMap || {};
+            window.customConsultationActsMap[strVal] = saved[strVal];
+          }
+          return saved[strVal].label;
+        }
+      }
+    } catch (_) { /* ignore */ }
+  }
+
   const normalized = resolveConsultationActValue(actValue);
   if (!normalized) return '';
 
@@ -610,6 +675,7 @@ function getConsultationActLabel(actValue, config = window._packageConfig || nul
 function resolveConsultationActValue(rawValue) {
   const normalized = String(rawValue || '').trim();
   if (!normalized) return '';
+  if (normalized.startsWith('custom_')) return normalized;
   if (CONSULTATION_ACT_META[normalized]) return normalized;
 
   const lookupToken = normalizeConsultationActLookupToken(normalized);
@@ -631,8 +697,15 @@ function resolveConsultationActValue(rawValue) {
 }
 
 function isConsultationActEnabled(actValue, config = window._packageConfig || null) {
+  if (!actValue) return false;
+  const str = String(actValue).trim();
+  if (str.startsWith('custom_')) return true;
+  if (typeof window !== 'undefined' && window.customConsultationActsMap && window.customConsultationActsMap[str]) {
+    return true;
+  }
   const normalized = resolveConsultationActValue(actValue);
   if (!normalized) return false;
+  if (String(normalized).startsWith('custom_')) return true;
   return getAllowedConsultationActValues(config).includes(normalized);
 }
 
@@ -1053,12 +1126,20 @@ function getSickLeaveTemplateFieldsFromInputs() {
   const ippInput = document.getElementById('sickleave-ipp-estimate');
   const daysInput = document.getElementById('sickleave-days-display');
   const outingsInput = document.getElementById('sickleave-allowed-outings');
+  const startInput = document.getElementById('sickleave-start-date');
+  const endInput = document.getElementById('sickleave-end-date');
+  const form = document.getElementById('sickleave-form');
+  const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
+
   return {
     careText: (careInput?.value || '').trim(),
     restDays: (restInput?.value || '').trim(),
     numberOfDays: (daysInput?.value || '').trim(),
     ippEstimate: (ippInput?.value || '').trim(),
-    allowedOutings: Boolean(outingsInput?.checked)
+    allowedOutings: Boolean(outingsInput?.checked),
+    startDate: startInput?.value || '',
+    endDate: endInput?.value || '',
+    documentKind
   };
 }
 
@@ -1217,7 +1298,135 @@ function formatIppEstimateWithWords(ippEstimate) {
   return formatValueWithWords(ippEstimate, { isPercentage: true });
 }
 
-function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate = '', numberOfDays = '', allowedOutings = false } = {}) {
+function formatDateFrShort(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).trim();
+  return date.toLocaleDateString('fr-FR');
+}
+
+// 1 seul jour → "le 24/08/2026" ; plusieurs jours → "du 24/08/2026 au 26/08/2026 inclus"
+function buildSickLeavePeriodLabel(startDate, endDate) {
+  const start = formatDateFrShort(startDate);
+  if (!start) return '';
+  const end = formatDateFrShort(endDate);
+  if (!end || start === end) return `le ${start}`;
+  return `du ${start} au ${end} inclus`;
+}
+window.buildSickLeavePeriodLabel = buildSickLeavePeriodLabel;
+
+function getDocumentCustomTemplatesMap() {
+  try {
+    const fromSettings = cachedSettings?.documentCustomTemplates;
+    if (typeof fromSettings === 'string' && fromSettings.trim()) {
+      return JSON.parse(fromSettings);
+    } else if (typeof fromSettings === 'object' && fromSettings) {
+      return fromSettings;
+    }
+    const local = localStorage.getItem('medcareso_doc_custom_templates');
+    if (local) return JSON.parse(local);
+  } catch {}
+  return {};
+}
+
+function getDocumentCustomTemplate(docType) {
+  const map = getDocumentCustomTemplatesMap();
+  const k = String(docType || '').toLowerCase().trim();
+  return map[k] || null;
+}
+
+function escapeRegexChars(string) {
+  return String(string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractDocumentTemplatePattern(rawText, { doctorName = '', patientName = '', careText = '', daysLabel = '', startDate = '', endDate = '', allowedOutings = false } = {}) {
+  let pattern = String(rawText || '');
+  if (doctorName && doctorName.trim()) {
+    pattern = pattern.replace(new RegExp(`Dr\\s+${escapeRegexChars(doctorName.trim())}`, 'gi'), 'Dr {DOCTOR_NAME}');
+    pattern = pattern.replace(new RegExp(escapeRegexChars(doctorName.trim()), 'gi'), '{DOCTOR_NAME}');
+  }
+  if (patientName && patientName.trim()) {
+    pattern = pattern.replace(new RegExp(escapeRegexChars(patientName.trim()), 'gi'), '{PATIENT_NAME}');
+  }
+  if (careText && careText.trim() && careText.trim().length > 3) {
+    pattern = pattern.replace(new RegExp(escapeRegexChars(careText.trim()), 'gi'), '{CARE_TEXT}');
+  }
+  if (daysLabel && daysLabel.trim()) {
+    pattern = pattern.replace(new RegExp(escapeRegexChars(daysLabel.trim()), 'gi'), '{DAYS_LABEL}');
+  }
+
+  // Rendre les dates dynamiques : "du X au Y inclus" / "le X" -> {PERIOD}
+  const startStr = startDate ? formatDateFrShort(startDate) : '';
+  const endStr = endDate ? formatDateFrShort(endDate) : '';
+  if (startStr && endStr && startStr !== endStr) {
+    pattern = pattern.replace(
+      new RegExp(`du\\s*${escapeRegexChars(startStr)}\\s*au\\s*${escapeRegexChars(endStr)}(?:\\s*(?:inclus|incluse))?`, 'gi'),
+      '{PERIOD}'
+    );
+  } else if (startStr && (!endStr || startStr === endStr)) {
+    pattern = pattern.replace(new RegExp(`le\\s*${escapeRegexChars(startStr)}`, 'gi'), '{PERIOD}');
+  }
+  const usedPeriodPlaceholder = pattern.includes('{PERIOD}');
+  if (!usedPeriodPlaceholder && startStr) {
+    pattern = pattern.split(startStr).join('{START_DATE}');
+  }
+  if (!usedPeriodPlaceholder && endStr && endStr !== startStr) {
+    pattern = pattern.split(endStr).join('{END_DATE}');
+  }
+
+  // Rendre l'état des sorties dynamique
+  pattern = pattern.replace(/sorties?\s+autoris[eé]e?s?\s*:\s*(oui|non)\s*\./gi, '{OUTINGS_STATE}');
+  return pattern;
+}
+
+function saveDocumentCustomTemplate(docType, rawText, context = {}) {
+  try {
+    if (!rawText || !rawText.trim()) return;
+    const k = String(docType || '').toLowerCase().trim();
+    const pattern = extractDocumentTemplatePattern(rawText, context);
+    const map = getDocumentCustomTemplatesMap();
+    map[k] = pattern;
+    localStorage.setItem('medcareso_doc_custom_templates', JSON.stringify(map));
+    if (cachedSettings) {
+      cachedSettings.documentCustomTemplates = JSON.stringify(map);
+    }
+  } catch (err) {
+    console.error('Error saving document custom template:', err);
+  }
+}
+
+function hydrateDocumentTemplate(templatePattern, { doctorName = '', patientName = '', careText = '', daysLabel = '', allowedOutings = false, ippEstimate = '', startDate = '', endDate = '' } = {}) {
+  let text = String(templatePattern || '');
+  const placeholder = '______________________________________________________________';
+  const cleanCare = careText || placeholder;
+  const outingsLine = allowedOutings ? '- Sorties autorisees.' : '';
+  const outingsState = allowedOutings ? 'Sorties autorisées : OUI.' : 'Sorties autorisées : NON.';
+  const periodLabel = typeof buildSickLeavePeriodLabel === 'function' ? buildSickLeavePeriodLabel(startDate, endDate) : '';
+  const startLabel = typeof formatDateFrShort === 'function' ? formatDateFrShort(startDate) : '';
+  const endLabel = typeof formatDateFrShort === 'function' ? formatDateFrShort(endDate) : '';
+  const ippLabel = typeof formatIppEstimateWithWords === 'function' ? formatIppEstimateWithWords(ippEstimate) : (ippEstimate ? `${ippEstimate}%` : '');
+  const ippLine = ippLabel ? `- IPP estimee a ${ippLabel}.` : '';
+
+  text = text.replace(/\{DOCTOR_NAME\}/g, doctorName || 'Docteur');
+  text = text.replace(/\{PATIENT_NAME\}/g, patientName || 'le/la patient(e)');
+  text = text.replace(/\{CARE_TEXT\}/g, cleanCare);
+  text = text.replace(/\{DAYS_LABEL\}/g, daysLabel || placeholder);
+  text = text.replace(/\{OUTINGS_LINE\}/g, outingsLine);
+  text = text.replace(/\{OUTINGS_STATE\}/g, outingsState);
+  text = text.replace(/\{PERIOD\}/g, periodLabel || placeholder);
+  text = text.replace(/\{START_DATE\}/g, startLabel || placeholder);
+  text = text.replace(/\{END_DATE\}/g, endLabel || placeholder);
+  text = text.replace(/\{IPP_LINE\}/g, ippLine);
+
+  return text.trim();
+}
+
+window.getDocumentCustomTemplate = getDocumentCustomTemplate;
+window.saveDocumentCustomTemplate = saveDocumentCustomTemplate;
+window.hydrateDocumentTemplate = hydrateDocumentTemplate;
+window.extractDocumentTemplatePattern = extractDocumentTemplatePattern;
+
+function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate = '', numberOfDays = '', allowedOutings = false, documentKind = 'certificate', startDate = '', endDate = '' } = {}) {
   const placeholder = '______________________________________________________________';
   const cleanCare = careText || placeholder;
   const effectiveDays = String(restDays || numberOfDays || '').trim();
@@ -1227,7 +1436,48 @@ function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate
     ? normalizeDoctorDisplayName(cachedSettings?.doctorName || '')
     : String(cachedSettings?.doctorName || '').trim();
   const doctorName = rawDoctorName || 'Docteur';
+  const patient = currentPatientData;
+  const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : 'le/la patient(e)';
 
+  const customTemplate = getDocumentCustomTemplate(documentKind || 'certificate');
+  if (customTemplate) {
+    return hydrateDocumentTemplate(customTemplate, {
+      doctorName,
+      patientName,
+      careText: cleanCare,
+      daysLabel,
+      allowedOutings,
+      ippEstimate,
+      startDate,
+      endDate
+    });
+  }
+
+  // Arrêt de travail dédié (totalement séparé du certificat médical)
+  if (documentKind === 'workstop') {
+    const periodStr = typeof buildSickLeavePeriodLabel === 'function'
+      ? buildSickLeavePeriodLabel(startDate, endDate)
+      : '';
+
+    const sections = [
+      `Je soussigné(e) Dr ${doctorName}, certifie avoir examiné ce jour le/la patient(e) ${patientName}.`,
+      `Son état de santé nécessite un arrêt de travail d'une durée de ${daysLabel}${periodStr ? ' ' + periodStr : ''}.`
+    ];
+
+    if (cleanCare && cleanCare !== placeholder) {
+      sections.push(`Motif médical : ${cleanCare}.`);
+    }
+
+    sections.push(allowedOutings ? `Sorties autorisées : OUI.` : `Sorties autorisées : NON.`);
+
+    if (ippLabel) {
+      sections.push(`IPP estimée : ${ippLabel}.`);
+    }
+
+    return sections.join('\n\n');
+  }
+
+  // Certificat médical (intact)
   const sections = [
     `Je soussignee Dr ${doctorName} certifie avoir vu et examine`,
     `le/la patient(e) suivi(e) a notre niveau pour la prise en charge de ${cleanCare}.`,
@@ -1281,22 +1531,222 @@ function updateSickLeavePreview() {
   return preview?.value || template;
 }
 
+function fitDocumentPreviewA5(target) {
+  const container = typeof target === 'string' ? document.getElementById(target) : target;
+  if (!container) return;
+
+  const sheet = container.querySelector('.document-a5-sheet') || container.firstElementChild;
+  if (!sheet) return;
+
+  sheet.style.transform = 'none';
+  sheet.style.transformOrigin = 'top center';
+  sheet.style.margin = '0 auto';
+  sheet.style.display = 'block';
+
+  const containerW = container.clientWidth - 16;
+  const containerH = container.clientHeight - 16;
+
+  const naturalW = sheet.offsetWidth || 500;
+  const naturalH = sheet.scrollHeight || sheet.offsetHeight || 650;
+
+  if (containerW <= 0 || containerH <= 0 || naturalW <= 0 || naturalH <= 0) {
+    requestAnimationFrame(() => {
+      const cW = container.clientWidth - 16;
+      const cH = container.clientHeight - 16;
+      const nW = sheet.offsetWidth || 500;
+      const nH = sheet.scrollHeight || 650;
+      if (cW > 0 && cH > 0 && nW > 0 && nH > 0) {
+        const sX = cW / nW;
+        const sY = cH / nH;
+        const scale = Math.min(sX, sY, 1.0);
+        sheet.style.transform = `scale(${scale})`;
+        sheet.style.transformOrigin = 'top center';
+      }
+    });
+    return;
+  }
+
+  const scaleX = containerW / naturalW;
+  const scaleY = containerH / naturalH;
+  const scale = Math.min(scaleX, scaleY, 1.0);
+
+  sheet.style.transform = `scale(${scale})`;
+  sheet.style.transformOrigin = 'top center';
+}
+window.fitDocumentPreviewA5 = fitDocumentPreviewA5;
+
+function buildFittedPreviewHtml(html) {
+  const fitBlock = `
+    <style>
+      html, body { overflow: auto !important; width: 100% !important; min-width: 0 !important; background: transparent !important; margin: 0; padding: 0; cursor: grab; }
+      body.is-grabbing { cursor: grabbing !important; user-select: none !important; }
+      .page { margin-left: auto !important; margin-right: auto !important; transform-origin: top center !important; box-shadow: 0 6px 22px rgba(15, 23, 42, 0.18) !important; transition: transform 0.1s ease-out !important; }
+      .preview-zoom-bar {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        background: rgba(15, 23, 42, 0.88);
+        backdrop-filter: blur(4px);
+        padding: 3px 6px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        color: #ffffff;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .preview-zoom-btn {
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+      .preview-zoom-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
+      }
+      .preview-zoom-text {
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 42px;
+        text-align: center;
+        color: #f1f5f9;
+        cursor: pointer;
+      }
+    </style>
+    <div class="preview-zoom-bar">
+      <span style="font-size: 11px; margin-right: 4px; opacity: 0.85; user-select: none;" title="Glissez avec la souris pour déplacer">✋</span>
+      <button type="button" class="preview-zoom-btn" onclick="__adjustZoom(-0.1)" title="Zoom arrière">-</button>
+      <span class="preview-zoom-text" id="__zoomLabel" onclick="__resetZoom()" title="Réinitialiser zoom">Fit</span>
+      <button type="button" class="preview-zoom-btn" onclick="__adjustZoom(0.1)" title="Zoom avant">+</button>
+    </div>
+    <script>
+      (function () {
+        var userZoom = null;
+        var baseScale = 1;
+
+        function __fitPreviewPage() {
+          var page = document.querySelector('.page');
+          if (!page) return;
+          var pw = page.offsetWidth || 500;
+          var ph = page.scrollHeight || page.offsetHeight || 650;
+          if (pw <= 0 || ph <= 0) return;
+          baseScale = Math.min(window.innerWidth / pw, (window.innerHeight - 20) / ph, 1);
+          var effectiveScale = userZoom !== null ? userZoom : baseScale;
+          page.style.transform = 'scale(' + effectiveScale + ')';
+          document.body.style.minHeight = Math.ceil(ph * effectiveScale + 40) + 'px';
+          var lbl = document.getElementById('__zoomLabel');
+          if (lbl) {
+            lbl.textContent = userZoom !== null ? Math.round(userZoom * 100) + '%' : 'Fit';
+          }
+        }
+
+        window.__adjustZoom = function(delta) {
+          var current = userZoom !== null ? userZoom : baseScale;
+          userZoom = Math.min(2.5, Math.max(0.3, Math.round((current + delta) * 10) / 10));
+          __fitPreviewPage();
+        };
+
+        window.__resetZoom = function() {
+          userZoom = null;
+          __fitPreviewPage();
+        };
+
+        // Click-and-drag hand / pan tool (Main de déplacement)
+        var isPanning = false;
+        var startX = 0, startY = 0;
+        var scrollX = 0, scrollY = 0;
+
+        window.addEventListener('mousedown', function(e) {
+          if (e.target.closest && e.target.closest('.preview-zoom-bar')) return;
+          if (['BUTTON', 'INPUT', 'TEXTAREA', 'A'].indexOf(e.target.tagName) !== -1) return;
+          isPanning = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          scrollX = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+          scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+          document.body.classList.add('is-grabbing');
+        });
+
+        window.addEventListener('mousemove', function(e) {
+          if (!isPanning) return;
+          e.preventDefault();
+          var dx = e.clientX - startX;
+          var dy = e.clientY - startY;
+          window.scrollTo(scrollX - dx, scrollY - dy);
+        });
+
+        window.addEventListener('mouseup', function() {
+          if (isPanning) {
+            isPanning = false;
+            document.body.classList.remove('is-grabbing');
+          }
+        });
+
+        window.addEventListener('wheel', function(e) {
+          if (e.ctrlKey) {
+            e.preventDefault();
+            window.__adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);
+          }
+        }, { passive: false });
+
+        window.addEventListener('resize', function() {
+          if (userZoom === null) __fitPreviewPage();
+        });
+
+        [0, 60, 250, 600].forEach(function (d) { setTimeout(__fitPreviewPage, d); });
+      })();
+    <\/script>
+  `;
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, `${fitBlock}</head>`);
+  return `${html}${fitBlock}`;
+}
+window.buildFittedPreviewHtml = buildFittedPreviewHtml;
+
+function renderLiveDocumentPreviewFrame(containerId, html) {
+  const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
+  if (!container) return;
+
+  let iframe = container.querySelector('iframe.document-live-preview-iframe');
+  if (!iframe) {
+    container.innerHTML = `
+      <iframe class="document-live-preview-iframe" title="Aperçu exact" style="width: 100%; height: 100%; min-height: 420px; border: none; border-radius: 6px; background: transparent; display: block;"></iframe>
+    `;
+    iframe = container.querySelector('iframe.document-live-preview-iframe');
+  }
+
+  if (iframe) {
+    iframe.srcdoc = buildFittedPreviewHtml(html);
+  }
+}
+window.renderLiveDocumentPreviewFrame = renderLiveDocumentPreviewFrame;
+
 function renderSickLeaveDocumentPreview() {
   const container = document.getElementById('sickleave-live-preview-sheet');
   if (!container) return;
 
   const form = document.getElementById('sickleave-form');
   const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
-  const docTitle = documentKind === 'workstop' ? 'ARRÊT DE TRAVAIL' : 'CERTIFICAT MÉDICAL';
-  const docBadgeColor = documentKind === 'workstop' ? '#dc2626' : '#059669';
-  const docBadgeBg = documentKind === 'workstop' ? '#fef2f2' : '#ecfdf5';
+  const isWorkstop = documentKind === 'workstop';
+  const docTitle = isWorkstop ? 'ARRÊT DE TRAVAIL' : 'CERTIFICAT MÉDICAL';
+  const docSubtitle = isWorkstop ? 'Arrêt de travail' : 'Certificat médical';
+  const docContentTitle = isWorkstop ? 'Motif de l\'arrêt' : 'Texte du certificat';
 
-  const patientName = currentPatientData
-    ? `${currentPatientData.lastName || ''} ${currentPatientData.firstName || ''}`.trim()
-    : 'Patient';
-  const patientAge = currentPatientData?.birthDate || currentPatientData?.age
-    ? (currentPatientData.age ? `${currentPatientData.age} ans` : '')
-    : '';
+  const patient = currentPatientData || {
+    firstName: document.getElementById('sickleave-patient-summary')?.textContent || 'Patient',
+    lastName: '',
+    dateOfBirth: null
+  };
 
   const startValue = document.getElementById('sickleave-start-date')?.value;
   const endValue = document.getElementById('sickleave-end-date')?.value;
@@ -1304,79 +1754,72 @@ function renderSickLeaveDocumentPreview() {
   const outingsAllowed = document.getElementById('sickleave-allowed-outings')?.checked;
   const previewText = document.getElementById('sickleave-preview-text')?.value || document.getElementById('sickleave-care-text')?.value || '';
 
-  const startLabel = startValue ? formatDateToDDMMYYYY(startValue) : '...';
-  const endLabel = endValue ? formatDateToDDMMYYYY(endValue) : '...';
-  const daysFormatted = typeof formatRestDaysWithWords === 'function' ? formatRestDaysWithWords(daysValue) : `${daysValue} jour(s)`;
-  const currentDate = new Date().toLocaleDateString('fr-FR');
+  const startDateObj = startValue ? new Date(startValue) : new Date();
+  const endDateObj = endValue ? new Date(endValue) : new Date();
+  const daysCount = parseInt(daysValue, 10) || 1;
+  const daysFormatted = typeof formatRestDaysWithWords === 'function' ? formatRestDaysWithWords(daysCount) : `${daysCount} jour(s)`;
+  const diagnosis = typeof formatPrintingRichTextHtml === 'function'
+    ? formatPrintingRichTextHtml((previewText || "Je soussigné(e) certifie avoir examiné ce jour le/la patient(e) sus-nommé(e)...").trim())
+    : (previewText || "Je soussigné(e) certifie avoir examiné ce jour le/la patient(e) sus-nommé(e)...").replace(/\n/g, '<br>');
+  const outingsLabel = outingsAllowed ? 'Autorisées' : 'Non autorisées';
 
-  const doctorName = typeof getCurrentDoctorDisplayName === 'function' ? getCurrentDoctorDisplayName() : 'Dr. MALOUM NADIR';
-  const specialtyTitle = 'Médecin Spécialiste en O.R.L & Chirurgie Cervico-Faciale';
-
-  const textHtml = (previewText || "Je soussigné(e) certifie avoir examiné ce jour le/la patient(e) sus-nommé(e)...")
-    .replace(/\n/g, '<br>');
-
-  container.innerHTML = `
-    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 20px 22px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; min-height: 440px; display: flex; flex-direction: column; justify-content: space-between;">
-      <div>
-        <!-- En-tête Médical -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f766e; padding-bottom: 10px; margin-bottom: 12px;">
-          <div>
-            <h3 style="margin: 0; font-size: 14px; font-weight: 750; color: #0f766e; text-transform: uppercase;">${escapeHTML(doctorName)}</h3>
-            <p style="margin: 2px 0 0; font-size: 11px; color: #475569; font-weight: 500;">${escapeHTML(specialtyTitle)}</p>
-            <p style="margin: 2px 0 0; font-size: 10px; color: #64748b;">Cabinet Médical d'Oto-Rhino-Laryngologie</p>
-          </div>
-          <div style="text-align: right;">
-            <span style="display: inline-block; padding: 3px 8px; font-size: 10.5px; font-weight: 700; color: ${docBadgeColor}; background: ${docBadgeBg}; border: 1px solid ${docBadgeColor}40; border-radius: 4px; text-transform: uppercase;">
-              ${docTitle}
-            </span>
-            <div style="font-size: 10.5px; color: #64748b; margin-top: 4px;">Le ${currentDate}</div>
+  let pageContent = '';
+  if (isWorkstop) {
+    // Arrêt de travail : aucun cadrage, texte libre
+    if (sickLeavePreviewManualEdited || (previewText && previewText.includes('Je soussigné'))) {
+      pageContent = `
+        <div class="content-box content-box-flat">
+          <div class="content-text" style="font-size: 14.5px; line-height: 1.8; white-space: pre-wrap;">${diagnosis}</div>
+        </div>
+      `;
+    } else {
+      pageContent = `
+        <div class="content-box content-box-flat">
+          <h3>Période</h3>
+          <div class="period-grid">
+            <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
+            <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
+            <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${escapePrintingHtml(String(daysFormatted))}</span></div>
+            <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
           </div>
         </div>
-
-        <!-- Fiche Patient -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-          <div>
-            <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600;">Patient(e) :</span>
-            <strong style="color: #0f172a; font-size: 13px; margin-left: 6px;">${escapeHTML(patientName)}</strong>
-          </div>
-          ${patientAge ? `<div style="color: #475569; font-size: 11.5px;">Âge : <strong>${escapeHTML(patientAge)}</strong></div>` : ''}
+        <div class="content-box content-box-flat">
+          <h3>Motif de l'arrêt</h3>
+          <div class="content-text">${diagnosis}</div>
         </div>
-
-        <!-- Titre Centré -->
-        <div style="text-align: center; margin-bottom: 14px;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; text-decoration: underline;">
-            ${docTitle}
-          </h2>
-        </div>
-
-        <!-- Corps du Document -->
-        <div style="font-size: 12.5px; line-height: 1.7; color: #1e293b; margin-bottom: 14px; min-height: 90px; white-space: pre-wrap; padding: 0 2px;">
-          ${textHtml}
-        </div>
-
-        <!-- Encadré Période & Sorties -->
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 11.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-          <div>
-            <span style="color: #166534; font-weight: 600;">Durée :</span>
-            <strong style="color: #15803d; margin-left: 4px;">${escapeHTML(daysFormatted)}</strong>
-            <span style="color: #64748b; margin-left: 4px;">(Du ${startLabel} au ${endLabel})</span>
-          </div>
-          <div>
-            <span style="color: #166534; font-weight: 600;">Sorties :</span>
-            <strong style="color: ${outingsAllowed ? '#15803d' : '#b91c1c'}; margin-left: 4px;">${outingsAllowed ? '✓ Autorisées' : '✗ Non autorisées'}</strong>
-          </div>
+      `;
+    }
+  } else {
+    // Certificat médical : cadrage conservé uniquement pour la période, texte libre sans titre
+    pageContent = `
+      <div class="content-box">
+        <h3>Période</h3>
+        <div class="period-grid">
+          <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
+          <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
+          <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${escapePrintingHtml(String(daysFormatted))}</span></div>
+          <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
         </div>
       </div>
-
-      <!-- Bas de page : Signature & Cachet -->
-      <div style="display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 6px;">
-        <div style="text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 8px 20px; min-width: 160px; background: #fafafa;">
-          <div style="font-size: 10.5px; font-weight: 700; color: #475569; margin-bottom: 24px;">Cachet et Signature</div>
-          <div style="font-size: 10px; color: #94a3b8; font-style: italic;">Dr. ${escapeHTML(doctorName)}</div>
-        </div>
+      <div class="document-free-text">
+        <div class="content-text">${diagnosis}</div>
       </div>
-    </div>
-  `;
+    `;
+  }
+
+  if (typeof buildPrintableHtml === 'function') {
+    const html = buildPrintableHtml({
+      title: docTitle,
+      subtitle: docSubtitle,
+      dateLabel: typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(new Date()) : new Date().toLocaleDateString('fr-FR'),
+      patient,
+      bodyContentHtml: pageContent,
+      documentType: isWorkstop ? 'workstop' : 'certificate',
+      documentNumber: 'REF-' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      pages: [pageContent]
+    });
+    renderLiveDocumentPreviewFrame(container, html);
+  }
 }
 
 function toggleSickLeaveRawTextEdit() {
@@ -1399,16 +1842,66 @@ function applySickLeavePreset(presetKey) {
     careInput.value = 'Soins ORL et surveillance médicale au cabinet.';
     if (daysDisplay) daysDisplay.value = '1';
     if (outingsCheckbox) outingsCheckbox.checked = true;
-  } else if (presetKey === 'arret_maladie') {
-    careInput.value = 'Infection des voies respiratoires supérieures (ORL) nécessitant repos et traitement médical.';
+  } else if (presetKey === 'arret_maladie' || presetKey === 'arret_3j') {
+    careInput.value = 'Pathologie ORL aiguë nécessitant repos et soins.';
     if (daysDisplay) daysDisplay.value = '3';
+    if (outingsCheckbox) outingsCheckbox.checked = true;
+  } else if (presetKey === 'arret_5j') {
+    careInput.value = 'Infection ORL aiguë avec état fébrile nécessitant repos strict.';
+    if (daysDisplay) daysDisplay.value = '5';
+    if (outingsCheckbox) outingsCheckbox.checked = true;
+  } else if (presetKey === 'arret_7j') {
+    careInput.value = 'Affection ORL nécessitant repos à domicile et traitement médical.';
+    if (daysDisplay) daysDisplay.value = '7';
     if (outingsCheckbox) outingsCheckbox.checked = true;
   }
 
+  sickLeavePreviewManualEdited = false;
   handleSickLeaveDaysChange();
   updateSickLeavePreview();
 }
 
+function saveSickLeaveRawTextAsDefaultTemplate() {
+  const customPreviewText = document.getElementById('sickleave-preview-text')?.value;
+  if (!customPreviewText || !customPreviewText.trim()) {
+    if (typeof showNotification === 'function') {
+      showNotification('Le texte brut est vide', 'warning');
+    }
+    return;
+  }
+  const form = document.getElementById('sickleave-form');
+  const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
+  const templateFields = (typeof getSickLeaveTemplateFieldsFromInputs === 'function')
+    ? getSickLeaveTemplateFieldsFromInputs()
+    : { careText: document.getElementById('sickleave-care-text')?.value || '' };
+  
+  const patient = currentPatientData;
+  const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : '';
+  const rawDoctorName = typeof normalizeDoctorDisplayName === 'function'
+    ? normalizeDoctorDisplayName(cachedSettings?.doctorName || '')
+    : String(cachedSettings?.doctorName || '').trim();
+  const daysDisplay = document.getElementById('sickleave-days-display')?.value || templateFields.restDays || '1';
+  const effectiveDays = String(daysDisplay).trim();
+  const daysLabel = typeof formatRestDaysWithWords === 'function' ? formatRestDaysWithWords(effectiveDays) : `${effectiveDays} jour(s)`;
+
+  if (typeof saveDocumentCustomTemplate === 'function') {
+    saveDocumentCustomTemplate(documentKind, customPreviewText, {
+      doctorName: rawDoctorName || 'Docteur',
+      patientName,
+      careText: templateFields.careText,
+      daysLabel,
+      startDate: templateFields.startDate || document.getElementById('sickleave-start-date')?.value || '',
+      endDate: templateFields.endDate || document.getElementById('sickleave-end-date')?.value || '',
+      allowedOutings: Boolean(templateFields.allowedOutings ?? document.getElementById('sickleave-allowed-outings')?.checked)
+    });
+  }
+
+  if (typeof showNotification === 'function') {
+    showNotification('Modèle de texte brut enregistré par défaut pour tous les prochains documents', 'success');
+  }
+}
+
+window.saveSickLeaveRawTextAsDefaultTemplate = saveSickLeaveRawTextAsDefaultTemplate;
 window.toggleSickLeaveRawTextEdit = toggleSickLeaveRawTextEdit;
 window.applySickLeavePreset = applySickLeavePreset;
 window.renderSickLeaveDocumentPreview = renderSickLeaveDocumentPreview;
@@ -1561,6 +2054,7 @@ function attachSickLeaveTemplateListeners() {
     previewInput.addEventListener('input', () => {
       sickLeavePreviewManualEdited = true;
       autoResizeSickLeavePreview();
+      renderSickLeaveDocumentPreview();
     });
   }
 
@@ -1572,7 +2066,7 @@ function attachSickLeaveTemplateListeners() {
 async function previewSickLeaveDocumentModal() {
   const form = document.getElementById('sickleave-form');
   const documentKind = form?.dataset?.documentKind === 'workstop' ? 'workstop' : 'certificate';
-  const docTitle = documentKind === 'workstop' ? 'ARRET DE TRAVAIL' : 'CERTIFICAT MEDICAL';
+  const docTitle = documentKind === 'workstop' ? 'ARRÊT DE TRAVAIL' : 'CERTIFICAT MÉDICAL';
   const docSubtitle = documentKind === 'workstop' ? 'Arrêt de travail' : 'Certificat médical';
   const docContentTitle = documentKind === 'workstop' ? 'Motif de l\'arrêt' : 'Texte du certificat';
   
@@ -1607,7 +2101,7 @@ async function previewSickLeaveDocumentModal() {
     : (previewText || 'Repos médical prescrit.').replace(/\n/g, '<br>');
 
   const pageContent = `
-    <div class="content-box content-box-plain">
+    <div class="content-box${documentKind === 'workstop' ? ' content-box-flat' : ''}">
       <h3>Période</h3>
       <div class="period-grid">
         <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
@@ -1616,10 +2110,14 @@ async function previewSickLeaveDocumentModal() {
         <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
       </div>
     </div>
-    <div class="content-box">
-      <h3>${docContentTitle}</h3>
-      <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
-    </div>
+    ${documentKind === 'workstop'
+      ? `<div class="content-box content-box-flat">
+          <h3>Motif de l'arrêt</h3>
+          <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
+        </div>`
+      : `<div class="document-free-text">
+          <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
+        </div>`}
   `;
 
   if (typeof openA5PrintDocument === 'function') {
@@ -1895,12 +2393,50 @@ function getPatientDocumentSpecialtyKey() {
   return rawSpecialty || 'orl';
 }
 
+function resolveBonPourDocumentTitle(settings = null) {
+  try {
+    const s = settings || (typeof getEffectivePrintSettings === 'function' ? getEffectivePrintSettings() : null) || cachedSettings || window.cachedSettings || {};
+    if (s && typeof s.documentBonPourTitle === 'string' && s.documentBonPourTitle.trim()) {
+      return s.documentBonPourTitle.trim();
+    }
+  } catch {}
+  return 'Demande de Bilan';
+}
+window.resolveBonPourDocumentTitle = resolveBonPourDocumentTitle;
+
 function getPatientDocumentSpecialtyConfig() {
   const key = getPatientDocumentSpecialtyKey();
+  const bilanStandardPreset = {
+    label: 'Demande de Bilan Standard',
+    type: 'analyses',
+    details: [
+      '- RADIO DU THORAX',
+      '- ECG',
+      '- Groupage/Rh',
+      '- FNS',
+      '- TP/TCK',
+      '- Glycémie à jeun',
+      '- HbA1C',
+      '- VS-CRP',
+      '- Ionogramme sanguin',
+      '- Urée-créatininémie',
+      '- Calcémie-Phosphorémie',
+      '- ASLO',
+      '- Cholestérol total, HDL, LDL, TG',
+      '- Fer sérique',
+      '- Bilirubine totale et directe',
+      '- TSH',
+      '- FT3, FT4',
+      '- Sérologie (HIV, Syphilis, VHB, VHC)'
+    ].join('\n'),
+    indication: 'Bilan complet standard'
+  };
+
   const configs = {
     orl: {
       label: 'ORL (Oto-Rhino-Laryngologie)',
       imaging: [
+        bilanStandardPreset,
         { label: 'TDM des Rochers', type: 'scanner', details: '- TDM des rochers (Os temporaux) en coupes millimétriques sans injection\n- Étude anatomique de l\'oreille moyenne, interne, osselets et mastoïdes', indication: 'Bilan d\'otite chronique / hypoacousie / acouphènes / cholestéatome' },
         { label: 'TDM Sinus de la Face', type: 'scanner', details: '- TDM du massif facial et des sinus (coronal et axial sans injection)\n- Étude des méats, complexe ostio-méatal, cloisons et cavités sinusiennes', indication: 'Bilan de sinusite chronique / polypose naso-sinusienne / déviation septale' },
         { label: 'IRM des CAI (Conduits Auditifs)', type: 'irm', details: '- IRM des conduits auditifs internes (CAI) et de l\'angle ponto-cérébelleux\n- Séquences CISS 3D / T2 haute résolution et T1 avec injection de Gadolinium', indication: 'Hypoacousie unilatérale / acouphènes / vertiges / éliminer schwannome vestibulaire' },
@@ -1922,6 +2458,7 @@ function getPatientDocumentSpecialtyConfig() {
     dentiste: {
       label: 'Dentiste / Stomatologie',
       imaging: [
+        bilanStandardPreset,
         { label: 'Panoramique dentaire', type: 'radio', details: '- Orthopantomogramme (Radiographie panoramique dentaire numérique)', indication: 'Bilan bucco-dentaire global / orientation diagnostique' },
         { label: 'Cone Beam 3D (CBCT)', type: 'radio', details: '- Cône Beam CT 3D maxillo-mandibulaire haute résolution\n- Étude volumétrique osseuse et repérage du canal mandibulaire / sinus', indication: 'Bilan implantaire / dent de sagesse incluse / lésion péri-apicale' },
         { label: 'Téléradiographie de profil', type: 'radio', details: '- Téléradiographie de profil (Céphalométrie orthodontique)', indication: 'Bilan d\'orthopédie dento-faciale / orthodontie' },
@@ -1940,6 +2477,7 @@ function getPatientDocumentSpecialtyConfig() {
     cardiologue: {
       label: 'Cardiologue',
       imaging: [
+        bilanStandardPreset,
         { label: 'ECG', type: 'other', details: 'Électrocardiogramme de repos', indication: 'Bilan cardiologique' },
         { label: 'Échocardiographie', type: 'echo', details: 'Échocardiographie transthoracique', indication: 'Évaluation morphologique et fonctionnelle cardiaque' },
         { label: 'Holter ECG', type: 'other', details: 'Holter ECG 24h / 48h', indication: 'Trouble du rythme suspecté' },
@@ -1956,6 +2494,7 @@ function getPatientDocumentSpecialtyConfig() {
     mpr: {
       label: 'MPR',
       imaging: [
+        bilanStandardPreset,
         { label: 'Rx ostéo-articulaire', type: 'radio', details: 'Radiographie ostéo-articulaire ciblée', indication: 'Bilan de douleur ou limitation fonctionnelle' },
         { label: 'IRM rachis / articulation', type: 'irm', details: 'IRM rachis ou articulation selon clinique', indication: 'Bilan lésionnel et fonctionnel' },
         { label: 'EMG / ENMG', type: 'emg', details: 'EMG / ENMG', indication: 'Bilan neuro-musculaire' },
@@ -1972,6 +2511,7 @@ function getPatientDocumentSpecialtyConfig() {
     general: {
       label: 'Général',
       imaging: [
+        bilanStandardPreset,
         { label: 'Analyses biologiques', type: 'analyses', details: '- FNS complete\n- VS, CRP\n- Glycémie à jeun\n- Urée, Créatinine', indication: 'Bilan biologique standard' },
         { label: 'Radiographie', type: 'radio', details: '- Radiographie du thorax face', indication: 'Bilan radiologique' },
         { label: 'Échographie', type: 'echo', details: '- Échographie abdominale / cervicale', indication: 'Bilan échographique' },
@@ -2034,31 +2574,46 @@ function renderPatientDocumentWidget() {
     <div class="patient-documents-select" style="margin-bottom: 12px;">
       <p style="margin: 0; font-size: 13.5px; color: #475569;">Générer un document pour <strong style="color: #0f172a;">${escapeHTML(patientLabel)}</strong> :</p>
     </div>
-    <div class="patient-documents-actions patient-documents-actions-single">
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('ordonnance')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>Ordonnance</span>
-      </button>
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('certificate')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span>Certificat Médical</span>
-      </button>
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('orientation')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        <span>Orientation / Lettre</span>
-      </button>
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('workstop')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
-        <span>Arrêt de travail</span>
-      </button>
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('invoice')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>Facture</span>
-      </button>
-      <button type="button" class="btn" onclick="handlePatientDocumentAction('bonpour')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        <span>Bon Pour / Faire Svp</span>
-      </button>
+    <div class="patient-documents-actions patient-documents-actions-grid" style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+      <!-- Ligne 1 : 4 boutons (Ordonnance, Facture, Certificat Médical, Nasofibroscopie) -->
+      <div class="patient-documents-row patient-documents-row-4" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: 100%;">
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('ordonnance')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Ordonnance</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('invoice')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Facture</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('certificate')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Certificat Médical</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('nasofibroscopie')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+          <span>Nasofibroscopie</span>
+        </button>
+      </div>
+
+      <!-- Ligne 2 : 4 boutons (Orientation, Bon pour faire, Arrêt de travail, Échographie Cervicale) -->
+      <div class="patient-documents-row patient-documents-row-4" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; width: 100%;">
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('orientation')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Orientation / Lettre</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('bonpour')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <span>Bon Pour / Faire Svp</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('workstop')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
+          <span>Arrêt de travail</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('echographie_cervicale')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h3l2-6 4 13 3-9 2 5h6"/><circle cx="18" cy="6" r="3"/></svg>
+          <span>Échographie Cervicale</span>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -2070,6 +2625,30 @@ function refreshPatientDocumentWidget() {
 function handlePatientDocumentAction(action, preset = null) {
   if (!currentPatientId) {
     showNotification('Sélectionnez un patient avant de continuer', 'warning');
+    return;
+  }
+
+  if (action === 'nasofibroscopie') {
+    const openNaso = typeof openNasofibroscopieModal === 'function'
+      ? openNasofibroscopieModal
+      : window.openNasofibroscopieModal;
+    if (typeof openNaso === 'function') {
+      openNaso(currentPatientId);
+    } else {
+      showNotification('Module nasofibroscopie non charge', 'error');
+    }
+    return;
+  }
+
+  if (action === 'echographie_cervicale' || action === 'echographie') {
+    const openEcho = typeof openEchographieCervicaleModal === 'function'
+      ? openEchographieCervicaleModal
+      : window.openEchographieCervicaleModal;
+    if (typeof openEcho === 'function') {
+      openEcho(currentPatientId);
+    } else {
+      showNotification('Module échographie cervicale non charge', 'error');
+    }
     return;
   }
 
@@ -2309,42 +2888,141 @@ window.getPatientDocumentSpecialtyConfig = getPatientDocumentSpecialtyConfig;
 window.getPatientDocumentSpecialtyKey = getPatientDocumentSpecialtyKey;
 window.switchRehabMainTab = switchRehabMainTab;
 
-async function openMobileAccessModal() {
+async function openMobileAccessModal(preferredAddress = '') {
   const modal = document.getElementById('modal-mobile-access');
   if (!modal) return;
 
   const qrImg = document.getElementById('mobile-qr-img');
   const loader = document.getElementById('mobile-qr-loader');
   const urlInput = document.getElementById('mobile-url-input');
+  const ipSelect = document.getElementById('mobile-ip-select');
+  const ipSelectContainer = document.getElementById('mobile-ip-select-container');
+  const networkStatus = document.getElementById('mobile-network-status');
+  const statusBadge = document.getElementById('mobile-server-status-badge');
+  const statusText = document.getElementById('mobile-server-status-text');
+  const warnBox = document.getElementById('mobile-share-warning');
+
+  const setServerStatus = (active) => {
+    if (!statusBadge) return;
+    statusBadge.style.background = active ? '#f6ffed' : '#fff1f0';
+    statusBadge.style.borderColor = active ? '#b7eb8f' : '#ffa39e';
+    statusBadge.style.color = active ? '#389e0d' : '#cf1322';
+    const dot = statusBadge.querySelector('span');
+    if (dot) dot.style.background = active ? '#52c41a' : '#ff4d4f';
+    if (statusText) statusText.textContent = active ? 'Serveur Local Actif • Même réseau Wi-Fi' : 'Serveur mobile NON actif';
+  };
+  const setWarnings = (items) => {
+    if (!warnBox) return;
+    if (!items.length) {
+      warnBox.style.display = 'none';
+      warnBox.replaceChildren();
+      return;
+    }
+    warnBox.style.display = 'block';
+    warnBox.replaceChildren(...items.map((msg) => Object.assign(document.createElement('div'), { textContent: `• ${msg}` })));
+  };
 
   if (loader) loader.style.display = 'flex';
-  if (urlInput) urlInput.value = 'Recherche de l\'adresse locale...';
+  if (urlInput) urlInput.value = 'Détection du réseau en direct...';
+  setWarnings([]);
   showModal('modal-mobile-access');
 
   try {
-    const res = await window.api.publicBooking?.getShareData?.();
+    if (typeof window.api.publicBooking?.refresh === 'function') {
+      try { await window.api.publicBooking.refresh(); } catch (_) {}
+    }
+
+    const res = await window.api.publicBooking?.getShareData?.(preferredAddress || '');
     if (res?.success && res.data) {
       const data = res.data;
       const targetUrl = data.mobileUrl || ('http://' + (data.localAddress || '127.0.0.1') + ':' + (data.port || 4580) + '/mobile/' + (data.token || ''));
       if (urlInput) urlInput.value = targetUrl;
-      
+
       if (data.mobileQrDataUrl && qrImg) {
         qrImg.src = data.mobileQrDataUrl;
       } else if (qrImg) {
         qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(targetUrl);
       }
+
+      const serverRunning = data.running !== false;
+      setServerStatus(serverRunning);
+      const warnings = [];
+      if (!serverRunning) {
+        warnings.push(`Le serveur mobile n'a pas démarré${data.lastError ? ` (${data.lastError})` : ''}. Fermez puis rouvrez cette fenêtre, ou redémarrez l'application.`);
+      }
+      if (serverRunning && data.firewallOk === false) {
+        warnings.push("Pare-feu Windows : la règle d'accès n'a pas pu être créée automatiquement. Faites un clic droit sur l'application puis « Exécuter en tant qu'administrateur » une seule fois pour autoriser les téléphones.");
+      }
+      if (serverRunning && data.selfTestOk === false) {
+        warnings.push("Test réseau : cette adresse ne répond pas. Vérifiez que le PC et le téléphone sont sur le même Wi-Fi (même box), choisissez une autre adresse IP dans la liste ci-dessous, et si le problème persiste désactivez l'« isolation client / AP isolation » dans la box.");
+      }
+
+      const isHotspot = data.localAddress && (
+        data.localAddress.startsWith('192.168.43.') ||
+        data.localAddress.startsWith('172.20.10.') ||
+        data.localAddress.startsWith('192.168.42.') ||
+        data.localAddress.startsWith('192.168.137.') ||
+        data.localAddress.startsWith('192.168.44.') ||
+        data.localAddress.startsWith('192.168.49.')
+      );
+
+      if (networkStatus) {
+        networkStatus.textContent = isHotspot ? 'Point d\'accès Hotspot Actif' : 'Réseau Wi-Fi / Local Actif';
+        networkStatus.style.color = isHotspot ? '#52c41a' : '#1677ff';
+      }
+
+      if (ipSelect) {
+        const addresses = (Array.isArray(data.availableAddresses) && data.availableAddresses.length > 0)
+          ? data.availableAddresses
+          : [{ address: data.localAddress || '127.0.0.1', name: 'Réseau' }];
+
+        ipSelect.innerHTML = addresses.map((cand) => {
+          let label = cand.address;
+          if (cand.address.startsWith('192.168.43.')) label += ' 📱 (Hotspot Android)';
+          else if (cand.address.startsWith('172.20.10.')) label += ' 📱 (Hotspot iPhone / iOS)';
+          else if (cand.address.startsWith('192.168.42.')) label += ' 🔌 (Partage USB)';
+          else if (cand.address.startsWith('192.168.137.')) label += ' 📡 (Hotspot Windows)';
+          else if (cand.name) label += ` (${cand.name})`;
+          const selected = (cand.address === data.localAddress) ? 'selected' : '';
+          return `<option value="${cand.address}" ${selected}>${label}</option>`;
+        }).join('');
+
+        if (ipSelectContainer) {
+          ipSelectContainer.style.display = 'block';
+        }
+      }
+
+      setWarnings(warnings);
     } else {
+      setServerStatus(false);
       const fallbackUrl = 'http://127.0.0.1:4580/mobile';
       if (urlInput) urlInput.value = fallbackUrl;
       if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fallbackUrl);
+      setWarnings(['Impossible de récupérer les informations de partage. Redémarrez l\'application puis réessayez.']);
     }
   } catch (err) {
     console.error('Error fetching mobile share data:', err);
+    setServerStatus(false);
     const fallbackUrl = 'http://127.0.0.1:4580/mobile';
     if (urlInput) urlInput.value = fallbackUrl;
     if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fallbackUrl);
+    setWarnings(['Erreur lors de la détection du réseau. Vérifiez votre connexion Wi-Fi puis réessayez.']);
   } finally {
     if (loader) loader.style.display = 'none';
+  }
+}
+
+async function onMobileNetworkAddressChange(address) {
+  if (!address) return;
+  await openMobileAccessModal(address);
+}
+
+async function refreshMobileAccessModal() {
+  const ipSelect = document.getElementById('mobile-ip-select');
+  const selectedIp = ipSelect ? ipSelect.value : '';
+  await openMobileAccessModal(selectedIp);
+  if (typeof showNotification === 'function') {
+    showNotification('Adresse réseau actualisée', 'info');
   }
 }
 
@@ -2372,5 +3050,7 @@ function openMobileInBrowser() {
 }
 
 window.openMobileAccessModal = openMobileAccessModal;
+window.onMobileNetworkAddressChange = onMobileNetworkAddressChange;
+window.refreshMobileAccessModal = refreshMobileAccessModal;
 window.copyMobileUrl = copyMobileUrl;
 window.openMobileInBrowser = openMobileInBrowser;

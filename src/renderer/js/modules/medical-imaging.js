@@ -1,4 +1,13 @@
-const IMAGING_FAMILIES = ['Radiographie', 'IRM', 'Scanner CT', 'Échographie', 'Mammographie'];
+const IMAGING_FAMILIES = [
+  'Scanner CT / TDM (Rochers, Sinus, Cou)',
+  'IRM ORL (CPA, Glandes salivaires, Sinus)',
+  'Radiographie ORL (Blondeau, Cavum, OPN)',
+  'Échographie Cervicale & Salivaire',
+  'Endoscopie & Fibroscopie ORL',
+  'Audiométrie & Tympanométrie',
+  'Cone Beam / CBCT (Massif facial & Rochers)',
+  'Vidéonystagmographie / VNG & Équilibre'
+];
 
 const medicalImagingState = {
   initialized: false,
@@ -6,7 +15,7 @@ const medicalImagingState = {
   records: [],
   devices: [],
   selectedPatientId: '',
-  selectedFamily: 'Radiographie',
+  selectedFamily: 'Scanner CT / TDM (Rochers, Sinus, Cou)',
   filterFamily: 'all',
   selectedRecordId: null,
   recordsPage: 1
@@ -16,6 +25,8 @@ const IMAGING_RECORDS_PAGE_SIZE = 10;
 function isImagingAttachment(record) {
   if (!record) return false;
   if (IMAGING_FAMILIES.includes(record.examFamily)) return true;
+  const legacyFamilies = ['Radiographie', 'IRM', 'Scanner CT', 'Échographie', 'Mammographie'];
+  if (legacyFamilies.includes(record.examFamily)) return true;
   const fileName = String(record.fileName || '').toLowerCase();
   return ['.dcm', '.dicom', '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.pdf', '.zip'].some((ext) => fileName.endsWith(ext));
 }
@@ -25,7 +36,7 @@ function getImagingPatientName(patient) {
 }
 
 function getMedicalImagingSelectedFamily() {
-  return document.getElementById('imaging-family-select')?.value || 'Radiographie';
+  return document.getElementById('imaging-family-select')?.value || 'Scanner CT / TDM (Rochers, Sinus, Cou)';
 }
 
 function setMedicalImagingDeviceStatus(message) {
@@ -727,3 +738,238 @@ setMedicalImagingPatient = async function(patientId) {
 
   await loadMedicalImagingRecords(normalizedId);
 };
+
+// ==================== IMPORT DIRECT DEPUIS APPAREIL RADIO (X-RAY) ====================
+
+let radioExportFilesCache = [];
+
+function formatFileSizeHuman(bytes) {
+  if (!bytes || bytes <= 0) return '0 o';
+  const k = 1024;
+  const sizes = ['o', 'Ko', 'Mo', 'Go'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+
+async function openImportRadioModal() {
+  const patientId = medicalImagingState.selectedPatientId || (typeof currentPatientId !== 'undefined' ? currentPatientId : window.currentPatientId);
+  if (!patientId) {
+    showNotification('Veuillez sélectionner un patient avant d\'importer des clichés radio', 'warning');
+    return;
+  }
+
+  let patient = medicalImagingState.patients?.find((p) => String(p.id) === String(patientId));
+  if (!patient && window.currentPatientData) {
+    patient = window.currentPatientData;
+  }
+  const patientName = patient ? getImagingPatientName(patient) : 'Patient';
+
+  const patientDisplay = document.getElementById('radio-modal-patient-name');
+  if (patientDisplay) {
+    patientDisplay.textContent = patientName;
+    patientDisplay.dataset.patientId = patientId;
+  }
+
+  showModal('modal-import-radio');
+  await refreshRadioExportFilesModal();
+}
+
+async function refreshRadioExportFilesModal() {
+  const folderDisplay = document.getElementById('radio-modal-folder-display');
+  const listContainer = document.getElementById('radio-modal-files-list');
+  const countEl = document.getElementById('radio-modal-files-count');
+  const importBtn = document.getElementById('radio-modal-import-btn');
+
+  if (listContainer) {
+    listContainer.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #94a3b8;"><div>Recherche des clichés dans le dossier Radio...</div></div>';
+  }
+  if (importBtn) importBtn.disabled = true;
+
+  try {
+    const res = await window.api.file.listRadioExportFiles();
+    if (!res?.success) {
+      if (folderDisplay) folderDisplay.textContent = res?.folderPath || 'Non configuré';
+      if (listContainer) {
+        listContainer.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 25px 15px; color: #64748b;">
+            <div style="font-size: 32px; margin-bottom: 8px;">⚠️</div>
+            <div style="font-weight: 600; color: #b91c1c; margin-bottom: 6px;">${escapeHTML(res?.error || 'Dossier Radio introuvable')}</div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Vérifiez le chemin du dossier d'export de votre appareil radio ou sélectionnez-le directement ci-dessous.</div>
+            <button type="button" class="btn btn-primary btn-small" onclick="pickRadioExportFolderModal()" style="background: #0284c7; border-color: #0284c7;">Parcourir le dossier...</button>
+          </div>
+        `;
+      }
+      if (countEl) countEl.textContent = '0';
+      return;
+    }
+
+    if (folderDisplay) folderDisplay.textContent = res.folderPath || 'Dossier configuré';
+    radioExportFilesCache = res.files || [];
+    if (countEl) countEl.textContent = String(radioExportFilesCache.length);
+
+    if (radioExportFilesCache.length === 0) {
+      if (listContainer) {
+        listContainer.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 35px 20px; color: #64748b;">
+            <div style="font-size: 36px; margin-bottom: 8px;">📁</div>
+            <div style="font-weight: 600; color: #334155;">Aucun cliché récent trouvé dans le dossier</div>
+            <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Le dossier est vide ou ne contient pas de fichiers images ou DICOM.</div>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    renderRadioExportFilesGrid();
+  } catch (err) {
+    console.error('Error in refreshRadioExportFilesModal:', err);
+    if (listContainer) {
+      listContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 20px; color: #ef4444;">Erreur: ${escapeHTML(err.message)}</div>`;
+    }
+  }
+}
+
+function renderRadioExportFilesGrid() {
+  const listContainer = document.getElementById('radio-modal-files-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = radioExportFilesCache.map((file) => {
+    const dateStr = file.mtime ? new Date(file.mtime).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const sizeStr = formatFileSizeHuman(file.size);
+    const thumbHtml = file.thumbnail
+      ? `<img src="${file.thumbnail}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 4px;" alt="${escapeHTML(file.name)}">`
+      : `<div style="width: 100%; height: 110px; background: #e2e8f0; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #64748b;"><span style="font-size: 24px;">🩻</span><span style="font-size: 11px; font-weight: 600; margin-top: 4px;">${escapeHTML(file.ext.toUpperCase())}</span></div>`;
+
+    return `
+      <label class="radio-file-card" style="display: flex; flex-direction: column; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 8px; cursor: pointer; transition: all 0.15s ease; position: relative; user-select: none;">
+        <input type="checkbox" class="radio-file-checkbox" data-path="${escapeHTML(file.path)}" onchange="updateRadioSelectionCount()" style="position: absolute; top: 12px; left: 12px; z-index: 10; width: 18px; height: 18px; cursor: pointer;">
+        <div style="margin-bottom: 6px; overflow: hidden; border-radius: 4px;">${thumbHtml}</div>
+        <div style="font-size: 12px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHTML(file.name)}">${escapeHTML(file.name)}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b; margin-top: 4px;">
+          <span>${escapeHTML(sizeStr)}</span>
+          <span>${escapeHTML(dateStr)}</span>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  updateRadioSelectionCount();
+}
+
+async function pickRadioExportFolderModal() {
+  try {
+    const res = await window.api.file.selectFolder();
+    if (res?.success && res.folderPath) {
+      const folderDisplay = document.getElementById('radio-modal-folder-display');
+      if (folderDisplay) folderDisplay.textContent = res.folderPath;
+      const settingsInput = document.getElementById('radio-export-folder-path');
+      if (settingsInput) settingsInput.value = res.folderPath;
+
+      // Save to settings
+      try {
+        const cur = await window.api.settings.get();
+        const curData = cur?.success ? (cur.data || {}) : {};
+        await window.api.settings.save({ ...curData, radioExportFolderPath: res.folderPath });
+      } catch (_) {}
+
+      showNotification('Dossier Radio mis à jour', 'success');
+      await refreshRadioExportFilesModal();
+    }
+  } catch (err) {
+    console.error('Error picking radio export folder:', err);
+  }
+}
+
+function toggleSelectAllRadioFiles() {
+  const checkboxes = Array.from(document.querySelectorAll('.radio-file-checkbox'));
+  if (!checkboxes.length) return;
+  const anyUnchecked = checkboxes.some((cb) => !cb.checked);
+  checkboxes.forEach((cb) => { cb.checked = anyUnchecked; });
+  updateRadioSelectionCount();
+}
+
+function updateRadioSelectionCount() {
+  const checkboxes = Array.from(document.querySelectorAll('.radio-file-checkbox'));
+  const selectedCount = checkboxes.filter((cb) => cb.checked).length;
+  const countDisplay = document.getElementById('radio-modal-selection-count');
+  const importBtn = document.getElementById('radio-modal-import-btn');
+
+  if (countDisplay) {
+    countDisplay.textContent = `${selectedCount} cliché(s) sélectionné(s)`;
+  }
+  if (importBtn) {
+    importBtn.disabled = selectedCount === 0;
+    importBtn.textContent = selectedCount > 0
+      ? `Importer ${selectedCount} cliché(s) dans le dossier`
+      : 'Importer dans le dossier patient';
+  }
+
+  // Update card border styles
+  checkboxes.forEach((cb) => {
+    const card = cb.closest('.radio-file-card');
+    if (card) {
+      if (cb.checked) {
+        card.style.borderColor = '#0284c7';
+        card.style.background = '#f0f9ff';
+      } else {
+        card.style.borderColor = '#e2e8f0';
+        card.style.background = '#ffffff';
+      }
+    }
+  });
+}
+
+async function submitRadioFilesImport() {
+  const patientId = document.getElementById('radio-modal-patient-name')?.dataset?.patientId || medicalImagingState.selectedPatientId || (typeof currentPatientId !== 'undefined' ? currentPatientId : '');
+  if (!patientId) {
+    showNotification('Patient non spécifié', 'error');
+    return;
+  }
+
+  const selectedPaths = Array.from(document.querySelectorAll('.radio-file-checkbox:checked')).map((cb) => cb.dataset.path).filter(Boolean);
+  if (!selectedPaths.length) {
+    showNotification('Veuillez cocher au moins un cliché à importer', 'warning');
+    return;
+  }
+
+  const examFamily = document.getElementById('radio-modal-exam-family')?.value || 'Radiographie ORL (Blondeau, Cavum, OPN)';
+  const importBtn = document.getElementById('radio-modal-import-btn');
+  if (importBtn) {
+    importBtn.disabled = true;
+    importBtn.textContent = 'Importation en cours...';
+  }
+
+  try {
+    const result = await window.api.file.importRadioFiles({
+      patientId,
+      filePaths: selectedPaths,
+      examFamily,
+      notes: `Import Radio direct (${selectedPaths.length} cliché(s))`
+    });
+
+    if (!result?.success) {
+      showNotification(`Erreur lors de l'import : ${result?.error || 'Échec'}`, 'error');
+      if (importBtn) importBtn.disabled = false;
+      return;
+    }
+
+    showNotification(`✅ ${result.importedCount || selectedPaths.length} cliché(s) importé(s) avec succès dans le dossier patient !`, 'success');
+    closeModal('modal-import-radio');
+
+    // Reload imaging records
+    if (typeof loadMedicalImagingRecords === 'function') {
+      await loadMedicalImagingRecords(patientId);
+    }
+  } catch (err) {
+    console.error('Error importing radio files:', err);
+    showNotification('Erreur inattendue lors de l\'import des clichés', 'error');
+    if (importBtn) importBtn.disabled = false;
+  }
+}
+
+window.openImportRadioModal = openImportRadioModal;
+window.refreshRadioExportFilesModal = refreshRadioExportFilesModal;
+window.pickRadioExportFolderModal = pickRadioExportFolderModal;
+window.toggleSelectAllRadioFiles = toggleSelectAllRadioFiles;
+window.updateRadioSelectionCount = updateRadioSelectionCount;
+window.submitRadioFilesImport = submitRadioFilesImport;

@@ -177,12 +177,24 @@ function displayOperations() {
     const dateLabel = op.operationDate ? formatOperationDate(op.operationDate) : '-';
     const timeLabel = op.operationTime ? ` à ${escapeHTML(op.operationTime)}` : '';
     const statusHtml = statusTags[op.status] || `<span class="ant-tag">${escapeHTML(op.status || '')}</span>`;
-    const costDisplay = op.cost ? formatOperationCurrency(op.cost) : '—';
-    const paymentStatusHtml = op.paymentStatus === 'paid'
-      ? '<span class="ant-tag ant-tag-success" style="font-size:11px; background:#f6ffed; color:#389e0d; border-color:#b7eb8f;">Réglé</span>'
-      : (op.paymentStatus === 'partial'
-        ? '<span class="ant-tag ant-tag-warning" style="font-size:11px; background:#fffbe6; color:#d46b08; border-color:#ffd591;">Partiel</span>'
-        : '<span class="ant-tag ant-tag-error" style="font-size:11px; background:#fff1f0; color:#cf1322; border-color:#ffa39e;">Non réglé</span>');
+    const totalCost = Number(op.cost) || 0;
+    const paidAmount = Number(op.paidAmount) || 0;
+    const remainingAmount = Math.max(0, totalCost - paidAmount);
+
+    const costDisplay = totalCost > 0 ? formatOperationCurrency(totalCost) : '—';
+    let paymentStatusHtml = '';
+    if (op.paymentStatus === 'paid' || (totalCost > 0 && paidAmount >= totalCost)) {
+      paymentStatusHtml = '<span class="ant-tag ant-tag-success" style="font-size:11px; background:#f6ffed; color:#389e0d; border-color:#b7eb8f;">Réglé (Totalité)</span>';
+    } else if (op.paymentStatus === 'partial' || paidAmount > 0) {
+      paymentStatusHtml = `
+        <div style="font-size: 11px; margin-top: 2px;">
+          <span class="ant-tag ant-tag-warning" style="font-size:11px; background:#fffbe6; color:#d46b08; border-color:#ffd591;">Acompte: ${formatOperationCurrency(paidAmount)}</span>
+          <div style="color: #cf1322; font-weight: 600; font-size: 10.5px; margin-top: 1px;">Reste: ${formatOperationCurrency(remainingAmount)}</div>
+        </div>
+      `;
+    } else {
+      paymentStatusHtml = '<span class="ant-tag ant-tag-error" style="font-size:11px; background:#fff1f0; color:#cf1322; border-color:#ffa39e;">Non réglé</span>';
+    }
 
     return `
       <tr>
@@ -212,7 +224,25 @@ function displayOperations() {
           <div>${paymentStatusHtml}</div>
         </td>
         <td style="padding: 14px 16px; text-align: center;">
-          <div style="display: flex; justify-content: center; gap: 6px;">
+          <div style="display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap;">
+            ${(() => {
+              const isFullyPaid = totalCost > 0 && paidAmount >= totalCost;
+              if (isFullyPaid) {
+                return `
+              <button type="button" disabled title="Opération réglée en totalité — aucun paiement supplémentaire possible" style="height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; border-radius: 6px; cursor: not-allowed; opacity: 0.75;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Réglé
+              </button>`;
+              }
+              if ((remainingAmount > 0 || op.paymentStatus !== 'paid') && totalCost > 0) {
+                return `
+              <button type="button" class="btn btn-small" onclick="openOperationPaymentModal('${op.id}')" title="Ajouter un versement ou solder le reste" style="height: 32px; padding: 0 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: #10b981; border: 1px solid #059669; color: #ffffff; border-radius: 6px; cursor: pointer;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                ${paidAmount > 0 ? 'Versement' : 'Payer'}
+              </button>`;
+              }
+              return '';
+            })()}
             <button type="button" class="btn btn-secondary btn-small" onclick="viewOperationReport('${op.id}')" title="Compte-rendu opératoire" style="height: 32px; padding: 0 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               CR
@@ -430,6 +460,28 @@ function populateOperationTypeSelect(selectedValue = null) {
   }
 }
 
+function onOperationTypeFocus(event) {
+  const input = document.getElementById('operation-type-select');
+  const dropdown = document.getElementById('operation-type-dropdown');
+  if (!input || !dropdown) return;
+  const list = operationsCatalog || [];
+  if (!list.length) return;
+
+  dropdown.innerHTML = list.map(t => {
+    const costText = t.defaultCost ? `<span style="color: #166534; font-weight: 600; font-size: 11.5px; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">${t.defaultCost} DZD</span>` : '';
+    const codeText = t.code ? `<span style="color: #64748b; font-size: 11.5px; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${escapeHTML(t.code)}</span>` : '';
+    const safeName = escapeHTML(t.name).replace(/'/g, "\\'");
+    const safeCode = escapeHTML(t.code || '').replace(/'/g, "\\'");
+    return `
+      <div class="op-type-item" onclick="selectOperationTypeItem('${safeName}', '${safeCode}', ${t.defaultCost || 0}, ${t.defaultDuration || 30})" style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b;" onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background='#ffffff'">
+        <span style="font-weight: 600;">${escapeHTML(t.name)}</span>
+        <div style="display: flex; align-items: center; gap: 6px;">${codeText}${costText}</div>
+      </div>
+    `;
+  }).join('');
+  dropdown.style.display = 'block';
+}
+
 function onOperationTypeInput(event) {
   const input = document.getElementById('operation-type-select');
   const dropdown = document.getElementById('operation-type-dropdown');
@@ -438,8 +490,7 @@ function onOperationTypeInput(event) {
   const query = (input.value || '').trim().toLowerCase();
 
   if (!query || query.length === 0) {
-    dropdown.style.display = 'none';
-    dropdown.innerHTML = '';
+    onOperationTypeFocus(event);
     return;
   }
 
@@ -483,7 +534,10 @@ function selectOperationTypeItem(name, code, cost, duration) {
 
   if (input) input.value = name;
   if (codeInput) codeInput.value = code;
-  if (costInput && cost) costInput.value = cost;
+  if (costInput) {
+    const numCost = Number(cost);
+    costInput.value = !isNaN(numCost) && numCost > 0 ? numCost : (cost || '');
+  }
   if (durInput && duration) durInput.value = duration;
   if (dropdown) dropdown.style.display = 'none';
 }
@@ -507,18 +561,8 @@ async function loadEquipmentCheckboxesForOperation(selectedIds = []) {
     const result = await window.api.equipment.getAll({ limit: 100 });
     availableEquipmentList = result && result.success ? (result.data || []) : [];
     if (!availableEquipmentList.length) {
-      availableEquipmentList = [
-        { id: 'eq-dent-001', name: 'Fauteuil Dentaire Ergonomique Pro', category: 'dental_chair', brand: 'Castellini', status: 'available' },
-        { id: 'eq-dent-002', name: 'Autoclave Stérilisateur Classe B 24L', category: 'sterilization', brand: 'Euronda', status: 'available' },
-        { id: 'eq-dent-003', name: 'Détartreur Ultrasonique Piézoélectrique', category: 'ultrasonic', brand: 'EMS Dental', status: 'available' },
-        { id: 'eq-dent-004', name: 'Capteur Radiologique Intra-oral Numérique HD', category: 'imaging', brand: 'Carestream Dental', status: 'available' },
-        { id: 'eq-dent-005', name: "Moteur d'Endodontie avec Localisateur d'Apex", category: 'endo_motor', brand: 'Dentsply Sirona', status: 'available' },
-        { id: 'eq-dent-006', name: 'Lampe à Photopolymériser LED Haute Puissance', category: 'curing_lamp', brand: 'Ivoclar Vivadent', status: 'available' },
-        { id: 'eq-dent-007', name: 'Compresseur Dentaire Silencieux Sans Huile 50L', category: 'compressor', brand: 'Cattani', status: 'available' },
-        { id: 'eq-dent-008', name: 'Aéropolisseur Prophylactique Sub/Supragingival', category: 'air_polisher', brand: 'EMS Dental', status: 'available' },
-        { id: 'eq-dent-009', name: "Moteur Chirurgical et d'Implantologie Dentaire", category: 'surgical_motor', brand: 'Bien-Air', status: 'available' },
-        { id: 'eq-dent-010', name: 'Caméra Intra-orale HD avec Écran Tactile', category: 'intraoral_camera', brand: 'Acteon', status: 'available' }
-      ];
+      container.innerHTML = '<div style="color: #64748b; font-size: 12.5px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">Aucun équipement enregistré (Optionnel).</div>';
+      return;
     }
 
     const renderEquipmentItems = (filter = '') => {
@@ -1310,6 +1354,138 @@ function printCurrentOperationInvoice() {
   printDocumentContent(html, 'Facture Intervention', 'operation_facture');
 }
 
+// ─── OPERATION PAYMENT MODAL & ACTIONS ──────────────────────────────────────────
+
+async function openOperationPaymentModal(operationId) {
+  let op = operationsData.find(o => String(o.id) === String(operationId));
+  if (!op) {
+    const res = await window.api.operation.getById(operationId);
+    if (res && res.success) op = res.data;
+  }
+  if (!op) {
+    showNotification('Opération introuvable', 'error');
+    return;
+  }
+
+  const patientName = op.patientFirstName || op.patientLastName
+    ? `${op.patientLastName || ''} ${op.patientFirstName || ''}`.trim()
+    : 'Patient';
+  const totalCost = Number(op.cost) || 0;
+  const alreadyPaid = Number(op.paidAmount) || 0;
+  const remaining = Math.max(0, totalCost - alreadyPaid);
+
+  const modalHtml = `
+    <div id="modal-operation-payment" class="inventory-detail-overlay" style="position: fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index: 10050; display: flex; align-items: center; justify-content: center; padding: 16px;">
+      <div style="background: #ffffff; border-radius: 12px; max-width: 480px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden;">
+        <div style="padding: 16px 20px; background: #f0fdf4; border-bottom: 1px solid #bbf7d0; display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #166534; display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#166534" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            ${alreadyPaid > 0 ? 'Ajouter un Versement / Solder' : 'Encaisser l\'opération'}
+          </h3>
+          <button type="button" onclick="document.getElementById('modal-operation-payment').remove()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #64748b; line-height: 1;">&times;</button>
+        </div>
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <div>
+              <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Patient</span>
+              <div style="font-size: 13.5px; font-weight: 700; color: #0f172a;">${escapeHTML(patientName)}</div>
+            </div>
+            <div>
+              <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Acte</span>
+              <div style="font-size: 13px; font-weight: 600; color: #334155;">${escapeHTML(op.operationType)}</div>
+            </div>
+          </div>
+
+          <!-- Recap financier -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
+            <div style="background: #f1f5f9; padding: 8px; border-radius: 6px;">
+              <div style="font-size: 11px; color: #64748b;">Coût Total</div>
+              <div style="font-size: 14px; font-weight: 700; color: #1e293b;">${formatOperationCurrency(totalCost)}</div>
+            </div>
+            <div style="background: #fef3c7; padding: 8px; border-radius: 6px;">
+              <div style="font-size: 11px; color: #92400e;">Déjà Versé</div>
+              <div style="font-size: 14px; font-weight: 700; color: #b45309;">${formatOperationCurrency(alreadyPaid)}</div>
+            </div>
+            <div style="background: #fee2e2; padding: 8px; border-radius: 6px;">
+              <div style="font-size: 11px; color: #991b1b;">Reste à Payer</div>
+              <div style="font-size: 14px; font-weight: 700; color: #dc2626;">${formatOperationCurrency(remaining)}</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 4px; display: flex; justify-content: space-between;">
+              <span>Montant du versement (DA)</span>
+              ${remaining > 0 ? `<a href="#" onclick="event.preventDefault(); document.getElementById('op-pay-amount').value = ${remaining};" style="font-size: 11.5px; color: #1677ff; text-decoration: none;">Tout solder (${remaining} DA)</a>` : ''}
+            </label>
+            <input type="number" id="op-pay-amount" class="form-control" value="${remaining > 0 ? remaining : totalCost}" min="1" max="${remaining > 0 ? remaining : totalCost}" step="100" style="height: 38px; font-size: 16px; font-weight: 700; color: #15803d;">
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 4px; display: block;">Mode de règlement</label>
+            <select id="op-pay-method" class="form-control" style="height: 38px;">
+              <option value="Espèces">Espèces</option>
+              <option value="Carte Bancaire">Carte Bancaire / CIB</option>
+              <option value="Chèque">Chèque</option>
+              <option value="Virement">Virement</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 4px; display: block;">Date d'encaissement (Comptabilisée dans les stats du jour)</label>
+            <input type="date" id="op-pay-date" class="form-control" value="${new Date().toISOString().slice(0, 10)}" style="height: 38px;">
+          </div>
+        </div>
+        <div style="padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-operation-payment').remove()">Annuler</button>
+          <button type="button" class="btn btn-primary" onclick="submitOperationPayment('${op.id}')" style="background: #10b981; border-color: #059669; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            <span>Valider le versement</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-operation-payment')?.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+window.openOperationPaymentModal = openOperationPaymentModal;
+
+async function submitOperationPayment(operationId) {
+  const amount = parseFloat(document.getElementById('op-pay-amount')?.value) || 0;
+  const paymentMethod = document.getElementById('op-pay-method')?.value || 'Espèces';
+  const paymentDate = document.getElementById('op-pay-date')?.value || new Date().toISOString().slice(0, 10);
+
+  if (amount <= 0) {
+    showNotification('Veuillez saisir un montant valide', 'warning');
+    return;
+  }
+
+  try {
+    const result = await window.api.operation.recordPayment({
+      operationId,
+      amount,
+      paymentMethod,
+      paymentDate
+    });
+
+    if (result && result.success) {
+      document.getElementById('modal-operation-payment')?.remove();
+      showNotification('Paiement de l\'opération enregistré avec succès', 'success');
+      await loadOperations();
+      await loadOperationsStats();
+      if (typeof loadPatientPayments === 'function' && typeof currentPatientId !== 'undefined') {
+        loadPatientPayments(currentPatientId);
+      }
+      if (typeof loadPayments === 'function') {
+        loadPayments();
+      }
+    } else {
+      showNotification(result?.error || 'Erreur lors de l\'encaissement', 'error');
+    }
+  } catch (err) {
+    console.error('Erreur encaissement opération:', err);
+    showNotification('Erreur inattendue', 'error');
+  }
+}
+window.submitOperationPayment = submitOperationPayment;
+
 // ─── EXPOSE GLOBALS ─────────────────────────────────────────────────────────
 
 window.initOperations = initOperations;
@@ -1319,6 +1495,7 @@ window.resetOperationsFilters = resetOperationsFilters;
 window.openNewOperationModal = openNewOperationModal;
 window.onOperationTypeChange = onOperationTypeChange;
 window.onOperationTypeInput = onOperationTypeInput;
+window.onOperationTypeFocus = onOperationTypeFocus;
 window.selectOperationTypeItem = selectOperationTypeItem;
 window.addOperationConsumableRow = addOperationConsumableRow;
 window.removeOperationConsumableRow = removeOperationConsumableRow;
@@ -1330,3 +1507,5 @@ window.viewOperationReport = viewOperationReport;
 window.switchOperationViewMode = switchOperationViewMode;
 window.printCurrentOperationReport = printCurrentOperationReport;
 window.printCurrentOperationInvoice = printCurrentOperationInvoice;
+window.openOperationPaymentModal = openOperationPaymentModal;
+window.submitOperationPayment = submitOperationPayment;

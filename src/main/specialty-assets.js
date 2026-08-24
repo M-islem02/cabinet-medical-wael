@@ -20,10 +20,7 @@ export function normalizeSpecialtyKey(value = 'orl') {
   const raw = String(value || '').trim().toLowerCase();
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
   if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
-  if (['rehabilitation', 'mpr', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique', 'kiné', 'kinesitherapie'].includes(raw)) return 'rehabilitation';
-  if (['cardiology', 'cardiologie', 'cardiologue', 'cardiologist'].includes(raw)) return 'cardiology';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist', 'chirurgien-dentiste', 'médecin dentiste', 'medecin dentiste'].includes(raw)) return 'dentistry';
-  if (['urology', 'urologue', 'urologie', 'urologist'].includes(raw)) return 'urology';
   return 'orl';
 }
 
@@ -53,8 +50,6 @@ export function parseEnabledSpecialties(value, fallbackConfig = null) {
   const config = fallbackConfig || {};
   const enabledKeys = [];
   if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
-  if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureRehabilitation === '1' || config.activeSpecialty === 'rehabilitation' || config.activeSpecialty === 'mpr') enabledKeys.push('rehabilitation');
-  if (config.featureCardiology === 1 || config.featureCardiology === true || config.featureCardiology === '1' || config.activeSpecialty === 'cardiology') enabledKeys.push('cardiology');
   if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1' || config.activeSpecialty === 'dentistry') enabledKeys.push('dentistry');
   if (config.activeSpecialty === 'general') enabledKeys.push('general');
   return enabledKeys.length ? [...new Set(enabledKeys)] : ['orl', 'dentistry'];
@@ -67,10 +62,38 @@ function medicationArrayFromPayload(payload) {
   return [];
 }
 
+function resolveAssetDirectory() {
+  const candidates = [
+    path.resolve(__dirname, '../../assets'),
+    process.resourcesPath ? path.join(process.resourcesPath, 'assets') : null,
+    process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'assets') : null,
+    path.resolve(process.cwd(), 'assets')
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return path.resolve(__dirname, '../../assets');
+}
+
 function getMedicationJsonPath(specialtyKey) {
   const config = getSpecialtyConfig();
   const meta = config[normalizeSpecialtyKey(specialtyKey)] || config.general;
-  return path.join(ASSETS_DIR, meta.medicationsJson);
+  const fileName = meta?.medicationsJson || 'medicaments_generaux.json';
+  const candidates = [
+    path.join(resolveAssetDirectory(), fileName),
+    path.resolve(__dirname, '../../assets', fileName),
+    process.resourcesPath ? path.join(process.resourcesPath, 'assets', fileName) : null,
+    process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', fileName) : null,
+    path.resolve(process.cwd(), 'assets', fileName)
+  ].filter(Boolean);
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return candidates[0];
 }
 
 function normalizeMedicationIdentity(value) {

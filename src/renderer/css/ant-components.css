@@ -1337,8 +1337,94 @@ input[type="date"].ant-input:focus {
 }
 
 /* ==========================================================================
+   Equipment & Inventory Modals (Centered, Responsive, Full Keyboard & Pointer Access)
+   ========================================================================== */
+#modal-equipment.modal,
+#modal-equipment-detail.modal,
+#modal-maintenance.modal,
+#modal-inventory.modal,
+#modal-stock-adjust.modal,
+#modal-supplier.modal,
+#modal-inventory-lot.modal,
+#modal-purchase-order.modal,
+#modal-receive-order.modal,
+#modal-operation-payment.modal,
+#modal-add-payment.modal,
+#modal-payment-request.modal,
+#modal-collect-payment.modal {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  z-index: 10000 !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#modal-equipment.modal,
+#modal-maintenance.modal,
+#modal-supplier.modal,
+#modal-stock-adjust.modal,
+#modal-inventory-lot.modal {
+  width: min(720px, calc(100vw - 32px)) !important;
+  max-width: 720px !important;
+}
+
+#modal-inventory.modal,
+#modal-purchase-order.modal,
+#modal-receive-order.modal,
+#modal-equipment-detail.modal,
+#modal-add-payment.modal,
+#modal-payment-request.modal,
+#modal-operation-payment.modal,
+#modal-collect-payment.modal {
+  width: min(840px, calc(100vw - 32px)) !important;
+  max-width: 840px !important;
+}
+
+#modal-equipment .modal-content,
+#modal-equipment-detail .modal-content,
+#modal-maintenance .modal-content,
+#modal-inventory .modal-content,
+#modal-stock-adjust .modal-content,
+#modal-supplier .modal-content,
+#modal-inventory-lot .modal-content,
+#modal-purchase-order .modal-content,
+#modal-receive-order .modal-content,
+#modal-operation-payment .modal-content,
+#modal-add-payment .modal-content,
+#modal-payment-request .modal-content,
+#modal-collect-payment .modal-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: calc(100vh - 40px) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff !important;
+}
+
+/* Ensure inputs, selects and textareas are always interactive and never have pointer-events disabled */
+.modal input,
+.modal select,
+.modal textarea,
+.modal button,
+.form-control,
+.care-equipment-picker input,
+.ant-select input {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* ==========================================================================
    Medical Document Modals & 2-Column Live Workstation
-   (Inputs on Left, Real-time Document Preview on Right)
+   (Inputs on Left 38%, Real-time Zero-Scroll A5 Document Preview on Right 62%)
    ========================================================================== */
 .medical-document-modal.modal,
 #modal-orientation.modal,
@@ -1350,9 +1436,10 @@ input[type="date"].ant-input:focus {
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
-  max-width: 1260px !important;
-  width: 96vw !important;
+  max-width: 1240px !important;
+  width: min(1240px, 96vw) !important;
   max-height: 94vh !important;
+  height: 94vh !important;
   margin: 0 !important;
   z-index: 9999 !important;
   box-sizing: border-box !important;
@@ -1367,18 +1454,49 @@ input[type="date"].ant-input:focus {
   max-width: 100% !important;
   width: 100% !important;
   max-height: 94vh !important;
-  height: auto !important;
+  height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.medical-document-modal .modal-body,
+#modal-orientation .modal-body,
+#modal-bonpour .modal-body,
+#modal-rapport .modal-body,
+#modal-add-sickleave .modal-body,
+#modal-facture .modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 12px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.medical-document-modal .modal-body > form,
+#modal-orientation .modal-body > form,
+#modal-bonpour .modal-body > form,
+#modal-rapport .modal-body > form,
+#modal-add-sickleave .modal-body > form,
+#modal-facture .modal-body > form {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 !important;
 }
 
 .document-workstation-layout {
   display: grid !important;
-  grid-template-columns: 1.05fr 0.95fr !important;
-  gap: 20px !important;
+  grid-template-columns: 380px minmax(0, 1fr) !important;
+  gap: 16px !important;
   align-items: stretch !important;
   width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 !important;
   box-sizing: border-box !important;
 }
 
@@ -1387,6 +1505,11 @@ input[type="date"].ant-input:focus {
   flex-direction: column !important;
   gap: 10px !important;
   min-width: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  padding-right: 6px !important;
+  box-sizing: border-box !important;
 }
 
 .document-workstation-preview {
@@ -1394,17 +1517,47 @@ input[type="date"].ant-input:focus {
   flex-direction: column !important;
   min-width: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+.document-workstation-preview .document-preview-card {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
 }
 
 .document-workstation-preview .document-live-preview {
-  min-height: 420px !important;
-  max-height: 520px !important;
-  overflow-y: auto !important;
-  background: #ffffff !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  background: #475569 !important;
   border: 1.5px solid #cbd5e1 !important;
   border-radius: 8px !important;
-  padding: 16px !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+  padding: 10px !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.document-live-preview .document-a5-sheet,
+.document-live-preview > div:first-child {
+  width: 520px !important;
+  min-width: 520px !important;
+  max-width: 520px !important;
+  margin: 0 auto !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35) !important;
+  box-sizing: border-box !important;
+  transform-origin: top center !important;
+  transition: transform 0.1s ease-out !important;
 }
 
 .orl-preview-modal-dialog {

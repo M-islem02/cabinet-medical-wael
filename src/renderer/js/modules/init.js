@@ -59,6 +59,14 @@ function setupAppZoomControls() {
   let currentZoom = getStoredAppZoom();
   applyAppZoom(currentZoom, { persist: false });
 
+  try {
+    const savedMode = localStorage.getItem('medcareso_app_display_mode') || 'auto';
+    const isCompact = savedMode === 'compact-square' || (savedMode === 'auto' && (window.screen.width / (window.screen.height || 1) < 1.55));
+    document.documentElement.classList.toggle('display-compact-square', Boolean(isCompact));
+    document.body.classList.toggle('display-compact-square', Boolean(isCompact));
+    document.documentElement.setAttribute('data-screen-mode', isCompact ? 'compact-square' : 'standard');
+  } catch (_) {}
+
   const changeZoom = async (delta) => {
     currentZoom = await applyAppZoom(currentZoom + delta);
   };
@@ -99,10 +107,39 @@ function setupAppZoomControls() {
   window.appZoomReset = () => resetBtn?.click();
 }
 
-// Reload the renderer so the operator can manually refresh all displayed data.
-// This is deliberately exposed globally because the topbar action is inline HTML.
-function refreshApp() {
-  window.location.reload();
+// Smoothly refresh all displayed data without disconnecting the user or reloading the page.
+async function refreshApp() {
+  try {
+    const activeNav = document.querySelector('.nav-item.active') || document.querySelector('.sidebar-menu .active');
+    const activeSection = activeNav ? (activeNav.getAttribute('data-section') || activeNav.getAttribute('data-view')) : null;
+
+    if (activeSection === 'dashboard' && typeof loadDashboardData === 'function') await loadDashboardData();
+    else if (activeSection === 'patients' && typeof loadPatients === 'function') await loadPatients();
+    else if ((activeSection === 'agenda' || activeSection === 'calendar') && typeof loadAppointments === 'function') await loadAppointments();
+    else if (activeSection === 'waiting-room' && typeof loadWaitingRoom === 'function') await loadWaitingRoom();
+    else if (activeSection === 'treatment-plans' && typeof loadTreatmentPlans === 'function') await loadTreatmentPlans();
+    else if (activeSection === 'inventory' && typeof loadInventory === 'function') await loadInventory();
+    else if (activeSection === 'equipment' && typeof loadEquipment === 'function') await loadEquipment();
+    else if (activeSection === 'operations' && typeof loadOperations === 'function') await loadOperations();
+    else if (activeSection === 'statistics' && typeof loadStatistics === 'function') await loadStatistics();
+    else if (activeSection === 'payments') {
+      if (typeof loadPaymentPractitionerFilter === 'function') await loadPaymentPractitionerFilter();
+      if (typeof loadPayments === 'function') await loadPayments();
+    }
+    else if (activeSection === 'day-summary' && typeof loadDailySummary === 'function') await loadDailySummary();
+    else if (activeSection === 'imaging' && typeof loadImagingData === 'function') await loadImagingData();
+    else {
+      if (typeof loadAppointments === 'function') loadAppointments();
+      if (typeof loadWaitingRoom === 'function') loadWaitingRoom();
+      if (typeof loadPatients === 'function') loadPatients();
+    }
+
+    if (typeof showNotification === 'function') {
+      showNotification('Données actualisées avec succès', 'success');
+    }
+  } catch (err) {
+    console.warn('Error refreshing app data:', err);
+  }
 }
 
 window.refreshApp = refreshApp;
@@ -226,6 +263,14 @@ async function initializeLegacyApplication() {
       applySpecialtyAccent();
     }
 
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.modal.active .document-live-preview').forEach((preview) => {
+        if (typeof fitDocumentPreviewA5 === 'function') {
+          fitDocumentPreviewA5(preview);
+        }
+      });
+    });
+
     ['details-sickleaves-tbody', 'details-certificats-tbody', 'details-arrets-tbody'].forEach((tbodyId) => {
       const sickLeaveTableBody = document.getElementById(tbodyId);
       if (sickLeaveTableBody && !sickLeaveTableBody.dataset.actionsBound) {
@@ -287,12 +332,15 @@ async function initializeLegacyApplication() {
     console.log('✅ Event listeners setup complete');
     resetPatientRecordsView();
     loadSettings();
-    console.log('✅ Settings loaded');
-
-    void Promise.resolve()
-      .then(() => loadDashboardStats())
-      .then(() => console.log('✅ Dashboard stats loaded'))
-      .catch((error) => console.warn('Dashboard stats load failed:', error));
+    if (currentUserIsSuperAdmin) {
+      enforceAdminMode();
+      showSection('package-config');
+    } else {
+      void Promise.resolve()
+        .then(() => loadDashboardStats())
+        .then(() => console.log('✅ Dashboard stats loaded'))
+        .catch((error) => console.warn('Dashboard stats load failed:', error));
+    }
 
     if (typeof loadPatients === 'function' && currentPage === 'patients') {
       await loadPatients();
@@ -924,7 +972,7 @@ function enforceAdminMode() {
 
   // Always land on an authorized admin section (default: Config Client)
   const currentActiveSection = document.querySelector('.section.active')?.id;
-  if (!currentActiveSection || !allowedAdminSections.has(currentActiveSection)) {
+  if (!currentActiveSection || !allowedAdminSections.has(currentActiveSection) || currentActiveSection === 'dashboard') {
     showSection('package-config');
   }
 }
@@ -940,15 +988,13 @@ function enforceAssistantMode() {
     || localStorage.getItem('currentUserRole') === 'test';
   if (isTestAccount) return;
 
-  console.log('🔒 Enforcing assistant mode restrictions');
+  console.log('🔒 Enforcing assistant mode configuration');
   
-  // Add assistant-mode class to body for CSS-based hiding
+  // Add assistant-mode class to body for CSS-based adjustments
   document.body.classList.add('assistant-mode');
   
-  // Hide navigation items that assistants shouldn't access
-  // Assistants can access: dashboard, waiting-room, daily-summary, appointments-calendar, patients, payments, inventory (view only), settings
-  // Assistants cannot access: statistics, rehabilitation, kine-staff, daily-summary (doctor only sections)
-  const doctorOnlySections = ['statistics', 'equipment', 'rehabilitation', 'kine-staff', 'daily-summary'];
+  // Hide administrative and practitioner-only sections that assistants shouldn't access
+  const doctorOnlySections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'medical-imaging', 'treatment-plans', 'rehabilitation', 'kine-staff', 'daily-summary', 'package-config', 'sms-config', 'cloud-sync'];
   
   document.querySelectorAll('.nav-item').forEach(item => {
     const section = item.dataset.section;
@@ -957,81 +1003,14 @@ function enforceAssistantMode() {
       item.classList.add('hidden-for-assistant');
     }
   });
-  
-  // Also hide any elements with doctor-only class
+
+  // Also hide elements with doctor-only class
   document.querySelectorAll('.doctor-only').forEach(el => {
     el.style.display = 'none';
     el.classList.add('hidden-for-assistant');
   });
-  
-  // Hide consultation-related tab buttons in patient details
-  // Assistants can see appointments tab only
-  const tabsToHide = [
-    'tab-consultations',
-    'tab-prescriptions', 
-    'tab-sickleaves',
-    'tab-factures',
-    'tab-rapports',
-    'tab-bonpour',
-    'tab-orientations',
-    'tab-attachments'
-  ];
-  
-  document.querySelectorAll('.tabs-header .tab-btn').forEach(btn => {
-    const onclickAttr = btn.getAttribute('onclick') || '';
-    tabsToHide.forEach(tabId => {
-      if (onclickAttr.includes(tabId)) {
-        btn.style.display = 'none';
-        btn.classList.add('hidden-for-assistant');
-      }
-    });
-  });
-  
-  // Hide the tab content for medical data
-  tabsToHide.forEach(tabId => {
-    const tabContent = document.getElementById(tabId);
-    if (tabContent) {
-      tabContent.style.display = 'none';
-      tabContent.classList.add('hidden-for-assistant');
-    }
-  });
-  
-  // Make appointments tab active by default for patient details
-  const appointmentsTabBtn = document.querySelector('.tab-btn[onclick*="tab-appointments"]');
-  const appointmentsTab = document.getElementById('tab-appointments');
-  if (appointmentsTabBtn && appointmentsTab) {
-    // Remove active from all tabs first
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    // Activate appointments tab
-    appointmentsTabBtn.classList.add('active');
-    appointmentsTab.classList.add('active');
-  }
-  
-  // Hide medical data sections in patient info card
-  const hideSelectors = [
-    '#patient-medical-history',
-    '#patient-allergies', 
-    '#patient-blood-type',
-    '.medical-info-section',
-    '#patient-documents-card',
-    '#patient-history-content'
-  ];
-  
-  hideSelectors.forEach(selector => {
-    document.querySelectorAll(selector).forEach(el => {
-      el.style.display = 'none';
-      el.classList.add('hidden-for-assistant');
-    });
-  });
 
-  // Hide patient medical action buttons for assistant
-  document.querySelectorAll('button[onclick*="openNewConsultationModal"], button[onclick*="openOrientationModal"]').forEach((button) => {
-    button.style.display = 'none';
-    button.classList.add('hidden-for-assistant');
-  });
-  
-  console.log('✅ Assistant mode restrictions applied');
+  console.log('✅ Assistant mode configuration applied');
   
   // Show assistant-only sections (like payment requests)
   document.querySelectorAll('.assistant-only').forEach(el => {

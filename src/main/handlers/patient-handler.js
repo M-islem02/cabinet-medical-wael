@@ -89,21 +89,30 @@ function normalizePatientListRequest(payload = null) {
         paginated: false,
         searchTerm: '',
         page: 1,
-        pageSize: 15,
+        pageSize: 10,
         doctorId: '',
         filterDoctorId: ''
       };
   }
 
+  const paginated = payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.searchTerm !== undefined;
+  if (!paginated) {
+    return {
+      paginated: false,
+      page: 1,
+      pageSize: 10,
+      searchTerm: '',
+      doctorId: '',
+      filterDoctorId: ''
+    };
+  }
+
   return {
-    paginated: payload.paginated === true || payload.page !== undefined || payload.pageSize !== undefined || payload.searchTerm !== undefined,
+    paginated: true,
     searchTerm: String(payload.searchTerm || '').trim(),
     medecinId: String(payload.medecinId || payload.doctorId || '').trim(),
     page: toPositiveInt(payload.page, 1),
-    // The assistant's cabinet directory can contain the whole practice list.
-    // Keep a sensible upper bound while allowing a 101-patient directory to be
-    // reviewed and assigned without splitting it across tiny pages.
-    pageSize: Math.min(500, toPositiveInt(payload.pageSize, 15)),
+    pageSize: Math.min(500, toPositiveInt(payload.pageSize, 10)),
     doctorId: String(payload.doctorId || '').trim(),
     filterDoctorId: String(payload.filterDoctorId || '').trim()
   };
@@ -183,7 +192,7 @@ async function getActivePractitioners() {
 
 async function getPatientWorkflowConfiguration(practitioners) {
   const [packageConfig, assistantCountRow] = await Promise.all([
-    queryOne('SELECT maxDoctors, maxAssistants FROM package_config LIMIT 1'),
+    queryOne('SELECT maxDoctors, maxAssistants, cabinetType FROM package_config LIMIT 1'),
     queryOne(
       `SELECT COUNT(*) AS count
        FROM users
@@ -193,6 +202,7 @@ async function getPatientWorkflowConfiguration(practitioners) {
     )
   ]);
   return determinePatientWorkflow({
+    cabinetType: packageConfig?.cabinetType,
     configuredDoctors: packageConfig?.maxDoctors,
     configuredAssistants: packageConfig?.maxAssistants,
     activeDoctors: practitioners.length,
@@ -229,23 +239,17 @@ async function resolvePatientScope(userContext, requestedDoctorId = '') {
     global.activePatientDoctorId = doctorId;
   }
 
-  // With one doctor or in non-isolated cabinet mode, preserve the simple workflow: all existing
-  // patients are automatically assigned so doctor can see them immediately.
-  if (!workflow.cabinetMode && doctorId) {
-    await run(
-      `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
-       SELECT p.id, ?, ? FROM patients p
-       ON CONFLICT (patientId, practitionerId) DO NOTHING`,
-      [doctorId, userContext.userId || doctorId]
-    );
-  } else if (singlePractitioner && !workflow.cabinetMode) {
-    await run(
-      `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
-       SELECT p.id, ?, ? FROM patients p
-       ON CONFLICT (patientId, practitionerId) DO NOTHING`,
-      [singlePractitioner.id, userContext.userId || singlePractitioner.id]
-    );
-    doctorId = singlePractitioner.id;
+  // With one doctor or in single/non-isolated cabinet mode, preserve the simple workflow: all existing
+  // patients are automatically assigned so doctor and assistants see them immediately.
+  if (!workflow.cabinetMode) {
+    for (const doc of practitioners) {
+      await run(
+        `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+         SELECT p.id, ?, ? FROM patients p
+         ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+        [doc.id, userContext.userId || doc.id]
+      );
+    }
   }
 
   return {
@@ -340,30 +344,37 @@ export function handlePatientEvents() {
       const normalizedLastName = String(patientData.lastName || '').trim().toLocaleLowerCase('fr');
       const normalizedDateOfBirth = String(patientData.dateOfBirth || '').trim();
       
+      const scope = await resolvePatientScope(userContext);
       let primaryDoctorId = null;
       const createdByUserId = userContext.userId || null;
       if (userContext.isPractitioner) {
         primaryDoctorId = userContext.userId;
       } else if (userContext.role === 'assistant') {
-        primaryDoctorId = patientData.primaryDoctorId || null;
-        if (!primaryDoctorId) {
-          return { success: false, error: 'Veuillez sélectionner un médecin responsable' };
+        if (!scope.cabinetMode) {
+          primaryDoctorId = patientData.primaryDoctorId || scope.doctorId || scope.practitioners[0]?.id || null;
+        } else {
+          primaryDoctorId = patientData.primaryDoctorId || null;
+          if (!primaryDoctorId) {
+            return { success: false, error: 'Veuillez sélectionner un médecin responsable' };
+          }
         }
 
-        const targetDoctor = await queryOne(
-          'SELECT id, role, isAdmin, isSuperAdmin, isActive FROM users WHERE id = ?',
-          [primaryDoctorId]
-        );
+        if (primaryDoctorId && scope.cabinetMode) {
+          const targetDoctor = await queryOne(
+            'SELECT id, role, isAdmin, isSuperAdmin, isActive FROM users WHERE id = ?',
+            [primaryDoctorId]
+          );
 
-        if (!targetDoctor || !targetDoctor.isActive) {
-          return { success: false, error: 'Médecin cible introuvable ou inactif' };
-        }
+          if (!targetDoctor || !targetDoctor.isActive) {
+            return { success: false, error: 'Médecin cible introuvable ou inactif' };
+          }
 
-        // Target must be a practitioner (doctor or dentist) and must not be the superadmin.
-        // Doctor-admin (role='doctor', isAdmin=1) is a valid target.
-        const validPractitionerRole = targetDoctor.role === 'doctor' || targetDoctor.role === 'dentist';
-        if (!validPractitionerRole || targetDoctor.isSuperAdmin) {
-          return { success: false, error: 'Le patient doit être rattaché à un compte médecin valide' };
+          // Target must be a practitioner (doctor or dentist) and must not be the superadmin.
+          // Doctor-admin (role='doctor', isAdmin=1) is a valid target.
+          const validPractitionerRole = targetDoctor.role === 'doctor' || targetDoctor.role === 'dentist';
+          if (!validPractitionerRole || targetDoctor.isSuperAdmin) {
+            return { success: false, error: 'Le patient doit être rattaché à un compte médecin valide' };
+          }
         }
       }
 
@@ -411,13 +422,22 @@ export function handlePatientEvents() {
           ]
         );
 
-        if (primaryDoctorId) {
+        if (scope.cabinetMode && primaryDoctorId) {
           await run(
             `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
              VALUES (?, ?, ?)
              ON CONFLICT (patientId, practitionerId) DO NOTHING`,
-            [id, primaryDoctorId, createdByUserId]
+            [id, primaryDoctorId, createdByUserId || primaryDoctorId]
           );
+        } else if (!scope.cabinetMode) {
+          for (const doc of scope.practitioners) {
+            await run(
+              `INSERT INTO patient_practitioners (patientId, practitionerId, assignedByUserId)
+               VALUES (?, ?, ?)
+               ON CONFLICT (patientId, practitionerId) DO NOTHING`,
+              [id, doc.id, createdByUserId || doc.id]
+            );
+          }
         }
         return { duplicateId: '' };
       });
@@ -463,7 +483,7 @@ export function handlePatientEvents() {
         params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
       }
 
-      if (request.medecinId) {
+      if (scope.cabinetMode && request.medecinId) {
         whereParts.push('(p.id IN (SELECT patientId FROM patient_practitioners WHERE practitionerId = ?) OR p.primaryDoctorId = ?)');
         params.push(request.medecinId, request.medecinId);
       }
@@ -549,10 +569,6 @@ export function handlePatientEvents() {
 
       if (isCurrentUserDirector()) {
         return { success: true, data: sanitizePatientForDirector(patient) };
-      }
-
-      if (userContext.isAssistant) {
-        return { success: true, data: sanitizePatientForAssistant(patient) };
       }
 
       const assignedMedecins = await query(
