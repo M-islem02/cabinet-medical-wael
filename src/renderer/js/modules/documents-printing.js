@@ -4014,19 +4014,17 @@ async function renderEchographieCervicaleDocument({ patient, data = {}, dateLabe
 // AUDIOGRAMME GENERATOR (PURE SVG & A4 PDF)
 // ==========================================
 
-function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = '', pta = '', width = 330, height = 280 }) {
+function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = '', pta = '', width = 330, height = 275 }) {
   const isRight = ear === 'droite';
-  const earTitle = isRight ? 'Oreille Droite (OD)' : 'Oreille Gauche (OG)';
+  const earTitle = isRight ? 'OREILLE DROITE (OD)' : 'OREILLE GAUCHE (OG)';
   const themeColor = isRight ? '#dc2626' : '#2563eb';
-  const themeBg = isRight ? '#fef2f2' : '#eff6ff';
-  const themeBorder = isRight ? '#fca5a5' : '#93c5fd';
 
   const freqs = [125, 250, 500, 1000, 2000, 4000, 8000];
   const dbSteps = [-10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130];
   
   const marginLeft = 38;
   const marginRight = 15;
-  const marginTop = 26;
+  const marginTop = 24;
   const marginBottom = 28;
   const plotW = width - marginLeft - marginRight;
   const plotH = height - marginTop - marginBottom;
@@ -4041,19 +4039,19 @@ function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = ''
     const y = getY(db);
     const isNormalLine = db === 20;
     const isZeroLine = db === 0;
-    const strokeColor = isNormalLine ? '#10b981' : (isZeroLine ? '#64748b' : '#e2e8f0');
-    const strokeWidth = isNormalLine ? '1.5' : (isZeroLine ? '1.2' : '0.75');
+    const strokeColor = isNormalLine ? '#10b981' : (isZeroLine ? '#000000' : '#e2e8f0');
+    const strokeWidth = isNormalLine ? '1.4' : (isZeroLine ? '1.2' : '0.65');
     const strokeDash = isNormalLine ? '3,3' : 'none';
     gridLines += `<line x1="${marginLeft}" y1="${y}" x2="${width - marginRight}" y2="${y}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-dasharray="${strokeDash}" />`;
-    gridLines += `<text x="${marginLeft - 5}" y="${y + 3.5}" font-size="8.5" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="${isNormalLine ? '#059669' : '#64748b'}" text-anchor="end">${db}</text>`;
+    gridLines += `<text x="${marginLeft - 5}" y="${y + 3.5}" font-size="8.5" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="${isNormalLine ? '#059669' : '#475569'}" text-anchor="end">${db}</text>`;
   });
 
   // Vertical frequency lines
   freqs.forEach((f, idx) => {
     const x = getX(idx);
-    gridLines += `<line x1="${x}" y1="${marginTop}" x2="${x}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="0.8" />`;
+    gridLines += `<line x1="${x}" y1="${marginTop}" x2="${x}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="0.75" />`;
     const label = f >= 1000 ? `${f / 1000}k` : f;
-    gridLines += `<text x="${x}" y="${height - marginBottom + 14}" font-size="9" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="#334155" text-anchor="middle">${label}</text>`;
+    gridLines += `<text x="${x}" y="${height - marginBottom + 14}" font-size="9" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="#000000" text-anchor="middle">${label}</text>`;
   });
 
   // Intermediate vertical dashed lines (750, 1500, 3000, 6000)
@@ -4064,7 +4062,7 @@ function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = ''
     { x: (getX(5) + getX(6)) / 2 }
   ];
   interFreqs.forEach(item => {
-    gridLines += `<line x1="${item.x}" y1="${marginTop}" x2="${item.x}" y2="${height - marginBottom}" stroke="#e2e8f0" stroke-width="0.6" stroke-dasharray="2,2" />`;
+    gridLines += `<line x1="${item.x}" y1="${marginTop}" x2="${item.x}" y2="${height - marginBottom}" stroke="#f1f5f9" stroke-width="0.6" stroke-dasharray="2,2" />`;
   });
 
   // Normal line reference text (at 20 dB)
@@ -4131,27 +4129,28 @@ function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = ''
     }
   });
 
-  // Inconfort / HDA-300 display if available
+  // PTA & Inconfort text clean display (no background box)
   const ptaLabel = pta ? `PTA: ${pta} dB` : '';
   const inconfortText = inconfort ? `Inconfort: ${inconfort}` : '';
 
   return `
-    <div style="flex: 1; min-width: 0; background: #ffffff; border: 1.5px solid ${themeBorder}; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
-      <div style="background: ${themeBg}; padding: 6px 12px; border-bottom: 1px solid ${themeBorder}; display: flex; justify-content: space-between; align-items: center;">
-        <strong style="color: ${themeColor}; font-size: 11pt; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
+    <div style="flex: 1; min-width: 0; background: transparent; border: 1px solid #000000; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;">
+      <!-- Title Header: Clean transparent background with crisp black text -->
+      <div style="background: transparent; padding: 5px 10px 4px 10px; border-bottom: 1px solid #000000; display: flex; justify-content: space-between; align-items: center;">
+        <strong style="color: #000000; font-size: 10.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
         <div style="display: flex; gap: 8px; align-items: center;">
-          ${ptaLabel ? `<span style="font-size: 8.5pt; font-weight: 750; background: ${themeColor}; color: #ffffff; padding: 2px 7px; border-radius: 4px;">${ptaLabel}</span>` : ''}
-          ${inconfortText ? `<span style="font-size: 8.5pt; color: #475569; font-weight: 600;">${escapePrintingHtml(inconfortText)}</span>` : ''}
+          ${ptaLabel ? `<strong style="font-size: 9pt; color: #000000; font-weight: 700;">${ptaLabel}</strong>` : ''}
+          ${inconfortText ? `<span style="font-size: 8.5pt; color: #334155; font-weight: 600;">${escapePrintingHtml(inconfortText)}</span>` : ''}
         </div>
       </div>
-      <div style="padding: 6px; display: flex; justify-content: center; background: #ffffff;">
+      <div style="padding: 4px 6px; display: flex; justify-content: center; background: #ffffff;">
         <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: ${width}px; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
-          <!-- Graph border & background -->
-          <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#fafbfc" stroke="#94a3b8" stroke-width="1.2" />
+          <!-- Graph border & clean background -->
+          <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#ffffff" stroke="#000000" stroke-width="1" />
           
           <!-- Axis labels -->
-          <text x="${marginLeft - 8}" y="${marginTop - 6}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#475569" text-anchor="end">dB HL</text>
-          <text x="${width - marginRight}" y="${height - 4}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#475569" text-anchor="end">Hz</text>
+          <text x="${marginLeft - 8}" y="${marginTop - 6}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">dB HL</text>
+          <text x="${width - marginRight}" y="${height - 4}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">Hz</text>
           
           <!-- Grid & Markers -->
           ${gridLines}
@@ -4162,18 +4161,18 @@ function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = ''
           ${coMarkers}
         </svg>
       </div>
-      <!-- Legend box -->
-      <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 10px; display: flex; justify-content: center; gap: 16px; font-size: 8.2pt; color: #334155;">
+      <!-- Legend box: Clean white/transparent background -->
+      <div style="background: transparent; border-top: 1px solid #000000; padding: 4px 10px; display: flex; justify-content: center; gap: 16px; font-size: 8.2pt; color: #000000;">
         <div style="display: flex; align-items: center; gap: 5px;">
           <span style="display: inline-block; width: 14px; height: 2px; background: ${themeColor}; vertical-align: middle; position: relative;">
             <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; border: 1.5px solid ${themeColor}; background: white; position: absolute; left: 4.5px; top: -2px;"></span>
           </span>
-          <span style="font-weight: 600;">CA (Aérienne)</span>
+          <span style="font-weight: 600; color: #000000;">CA (Aérienne)</span>
         </div>
         <div style="display: flex; align-items: center; gap: 5px;">
           <span style="display: inline-block; width: 14px; border-top: 2px dashed ${themeColor}; vertical-align: middle;"></span>
-          <span style="font-weight: 600; color: ${themeColor}; font-size: 9.5pt; line-height: 1;">${isRight ? '&lt;' : '&gt;'}</span>
-          <span style="font-weight: 600;">CO (Osseuse)</span>
+          <span style="font-weight: 700; color: ${themeColor}; font-size: 9.5pt; line-height: 1;">${isRight ? '&lt;' : '&gt;'}</span>
+          <span style="font-weight: 600; color: #000000;">CO (Osseuse)</span>
         </div>
       </div>
     </div>
@@ -4194,20 +4193,20 @@ function buildAudiogrammeBodyHtml(data = {}) {
   const observations = String(data.observations || '').trim();
   const conclusion = String(data.conclusion || '').trim();
 
-  const svgDroite = generateAudiogramSvg({
-    ear: 'droite',
-    ca: caDroite,
-    co: coDroite,
-    inconfort: inconfortDroite,
-    pta: ptaDroite
-  });
-
   const svgGauche = generateAudiogramSvg({
     ear: 'gauche',
     ca: caGauche,
     co: coGauche,
     inconfort: inconfortGauche,
     pta: ptaGauche
+  });
+
+  const svgDroite = generateAudiogramSvg({
+    ear: 'droite',
+    ca: caDroite,
+    co: coDroite,
+    inconfort: inconfortDroite,
+    pta: ptaDroite
   });
 
   return `
@@ -4228,19 +4227,21 @@ function buildAudiogrammeBodyHtml(data = {}) {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 5mm;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 6px;
-        padding: 2.5mm 4mm;
+        background: transparent !important;
+        border: none !important;
+        padding: 1mm 0;
       }
       .audio-type-item {
         font-size: 9.5pt;
-        color: #1e293b;
+        color: #000000;
       }
       .audio-type-label {
-        font-weight: 750;
+        font-weight: 800;
         text-transform: uppercase;
-        font-size: 9pt;
+        font-size: 9.2pt;
+        color: #000000;
+        text-decoration: underline;
+        text-underline-offset: 2px;
       }
       .audio-item {
         background: transparent !important;
@@ -4262,7 +4263,7 @@ function buildAudiogrammeBodyHtml(data = {}) {
       .audio-item-content {
         font-size: 9.8pt;
         line-height: 1.45;
-        color: #1e293b;
+        color: #000000;
         white-space: pre-wrap;
         padding-left: 4mm;
         margin: 0;
@@ -4277,7 +4278,7 @@ function buildAudiogrammeBodyHtml(data = {}) {
       .audio-conclusion-header {
         font-size: 10.8pt;
         font-weight: 850;
-        color: var(--doc-primary, var(--professional-blue, #0284c7)) !important;
+        color: #000000 !important;
         text-transform: uppercase;
         margin-bottom: 2mm;
         letter-spacing: 0.025em;
@@ -4288,7 +4289,7 @@ function buildAudiogrammeBodyHtml(data = {}) {
         font-size: 10pt;
         font-weight: 700;
         line-height: 1.5;
-        color: #0f172a;
+        color: #000000;
         white-space: pre-wrap;
         padding-left: 4mm;
       }
@@ -4301,17 +4302,17 @@ function buildAudiogrammeBodyHtml(data = {}) {
         ${svgDroite}
       </div>
 
-      <!-- Type de surdité résumé -->
+      <!-- Type de surdité résumé : Propre, sans arrière-plan -->
       <div class="audio-types-row">
         <div class="audio-type-item">
-          <span class="audio-type-label" style="color: #2563eb;">Oreille Gauche :</span>
-          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeGauche)}</strong>
-          ${ptaGauche ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaGauche} dB)</span>` : ''}
+          <span class="audio-type-label">Oreille Gauche :</span>
+          <strong style="margin-left: 4px; color: #000000;">${escapePrintingHtml(typeSurditeGauche)}</strong>
+          ${ptaGauche ? `<span style="font-size: 8.5pt; color: #475569; margin-left: 6px;">(Seuil moyen: ${ptaGauche} dB)</span>` : ''}
         </div>
         <div class="audio-type-item">
-          <span class="audio-type-label" style="color: #dc2626;">Oreille Droite :</span>
-          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeDroite)}</strong>
-          ${ptaDroite ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaDroite} dB)</span>` : ''}
+          <span class="audio-type-label">Oreille Droite :</span>
+          <strong style="margin-left: 4px; color: #000000;">${escapePrintingHtml(typeSurditeDroite)}</strong>
+          ${ptaDroite ? `<span style="font-size: 8.5pt; color: #475569; margin-left: 6px;">(Seuil moyen: ${ptaDroite} dB)</span>` : ''}
         </div>
       </div>
 
