@@ -238,7 +238,7 @@ function updateHeaderLivePreview() {
 
   container.innerHTML = `
     <div style="width: 100%; max-width: 780px; margin: 0 auto; background: #ffffff; padding: 18px 16px; border-top: 2.2px solid ${primaryColor}; border-bottom: 2.2px solid ${primaryColor}; font-family: Segoe UI, sans-serif;">
-      <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(36px, 60px) minmax(0, 1fr); align-items: center; gap: 14px;">
+      <div style="display: grid; grid-template-columns: minmax(0, 1.25fr) auto minmax(0, 1fr); align-items: center; gap: 14px;">
         <!-- Left: Doctor Info -->
         <div style="text-align: left; min-width: 0;">
           <div style="font-size: ${docNameFont}; font-weight: 800; color: ${primaryColor}; text-transform: uppercase; line-height: 1.2; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -260,8 +260,8 @@ function updateHeaderLivePreview() {
         </div>
 
         <!-- Center: Logo -->
-        <div style="display: flex; align-items: center; justify-content: center;">
-          <div style="width: ${logoSize}; height: ${logoSize}; max-width: 65px; max-height: 65px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden;">
+        <div style="display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <div style="width: ${logoSize}; height: ${logoSize}; max-width: 120px; max-height: 120px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
             <img src="${logoDataUrl}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
         </div>

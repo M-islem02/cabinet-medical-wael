@@ -1652,8 +1652,8 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
         body[data-document-style="professional-center"] .header-top {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(24mm, 32mm) minmax(0, 1fr);
-          align-items: start;
+          grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr);
+          align-items: center;
           gap: 6mm;
         }
         body[data-document-style="professional-center"] .doctor-info {
@@ -1691,8 +1691,13 @@ function generateHtmlDocument(bodyContent, options = {}) {
           justify-self: center;
           width: ${layout.logoSize};
           height: ${layout.logoSize};
-          max-width: 27mm;
-          max-height: 27mm;
+          max-width: 65mm;
+          max-height: 55mm;
+          min-width: 18mm;
+          min-height: 18mm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           padding: 0;
         }
         body[data-document-style="professional-center"] .professional-patient-info {
