@@ -3655,7 +3655,7 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
   } else {
     if (modalTitle) modalTitle.textContent = 'Rapport Audiologique';
     if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
-    if (obsEl) obsEl.value = 'Audiométrie tonale dans les limites de la normale bilatérale.';
+    if (obsEl) obsEl.value = '';
   }
 
   // Bind live inputs & trigger live update

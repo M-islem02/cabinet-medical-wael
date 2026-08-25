@@ -11,16 +11,16 @@ function getDocumentLogoHTML() {
   `;
 }
 
-function getDocumentWatermarkHTML(layout = getPrintLayout("A5"), opacityPercent = 5) {
-  const watermarkDataUrl = typeof getCabinetWatermarkLogoDataUrl === 'function' ?getCabinetWatermarkLogoDataUrl() : '';
-  const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : '';
-  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ?getDefaultAppBrandLogoSrc() : 'assets/logo.png';
+function getDocumentWatermarkHTML(layout = getPrintLayout("A5"), opacityPercent = 10) {
+  const watermarkDataUrl = typeof getCabinetWatermarkLogoDataUrl === 'function' ? getCabinetWatermarkLogoDataUrl() : '';
+  const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ? getCabinetLogoDataUrl() : '';
+  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ? getDefaultAppBrandLogoSrc() : 'assets/logo.png';
   const source = String(watermarkDataUrl || logoDataUrl || documentFallbackLogo || '').trim();
   if (!source) return '';
 
   const safeSrc = source.replace(/"/g, '&quot;');
-  const watermarkClass = layout?.pageSize === 'A4' ?'is-a4' : 'is-a5';
-  const safeOpacity = Math.min(35, Math.max(2, Number(opacityPercent) || 5));
+  const watermarkClass = layout?.pageSize === 'A4' ? 'is-a4' : 'is-a5';
+  const safeOpacity = Math.min(35, Math.max(2, Number(opacityPercent) || 10));
   return `
     <div class="page-watermark ${watermarkClass}" aria-hidden="true">
       <img src="${safeSrc}" alt="" style="opacity:${(safeOpacity / 100).toFixed(2)};">
@@ -200,7 +200,7 @@ function resolveDocumentMetaScale(settings = {}) {
 
 function resolveDocumentWatermarkOpacity(settings = {}) {
   const raw = Number(settings?.documentWatermarkOpacity);
-  return Number.isFinite(raw) ? Math.min(35, Math.max(2, raw)) : 5;
+  return Number.isFinite(raw) ? Math.min(35, Math.max(2, raw)) : 10;
 }
 
 function resolveDocumentStyleVariant(settings = {}) {
@@ -902,12 +902,10 @@ function generateHtmlDocument(bodyContent, options = {}) {
           max-width: 130mm;
           max-height: 86%;
           object-fit: contain;
-          opacity: 0.05;
           filter: grayscale(100%);
         }
         .page-watermark.is-a4 img {
           max-width: 170mm;
-          opacity: 0.05;
         }
         .page-body-content {
           position: relative;
@@ -4136,7 +4134,7 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
         <strong style="color: #000000; font-size: 9.8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
         ${ptaLabel ? `<strong style="font-size: 8.8pt; color: #000000; font-weight: 700;">${ptaLabel}</strong>` : ''}
       </div>
-      <div style="padding: 3px 4px; display: flex; justify-content: center; background: #ffffff;">
+      <div style="padding: 3px 4px; display: flex; justify-content: center; background: transparent;">
         <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: ${width}px; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
           <!-- Graph border & clean background -->
           <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#ffffff" stroke="#000000" stroke-width="1" />
@@ -4241,10 +4239,17 @@ function buildAudiogrammeBodyHtml(data = {}) {
       </div>
 
       <!-- Section Observation -->
-      <div class="audio-observation-section">
-        <div class="audio-observation-header">OBSERVATION :</div>
-        <div class="audio-observation-body">${escapePrintingHtml(observation || 'Audiométrie tonale dans les limites de la normale bilatérale.')}</div>
-      </div>
+      ${observation ? `
+        <div class="audio-observation-section">
+          <div class="audio-observation-header">OBSERVATION :</div>
+          <div class="audio-observation-body">${escapePrintingHtml(observation)}</div>
+        </div>
+      ` : `
+        <div class="audio-observation-section">
+          <div class="audio-observation-header">OBSERVATION :</div>
+          <div class="audio-observation-body" style="min-height: 8mm;"></div>
+        </div>
+      `}
     </div>
   `;
 }
