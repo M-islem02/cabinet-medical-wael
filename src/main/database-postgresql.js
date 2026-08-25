@@ -463,7 +463,8 @@ function translateSql(sql) {
     .replace(/strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\)/gi, "TO_CHAR($1::timestamp, 'YYYY-MM')")
     .replace(/strftime\s*\(\s*'%Y-W%W'\s*,\s*([^)]+)\)/gi, "TO_CHAR($1::timestamp, 'IYYY-\"W\"IW')")
     .replace(/\bVALUES\s*\("([^"]+)"\)/gi, 'EXCLUDED."$1"')
-    .replace(/\bCOLLATE\s+NOCASE\b/gi, '');
+    .replace(/\bCOLLATE\s+NOCASE\b/gi, '')
+    .replace(/\b([a-zA-Z0-9_.]*(?:DateTime|createdAt|updatedAt|paymentDate|date))\s+LIKE\b/gi, 'CAST($1 AS TEXT) LIKE');
 
   translated = transformInsertOrReplace(translated);
   translated = transformInsertOrIgnore(translated);

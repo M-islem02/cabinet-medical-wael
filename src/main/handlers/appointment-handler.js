@@ -263,7 +263,7 @@ export function handleAppointmentEvents() {
       const todayStart = `${today} 00:00:00`;
       const todayEnd = `${today} 23:59:59`;
       const scope = getAppointmentScope(getCurrentUserContext(), 'a', 'p');
-      const whereParts = ['((a.appointmentDateTime BETWEEN ? AND ?) OR (a.appointmentDateTime LIKE ?))'];
+      const whereParts = ['((a.appointmentDateTime BETWEEN ? AND ?) OR (CAST(a.appointmentDateTime AS TEXT) LIKE ?))'];
       const params = [todayStart, todayEnd, `${today}%`];
 
       if (scope.clause) {
