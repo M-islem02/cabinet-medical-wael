@@ -71,11 +71,7 @@ export function handlePrintEvents() {
 
     const pageSize = normalizePageSize(payload.pageSize);
     const { width, height } = getPrintViewport(pageSize);
-    const { printerName, error: printerError } = await resolvePrinterName(event, payload);
-
-    if (printerError && !printerName) {
-      return { success: false, error: printerError };
-    }
+    const { printerName } = await resolvePrinterName(event, payload);
 
     const printWindow = new BrowserWindow({
       width,
@@ -125,8 +121,10 @@ export function handlePrintEvents() {
       printWindow.webContents.once('did-finish-load', () => {
         setTimeout(() => {
           try {
+            // Attempt silent print first if printer is known, otherwise fallback to system print dialog
+            const trySilent = Boolean(printerName);
             printWindow.webContents.print({
-              silent: true,
+              silent: trySilent,
               printBackground: true,
               deviceName: printerName || undefined,
               color: true,
@@ -136,26 +134,55 @@ export function handlePrintEvents() {
               pageSize,
               duplexMode: normalizeDuplexMode(payload.duplexMode)
             }, (success, failureReason) => {
-              if (!success) {
-                finish({
-                  success: false,
-                  error: failureReason || 'Impression refusée par le système',
-                  printerName
-                });
+              if (success) {
+                finish({ success: true, printerName });
                 return;
               }
 
-              finish({
-                success: true,
-                printerName
+              // Fallback to system print dialog
+              printWindow.show();
+              printWindow.webContents.print({
+                silent: false,
+                printBackground: true,
+                color: true,
+                margins: { marginType: 'none' },
+                landscape: !!payload.landscape,
+                copies: Math.max(1, Number(payload.copies) || 1),
+                pageSize
+              }, (dialogSuccess, dialogReason) => {
+                if (!dialogSuccess) {
+                  finish({
+                    success: false,
+                    error: dialogReason || failureReason || 'Impression refusée ou annulée',
+                    printerName
+                  });
+                  return;
+                }
+                finish({ success: true, printerName });
               });
             });
           } catch (error) {
-            finish({
-              success: false,
-              error: error?.message || 'Erreur pendant l\'impression silencieuse',
-              printerName
-            });
+            // If synchronous print error, fallback to interactive print dialog
+            try {
+              printWindow.show();
+              printWindow.webContents.print({
+                silent: false,
+                printBackground: true,
+                pageSize
+              }, (dialogSuccess, dialogReason) => {
+                finish({
+                  success: !!dialogSuccess,
+                  error: dialogReason || error?.message,
+                  printerName
+                });
+              });
+            } catch (fallbackError) {
+              finish({
+                success: false,
+                error: fallbackError?.message || error?.message || 'Erreur pendant l\'impression',
+                printerName
+              });
+            }
           }
         }, 250);
       });

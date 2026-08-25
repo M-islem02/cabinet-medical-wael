@@ -554,27 +554,15 @@ function buildPrintableHtml(opts = {}) {
         <div class="doctor-info">
           <div class="doctor-name">DR. ${escapePrintingHtml(doctorName.toUpperCase())}</div>
           <div class="doctor-specialty">${escapePrintingHtml(specialtyLines[0])}</div>
-          ${specialtyLines[1] ?`<div class="doctor-specialty">${escapePrintingHtml(specialtyLines[1])}</div>` : ''}
+          ${specialtyLines[1] ? `<div class="doctor-specialty">${escapePrintingHtml(specialtyLines[1])}</div>` : ''}
 
           <div class="header-meta-inline">
-            ${doctorRPPS ?`<span class="meta-item"><span class="meta-label">N° D'ORDRE :</span> <span class="meta-value">${escapePrintingHtml(doctorRPPS)}</span></span>` : ''}
+            ${doctorRPPS ? `<span class="meta-item"><span class="meta-label">N° D'ORDRE :</span> <span class="meta-value">${escapePrintingHtml(doctorRPPS)}</span></span>` : ''}
           </div>
+        </div>
 
-          <div class="patient-line-inline">
-            <div class="patient-line-item"><span class="patient-label">NOM :</span> <span class="patient-value">${patientLast.toUpperCase()}</span></div>
-            <div class="patient-line-item"><span class="patient-label">PRÉNOM :</span> <span class="patient-value">${patientFirst.toUpperCase()}</span></div>
-            <div class="patient-line-item"><span class="patient-label">ÂGE :</span> <span class="patient-value">${ageLabel === "-" ?"-" : `${ageLabel} ANS`}</span></div>
-            <div class="patient-line-item"><span class="meta-label">ÉMIS LE :</span> <span class="meta-value">${dateText}</span></div>
-          </div>
-        </div>
-        <div class="dental-header-mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100" role="img">
-            <path d="M50 13C39 6 24 7 19 22c-5 16 5 27 9 42 5 21 12 30 19 9l3-16 3 16c7 21 14 12 19-9 4-15 14-26 9-42C76 7 61 6 50 13Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M76 11l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z" fill="currentColor"/>
-          </svg>
-          <span>SOINS DENTAIRES</span>
-        </div>
         <div class="logo-container">${getDocumentLogoHTML()}</div>
+
         <div class="professional-patient-info">
           <div class="patient-line-item"><span class="patient-label">NOM :</span> <span class="patient-value">${patientLast.toUpperCase()}</span></div>
           <div class="patient-line-item"><span class="patient-label">PRÉNOM :</span> <span class="patient-value">${patientFirst.toUpperCase()}</span></div>
@@ -582,11 +570,6 @@ function buildPrintableHtml(opts = {}) {
           <div class="patient-line-item"><span class="meta-label">ÉMIS LE :</span> <span class="meta-value">${dateText}</span></div>
         </div>
       </div>
-      <div class="header-meta">
-        
-      </div>
-      <div class="patient-line">
-        </div>
     </div>
   `
 
@@ -754,84 +737,63 @@ function generateHtmlDocument(bodyContent, options = {}) {
 
         /* HEADER STYLES */
         .page-header {
-          margin-bottom: 0;
-          padding: 5px;
+          margin-bottom: 2mm;
+          padding: 2.8mm 0 2.2mm 0;
+          border-top: 2.2px solid var(--doc-primary);
+          border-bottom: 2.2px solid var(--doc-primary);
         }
         .header-top {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: ${layout.headerGap};
+          gap: ${layout.headerGap || '4mm'};
           margin-bottom: 0;
         }
         .doctor-info {
-          flex: 1;
+          flex: 1.25;
           text-align: left;
-        }
-        .cabinet-name-arabic {
-          font-family: 'Segoe UI', Tahoma, 'Arabic Typesetting', Arial, sans-serif;
-          font-size: ${layout.doctorSpecialtyFont};
-          font-weight: 700;
-          line-height: 1.3;
-          color: var(--doc-primary);
-          margin-bottom: 2mm;
-          direction: rtl;
-          text-align: right;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
         .doctor-name {
           font-size: ${layout.doctorNameFont};
-          font-weight: 700;
-          margin-bottom: 1mm;
+          font-weight: 750;
+          margin-bottom: 0.8mm;
           text-transform: uppercase;
           color: var(--doc-primary);
+          line-height: 1.15;
           white-space: nowrap;
         }
         .doctor-specialty {
           font-size: ${layout.doctorSpecialtyFont};
-          font-weight: 800;
+          font-weight: 700;
           line-height: 1.25;
           text-transform: uppercase;
-          margin-bottom: 0.8mm;
+          margin-bottom: 0.6mm;
           color: #000000;
         }
-        .doctor-info br { display: none; }
-        .doctor-info .meta-item,
-        .doctor-info .patient-field { display: inline-block; margin-right: 6mm; margin-left: 0; font-size: ${layout.metaFont}; vertical-align: middle; }
-        .meta-label, .patient-label { font-weight: 700; font-size: ${layout.metaFont}; margin-right: 4px; text-transform: uppercase; color: var(--doc-primary); }
-        .meta-value, .patient-value { font-weight: 700; font-size: ${layout.metaFont}; }
-        .patient-line-inline {
-          margin-top: 1mm;
+        .header-meta-inline {
+          margin-top: 0.6mm;
+          font-size: ${layout.metaFont};
         }
-        .patient-line-item {
-          display: flex;
+        .header-meta-inline .meta-item {
+          font-size: ${layout.metaFont};
+          display: inline-flex;
           align-items: baseline;
           gap: 4px;
-          margin-bottom: 1.5px;
+        }
+        .meta-label, .patient-label {
+          font-weight: 750;
           font-size: ${layout.metaFont};
-          line-height: 1.35;
+          margin-right: 4px;
+          text-transform: uppercase;
+          color: var(--doc-primary);
         }
-        .doctor-info .patient-line-item {
-          justify-content: flex-start;
-        }
-        .professional-patient-info .patient-line-item {
-          justify-content: flex-end;
-        }
-        .patient-line-main {
-          display: flex;
-          align-items: center;
-          gap: 2.8mm;
-          flex-wrap: wrap;
-        }
-        .patient-line-age {
-          margin-top: 4px;
-        }
-        .patient-line-inline .patient-field {
-          margin-right: 0;
-        }
-        .patient-separator {
-          font-size: ${layout.metaFont};
+        .meta-value, .patient-value {
           font-weight: 700;
-          line-height: 1;
+          font-size: ${layout.metaFont};
+          color: #000000;
         }
 
         .logo-container {
@@ -840,12 +802,27 @@ function generateHtmlDocument(bodyContent, options = {}) {
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
         .dental-header-mark {
           display: none;
         }
         .professional-patient-info {
-          display: none;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: center;
+          text-align: right;
+          gap: 1.2px;
+        }
+        .professional-patient-info .patient-line-item {
+          display: flex;
+          justify-content: flex-end;
+          align-items: baseline;
+          gap: 4px;
+          font-size: ${layout.metaFont};
+          line-height: 1.3;
         }
         .logo-circle {
           width: 100%;
@@ -2043,13 +2020,33 @@ function closeIntegratedDocumentPreview() {
 }
 
 async function printIntegratedDocumentPreview() {
-  const payload = sharedPrintScope.__pendingPreviewPrintPayload || null
-  if (!payload) return
+  const payload = sharedPrintScope.__pendingPreviewPrintPayload || null;
+  const frame = document.getElementById('integrated-document-preview-frame');
+
+  if (window.api?.print?.html && payload) {
+    try {
+      const res = await printHtmlDocument(payload);
+      if (res?.success) return;
+    } catch (err) {
+      console.warn('IPC print attempt failed, attempting direct frame print:', err);
+    }
+  }
+
+  if (frame && frame.contentWindow) {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      return;
+    } catch (e) {
+      console.warn('Frame print fallback failed:', e);
+    }
+  }
+
   try {
-    await printHtmlDocument(payload)
+    if (payload) await printHtmlDocument(payload);
   } catch (error) {
-    console.error('Integrated preview print error:', error)
-    showNotification(error?.message || 'Erreur lors de l’impression', 'error')
+    console.error('Integrated preview print error:', error);
+    showNotification(error?.message || 'Erreur lors de l’impression', 'error');
   }
 }
 
