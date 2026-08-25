@@ -464,8 +464,8 @@
       <div class="card" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; text-align: center; padding: 18px 14px;">
         <h3 id="txt-queue-title" style="margin-bottom: 4px;">Salle d’attente en direct</h3>
         <p id="queue-status-sub" style="font-size: 13px; opacity: 0.9; margin-bottom: 12px;">0 patient(s) en attente</p>
-        <button class="btn-hero" onclick="callNextPatient()">
-          🔔 Appeler le Prochain Patient
+        <button class="btn-hero" onclick="openCheckinModal()" style="background: #ffffff; color: #0369a1; font-weight: 750;">
+          + Entrée Patient (Salle d'attente)
         </button>
       </div>
 
@@ -1129,9 +1129,10 @@
               '<span class="badge badge-success">🟢 EN CONSULTATION</span>' +
               '<span style="font-weight: 700;">#' + (inConsult.ticketCode || '01') + '</span>' +
             '</div>' +
-            '<div class="item-name">👤 ' + escapeHTML(inConsult.patientName || 'Patient') + '</div>' +
-            '<div class="item-actions">' +
-              '<button class="btn btn-secondary btn-small" onclick="updateWaitingStatus(\'' + inConsult.id + '\', \'completed\')">Terminer Consultation</button>' +
+            '<div class="item-name" style="font-weight: 700; color: #15803d;">👤 ' + escapeHTML(inConsult.patientName || 'Patient') + '</div>' +
+            '<div class="item-sub">' +
+              '<span>🕒 Avec le Médecin</span>' +
+              (inConsult.phone ? '<a href="tel:' + inConsult.phone + '" style="color: var(--primary); text-decoration: none;">📞 ' + escapeHTML(inConsult.phone) + '</a>' : '') +
             '</div>' +
           '</div>';
         }
@@ -1150,9 +1151,8 @@
               '<span>🕒 Arrivé à ' + ((item.arrivalTime || '').slice(11, 16) || '--:--') + '</span>' +
               (item.phone ? '<a href="tel:' + item.phone + '" style="color: var(--primary); text-decoration: none;">📞 ' + escapeHTML(item.phone) + '</a>' : '') +
             '</div>' +
-            '<div class="item-actions" style="display:flex; gap:6px; align-items:center;">' +
+            '<div class="item-actions" style="display:flex; gap:6px; align-items:center; justify-content:flex-end;">' +
               '<button type="button" class="btn btn-small" onclick="toggleMobileUrgency(\'' + item.id + '\')" style="background:' + (isUrgent ? '#fee2e2' : '#ffffff') + '; color:' + (isUrgent ? '#b91c1c' : '#475569') + '; border:1px solid ' + (isUrgent ? '#f87171' : '#cbd5e1') + '; font-weight:700;">' + (isUrgent ? '🚨 Urgent' : '⚡ Urgence') + '</button>' +
-              '<button class="btn btn-primary btn-small" onclick="updateWaitingStatus(\'' + item.id + '\', \'in-consultation\')">▶ Faire entrer</button>' +
             '</div>' +
           '</div>';
         }).join('');
