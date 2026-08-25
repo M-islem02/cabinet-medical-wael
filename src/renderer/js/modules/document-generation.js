@@ -3569,3 +3569,373 @@ window.bindEchographieCervicaleLiveInputs = bindEchographieCervicaleLiveInputs;
 window.updateEchographieCervicaleLivePreview = updateEchographieCervicaleLivePreview;
 window.saveAndPrintEchographieCervicale = saveAndPrintEchographieCervicale;
 
+// ==========================================
+// AUDIOGRAMME DOCUMENT WORKSTATION (ORL)
+// ==========================================
+
+let currentAudiogrammePatient = null;
+const AUDIO_FREQUENCIES = [125, 250, 500, 1000, 2000, 4000, 8000];
+
+function calculateAudiogramPTA(caMap = {}) {
+  const ptaFreqs = [500, 1000, 2000];
+  const validVals = [];
+  ptaFreqs.forEach(f => {
+    const v = caMap[f];
+    if (v !== undefined && v !== null && String(v).trim() !== '' && !isNaN(Number(v))) {
+      validVals.push(Number(v));
+    }
+  });
+  if (!validVals.length) return '';
+  const avg = validVals.reduce((a, b) => a + b, 0) / validVals.length;
+  return Math.round(avg * 10) / 10;
+}
+
+async function openAudiogrammeModal(patientId, documentId = null, existingData = null) {
+  const targetPatientId = patientId || window.currentPatientId || null;
+  if (!targetPatientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient avant de créer un audiogramme', 'warning');
+    }
+    return;
+  }
+
+  // Retrieve patient information
+  let patient = null;
+  try {
+    if (window.currentPatientData && (window.currentPatientData.id === targetPatientId || window.currentPatientData.patientId === targetPatientId)) {
+      patient = window.currentPatientData;
+    } else if (window.api && window.api.patient && typeof window.api.patient.getById === 'function') {
+      const res = await window.api.patient.getById(targetPatientId);
+      if (res && res.success && res.data) {
+        patient = res.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Erreur lors du chargement du patient pour l\'audiogramme:', err);
+  }
+
+  currentAudiogrammePatient = patient || { id: targetPatientId, firstName: '', lastName: '' };
+
+  const form = document.getElementById('audiogramme-form');
+  if (form) form.reset();
+
+  const patientIdInput = document.getElementById('audio-patient-id');
+  const docIdInput = document.getElementById('audio-doc-id');
+  const summaryEl = document.getElementById('audio-patient-summary');
+  const dateInput = document.getElementById('audio-date');
+  const modalTitle = document.getElementById('audio-modal-title');
+
+  if (patientIdInput) patientIdInput.value = targetPatientId;
+  if (docIdInput) docIdInput.value = documentId || '';
+
+  const patientName = `${patient?.lastName || patient?.nom || ''} ${patient?.firstName || patient?.prenom || ''}`.trim() || 'Patient';
+  const patientAge = patient?.dateOfBirth ? (typeof computeAge === 'function' ? `${computeAge(patient.dateOfBirth)} ans` : '') : (patient?.age ? `${patient.age} ans` : '');
+  if (summaryEl) {
+    summaryEl.textContent = `${patientName}${patientAge ? ` (${patientAge})` : ''}`;
+  }
+
+  // Clear or fill form fields
+  AUDIO_FREQUENCIES.forEach(f => {
+    const cadEl = document.getElementById(`audio-cad-${f}`);
+    const codEl = document.getElementById(`audio-cod-${f}`);
+    const cagEl = document.getElementById(`audio-cag-${f}`);
+    const cogEl = document.getElementById(`audio-cog-${f}`);
+
+    if (existingData) {
+      if (cadEl) cadEl.value = existingData.caDroite?.[f] !== undefined ? existingData.caDroite[f] : '';
+      if (codEl) codEl.value = existingData.coDroite?.[f] !== undefined ? existingData.coDroite[f] : '';
+      if (cagEl) cagEl.value = existingData.caGauche?.[f] !== undefined ? existingData.caGauche[f] : '';
+      if (cogEl) cogEl.value = existingData.coGauche?.[f] !== undefined ? existingData.coGauche[f] : '';
+    } else {
+      if (cadEl) cadEl.value = '';
+      if (codEl) codEl.value = '';
+      if (cagEl) cagEl.value = '';
+      if (cogEl) cogEl.value = '';
+    }
+  });
+
+  const tdEl = document.getElementById('audio-type-droite');
+  const tgEl = document.getElementById('audio-type-gauche');
+  const idEl = document.getElementById('audio-inconfort-droite');
+  const igEl = document.getElementById('audio-inconfort-gauche');
+  const obsEl = document.getElementById('audio-observations');
+  const cclEl = document.getElementById('audio-conclusion');
+
+  if (existingData) {
+    if (modalTitle) modalTitle.textContent = 'Modifier l\'Audiogramme';
+    if (dateInput) dateInput.value = existingData.date ? String(existingData.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+    if (tdEl) tdEl.value = existingData.typeSurditeDroite || 'Normale';
+    if (tgEl) tgEl.value = existingData.typeSurditeGauche || 'Normale';
+    if (idEl) idEl.value = existingData.inconfortDroite || '';
+    if (igEl) igEl.value = existingData.inconfortGauche || '';
+    if (obsEl) obsEl.value = existingData.observations || '';
+    if (cclEl) cclEl.value = existingData.conclusion || '';
+  } else {
+    if (modalTitle) modalTitle.textContent = 'Compte-rendu d\'Audiogramme';
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    if (tdEl) tdEl.value = 'Normale';
+    if (tgEl) tgEl.value = 'Normale';
+    if (idEl) idEl.value = '';
+    if (igEl) igEl.value = '';
+    if (obsEl) obsEl.value = '';
+    if (cclEl) cclEl.value = 'Audiométrie tonale dans les limites de la normale bilatérale.';
+  }
+
+  // Bind live inputs & trigger live update
+  bindAudiogrammeLiveInputs();
+  updateAudiogrammeLivePreview();
+
+  if (typeof openModal === 'function') {
+    openModal('modal-audiogramme');
+  } else if (typeof showModal === 'function') {
+    showModal('modal-audiogramme');
+  }
+}
+
+function bindAudiogrammeLiveInputs() {
+  const ids = [
+    'audio-date',
+    'audio-type-droite', 'audio-type-gauche',
+    'audio-inconfort-droite', 'audio-inconfort-gauche',
+    'audio-observations', 'audio-conclusion'
+  ];
+  AUDIO_FREQUENCIES.forEach(f => {
+    ids.push(`audio-cad-${f}`, `audio-cod-${f}`, `audio-cag-${f}`, `audio-cog-${f}`);
+  });
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.liveBound) {
+      el.addEventListener('input', updateAudiogrammeLivePreview);
+      el.addEventListener('change', updateAudiogrammeLivePreview);
+      el.dataset.liveBound = '1';
+    }
+  });
+}
+
+function updateAudiogrammeLivePreview() {
+  const container = document.getElementById('audio-live-preview-sheet');
+  if (!container) return;
+
+  const dateVal = document.getElementById('audio-date')?.value || new Date().toISOString().slice(0, 10);
+  const typeSurditeDroite = document.getElementById('audio-type-droite')?.value || 'Normale';
+  const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
+  const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
+  const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
+  const observations = document.getElementById('audio-observations')?.value || '';
+  const conclusion = document.getElementById('audio-conclusion')?.value || '';
+
+  const caDroite = {};
+  const coDroite = {};
+  const caGauche = {};
+  const coGauche = {};
+
+  AUDIO_FREQUENCIES.forEach(f => {
+    const cadVal = document.getElementById(`audio-cad-${f}`)?.value;
+    const codVal = document.getElementById(`audio-cod-${f}`)?.value;
+    const cagVal = document.getElementById(`audio-cag-${f}`)?.value;
+    const cogVal = document.getElementById(`audio-cog-${f}`)?.value;
+
+    if (cadVal !== undefined && cadVal !== null && cadVal.trim() !== '') caDroite[f] = Number(cadVal);
+    if (codVal !== undefined && codVal !== null && codVal.trim() !== '') coDroite[f] = Number(codVal);
+    if (cagVal !== undefined && cagVal !== null && cagVal.trim() !== '') caGauche[f] = Number(cagVal);
+    if (cogVal !== undefined && cogVal !== null && cogVal.trim() !== '') coGauche[f] = Number(cogVal);
+  });
+
+  const ptaDroite = calculateAudiogramPTA(caDroite);
+  const ptaGauche = calculateAudiogramPTA(caGauche);
+
+  // Update PTA indicator in form
+  const ptaDIndicator = document.getElementById('audio-pta-indicator-droite');
+  const ptaGIndicator = document.getElementById('audio-pta-indicator-gauche');
+  if (ptaDIndicator) ptaDIndicator.textContent = ptaDroite ? `${ptaDroite} dB` : '-';
+  if (ptaGIndicator) ptaGIndicator.textContent = ptaGauche ? `${ptaGauche} dB` : '-';
+
+  const patient = currentAudiogrammePatient || window.currentPatientData || {
+    firstName: document.getElementById('audio-patient-summary')?.textContent || 'Patient',
+    lastName: '',
+    dateOfBirth: null
+  };
+
+  const data = {
+    date: dateVal,
+    caDroite,
+    coDroite,
+    caGauche,
+    coGauche,
+    ptaDroite,
+    ptaGauche,
+    inconfortDroite,
+    inconfortGauche,
+    typeSurditeDroite,
+    typeSurditeGauche,
+    observations,
+    conclusion
+  };
+
+  const bodyHtml = typeof buildAudiogrammeBodyHtml === 'function'
+    ? buildAudiogrammeBodyHtml(data)
+    : (window.buildAudiogrammeBodyHtml ? window.buildAudiogrammeBodyHtml(data) : '');
+
+  const dateLabel = typeof formatPrintingDocumentDateLabel === 'function'
+    ? formatPrintingDocumentDateLabel(dateVal)
+    : new Date(dateVal).toLocaleDateString('fr-FR');
+
+  const buildDoc = typeof buildA4Html === 'function'
+    ? buildA4Html
+    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+
+  if (typeof buildDoc === 'function') {
+    const fullDocHtml = buildDoc({
+      title: 'AUDIOGRAMME',
+      subtitle: 'Compte-rendu d\'audiométrie tonale et vocale',
+      dateLabel,
+      patient,
+      bodyContentHtml: bodyHtml,
+      documentType: 'audiogramme',
+      documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
+      pages: [bodyHtml]
+    });
+
+    if (typeof renderLiveDocumentPreviewFrame === 'function') {
+      renderLiveDocumentPreviewFrame(container, fullDocHtml);
+    } else {
+      let iframe = container.querySelector('iframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.background = '#ffffff';
+        container.innerHTML = '';
+        container.appendChild(iframe);
+      }
+      iframe.srcdoc = fullDocHtml;
+    }
+  }
+}
+
+async function saveAndPrintAudiogramme() {
+  const patientId = document.getElementById('audio-patient-id')?.value;
+  const existingDocId = document.getElementById('audio-doc-id')?.value || null;
+  const date = document.getElementById('audio-date')?.value || new Date().toISOString().slice(0, 10);
+
+  if (!patientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez sélectionner un patient', 'warning');
+    }
+    return;
+  }
+
+  const typeSurditeDroite = document.getElementById('audio-type-droite')?.value || 'Normale';
+  const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
+  const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
+  const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
+  const observations = document.getElementById('audio-observations')?.value || '';
+  const conclusion = document.getElementById('audio-conclusion')?.value || '';
+
+  const caDroite = {};
+  const coDroite = {};
+  const caGauche = {};
+  const coGauche = {};
+
+  AUDIO_FREQUENCIES.forEach(f => {
+    const cadVal = document.getElementById(`audio-cad-${f}`)?.value;
+    const codVal = document.getElementById(`audio-cod-${f}`)?.value;
+    const cagVal = document.getElementById(`audio-cag-${f}`)?.value;
+    const cogVal = document.getElementById(`audio-cog-${f}`)?.value;
+
+    if (cadVal !== undefined && cadVal !== null && cadVal.trim() !== '') caDroite[f] = Number(cadVal);
+    if (codVal !== undefined && codVal !== null && codVal.trim() !== '') coDroite[f] = Number(codVal);
+    if (cagVal !== undefined && cagVal !== null && cagVal.trim() !== '') caGauche[f] = Number(cagVal);
+    if (cogVal !== undefined && cogVal !== null && cogVal.trim() !== '') coGauche[f] = Number(cogVal);
+  });
+
+  const ptaDroite = calculateAudiogramPTA(caDroite);
+  const ptaGauche = calculateAudiogramPTA(caGauche);
+
+  const docPayload = {
+    patientId,
+    documentType: 'audiogramme',
+    title: 'Compte-rendu d\'Audiogramme',
+    data: {
+      date,
+      caDroite,
+      coDroite,
+      caGauche,
+      coGauche,
+      ptaDroite,
+      ptaGauche,
+      inconfortDroite,
+      inconfortGauche,
+      typeSurditeDroite,
+      typeSurditeGauche,
+      observations,
+      conclusion
+    }
+  };
+
+  try {
+    let saveResult = null;
+    if (window.api && window.api.document) {
+      if (existingDocId) {
+        saveResult = await window.api.document.update(existingDocId, {
+          title: docPayload.title,
+          payload: JSON.stringify(docPayload.data)
+        });
+      } else {
+        saveResult = await window.api.document.create({
+          patientId,
+          documentType: 'audiogramme',
+          title: docPayload.title,
+          payload: JSON.stringify(docPayload.data)
+        });
+      }
+    }
+
+    if (saveResult && saveResult.success === false) {
+      if (typeof showNotification === 'function') {
+        showNotification(saveResult?.error || 'Erreur lors de l\'enregistrement de l\'audiogramme', 'error');
+      }
+      return;
+    }
+
+    if (typeof closeModal === 'function') {
+      closeModal('modal-audiogramme');
+    }
+
+    if (typeof showNotification === 'function') {
+      showNotification('Audiogramme enregistré, ouverture de l\'impression...', 'success');
+    }
+
+    // Refresh patient documents table if loaded
+    if (typeof loadPatientAudiogrammes === 'function') {
+      loadPatientAudiogrammes(patientId);
+    }
+
+    // Launch print window
+    const patient = currentAudiogrammePatient || { id: patientId };
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderAudiogrammeDocument === 'function') {
+      await renderAudiogrammeDocument({
+        patient,
+        data: docPayload.data,
+        dateLabel,
+        onEdit: () => openAudiogrammeModal(patientId, existingDocId, docPayload.data)
+      });
+    }
+  } catch (err) {
+    console.error('Erreur lors de l\'enregistrement / impression de l\'audiogramme:', err);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'enregistrement', 'error');
+    }
+  }
+}
+
+window.openAudiogrammeModal = openAudiogrammeModal;
+window.bindAudiogrammeLiveInputs = bindAudiogrammeLiveInputs;
+window.updateAudiogrammeLivePreview = updateAudiogrammeLivePreview;
+window.saveAndPrintAudiogramme = saveAndPrintAudiogramme;
+window.calculateAudiogramPTA = calculateAudiogramPTA;
+

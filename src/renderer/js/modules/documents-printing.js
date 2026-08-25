@@ -87,6 +87,7 @@ function normalizeDocTypeKey(docType) {
   if (k === 'bonpour' || k === 'bon_pour' || k === 'bon-pour') return 'bonpour';
   if (k === 'nasofibroscopie' || k === 'nasofibro' || k === 'naso') return 'nasofibroscopie';
   if (k === 'echographie_cervicale' || k === 'echocervicale' || k === 'echo_cervicale' || k === 'echo' || k === 'echographie') return 'echographie_cervicale';
+  if (k === 'audiogramme' || k === 'audiometrie' || k === 'audio') return 'audiogramme';
   if (k === 'rapport' || k === 'compterendu' || k === 'compte_rendu' || k === 'consultation' || k === 'rapports') return 'rapport';
   if (k === 'invoice' || k === 'facture' || k === 'factures' || k === 'devis') return 'invoice';
   return k;
@@ -4008,6 +4009,344 @@ async function renderEchographieCervicaleDocument({ patient, data = {}, dateLabe
   });
 }
 
+// ==========================================
+// AUDIOGRAMME GENERATOR (PURE SVG & A4 PDF)
+// ==========================================
+
+function generateAudiogramSvg({ ear = 'droite', ca = {}, co = {}, inconfort = '', pta = '', width = 330, height = 280 }) {
+  const isRight = ear === 'droite';
+  const earTitle = isRight ? 'Oreille Droite (OD)' : 'Oreille Gauche (OG)';
+  const themeColor = isRight ? '#dc2626' : '#2563eb';
+  const themeBg = isRight ? '#fef2f2' : '#eff6ff';
+  const themeBorder = isRight ? '#fca5a5' : '#93c5fd';
+
+  const freqs = [125, 250, 500, 1000, 2000, 4000, 8000];
+  const dbSteps = [-10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130];
+  
+  const marginLeft = 38;
+  const marginRight = 15;
+  const marginTop = 26;
+  const marginBottom = 28;
+  const plotW = width - marginLeft - marginRight;
+  const plotH = height - marginTop - marginBottom;
+
+  const getX = (idx) => marginLeft + (idx / (freqs.length - 1)) * plotW;
+  const getY = (db) => marginTop + ((db + 10) / 140) * plotH;
+
+  // Build grid lines
+  let gridLines = '';
+  // Horizontal dB lines
+  dbSteps.forEach((db) => {
+    const y = getY(db);
+    const isNormalLine = db === 20;
+    const isZeroLine = db === 0;
+    const strokeColor = isNormalLine ? '#10b981' : (isZeroLine ? '#64748b' : '#e2e8f0');
+    const strokeWidth = isNormalLine ? '1.5' : (isZeroLine ? '1.2' : '0.75');
+    const strokeDash = isNormalLine ? '3,3' : 'none';
+    gridLines += `<line x1="${marginLeft}" y1="${y}" x2="${width - marginRight}" y2="${y}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-dasharray="${strokeDash}" />`;
+    gridLines += `<text x="${marginLeft - 5}" y="${y + 3.5}" font-size="8.5" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="${isNormalLine ? '#059669' : '#64748b'}" text-anchor="end">${db}</text>`;
+  });
+
+  // Vertical frequency lines
+  freqs.forEach((f, idx) => {
+    const x = getX(idx);
+    gridLines += `<line x1="${x}" y1="${marginTop}" x2="${x}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="0.8" />`;
+    const label = f >= 1000 ? `${f / 1000}k` : f;
+    gridLines += `<text x="${x}" y="${height - marginBottom + 14}" font-size="9" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="#334155" text-anchor="middle">${label}</text>`;
+  });
+
+  // Intermediate vertical dashed lines (750, 1500, 3000, 6000)
+  const interFreqs = [
+    { x: (getX(2) + getX(3)) / 2 },
+    { x: (getX(3) + getX(4)) / 2 },
+    { x: (getX(4) + getX(5)) / 2 },
+    { x: (getX(5) + getX(6)) / 2 }
+  ];
+  interFreqs.forEach(item => {
+    gridLines += `<line x1="${item.x}" y1="${marginTop}" x2="${item.x}" y2="${height - marginBottom}" stroke="#e2e8f0" stroke-width="0.6" stroke-dasharray="2,2" />`;
+  });
+
+  // Normal line reference text (at 20 dB)
+  const normY = getY(20);
+  const normBadge = `<text x="${width - marginRight - 2}" y="${normY - 3}" font-size="7.5" font-family="system-ui, sans-serif" font-weight="700" fill="#059669" text-anchor="end">Seuil normal (20 dB)</text>`;
+
+  // CA points and polyline
+  const caPoints = [];
+  freqs.forEach((f, idx) => {
+    const val = ca[f];
+    if (val !== undefined && val !== null && String(val).trim() !== '' && !isNaN(Number(val))) {
+      const num = Number(val);
+      if (num >= -10 && num <= 130) {
+        caPoints.push({ f, idx, db: num, x: getX(idx), y: getY(num) });
+      }
+    }
+  });
+
+  let caPath = '';
+  if (caPoints.length > 1) {
+    const d = caPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    caPath = `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" />`;
+  }
+
+  let caMarkers = '';
+  caPoints.forEach(p => {
+    if (isRight) {
+      // Red circle ○
+      caMarkers += `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#ffffff" stroke="${themeColor}" stroke-width="2.2" />`;
+    } else {
+      // Blue cross ✕
+      const sz = 4;
+      caMarkers += `<line x1="${p.x - sz}" y1="${p.y - sz}" x2="${p.x + sz}" y2="${p.y + sz}" stroke="${themeColor}" stroke-width="2.2" stroke-linecap="round" />`;
+      caMarkers += `<line x1="${p.x + sz}" y1="${p.y - sz}" x2="${p.x - sz}" y2="${p.y + sz}" stroke="${themeColor}" stroke-width="2.2" stroke-linecap="round" />`;
+    }
+  });
+
+  // CO points and polyline
+  const coPoints = [];
+  freqs.forEach((f, idx) => {
+    const val = co[f];
+    if (val !== undefined && val !== null && String(val).trim() !== '' && !isNaN(Number(val))) {
+      const num = Number(val);
+      if (num >= -10 && num <= 130) {
+        coPoints.push({ f, idx, db: num, x: getX(idx), y: getY(num) });
+      }
+    }
+  });
+
+  let coPath = '';
+  if (coPoints.length > 1) {
+    const d = coPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    coPath = `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="1.8" stroke-dasharray="4,3" stroke-linejoin="round" stroke-linecap="round" />`;
+  }
+
+  let coMarkers = '';
+  coPoints.forEach(p => {
+    if (isRight) {
+      // Right bracket marker < (shifted slightly left)
+      coMarkers += `<text x="${p.x - 2}" y="${p.y + 4.5}" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="${themeColor}" text-anchor="middle">&lt;</text>`;
+    } else {
+      // Left bracket marker > (shifted slightly right)
+      coMarkers += `<text x="${p.x + 2}" y="${p.y + 4.5}" font-size="13" font-family="system-ui, sans-serif" font-weight="900" fill="${themeColor}" text-anchor="middle">&gt;</text>`;
+    }
+  });
+
+  // Inconfort / HDA-300 display if available
+  const ptaLabel = pta ? `PTA: ${pta} dB` : '';
+  const inconfortText = inconfort ? `Inconfort: ${inconfort}` : '';
+
+  return `
+    <div style="flex: 1; min-width: 0; background: #ffffff; border: 1.5px solid ${themeBorder}; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column;">
+      <div style="background: ${themeBg}; padding: 6px 12px; border-bottom: 1px solid ${themeBorder}; display: flex; justify-content: space-between; align-items: center;">
+        <strong style="color: ${themeColor}; font-size: 11pt; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          ${ptaLabel ? `<span style="font-size: 8.5pt; font-weight: 750; background: ${themeColor}; color: #ffffff; padding: 2px 7px; border-radius: 4px;">${ptaLabel}</span>` : ''}
+          ${inconfortText ? `<span style="font-size: 8.5pt; color: #475569; font-weight: 600;">${escapePrintingHtml(inconfortText)}</span>` : ''}
+        </div>
+      </div>
+      <div style="padding: 6px; display: flex; justify-content: center; background: #ffffff;">
+        <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: ${width}px; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
+          <!-- Graph border & background -->
+          <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#fafbfc" stroke="#94a3b8" stroke-width="1.2" />
+          
+          <!-- Axis labels -->
+          <text x="${marginLeft - 8}" y="${marginTop - 6}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#475569" text-anchor="end">dB HL</text>
+          <text x="${width - marginRight}" y="${height - 4}" font-size="8.5" font-family="system-ui, sans-serif" font-weight="700" fill="#475569" text-anchor="end">Hz</text>
+          
+          <!-- Grid & Markers -->
+          ${gridLines}
+          ${normBadge}
+          ${caPath}
+          ${coPath}
+          ${caMarkers}
+          ${coMarkers}
+        </svg>
+      </div>
+      <!-- Legend box -->
+      <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 4px 10px; display: flex; justify-content: center; gap: 16px; font-size: 8.2pt; color: #334155;">
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <span style="display: inline-block; width: 14px; height: 2px; background: ${themeColor}; vertical-align: middle; position: relative;">
+            <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; border: 1.5px solid ${themeColor}; background: white; position: absolute; left: 4.5px; top: -2px;"></span>
+          </span>
+          <span style="font-weight: 600;">CA (Aérienne)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <span style="display: inline-block; width: 14px; border-top: 2px dashed ${themeColor}; vertical-align: middle;"></span>
+          <span style="font-weight: 600; color: ${themeColor}; font-size: 9.5pt; line-height: 1;">${isRight ? '&lt;' : '&gt;'}</span>
+          <span style="font-weight: 600;">CO (Osseuse)</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildAudiogrammeBodyHtml(data = {}) {
+  const caDroite = data.caDroite || {};
+  const coDroite = data.coDroite || {};
+  const caGauche = data.caGauche || {};
+  const coGauche = data.coGauche || {};
+  const ptaDroite = data.ptaDroite || '';
+  const ptaGauche = data.ptaGauche || '';
+  const inconfortDroite = data.inconfortDroite || '';
+  const inconfortGauche = data.inconfortGauche || '';
+  const typeSurditeDroite = data.typeSurditeDroite || 'Normale';
+  const typeSurditeGauche = data.typeSurditeGauche || 'Normale';
+  const observations = String(data.observations || '').trim();
+  const conclusion = String(data.conclusion || '').trim();
+
+  const svgDroite = generateAudiogramSvg({
+    ear: 'droite',
+    ca: caDroite,
+    co: coDroite,
+    inconfort: inconfortDroite,
+    pta: ptaDroite
+  });
+
+  const svgGauche = generateAudiogramSvg({
+    ear: 'gauche',
+    ca: caGauche,
+    co: coGauche,
+    inconfort: inconfortGauche,
+    pta: ptaGauche
+  });
+
+  return `
+    <style>
+      .audio-single-column {
+        display: flex;
+        flex-direction: column;
+        gap: 4.5mm;
+        margin-top: 2mm;
+        background: transparent !important;
+      }
+      .audio-charts-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5mm;
+      }
+      .audio-types-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5mm;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 2.5mm 4mm;
+      }
+      .audio-type-item {
+        font-size: 9.5pt;
+        color: #1e293b;
+      }
+      .audio-type-label {
+        font-weight: 750;
+        text-transform: uppercase;
+        font-size: 9pt;
+      }
+      .audio-item {
+        background: transparent !important;
+        border: none !important;
+        padding: 0;
+        margin: 0;
+        page-break-inside: avoid;
+      }
+      .audio-item-title {
+        font-size: 10.2pt;
+        font-weight: 850;
+        text-transform: uppercase;
+        color: #000000;
+        margin: 0 0 1.8mm 0;
+        letter-spacing: 0.02em;
+        text-decoration: underline;
+        text-underline-offset: 2.5px;
+      }
+      .audio-item-content {
+        font-size: 9.8pt;
+        line-height: 1.45;
+        color: #1e293b;
+        white-space: pre-wrap;
+        padding-left: 4mm;
+        margin: 0;
+      }
+      .audio-conclusion-section {
+        margin-top: 2mm;
+        padding-top: 0;
+        border: none !important;
+        background: transparent !important;
+        page-break-inside: avoid;
+      }
+      .audio-conclusion-header {
+        font-size: 10.8pt;
+        font-weight: 850;
+        color: var(--doc-primary, var(--professional-blue, #0284c7)) !important;
+        text-transform: uppercase;
+        margin-bottom: 2mm;
+        letter-spacing: 0.025em;
+        text-decoration: underline;
+        text-underline-offset: 2.5px;
+      }
+      .audio-conclusion-body {
+        font-size: 10pt;
+        font-weight: 700;
+        line-height: 1.5;
+        color: #0f172a;
+        white-space: pre-wrap;
+        padding-left: 4mm;
+      }
+    </style>
+
+    <div class="audio-single-column">
+      <!-- 2 Graphiques Côte à Côte -->
+      <div class="audio-charts-row">
+        ${svgDroite}
+        ${svgGauche}
+      </div>
+
+      <!-- Type de surdité résumé -->
+      <div class="audio-types-row">
+        <div class="audio-type-item">
+          <span class="audio-type-label" style="color: #dc2626;">Oreille Droite :</span>
+          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeDroite)}</strong>
+          ${ptaDroite ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaDroite} dB)</span>` : ''}
+        </div>
+        <div class="audio-type-item">
+          <span class="audio-type-label" style="color: #2563eb;">Oreille Gauche :</span>
+          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeGauche)}</strong>
+          ${ptaGauche ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaGauche} dB)</span>` : ''}
+        </div>
+      </div>
+
+      <!-- Observations -->
+      ${observations ? `
+        <div class="audio-item">
+          <div class="audio-item-title">OBSERVATIONS :</div>
+          <div class="audio-item-content">${escapePrintingHtml(observations)}</div>
+        </div>
+      ` : ''}
+
+      <!-- Conclusion -->
+      <div class="audio-conclusion-section">
+        <div class="audio-conclusion-header">CONCLUSION :</div>
+        <div class="audio-conclusion-body">${escapePrintingHtml(conclusion || 'Audiométrie tonale dans les limites de la normale bilatérale.')}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderAudiogrammeDocument({ patient, data = {}, dateLabel, onEdit, documentNumber }) {
+  const bodyContentHtml = buildAudiogrammeBodyHtml(data);
+
+  await openA4PrintDocument({
+    title: 'AUDIOGRAMME',
+    subtitle: 'Compte-rendu d\'audiométrie tonale et vocale',
+    dateLabel,
+    patient,
+    bodyContentHtml,
+    documentType: 'audiogramme',
+    documentNumber: documentNumber || data.id || null,
+    pages: [bodyContentHtml],
+    onEdit
+  });
+}
+
 // Expose functions globally for existing UI hooks
 sharedPrintScope.buildA5Html = buildA5Html
 sharedPrintScope.buildA4Html = buildA4Html
@@ -4028,6 +4367,9 @@ sharedPrintScope.renderNasofibroscopieDocument = renderNasofibroscopieDocument
 sharedPrintScope.buildNasofibroscopieBodyHtml = buildNasofibroscopieBodyHtml
 sharedPrintScope.renderEchographieCervicaleDocument = renderEchographieCervicaleDocument
 sharedPrintScope.buildEchographieCervicaleBodyHtml = buildEchographieCervicaleBodyHtml
+sharedPrintScope.renderAudiogrammeDocument = renderAudiogrammeDocument
+sharedPrintScope.buildAudiogrammeBodyHtml = buildAudiogrammeBodyHtml
+sharedPrintScope.generateAudiogramSvg = generateAudiogramSvg
 sharedPrintScope.computeAge = computeAge
 sharedPrintScope.formatPrintingDocumentDateLabel = formatPrintingDocumentDateLabel
 sharedPrintScope.formatPrintingRichTextHtml = formatPrintingRichTextHtml
@@ -4036,3 +4378,6 @@ window.renderNasofibroscopieDocument = renderNasofibroscopieDocument;
 window.buildNasofibroscopieBodyHtml = buildNasofibroscopieBodyHtml;
 window.renderEchographieCervicaleDocument = renderEchographieCervicaleDocument;
 window.buildEchographieCervicaleBodyHtml = buildEchographieCervicaleBodyHtml;
+window.renderAudiogrammeDocument = renderAudiogrammeDocument;
+window.buildAudiogrammeBodyHtml = buildAudiogrammeBodyHtml;
+window.generateAudiogramSvg = generateAudiogramSvg;

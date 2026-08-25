@@ -1455,7 +1455,177 @@ async function deleteEchographieCervicale(documentId) {
   }
 }
 
-// Make orientation, nasofibroscopie and echographie functions globally available
+// ==========================================
+// AUDIOGRAMMES PATIENT HISTORY
+// ==========================================
+
+async function loadPatientAudiogrammes(patientId, options = {}) {
+  const tbody = document.getElementById('details-audiogrammes-tbody');
+  const emptyState = document.getElementById('details-audiogrammes-empty');
+  if (!tbody) return;
+
+  if (!patientId) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Veuillez sélectionner un patient</td></tr>';
+    if (emptyState) emptyState.style.display = 'none';
+    return;
+  }
+
+  if (!options.preserveContent) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Chargement...</td></tr>';
+  }
+  if (emptyState) emptyState.style.display = 'none';
+
+  try {
+    const list = await fetchPatientDocumentPage(patientId, 'audiogrammes', 'audiogramme', options.page);
+
+    if (!list.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" style="padding: 32px 16px;">
+            <div class="ant-empty" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <div class="ant-empty-image" style="margin-bottom: 12px;">
+                <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#0284c7" stroke-width="1.5">
+                  <rect x="12" y="10" width="40" height="44" rx="4" fill="#f0f9ff" stroke="#38bdf8"/>
+                  <path d="M22 36v-8a10 10 0 0 1 20 0v8" stroke="#0284c7" stroke-width="2"/>
+                  <rect x="18" y="32" width="6" height="10" rx="2" fill="#0284c7"/>
+                  <rect x="40" y="32" width="6" height="10" rx="2" fill="#0284c7"/>
+                </svg>
+              </div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun compte-rendu d'audiogramme enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un compte-rendu d'audiométrie tonale.</div>
+              <button type="button" class="btn btn-primary btn-small" onclick="openAudiogrammeModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1; display: inline-flex; align-items: center; gap: 5px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvel Audiogramme
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      if (emptyState) emptyState.style.display = 'none';
+      return;
+    }
+
+    if (emptyState) emptyState.style.display = 'none';
+
+    const rowsHtml = list.map(item => {
+      const payload = parseDocumentPayload(item.payload);
+      const date = payload.date || item.updatedAt || item.createdAt;
+      const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
+      
+      const odSummary = `${payload.typeSurditeDroite || 'Normale'}${payload.ptaDroite ? ` (${payload.ptaDroite} dB)` : ''}`;
+      const ogSummary = `${payload.typeSurditeGauche || 'Normale'}${payload.ptaGauche ? ` (${payload.ptaGauche} dB)` : ''}`;
+
+      const conclusion = payload.conclusion || 'Audiométrie normale';
+      const conclusionShort = conclusion.length > 40 ? conclusion.substring(0, 40) + '...' : conclusion;
+
+      return `
+        <tr>
+          <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
+          <td><span class="ant-tag" style="background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-size: 12px; font-weight: 600;">OD: ${escapeHTML(odSummary)}</span></td>
+          <td><span class="ant-tag" style="background: #eff6ff; color: #2563eb; border-color: #93c5fd; font-size: 12px; font-weight: 600;">OG: ${escapeHTML(ogSummary)}</span></td>
+          <td title="${escapeHTML(conclusion)}"><strong style="color: #0369a1; font-size: 12.5px;">${escapeHTML(conclusionShort)}</strong></td>
+          <td>
+            <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
+              <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintAudiogramme('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer</span>
+              </button>
+              <button class="btn btn-secondary" title="Modifier" onclick="viewAudiogramme('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#475569" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Modifier</span>
+              </button>
+              <button type="button" class="btn" title="Supprimer" onclick="deleteAudiogramme('${item.id}')" style="height: 32px; width: 34px; min-width: 34px; padding: 0; border: 1.5px solid #fca5a5; background: #fff1f2; color: #e11d48; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.innerHTML = rowsHtml + buildPatientDocumentPaginationRow('audiogrammes', 5);
+  } catch (error) {
+    console.error('Error loading audiogrammes:', error);
+    updatePatientDocumentPagination('audiogrammes', null);
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center empty-row">Erreur de chargement</td></tr>';
+  }
+}
+
+async function reprintAudiogramme(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Compte-rendu d\'audiogramme introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    let patient = null;
+    try {
+      const patientResult = await window.api.patient.getById(doc.patientId);
+      if (patientResult && patientResult.success) {
+        patient = patientResult.data;
+      }
+    } catch (e) {
+      console.error('Error loading patient:', e);
+    }
+
+    const date = payload.date || doc.updatedAt || doc.createdAt;
+    const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
+
+    if (typeof renderAudiogrammeDocument === 'function') {
+      await renderAudiogrammeDocument({
+        patient: patient || { id: doc.patientId },
+        data: payload,
+        dateLabel,
+        documentNumber: doc.id,
+        onEdit: () => openAudiogrammeModal(doc.patientId, doc.id, payload)
+      });
+    }
+  } catch (error) {
+    console.error('Error reprinting audiogramme:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'impression', 'error');
+    }
+  }
+}
+
+async function viewAudiogramme(documentId) {
+  try {
+    const docResult = await window.api.document.getById(documentId);
+    if (!docResult || !docResult.success || !docResult.data) {
+      if (typeof showNotification === 'function') {
+        showNotification('Document introuvable', 'error');
+      }
+      return;
+    }
+    const doc = docResult.data;
+    const payload = parseDocumentPayload(doc.payload);
+
+    if (typeof openAudiogrammeModal === 'function') {
+      await openAudiogrammeModal(doc.patientId, doc.id, payload);
+    }
+  } catch (error) {
+    console.error('Error viewing audiogramme:', error);
+    if (typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'ouverture du document', 'error');
+    }
+  }
+}
+
+async function deleteAudiogramme(documentId) {
+  if (typeof deletePatientDocument === 'function') {
+    await deletePatientDocument(documentId, 'audiogramme');
+    if (window.currentPatientId && typeof loadPatientAudiogrammes === 'function') {
+      loadPatientAudiogrammes(window.currentPatientId);
+    }
+  }
+}
+
+// Make orientation, nasofibroscopie, echographie and audiogramme functions globally available
 window.loadPatientFactures = loadPatientFactures;
 window.openPatientFactureModal = openPatientFactureModal;
 window.openPatientLevelFactureModal = openPatientLevelFactureModal;
@@ -1480,5 +1650,9 @@ window.loadPatientEchographies = loadPatientEchographies;
 window.reprintEchographieCervicale = reprintEchographieCervicale;
 window.viewEchographieCervicale = viewEchographieCervicale;
 window.deleteEchographieCervicale = deleteEchographieCervicale;
+window.loadPatientAudiogrammes = loadPatientAudiogrammes;
+window.reprintAudiogramme = reprintAudiogramme;
+window.viewAudiogramme = viewAudiogramme;
+window.deleteAudiogramme = deleteAudiogramme;
 
 

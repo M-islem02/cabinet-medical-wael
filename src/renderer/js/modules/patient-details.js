@@ -1984,6 +1984,7 @@ function switchTab(tabId) {
             { label: 'Orientations', value: 'tab-orientations' },
             { label: 'Nasofibroscopies', value: 'tab-nasofibroscopies' },
             { label: 'Échographies', value: 'tab-echographies' },
+            { label: 'Audiogrammes', value: 'tab-audiogrammes' },
           ],
           defaultValue: tabId || 'tab-prescriptions',
           onChange: (value) => switchTab(value),
@@ -2039,6 +2040,7 @@ function switchTab(tabId) {
   if (tabId === 'tab-orientations') loadPatientOrientations(currentPatientId);
   if (tabId === 'tab-nasofibroscopies') loadPatientNasofibroscopies(currentPatientId);
   if (tabId === 'tab-echographies') loadPatientEchographies(currentPatientId);
+  if (tabId === 'tab-audiogrammes') loadPatientAudiogrammes(currentPatientId);
   if (tabId === 'tab-attachments') loadPatientAttachments(currentPatientId);
   if (tabId === 'tab-appointments') loadPatientAppointments(currentPatientId);
   if (tabId === 'tab-patient-payments' || tabId === 'tab-facturation') loadPatientPayments(currentPatientId);
