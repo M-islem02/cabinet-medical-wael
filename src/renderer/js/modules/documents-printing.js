@@ -664,6 +664,7 @@ function buildA4Html(opts) {
 function generateHtmlDocument(bodyContent, options = {}) {
   const documentType = typeof options === "string" ?options : (options.documentType || "generic")
   const layout = typeof options === "string" ?getPrintLayout("A5") : (options.layout || getPrintLayout("A5"))
+  const pageSize = layout?.pageSize || "A5"
   const primaryColor = typeof options === 'string' ?'#1a8c7e' : (options.primaryColor || '#1a8c7e')
   const primarySoftColor = mixPrintingHexColor(primaryColor, '#ffffff', 0.35)
   const primaryTintColor = mixPrintingHexColor(primaryColor, '#ffffff', 0.94)
