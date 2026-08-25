@@ -524,9 +524,13 @@ function buildPrintableHtml(opts = {}) {
       const parts = raw.split('\n').map((p) => p.trim()).filter(Boolean);
       return [parts[0] || '', parts.slice(1).join(' ')];
     }
-    const match = raw.match(/^(ORL\s*(?:&|et)\s*Chirurgi[a-z]*\s*cervico[\s-]faciale)\s*(?:[-/&,]|\s)\s*(Chirurgi[a-z]*\s*endoscopique.*)$/i);
-    if (match) {
-      return [match[1], match[2]];
+    const medMatch = raw.match(/^(Médecin\s+spécialiste\s+en|Spécialiste\s+en)\s+(.*)$/i);
+    if (medMatch) {
+      return [medMatch[1].toUpperCase(), medMatch[2].toUpperCase()];
+    }
+    const orlMatch = raw.match(/^(ORL\s*(?:&|et)\s*Chirurgi[a-z]*\s*cervico[\s-]faciale)\s*(?:[-/&,]|\s)\s*(Chirurgi[a-z]*\s*endoscopique.*)$/i);
+    if (orlMatch) {
+      return [orlMatch[1].toUpperCase(), orlMatch[2].toUpperCase()];
     }
     // Coupure à l'espace le plus proche du centre pour un rendu équilibré sur deux lignes
     let bestIdx = -1;
@@ -541,9 +545,9 @@ function buildPrintableHtml(opts = {}) {
       }
     }
     if (bestIdx > 0) {
-      return [raw.substring(0, bestIdx).trim(), raw.substring(bestIdx + 1).trim()];
+      return [raw.substring(0, bestIdx).trim().toUpperCase(), raw.substring(bestIdx + 1).trim().toUpperCase()];
     }
-    return [raw, ''];
+    return [raw.toUpperCase(), ''];
   };
   const specialtyLines = formatSpecialtyLines(doctorSpecialty);
 
@@ -596,8 +600,6 @@ function buildPrintableHtml(opts = {}) {
     const pagesHtml = pages.map((pageContent, idx) => `
       <div class="page">
         ${headerHtml}
-        <div class="header-divider"></div>
-
         <div class="page-body">
           ${watermarkHtml}
           <div class="page-body-content">
@@ -619,7 +621,6 @@ function buildPrintableHtml(opts = {}) {
   const singlePageHtml = `
     <div class="page">
       ${headerHtml}
-      <div class="header-divider"></div>
       <div class="page-body">
         ${watermarkHtml}
         <div class="page-body-content">
@@ -738,9 +739,9 @@ function generateHtmlDocument(bodyContent, options = {}) {
         /* HEADER STYLES */
         .page-header {
           margin-bottom: 2mm;
-          padding: 2.8mm 0 2.2mm 0;
-          border-top: 2.2px solid var(--doc-primary);
-          border-bottom: 2.2px solid var(--doc-primary);
+          padding: 2.2mm 0 1.8mm 0;
+          border-top: 1.8px solid var(--doc-primary);
+          border-bottom: 1.8px solid var(--doc-primary);
         }
         .header-top {
           display: flex;
@@ -750,15 +751,16 @@ function generateHtmlDocument(bodyContent, options = {}) {
           margin-bottom: 0;
         }
         .doctor-info {
-          flex: 1.25;
+          flex: 1.45;
           text-align: left;
           display: flex;
           flex-direction: column;
           justify-content: center;
+          min-width: 0;
         }
         .doctor-name {
           font-size: ${layout.doctorNameFont};
-          font-weight: 750;
+          font-weight: 800;
           margin-bottom: 0.8mm;
           text-transform: uppercase;
           color: var(--doc-primary);
@@ -770,8 +772,9 @@ function generateHtmlDocument(bodyContent, options = {}) {
           font-weight: 700;
           line-height: 1.25;
           text-transform: uppercase;
-          margin-bottom: 0.6mm;
+          margin-bottom: 0.5mm;
           color: #000000;
+          white-space: nowrap;
         }
         .header-meta-inline {
           margin-top: 0.6mm;
@@ -791,7 +794,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
           color: var(--doc-primary);
         }
         .meta-value, .patient-value {
-          font-weight: 700;
+          font-weight: 650;
           font-size: ${layout.metaFont};
           color: #000000;
         }
@@ -815,6 +818,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
           justify-content: center;
           text-align: right;
           gap: 1.2px;
+          min-width: 0;
         }
         .professional-patient-info .patient-line-item {
           display: flex;
@@ -823,6 +827,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
           gap: 4px;
           font-size: ${layout.metaFont};
           line-height: 1.3;
+          white-space: nowrap;
         }
         .logo-circle {
           width: 100%;
@@ -846,31 +851,14 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
 
         .header-meta {
-          font-size: ${layout.metaFont};
-          font-weight: 600;
-          margin-bottom: 0;
-          margin-top: 0;
-          display: flex;
-          gap: 6mm;
+          display: none;
         }
-        .meta-separator { color: #000000; }
-
         .patient-line {
-          font-size: ${layout.metaFont};
-          font-weight: 400;
-          margin-bottom: 0;
-          margin-top: 0;
-          display: flex;
-          gap: 8mm;
-        }
-        .patient-field strong {
-          font-weight: 700;
+          display: none;
         }
 
         .header-divider {
-          border-bottom: 0.8px solid var(--doc-border);
-          margin-top: 0.8mm;
-          margin-bottom: 1.6mm;
+          display: none !important;
         }
 
         .page-footer { position: relative; }
@@ -1529,17 +1517,16 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
 
         body[data-document-style="letterhead"] .page {
-          border-top: 3mm solid var(--doc-primary);
           padding-top: ${layout.pageSize === 'A4' ? '8mm' : '6mm'};
         }
         body[data-document-style="letterhead"] .page-header {
           position: relative;
-          padding-bottom: 5mm;
+          padding: 2.2mm 0 1.8mm 0;
+          border-top: 1.8px solid var(--doc-primary);
+          border-bottom: 1.8px solid var(--doc-primary);
         }
         body[data-document-style="letterhead"] .header-divider {
-          height: 0.45mm;
-          background: var(--doc-primary);
-          box-shadow: 0 1.6mm 0 var(--doc-primary-soft);
+          display: none !important;
         }
         body[data-document-style="letterhead"] .logo-container {
           border: 0.5mm solid var(--doc-primary);
@@ -1564,176 +1551,50 @@ function generateHtmlDocument(bodyContent, options = {}) {
 
         body[data-document-style="dental-letterhead"] .page {
           padding-top: 7mm;
-          border-top: 1.2mm solid var(--doc-primary);
         }
         body[data-document-style="dental-letterhead"] .page-header {
           position: relative;
-          min-height: 37mm;
-          padding-bottom: 5mm;
-        }
-        body[data-document-style="dental-letterhead"] .header-top {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 30mm minmax(0, 1fr);
-          align-items: start;
-          gap: 5mm;
-        }
-        body[data-document-style="dental-letterhead"] .doctor-info {
-          grid-column: 1;
-          min-width: 0;
-        }
-        body[data-document-style="dental-letterhead"] .dental-header-mark {
-          grid-column: 2;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: var(--doc-primary);
-        }
-        body[data-document-style="dental-letterhead"] .dental-header-mark svg {
-          width: 24mm;
-          height: 24mm;
-        }
-        body[data-document-style="dental-letterhead"] .dental-header-mark span {
-          margin-top: -1mm;
-          font-size: 6.5pt;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-        }
-        body[data-document-style="dental-letterhead"] .logo-container {
-          display: none;
-        }
-        body[data-document-style="dental-letterhead"] .patient-line-inline {
-          position: absolute;
-          top: 2mm;
-          right: 0;
-          width: 34%;
-          margin: 0;
-          padding: 3mm;
-          border-left: 0.35mm solid var(--doc-primary-soft);
-        }
-        body[data-document-style="dental-letterhead"] .patient-line-main {
-          display: block;
-        }
-        body[data-document-style="dental-letterhead"] .patient-field {
-          display: block;
-          margin: 0 0 2mm;
-        }
-        body[data-document-style="dental-letterhead"] .patient-separator {
-          display: none;
+          padding: 2.2mm 0 1.8mm 0;
+          border-top: 1.8px solid var(--doc-primary);
+          border-bottom: 1.8px solid var(--doc-primary);
         }
         body[data-document-style="dental-letterhead"] .header-divider {
-          height: 0.75mm;
-          border-radius: 999px;
-          background: var(--doc-primary);
-        }
-        body[data-document-style="dental-letterhead"] .title-section {
-          margin: 4mm 0 6mm;
-          text-align: center;
-        }
-        body[data-document-style="dental-letterhead"] .doc-title {
-          color: var(--doc-primary);
-          letter-spacing: 0.12em;
-        }
-        body[data-document-style="dental-letterhead"] .doc-title::after {
-          content: "";
-          width: 62mm;
-          height: 0.7mm;
-          margin-top: 2mm;
-          background: var(--doc-primary);
-        }
-        body[data-document-style="dental-letterhead"] .page-footer {
-          border-bottom: 1mm solid var(--doc-primary);
-          padding-bottom: 2mm;
+          display: none !important;
         }
 
         body[data-document-style="professional-center"] .page {
-          --professional-blue: #2d6798;
+          --professional-blue: var(--doc-primary, #0284c7);
           --professional-ink: #17263a;
           --professional-muted: #60758b;
           --professional-line: #b7cfe0;
-          border-top: 1.1mm solid var(--professional-blue);
           padding-top: ${layout.pageSize === 'A4' ? '8mm' : '6mm'};
         }
         body[data-document-style="professional-center"] .page-header {
-          min-height: 32mm;
-          padding: 0 0 5mm;
-        }
-        body[data-document-style="professional-center"] .header-top {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(24mm, 32mm) minmax(0, 1fr);
-          align-items: start;
-          gap: 6mm;
-        }
-        body[data-document-style="professional-center"] .doctor-info {
-          grid-column: 1;
-          min-width: 0;
-          padding-top: 2mm;
+          padding: 2.2mm 0 1.8mm 0;
+          border-top: 1.8px solid var(--doc-primary);
+          border-bottom: 1.8px solid var(--doc-primary);
         }
         body[data-document-style="professional-center"] .doctor-name {
-          color: var(--professional-ink);
+          color: var(--doc-primary);
           letter-spacing: 0.035em;
+          white-space: nowrap;
         }
         body[data-document-style="professional-center"] .doctor-specialty {
           color: #000000 !important;
-          font-weight: 800 !important;
+          font-weight: 700 !important;
           font-size: ${layout.doctorSpecialtyFont};
           line-height: 1.25;
           text-transform: uppercase;
-          margin-bottom: 0.8mm;
+          margin-bottom: 0.5mm;
+          white-space: nowrap;
         }
         body[data-document-style="professional-center"] .header-meta-inline {
-          margin-top: 1.3mm;
-          color: var(--professional-ink);
+          margin-top: 0.6mm;
           font-weight: 700;
           display: block;
         }
-        body[data-document-style="professional-center"] .header-meta-inline .meta-item {
-          display: inline-block;
-        }
-        body[data-document-style="professional-center"] .patient-line-inline {
-          display: none;
-        }
-        body[data-document-style="professional-center"] .logo-container {
-          grid-column: 2;
-          grid-row: 1;
-          justify-self: center;
-          width: ${layout.logoSize};
-          height: ${layout.logoSize};
-          max-width: 27mm;
-          max-height: 27mm;
-          padding: 0;
-        }
-        body[data-document-style="professional-center"] .professional-patient-info {
-          grid-column: 3;
-          grid-row: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          justify-self: end;
-          min-width: 46mm;
-          margin-top: 5mm;
-          margin-left: 6mm;
-          padding: 0;
-          border: 0;
-          text-align: left;
-        }
-        body[data-document-style="professional-center"] .professional-patient-info .patient-line-item {
-          display: flex;
-          align-items: baseline;
-          justify-content: flex-start;
-          gap: 6px;
-          margin-bottom: 1.5px;
-          font-size: ${layout.metaFont};
-          line-height: 1.35;
-          text-align: left;
-          width: auto;
-        }
         body[data-document-style="professional-center"] .header-divider {
-          height: 0.65mm;
-          margin-top: 0;
-          border: 0;
-          border-radius: 999px;
-          background: var(--professional-blue);
+          display: none !important;
         }
         body[data-document-style="professional-center"] .title-section {
           margin: 4mm 0 6mm;
