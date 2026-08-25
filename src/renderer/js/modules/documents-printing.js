@@ -4294,23 +4294,23 @@ function buildAudiogrammeBodyHtml(data = {}) {
     </style>
 
     <div class="audio-single-column">
-      <!-- 2 Graphiques Côte à Côte -->
+      <!-- 2 Graphiques Côte à Côte (1er Bleu - OG, 2ème Rouge - OD) -->
       <div class="audio-charts-row">
-        ${svgDroite}
         ${svgGauche}
+        ${svgDroite}
       </div>
 
       <!-- Type de surdité résumé -->
       <div class="audio-types-row">
         <div class="audio-type-item">
-          <span class="audio-type-label" style="color: #dc2626;">Oreille Droite :</span>
-          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeDroite)}</strong>
-          ${ptaDroite ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaDroite} dB)</span>` : ''}
-        </div>
-        <div class="audio-type-item">
           <span class="audio-type-label" style="color: #2563eb;">Oreille Gauche :</span>
           <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeGauche)}</strong>
           ${ptaGauche ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaGauche} dB)</span>` : ''}
+        </div>
+        <div class="audio-type-item">
+          <span class="audio-type-label" style="color: #dc2626;">Oreille Droite :</span>
+          <strong style="margin-left: 4px; color: #0f172a;">${escapePrintingHtml(typeSurditeDroite)}</strong>
+          ${ptaDroite ? `<span style="font-size: 8.5pt; color: #64748b; margin-left: 6px;">(Seuil moyen: ${ptaDroite} dB)</span>` : ''}
         </div>
       </div>
 

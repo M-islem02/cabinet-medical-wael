@@ -2648,6 +2648,18 @@ function handlePatientDocumentAction(action, preset = null) {
     return;
   }
 
+  if (action === 'audiogramme' || action === 'audiometrie') {
+    const openAudio = typeof openAudiogrammeModal === 'function'
+      ? openAudiogrammeModal
+      : window.openAudiogrammeModal;
+    if (typeof openAudio === 'function') {
+      openAudio(currentPatientId);
+    } else {
+      showNotification('Module audiogramme non chargé', 'error');
+    }
+    return;
+  }
+
   if (action === 'nasofibroscopie') {
     const openNaso = typeof openNasofibroscopieModal === 'function'
       ? openNasofibroscopieModal

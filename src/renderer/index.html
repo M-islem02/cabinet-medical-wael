@@ -6737,79 +6737,11 @@
                                 </div>
                             </div>
 
-                            <!-- 1. Tableau Oreille Droite (OD - Rouge) -->
-                            <div style="border: 1.5px solid #fca5a5; border-radius: 8px; padding: 10px 12px; background: #ffffff;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <label style="font-weight: 800; font-size: 12.5px; color: #dc2626; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
-                                        <span>Oreille Droite (OD)</span>
-                                    </label>
-                                    <span style="font-size: 11.5px; font-weight: 700; color: #dc2626; background: #fef2f2; border: 1px solid #fca5a5; padding: 2px 8px; border-radius: 4px;">
-                                        PTA : <strong id="audio-pta-indicator-droite">-</strong>
-                                    </span>
-                                </div>
-
-                                <div style="overflow-x: auto; margin-bottom: 8px;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11.5px;">
-                                        <thead>
-                                            <tr style="background: #fef2f2; color: #991b1b; font-weight: 700;">
-                                                <th style="padding: 4px 6px; border: 1px solid #fecaca; text-align: left; min-width: 90px;">Fréquence (Hz)</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">125</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">250</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">500</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">1000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">2000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">4000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #fecaca;">8000</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td style="padding: 4px 6px; border: 1px solid #fecaca; font-weight: 700; color: #dc2626; text-align: left;">CA (dB HL)</td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cad-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding: 4px 6px; border: 1px solid #fecaca; font-weight: 700; color: #b91c1c; text-align: left;">CO (dB HL)</td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #fecaca;"><input type="number" min="-10" max="130" step="5" id="audio-cod-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                    <div>
-                                        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Type de surdité (OD)</label>
-                                        <select id="audio-type-droite" class="form-control" style="height: 28px; font-size: 12px; padding: 2px 6px;">
-                                            <option value="Normale">Normale</option>
-                                            <option value="Surdité de Transmission">Surdité de Transmission</option>
-                                            <option value="Surdité de Perception">Surdité de Perception</option>
-                                            <option value="Surdité Mixte">Surdité Mixte</option>
-                                            <option value="Cophose">Cophose</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Inconfort / HDA-300</label>
-                                        <input type="text" id="audio-inconfort-droite" class="form-control" placeholder="Ex: Seuil à 100 dB" style="height: 28px; font-size: 12px; padding: 2px 6px;">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 2. Tableau Oreille Gauche (OG - Bleu) -->
-                            <div style="border: 1.5px solid #93c5fd; border-radius: 8px; padding: 10px 12px; background: #ffffff;">
+                            <!-- 1. Tableau Oreille Gauche (OG - 1ère courbe - Bleu) -->
+                            <div style="border: 1.5px solid #0f172a; border-radius: 8px; padding: 10px 12px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                     <label style="font-weight: 800; font-size: 12.5px; color: #2563eb; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
-                                        <span>Oreille Gauche (OG)</span>
+                                        <span>1. Oreille Gauche (OG - Courbe Bleue)</span>
                                     </label>
                                     <span style="font-size: 11.5px; font-weight: 700; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 4px;">
                                         PTA : <strong id="audio-pta-indicator-gauche">-</strong>
@@ -6817,39 +6749,39 @@
                                 </div>
 
                                 <div style="overflow-x: auto; margin-bottom: 8px;">
-                                    <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11.5px;">
+                                    <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11.5px; border: 1.5px solid #000000;">
                                         <thead>
-                                            <tr style="background: #eff6ff; color: #1e40af; font-weight: 700;">
-                                                <th style="padding: 4px 6px; border: 1px solid #bfdbfe; text-align: left; min-width: 90px;">Fréquence (Hz)</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">125</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">250</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">500</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">1000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">2000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">4000</th>
-                                                <th style="padding: 4px 2px; border: 1px solid #bfdbfe;">8000</th>
+                                            <tr style="background: #0f172a; color: #ffffff; font-weight: 700;">
+                                                <th style="padding: 5px 6px; border: 1px solid #334155; text-align: left; min-width: 90px; color: #ffffff;">Fréquence (Hz)</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">125</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">250</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">500</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">1000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">2000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">4000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">8000</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr>
-                                                <td style="padding: 4px 6px; border: 1px solid #bfdbfe; font-weight: 700; color: #2563eb; text-align: left;">CA (dB HL)</td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cag-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #000000; font-weight: 700; color: #2563eb; text-align: left;">CA (dB HL)</td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cag-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
                                             </tr>
-                                            <tr>
-                                                <td style="padding: 4px 6px; border: 1px solid #bfdbfe; font-weight: 700; color: #1d4ed8; text-align: left;">CO (dB HL)</td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
-                                                <td style="padding: 2px; border: 1px solid #bfdbfe;"><input type="number" min="-10" max="130" step="5" id="audio-cog-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11px;"></td>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #000000; font-weight: 700; color: #1d4ed8; text-align: left;">CO (dB HL)</td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cog-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -6858,7 +6790,7 @@
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                                     <div>
                                         <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Type de surdité (OG)</label>
-                                        <select id="audio-type-gauche" class="form-control" style="height: 28px; font-size: 12px; padding: 2px 6px;">
+                                        <select id="audio-type-gauche" class="form-control" style="height: 28px; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1;">
                                             <option value="Normale">Normale</option>
                                             <option value="Surdité de Transmission">Surdité de Transmission</option>
                                             <option value="Surdité de Perception">Surdité de Perception</option>
@@ -6868,7 +6800,75 @@
                                     </div>
                                     <div>
                                         <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Inconfort / HDA-300</label>
-                                        <input type="text" id="audio-inconfort-gauche" class="form-control" placeholder="Ex: Seuil à 100 dB" style="height: 28px; font-size: 12px; padding: 2px 6px;">
+                                        <input type="text" id="audio-inconfort-gauche" class="form-control" placeholder="Ex: Seuil à 100 dB" style="height: 28px; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Tableau Oreille Droite (OD - 2ème courbe - Rouge) -->
+                            <div style="border: 1.5px solid #0f172a; border-radius: 8px; padding: 10px 12px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label style="font-weight: 800; font-size: 12.5px; color: #dc2626; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <span>2. Oreille Droite (OD - Courbe Rouge)</span>
+                                    </label>
+                                    <span style="font-size: 11.5px; font-weight: 700; color: #dc2626; background: #fef2f2; border: 1px solid #fca5a5; padding: 2px 8px; border-radius: 4px;">
+                                        PTA : <strong id="audio-pta-indicator-droite">-</strong>
+                                    </span>
+                                </div>
+
+                                <div style="overflow-x: auto; margin-bottom: 8px;">
+                                    <table style="width: 100%; border-collapse: collapse; text-align: center; font-size: 11.5px; border: 1.5px solid #000000;">
+                                        <thead>
+                                            <tr style="background: #0f172a; color: #ffffff; font-weight: 700;">
+                                                <th style="padding: 5px 6px; border: 1px solid #334155; text-align: left; min-width: 90px; color: #ffffff;">Fréquence (Hz)</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">125</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">250</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">500</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">1000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">2000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">4000</th>
+                                                <th style="padding: 5px 2px; border: 1px solid #334155; color: #ffffff;">8000</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #000000; font-weight: 700; color: #dc2626; text-align: left;">CA (dB HL)</td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cad-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                            </tr>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #000000; font-weight: 700; color: #b91c1c; text-align: left;">CO (dB HL)</td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-125" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-250" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-500" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-1000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-2000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-4000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                                <td style="padding: 2px; border: 1px solid #000000;"><input type="number" min="-10" max="130" step="5" id="audio-cod-8000" class="form-control" style="height: 26px; padding: 2px; text-align: center; font-size: 11.5px; font-weight: 700; color: #000000; border: 1px solid #000000;"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>
+                                        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Type de surdité (OD)</label>
+                                        <select id="audio-type-droite" class="form-control" style="height: 28px; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1;">
+                                            <option value="Normale">Normale</option>
+                                            <option value="Surdité de Transmission">Surdité de Transmission</option>
+                                            <option value="Surdité de Perception">Surdité de Perception</option>
+                                            <option value="Surdité Mixte">Surdité Mixte</option>
+                                            <option value="Cophose">Cophose</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Inconfort / HDA-300</label>
+                                        <input type="text" id="audio-inconfort-droite" class="form-control" placeholder="Ex: Seuil à 100 dB" style="height: 28px; font-size: 12px; padding: 2px 6px; border: 1px solid #cbd5e1;">
                                     </div>
                                 </div>
                             </div>
