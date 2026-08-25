@@ -3646,28 +3646,16 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
     }
   });
 
-  const tdEl = document.getElementById('audio-type-droite');
-  const tgEl = document.getElementById('audio-type-gauche');
-  const idEl = document.getElementById('audio-inconfort-droite');
-  const igEl = document.getElementById('audio-inconfort-gauche');
-  const cclEl = document.getElementById('audio-conclusion');
+  const obsEl = document.getElementById('audio-conclusion') || document.getElementById('audio-observation');
 
   if (existingData) {
-    if (modalTitle) modalTitle.textContent = 'Modifier l\'Audiogramme';
+    if (modalTitle) modalTitle.textContent = 'Modifier le Rapport Audiologique';
     if (dateInput) dateInput.value = existingData.date ? String(existingData.date).slice(0, 10) : new Date().toISOString().slice(0, 10);
-    if (tdEl) tdEl.value = existingData.typeSurditeDroite || 'Normale';
-    if (tgEl) tgEl.value = existingData.typeSurditeGauche || 'Normale';
-    if (idEl) idEl.value = existingData.inconfortDroite || '';
-    if (igEl) igEl.value = existingData.inconfortGauche || '';
-    if (cclEl) cclEl.value = existingData.conclusion || '';
+    if (obsEl) obsEl.value = existingData.observation || existingData.observations || existingData.conclusion || '';
   } else {
-    if (modalTitle) modalTitle.textContent = 'Compte-rendu d\'Audiogramme';
+    if (modalTitle) modalTitle.textContent = 'Rapport Audiologique';
     if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
-    if (tdEl) tdEl.value = 'Normale';
-    if (tgEl) tgEl.value = 'Normale';
-    if (idEl) idEl.value = '';
-    if (igEl) igEl.value = '';
-    if (cclEl) cclEl.value = 'Audiométrie tonale dans les limites de la normale bilatérale.';
+    if (obsEl) obsEl.value = 'Audiométrie tonale dans les limites de la normale bilatérale.';
   }
 
   // Bind live inputs & trigger live update
@@ -3684,9 +3672,8 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
 function bindAudiogrammeLiveInputs() {
   const ids = [
     'audio-date',
-    'audio-type-droite', 'audio-type-gauche',
-    'audio-inconfort-droite', 'audio-inconfort-gauche',
-    'audio-conclusion'
+    'audio-conclusion',
+    'audio-observation'
   ];
   AUDIO_FREQUENCIES.forEach(f => {
     ids.push(`audio-cad-${f}`, `audio-cod-${f}`, `audio-cag-${f}`, `audio-cog-${f}`);
@@ -3707,11 +3694,8 @@ function updateAudiogrammeLivePreview() {
   if (!container) return;
 
   const dateVal = document.getElementById('audio-date')?.value || new Date().toISOString().slice(0, 10);
-  const typeSurditeDroite = document.getElementById('audio-type-droite')?.value || 'Normale';
-  const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
-  const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
-  const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
-  const conclusion = document.getElementById('audio-conclusion')?.value || '';
+  const obsEl = document.getElementById('audio-conclusion') || document.getElementById('audio-observation');
+  const observation = obsEl?.value || '';
 
   const caDroite = {};
   const coDroite = {};
@@ -3753,11 +3737,8 @@ function updateAudiogrammeLivePreview() {
     coGauche,
     ptaDroite,
     ptaGauche,
-    inconfortDroite,
-    inconfortGauche,
-    typeSurditeDroite,
-    typeSurditeGauche,
-    conclusion
+    observation,
+    conclusion: observation
   };
 
   const bodyHtml = typeof buildAudiogrammeBodyHtml === 'function'
@@ -3768,14 +3749,14 @@ function updateAudiogrammeLivePreview() {
     ? formatPrintingDocumentDateLabel(dateVal)
     : new Date(dateVal).toLocaleDateString('fr-FR');
 
-  const buildDoc = typeof buildA4Html === 'function'
-    ? buildA4Html
-    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+  const buildDoc = typeof buildA5Html === 'function'
+    ? buildA5Html
+    : (window.buildA5Html || (typeof buildA4Html === 'function' ? buildA4Html : null));
 
   if (typeof buildDoc === 'function') {
     const fullDocHtml = buildDoc({
-      title: 'AUDIOGRAMME',
-      subtitle: 'Compte-rendu d\'audiométrie tonale et vocale',
+      title: 'RAPPORT AUDIOLOGIQUE',
+      subtitle: 'Compte-rendu d\'audiométrie tonale',
       dateLabel,
       patient,
       bodyContentHtml: bodyHtml,
@@ -3814,11 +3795,8 @@ async function saveAndPrintAudiogramme() {
     return;
   }
 
-  const typeSurditeDroite = document.getElementById('audio-type-droite')?.value || 'Normale';
-  const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
-  const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
-  const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
-  const conclusion = document.getElementById('audio-conclusion')?.value || '';
+  const obsEl = document.getElementById('audio-conclusion') || document.getElementById('audio-observation');
+  const observation = obsEl?.value || '';
 
   const caDroite = {};
   const coDroite = {};
@@ -3843,7 +3821,7 @@ async function saveAndPrintAudiogramme() {
   const docPayload = {
     patientId,
     documentType: 'audiogramme',
-    title: 'Compte-rendu d\'Audiogramme',
+    title: 'Rapport Audiologique',
     data: {
       date,
       caDroite,
@@ -3852,11 +3830,10 @@ async function saveAndPrintAudiogramme() {
       coGauche,
       ptaDroite,
       ptaGauche,
-      inconfortDroite,
-      inconfortGauche,
-      typeSurditeDroite,
-      typeSurditeGauche,
-      conclusion
+      observation,
+      conclusion: observation
+    }
+  };
     }
   };
 

@@ -1507,11 +1507,11 @@ async function loadPatientAudiogrammes(patientId, options = {}) {
                   <rect x="40" y="32" width="6" height="10" rx="2" fill="#0284c7"/>
                 </svg>
               </div>
-              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun compte-rendu d'audiogramme enregistré</div>
-              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un compte-rendu d'audiométrie tonale.</div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun rapport audiologique enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un rapport d'audiométrie tonale en format A5.</div>
               <button type="button" class="btn btn-primary btn-small" onclick="openAudiogrammeModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1; display: inline-flex; align-items: center; gap: 5px;">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Nouvel Audiogramme
+                Nouveau Rapport Audiologique
               </button>
             </div>
           </td>
@@ -1528,18 +1528,18 @@ async function loadPatientAudiogrammes(patientId, options = {}) {
       const date = payload.date || item.updatedAt || item.createdAt;
       const dateLabel = date ? formatDateToDDMMYYYY(date) : '-';
       
-      const odSummary = `${payload.typeSurditeDroite || 'Normale'}${payload.ptaDroite ? ` (${payload.ptaDroite} dB)` : ''}`;
-      const ogSummary = `${payload.typeSurditeGauche || 'Normale'}${payload.ptaGauche ? ` (${payload.ptaGauche} dB)` : ''}`;
+      const odPta = payload.ptaDroite ? `PTA: ${payload.ptaDroite} dB` : 'OD';
+      const ogPta = payload.ptaGauche ? `PTA: ${payload.ptaGauche} dB` : 'OG';
 
-      const conclusion = payload.conclusion || 'Audiométrie normale';
-      const conclusionShort = conclusion.length > 40 ? conclusion.substring(0, 40) + '...' : conclusion;
+      const observation = payload.observation || payload.conclusion || 'Audiométrie normale';
+      const observationShort = observation.length > 45 ? observation.substring(0, 45) + '...' : observation;
 
       return `
         <tr>
           <td><strong style="color: #0f172a;">${escapeHTML(dateLabel)}</strong></td>
-          <td><span class="ant-tag" style="background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-size: 12px; font-weight: 600;">OD: ${escapeHTML(odSummary)}</span></td>
-          <td><span class="ant-tag" style="background: #eff6ff; color: #2563eb; border-color: #93c5fd; font-size: 12px; font-weight: 600;">OG: ${escapeHTML(ogSummary)}</span></td>
-          <td title="${escapeHTML(conclusion)}"><strong style="color: #0369a1; font-size: 12.5px;">${escapeHTML(conclusionShort)}</strong></td>
+          <td><span class="ant-tag" style="background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-size: 12px; font-weight: 600;">${escapeHTML(odPta)}</span></td>
+          <td><span class="ant-tag" style="background: #eff6ff; color: #2563eb; border-color: #93c5fd; font-size: 12px; font-weight: 600;">${escapeHTML(ogPta)}</span></td>
+          <td title="${escapeHTML(observation)}"><strong style="color: #0369a1; font-size: 12.5px;">${escapeHTML(observationShort)}</strong></td>
           <td>
             <div class="table-actions" style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
               <button class="btn btn-secondary" title="Aperçu et Imprimer" onclick="reprintAudiogramme('${item.id}')" style="height: 32px; padding: 0 12px; font-size: 13px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #334155; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
