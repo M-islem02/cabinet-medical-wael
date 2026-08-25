@@ -55,26 +55,26 @@ function formatPrintingRichTextHtml(text, fallback = "") {
 }
 
 function getPrintLayout(pageSize = "A5") {
-  const normalizedPageSize = String(pageSize || "A5").toUpperCase() === "A4" ?"A4" : "A5"
+  const normalizedPageSize = String(pageSize || "A5").toUpperCase() === "A4" ? "A4" : "A5"
   const isA4 = normalizedPageSize === "A4"
 
   return {
     pageSize: normalizedPageSize,
-    pageWidth: isA4 ?"210mm" : "148mm",
-    pageHeight: isA4 ?"297mm" : "210mm",
-    pagePadding: isA4 ?"0mm 8mm" : "0mm 6mm",
-    bodyFontSize: isA4 ?"11.6pt" : "9.8pt",
-    doctorNameFont: isA4 ?"10.5pt" : "9pt",
-    doctorSpecialtyFont: isA4 ?"8.2pt" : "7.2pt",
-    metaFont: isA4 ?"10pt" : "8.4pt",
-    logoSize: isA4 ?"44mm" : "30mm",
-    titleFont: isA4 ?"22pt" : "16pt",
-    sectionTitleFont: isA4 ?"12pt" : "10.4pt",
-    contentFont: isA4 ?"11.6pt" : "9.6pt",
-    contentLineHeight: isA4 ?"1.6" : "1.45",
-    footerFont: isA4 ?"10.6pt" : "8.8pt",
-    headerGap: isA4 ?"10mm" : "6mm",
-    windowFeatures: isA4 ?"width=1000,height=1200" : "width=820,height=980"
+    pageWidth: isA4 ? "210mm" : "148mm",
+    pageHeight: isA4 ? "297mm" : "210mm",
+    pagePadding: isA4 ? "0mm 8mm" : "0mm 6mm",
+    bodyFontSize: isA4 ? "11.6pt" : "9.8pt",
+    doctorNameFont: isA4 ? "11pt" : "10.5pt",
+    doctorSpecialtyFont: isA4 ? "8.2pt" : "7.8pt",
+    metaFont: isA4 ? "8.8pt" : "7.8pt",
+    logoSize: isA4 ? "44mm" : "30mm",
+    titleFont: isA4 ? "22pt" : "16pt",
+    sectionTitleFont: isA4 ? "12pt" : "10.4pt",
+    contentFont: isA4 ? "11.6pt" : "9.6pt",
+    contentLineHeight: isA4 ? "1.6" : "1.45",
+    footerFont: isA4 ? "10.6pt" : "8.8pt",
+    headerGap: isA4 ? "10mm" : "6mm",
+    windowFeatures: isA4 ? "width=1000,height=1200" : "width=820,height=980"
   }
 }
 
@@ -93,10 +93,12 @@ function normalizeDocTypeKey(docType) {
   return k;
 }
 
-function resolveDocumentPageSize(docType, fallback = null) {
+function resolveDocumentPageSize(docType = null, fallback = "A5") {
   try {
-    const settings = (typeof getEffectivePrintSettings === 'function' ? getEffectivePrintSettings() : null) || cachedSettings || window.cachedSettings || {};
-    let customFormats = {};
+    const settings = (typeof cachedSettings !== 'undefined' && cachedSettings)
+      ? cachedSettings
+      : (sharedPrintScope.__printSettingsCache || {});
+    let customFormats = null;
     if (typeof settings.documentFormats === 'string' && settings.documentFormats.trim()) {
       try { customFormats = JSON.parse(settings.documentFormats); } catch {}
     } else if (typeof settings.documentFormats === 'object' && settings.documentFormats) {
@@ -232,9 +234,6 @@ function applyLayoutTextScale(layout, factor = 1) {
   return {
     ...layout,
     bodyFontSize: scalePtValue(layout.bodyFontSize, factor),
-    doctorNameFont: scalePtValue(layout.doctorNameFont, factor),
-    doctorSpecialtyFont: scalePtValue(layout.doctorSpecialtyFont, factor),
-    metaFont: scalePtValue(layout.metaFont, factor),
     titleFont: scalePtValue(layout.titleFont, factor),
     sectionTitleFont: scalePtValue(layout.sectionTitleFont, factor),
     contentFont: scalePtValue(layout.contentFont, factor),
@@ -309,7 +308,7 @@ function hexToRgb(hex) {
 
 function rgbToHex(r, g, b) {
   const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)))
-  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`
+  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}`
 }
 
 function mixPrintingHexColor(color, target = '#ffffff', amount = 0.82) {
@@ -347,8 +346,12 @@ function getLiveDocumentColorOverrides() {
   const colorModeRaw = document.getElementById('document-color-mode')?.value
   const styleVariantRaw = document.getElementById('document-style-variant')?.value
   const textScaleRaw = document.getElementById('document-text-scale')?.value
+  const docNameScaleRaw = document.getElementById('document-doctor-name-scale')?.value
+  const specialtyScaleRaw = document.getElementById('document-specialty-scale')?.value
+  const metaScaleRaw = document.getElementById('document-meta-scale')?.value
   const logoScaleRaw = document.getElementById('document-logo-scale')?.value
   const watermarkOpacityRaw = document.getElementById('document-watermark-opacity')?.value
+  const defaultPageSizeRaw = document.getElementById('default-document-page-size')?.value
   const documentPrimaryColor = normalizeHex(document.getElementById('document-primary-color')?.value)
   const rawTypeColors = {
     prescription: normalizeHex(document.getElementById('document-color-prescription')?.value),
@@ -366,9 +369,12 @@ function getLiveDocumentColorOverrides() {
 
   const styleVariant = resolveDocumentStyleVariant({ documentStyleVariant: styleVariantRaw })
   const textScale = Number(textScaleRaw)
+  const docNameScale = Number(docNameScaleRaw)
+  const specialtyScale = Number(specialtyScaleRaw)
+  const metaScale = Number(metaScaleRaw)
   const logoScale = Number(logoScaleRaw)
   const watermarkOpacity = Number(watermarkOpacityRaw)
-  const hasAnyOverride = Boolean(documentPrimaryColor) || hasAnyTypeColor || colorModeRaw === 'bw' || colorModeRaw === 'color' || Boolean(styleVariantRaw) || Number.isFinite(textScale) || Number.isFinite(logoScale) || Number.isFinite(watermarkOpacity)
+  const hasAnyOverride = Boolean(documentPrimaryColor) || hasAnyTypeColor || colorModeRaw === 'bw' || colorModeRaw === 'color' || Boolean(styleVariantRaw) || Number.isFinite(textScale) || Number.isFinite(docNameScale) || Number.isFinite(specialtyScale) || Number.isFinite(metaScale) || Number.isFinite(logoScale) || Number.isFinite(watermarkOpacity) || Boolean(defaultPageSizeRaw)
   if (!hasAnyOverride) return null
 
   const mergedTypeColors = hasAnyTypeColor
@@ -381,8 +387,12 @@ function getLiveDocumentColorOverrides() {
     ...(mergedTypeColors ? { documentTypeColors: mergedTypeColors } : {}),
     ...(styleVariantRaw ? { documentStyleVariant: styleVariant } : {}),
     ...(Number.isFinite(textScale) ? { documentTextScale: Math.min(120, Math.max(90, textScale)) } : {}),
+    ...(Number.isFinite(docNameScale) ? { documentDoctorNameScale: Math.min(160, Math.max(70, docNameScale)) } : {}),
+    ...(Number.isFinite(specialtyScale) ? { documentSpecialtyScale: Math.min(150, Math.max(70, specialtyScale)) } : {}),
+    ...(Number.isFinite(metaScale) ? { documentMetaScale: Math.min(150, Math.max(70, metaScale)) } : {}),
     ...(Number.isFinite(logoScale) ? { documentLogoScale: Math.min(200, Math.max(80, logoScale)) } : {}),
-    ...(Number.isFinite(watermarkOpacity) ? { documentWatermarkOpacity: Math.min(35, Math.max(2, watermarkOpacity)) } : {})
+    ...(Number.isFinite(watermarkOpacity) ? { documentWatermarkOpacity: Math.min(35, Math.max(2, watermarkOpacity)) } : {}),
+    ...(defaultPageSizeRaw ? { defaultDocumentPageSize: defaultPageSizeRaw.toUpperCase() === 'A4' ? 'A4' : 'A5' } : {})
   }
 }
 
@@ -524,6 +534,8 @@ function buildPrintableHtml(opts = {}) {
       const parts = raw.split('\n').map((p) => p.trim()).filter(Boolean);
       return [parts[0] || '', parts.slice(1).join(' ')];
     }
+    const medMatch = raw.match(/^(Médecin\s+spécialiste\s+en|Spécialiste\s+en)\s+(.*)$/i);
+    if (medMatch) return [medMatch[1], medMatch[2]];
     const match = raw.match(/^(ORL\s*(?:&|et)\s*Chirurgi[a-z]*\s*cervico[\s-]faciale)\s*(?:[-/&,]|\s)\s*(Chirurgi[a-z]*\s*endoscopique.*)$/i);
     if (match) {
       return [match[1], match[2]];
