@@ -880,9 +880,13 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
 
         .header-divider {
-          border-bottom: 0.8px solid var(--doc-border);
-          margin-top: 0.8mm;
-          margin-bottom: 1.6mm;
+          width: 100%;
+          height: 0.75mm;
+          background: var(--doc-primary);
+          border: none;
+          border-radius: 999px;
+          margin-top: 1.5mm;
+          margin-bottom: 3.5mm;
         }
 
         .page-footer { position: relative; }
@@ -930,24 +934,25 @@ function generateHtmlDocument(bodyContent, options = {}) {
 
         .title-section {
           text-align: center;
-          margin: 1.6mm 0 2.6mm 0;
+          margin: 2mm 0 4mm 0;
         }
         .doc-title {
           font-size: ${layout.titleFont};
-          font-weight: 700;
+          font-weight: 800;
           text-transform: uppercase;
           text-decoration: none;
-          letter-spacing: 1px;
+          letter-spacing: 0.08em;
           color: var(--doc-primary);
+          display: inline-block;
         }
         .doc-title::after {
-          content: "••••••••••";
+          content: "";
           display: block;
-          font-size: 11pt;
-          letter-spacing: 2px;
-          line-height: 1;
-          margin-top: 1.2mm;
-          color: var(--doc-primary);
+          width: 36mm;
+          height: 0.65mm;
+          margin: 2mm auto 0 auto;
+          border-radius: 999px;
+          background: var(--doc-primary);
         }
 
         .content-box {
@@ -1634,16 +1639,16 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
 
         body[data-document-style="professional-center"] .page {
-          --professional-blue: #2d6798;
-          --professional-ink: #17263a;
+          --professional-blue: var(--doc-primary);
+          --professional-ink: var(--doc-primary);
           --professional-muted: #60758b;
-          --professional-line: #b7cfe0;
-          border-top: 1.1mm solid var(--professional-blue);
-          padding-top: ${layout.pageSize === 'A4' ? '8mm' : '6mm'};
+          --professional-line: var(--doc-primary-soft, #b7cfe0);
+          border-top: none;
+          padding-top: ${layout.pageSize === 'A4' ? '6mm' : '5mm'};
         }
         body[data-document-style="professional-center"] .page-header {
-          min-height: 32mm;
-          padding: 0 0 5mm;
+          min-height: 28mm;
+          padding: 0 0 2mm;
         }
         body[data-document-style="professional-center"] .header-top {
           display: grid;
@@ -1657,7 +1662,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
           padding-top: 2mm;
         }
         body[data-document-style="professional-center"] .doctor-name {
-          color: var(--professional-ink);
+          color: var(--doc-primary) !important;
           letter-spacing: 0.035em;
         }
         body[data-document-style="professional-center"] .doctor-specialty {
@@ -1670,7 +1675,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
         }
         body[data-document-style="professional-center"] .header-meta-inline {
           margin-top: 1.3mm;
-          color: var(--professional-ink);
+          color: var(--doc-primary);
           font-weight: 700;
           display: block;
         }
@@ -1717,39 +1722,42 @@ function generateHtmlDocument(bodyContent, options = {}) {
           width: auto;
         }
         body[data-document-style="professional-center"] .header-divider {
-          height: 0.65mm;
-          margin-top: 0;
+          width: 100%;
+          height: 0.75mm;
+          margin-top: 1.5mm;
+          margin-bottom: 3.5mm;
           border: 0;
           border-radius: 999px;
-          background: var(--professional-blue);
+          background: var(--doc-primary);
         }
         body[data-document-style="professional-center"] .title-section {
-          margin: 4mm 0 6mm;
+          margin: 2mm 0 4mm;
           text-align: center;
         }
         body[data-document-style="professional-center"] .doc-title {
-          color: var(--doc-primary, var(--professional-blue, #0284c7)) !important;
-          letter-spacing: 0.1em;
+          color: var(--doc-primary) !important;
+          letter-spacing: 0.08em;
         }
         body[data-document-style="professional-center"] .doc-title::after {
           content: "";
-          width: 34mm;
-          height: 0.55mm;
-          margin-top: 2mm;
+          display: block;
+          width: 36mm;
+          height: 0.65mm;
+          margin: 2mm auto 0 auto;
           border-radius: 999px;
-          background: var(--professional-blue);
+          background: var(--doc-primary);
         }
         body[data-document-style="professional-center"] .page-footer {
           padding-top: 2mm;
-          border-top: 0.35mm solid var(--professional-line);
+          border-top: 0.35mm solid var(--doc-primary-soft, #b7cfe0);
         }
         body[data-document-style="professional-center"] .footer-divider {
-          border-color: var(--professional-line);
+          border-color: var(--doc-primary-soft, #b7cfe0);
         }
         body[data-document-style="professional-center"] .footer-sign,
         body[data-document-style="professional-center"] .medication-item .med-name,
         body[data-document-style="professional-center"] .medication-item .med-quantity {
-          color: var(--professional-blue);
+          color: var(--doc-primary);
         }
 
         body[data-document-style="executive"] .page {
