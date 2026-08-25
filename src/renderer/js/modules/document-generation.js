@@ -3173,9 +3173,16 @@ function updateNasofibroscopieLivePreview() {
     ? formatPrintingDocumentDateLabel(dateVal)
     : new Date(dateVal).toLocaleDateString('fr-FR');
 
-  const buildDoc = typeof buildA4Html === 'function'
-    ? buildA4Html
-    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+  const docPageSize = typeof resolveDocumentPageSize === 'function'
+    ? resolveDocumentPageSize('nasofibroscopie', 'A5')
+    : 'A5';
+
+  const formatLabel = document.getElementById('nasofibro-preview-format-label');
+  if (formatLabel) formatLabel.textContent = `Aperçu en direct (Format ${docPageSize})`;
+
+  const buildDoc = docPageSize === 'A4'
+    ? (typeof buildA4Html === 'function' ? buildA4Html : (window.buildA4Html || window.buildPrintableHtml))
+    : (typeof buildA5Html === 'function' ? buildA5Html : (window.buildA5Html || window.buildPrintableHtml));
 
   if (typeof buildDoc === 'function') {
     const fullDocHtml = buildDoc({
@@ -3185,6 +3192,7 @@ function updateNasofibroscopieLivePreview() {
       patient,
       bodyContentHtml: bodyHtml,
       documentType: 'nasofibroscopie',
+      pageSize: docPageSize,
       documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
       pages: [bodyHtml]
     });
@@ -3445,9 +3453,16 @@ function updateEchographieCervicaleLivePreview() {
     ? formatPrintingDocumentDateLabel(dateVal)
     : new Date(dateVal).toLocaleDateString('fr-FR');
 
-  const buildDoc = typeof buildA4Html === 'function'
-    ? buildA4Html
-    : (window.buildA4Html || (typeof buildPrintableHtml === 'function' ? buildPrintableHtml : null));
+  const docPageSize = typeof resolveDocumentPageSize === 'function'
+    ? resolveDocumentPageSize('echographie_cervicale', 'A5')
+    : 'A5';
+
+  const formatLabel = document.getElementById('echocervicale-preview-format-label');
+  if (formatLabel) formatLabel.textContent = `Aperçu en direct (Format ${docPageSize})`;
+
+  const buildDoc = docPageSize === 'A4'
+    ? (typeof buildA4Html === 'function' ? buildA4Html : (window.buildA4Html || window.buildPrintableHtml))
+    : (typeof buildA5Html === 'function' ? buildA5Html : (window.buildA5Html || window.buildPrintableHtml));
 
   if (typeof buildDoc === 'function') {
     const fullDocHtml = buildDoc({
@@ -3457,6 +3472,7 @@ function updateEchographieCervicaleLivePreview() {
       patient,
       bodyContentHtml: bodyHtml,
       documentType: 'echographie_cervicale',
+      pageSize: docPageSize,
       documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
       pages: [bodyHtml]
     });
@@ -3749,9 +3765,16 @@ function updateAudiogrammeLivePreview() {
     ? formatPrintingDocumentDateLabel(dateVal)
     : new Date(dateVal).toLocaleDateString('fr-FR');
 
-  const buildDoc = typeof buildA5Html === 'function'
-    ? buildA5Html
-    : (window.buildA5Html || (typeof buildA4Html === 'function' ? buildA4Html : null));
+  const docPageSize = typeof resolveDocumentPageSize === 'function'
+    ? resolveDocumentPageSize('audiogramme', 'A5')
+    : 'A5';
+
+  const formatLabel = document.getElementById('audio-preview-format-label');
+  if (formatLabel) formatLabel.textContent = `Aperçu en direct (Format ${docPageSize})`;
+
+  const buildDoc = docPageSize === 'A4'
+    ? (typeof buildA4Html === 'function' ? buildA4Html : (window.buildA4Html || window.buildPrintableHtml))
+    : (typeof buildA5Html === 'function' ? buildA5Html : (window.buildA5Html || window.buildPrintableHtml));
 
   if (typeof buildDoc === 'function') {
     const fullDocHtml = buildDoc({
@@ -3761,6 +3784,7 @@ function updateAudiogrammeLivePreview() {
       patient,
       bodyContentHtml: bodyHtml,
       documentType: 'audiogramme',
+      pageSize: docPageSize,
       documentNumber: 'REF-' + dateVal.replace(/-/g, ''),
       pages: [bodyHtml]
     });

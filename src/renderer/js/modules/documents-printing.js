@@ -2253,7 +2253,7 @@ async function openA5PrintDocument(opts) {
 }
 
 async function openA4PrintDocument(opts) {
-  const customSize = resolveDocumentPageSize(opts?.documentType, "A4");
+  const customSize = resolveDocumentPageSize(opts?.documentType, "A5");
   return openPrintDocument(opts, customSize)
 }
 
@@ -3820,18 +3820,20 @@ function buildNasofibroscopieBodyHtml(data = {}) {
 
 async function renderNasofibroscopieDocument({ patient, data = {}, dateLabel, onEdit, documentNumber }) {
   const bodyContentHtml = buildNasofibroscopieBodyHtml(data);
+  const pageSize = resolveDocumentPageSize('nasofibroscopie', 'A5');
 
-  await openA4PrintDocument({
+  await openPrintDocument({
     title: 'NASOFIBROSCOPIE',
     subtitle: 'Compte-rendu d\'exploration endoscopique ORL',
     dateLabel,
     patient,
     bodyContentHtml,
     documentType: 'nasofibroscopie',
+    pageSize,
     documentNumber: documentNumber || data.id || null,
     pages: [bodyContentHtml],
     onEdit
-  });
+  }, pageSize);
 }
 
 function buildEchographieCervicaleBodyHtml(data = {}) {
@@ -3989,18 +3991,20 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
 
 async function renderEchographieCervicaleDocument({ patient, data = {}, dateLabel, onEdit, documentNumber }) {
   const bodyContentHtml = buildEchographieCervicaleBodyHtml(data);
+  const pageSize = resolveDocumentPageSize('echographie_cervicale', 'A5');
 
-  await openA4PrintDocument({
+  await openPrintDocument({
     title: 'ÉCHOGRAPHIE CERVICALE',
     subtitle: 'Compte-rendu d\'exploration échographique cervicale',
     dateLabel,
     patient,
     bodyContentHtml,
     documentType: 'echographie_cervicale',
+    pageSize,
     documentNumber: documentNumber || data.id || null,
     pages: [bodyContentHtml],
     onEdit
-  });
+  }, pageSize);
 }
 
 function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = '', pta = '' }) {
@@ -4254,18 +4258,20 @@ function buildAudiogrammeBodyHtml(data = {}) {
 
 async function renderAudiogrammeDocument({ patient, data = {}, dateLabel, onEdit, documentNumber }) {
   const bodyContentHtml = buildAudiogrammeBodyHtml(data);
+  const pageSize = resolveDocumentPageSize('audiogramme', 'A5');
 
-  await openA5PrintDocument({
+  await openPrintDocument({
     title: 'RAPPORT AUDIOLOGIQUE',
     subtitle: 'Compte-rendu d\'audiométrie tonale',
     dateLabel,
     patient,
     bodyContentHtml,
     documentType: 'audiogramme',
+    pageSize,
     documentNumber: documentNumber || data.id || null,
     pages: [bodyContentHtml],
     onEdit
-  });
+  }, pageSize);
 }
 
 // Expose functions globally for existing UI hooks
