@@ -1108,7 +1108,13 @@
         const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room');
         const json = await res.json();
         
-        const queue = (json && json.data && json.data.queue) || [];
+        const rawQueue = (json && json.data && json.data.queue) || [];
+        const queue = rawQueue.slice().sort(function(a, b) {
+          const aU = Boolean(a.priority > 0 || a.isUrgent) ? 1 : 0;
+          const bU = Boolean(b.priority > 0 || b.isUrgent) ? 1 : 0;
+          if (aU !== bU) return bU - aU;
+          return new Date(a.arrivalTime || 0).getTime() - new Date(b.arrivalTime || 0).getTime();
+        });
         const inConsult = json && json.data && json.data.inConsultation;
 
         if (sub) {

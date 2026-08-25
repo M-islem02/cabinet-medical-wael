@@ -310,7 +310,16 @@ function renderWaitingRoom() {
   const container = document.getElementById('waiting-room-list');
   if (!container) return;
   
-  const waiting = waitingRoomData.filter(w => w.status === 'waiting');
+  const waiting = waitingRoomData
+    .filter(w => w.status === 'waiting')
+    .sort((a, b) => {
+      const aUrgent = Boolean(a.priority > 0 || a.isUrgent) ? 1 : 0;
+      const bUrgent = Boolean(b.priority > 0 || b.isUrgent) ? 1 : 0;
+      if (aUrgent !== bUrgent) {
+        return bUrgent - aUrgent; // Les cas urgents passent en premier
+      }
+      return new Date(a.arrivalTime || 0).getTime() - new Date(b.arrivalTime || 0).getTime(); // Ordre d'arrivée chronologique FIFO
+    });
   const inConsultation = waitingRoomData.filter(w => w.status === 'in-consultation');
   const completed = waitingRoomData.filter(w => w.status === 'completed');
   
