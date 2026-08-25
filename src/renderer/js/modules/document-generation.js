@@ -3808,7 +3808,7 @@ function updateAudiogrammeLivePreview() {
 }
 
 async function saveAndPrintAudiogramme() {
-  const patientId = document.getElementById('audio-patient-id')?.value;
+  const patientId = document.getElementById('audio-patient-id')?.value || window.currentPatientId || currentAudiogrammePatient?.id || null;
   const existingDocId = document.getElementById('audio-doc-id')?.value || null;
   const date = document.getElementById('audio-date')?.value || new Date().toISOString().slice(0, 10);
 
@@ -3833,10 +3833,10 @@ async function saveAndPrintAudiogramme() {
     const cagVal = document.getElementById(`audio-cag-${f}`)?.value;
     const cogVal = document.getElementById(`audio-cog-${f}`)?.value;
 
-    if (cadVal !== undefined && cadVal !== null && cadVal.trim() !== '') caDroite[f] = Number(cadVal);
-    if (codVal !== undefined && codVal !== null && codVal.trim() !== '') coDroite[f] = Number(codVal);
-    if (cagVal !== undefined && cagVal !== null && cagVal.trim() !== '') caGauche[f] = Number(cagVal);
-    if (cogVal !== undefined && cogVal !== null && cogVal.trim() !== '') coGauche[f] = Number(cogVal);
+    if (cadVal !== undefined && cadVal !== null && String(cadVal).trim() !== '') caDroite[f] = Number(cadVal);
+    if (codVal !== undefined && codVal !== null && String(codVal).trim() !== '') coDroite[f] = Number(codVal);
+    if (cagVal !== undefined && cagVal !== null && String(cagVal).trim() !== '') caGauche[f] = Number(cagVal);
+    if (cogVal !== undefined && cogVal !== null && String(cogVal).trim() !== '') coGauche[f] = Number(cogVal);
   });
 
   const ptaDroite = calculateAudiogramPTA(caDroite);
@@ -3859,29 +3859,19 @@ async function saveAndPrintAudiogramme() {
     }
   };
 
-  try {
-    let saveResult = null;
-    if (window.api && window.api.document) {
-      if (existingDocId) {
-        saveResult = await window.api.document.update(existingDocId, {
-          title: docPayload.title,
-          payload: JSON.stringify(docPayload.data)
-        });
-      } else {
-        saveResult = await window.api.document.create({
-          patientId,
-          documentType: 'audiogramme',
-          title: docPayload.title,
-          payload: JSON.stringify(docPayload.data)
-        });
-      }
-    }
+  if (existingDocId) {
+    docPayload.id = existingDocId;
+  }
 
-    if (saveResult && saveResult.success === false) {
-      if (typeof showNotification === 'function') {
-        showNotification(saveResult?.error || 'Erreur lors de l\'enregistrement de l\'audiogramme', 'error');
+  try {
+    if (window.api && window.api.document && typeof window.api.document.save === 'function') {
+      const saveResult = await window.api.document.save(docPayload);
+      if (!saveResult || !saveResult.success) {
+        if (typeof showNotification === 'function') {
+          showNotification(saveResult?.error || 'Erreur lors de l\'enregistrement de l\'audiogramme', 'error');
+        }
+        return;
       }
-      return;
     }
 
     if (typeof closeModal === 'function') {
@@ -3898,7 +3888,21 @@ async function saveAndPrintAudiogramme() {
     }
 
     // Launch print window
-    const patient = currentAudiogrammePatient || { id: patientId };
+    let patient = currentAudiogrammePatient;
+    if (!patient || !patient.firstName) {
+      if (window.api?.patient?.getById && patientId) {
+        try {
+          const patRes = await window.api.patient.getById(patientId);
+          if (patRes?.success && patRes.data) {
+            patient = patRes.data;
+          }
+        } catch (_) {}
+      }
+    }
+    if (!patient) {
+      patient = { id: patientId, firstName: '', lastName: 'Patient' };
+    }
+
     const dateLabel = typeof formatPrintingDocumentDateLabel === 'function' ? formatPrintingDocumentDateLabel(date) : date;
 
     if (typeof renderAudiogrammeDocument === 'function') {
