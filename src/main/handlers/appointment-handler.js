@@ -31,7 +31,7 @@ function getCurrentUserContext() {
 
 function getAppointmentScope(userContext, appointmentAlias = 'a', patientAlias = 'p') {
   const username = String(global.currentUser?.username || '').trim().toLowerCase();
-  const isTest = username === 'test' || username.includes('test') || userContext.role === 'test' || userContext.isAdmin;
+  const isTest = username === 'test' || username.includes('test') || userContext.role === 'test' || userContext.isAdmin || userContext.isSuperAdmin;
   if (isTest) {
     return {
       clause: '',
@@ -44,12 +44,12 @@ function getAppointmentScope(userContext, appointmentAlias = 'a', patientAlias =
     : (userContext.isAssistant ? global.activePatientDoctorId : null);
   if (practitionerId) {
     return {
-      clause: `(${appointmentAlias}.assignedTo = ? OR (${appointmentAlias}.assignedTo IS NULL AND EXISTS (
+      clause: `(${appointmentAlias}.assignedTo = ? OR ${appointmentAlias}.assignedTo IS NULL OR EXISTS (
         SELECT 1 FROM patient_practitioners pp_appointment
         WHERE pp_appointment.patientId = ${patientAlias}.id
           AND pp_appointment.practitionerId = ?
-      )))`,
-      params: [practitionerId, practitionerId]
+      ) OR ${patientAlias}.primaryDoctorId = ? OR ${patientAlias}.createdByUserId = ?)`,
+      params: [practitionerId, practitionerId, practitionerId, practitionerId]
     };
   }
 
@@ -259,11 +259,12 @@ export function handleAppointmentEvents() {
   // Recuperer les rendez-vous d'aujourd'hui
   ipcMain.handle('appointment:getToday', async () => {
     try {
-      const todayStart = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
-      const todayEnd = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      const today = moment().format('YYYY-MM-DD');
+      const todayStart = `${today} 00:00:00`;
+      const todayEnd = `${today} 23:59:59`;
       const scope = getAppointmentScope(getCurrentUserContext(), 'a', 'p');
-      const whereParts = ['a.appointmentDateTime BETWEEN ? AND ?'];
-      const params = [todayStart, todayEnd];
+      const whereParts = ['((a.appointmentDateTime BETWEEN ? AND ?) OR (a.appointmentDateTime LIKE ?))'];
+      const params = [todayStart, todayEnd, `${today}%`];
 
       if (scope.clause) {
         whereParts.push(scope.clause);
@@ -273,7 +274,7 @@ export function handleAppointmentEvents() {
       const appointments = await query(
         `SELECT a.*, p.firstName, p.lastName, p.phone, p.email
          FROM appointments a
-         JOIN patients p ON a.patientId = p.id
+         LEFT JOIN patients p ON a.patientId = p.id
          WHERE ${whereParts.join(' AND ')}
          ORDER BY a.appointmentDateTime ASC`,
         params
@@ -285,16 +286,16 @@ export function handleAppointmentEvents() {
           const momentDateTime = moment(appointment.appointmentDateTime);
           return {
             ...appointment,
-            date: momentDateTime.format('YYYY-MM-DD'),
-            time: momentDateTime.format('HH:mm'),
-            type: appointment.appointmentType,
+            date: momentDateTime.isValid() ? momentDateTime.format('YYYY-MM-DD') : (String(appointment.appointmentDateTime || '').split(' ')[0] || today),
+            time: momentDateTime.isValid() ? momentDateTime.format('HH:mm') : (String(appointment.appointmentDateTime || '').split(' ')[1]?.substring(0, 5) || '00:00'),
+            type: appointment.appointmentType || 'Consultation',
             patientName: buildPatientName(appointment.firstName, appointment.lastName)
           };
         })
       };
     } catch (error) {
       console.error('Erreur lors de la recuperation des rendez-vous du jour:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, data: [] };
     }
   });
 

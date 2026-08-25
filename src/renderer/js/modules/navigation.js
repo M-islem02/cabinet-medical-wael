@@ -613,14 +613,26 @@ async function loadTodayAppointments() {
   if (!container || !countBadge) return;
   
   try {
-    // Utiliser la nouvelle API getToday plus efficace
-    const result = await window.api.appointment.getToday();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Erreur lors du chargement des rendez-vous');
+    let todayAppointments = [];
+    if (window.api?.appointment?.getToday) {
+      const result = await window.api.appointment.getToday();
+      if (result?.success && Array.isArray(result.data)) {
+        todayAppointments = [...result.data];
+      }
     }
     
-    const todayAppointments = Array.isArray(result.data) ? [...result.data] : [];
+    // Si la liste est vide ou en cas de problème, tentative de repli avec getByDateRange
+    if (!todayAppointments.length && window.api?.appointment?.getByDateRange) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      try {
+        const rangeRes = await window.api.appointment.getByDateRange(todayStr, todayStr);
+        if (rangeRes?.success && Array.isArray(rangeRes.data)) {
+          todayAppointments = [...rangeRes.data];
+        }
+      } catch (e) {
+        console.warn('Fallback getByDateRange notice:', e);
+      }
+    }
 
     todayAppointments.sort((a, b) => {
       const timeA = a.time || '00:00:00';
@@ -646,11 +658,11 @@ async function loadTodayAppointments() {
     dashboardTodayAppointmentsState.appointments = [];
     dashboardTodayAppointmentsState.searchTerm = '';
     dashboardTodayAppointmentsState.page = 1;
-    container.innerHTML = '<div class="dashboard-appointments-empty" style="color: #c83b4d;">Erreur de chargement des rendez-vous.</div>';
-    const openButton = document.getElementById('dashboard-open-day-appointments');
-    if (openButton) {
-      openButton.disabled = true;
+    countBadge.textContent = '0';
+    if (statCard) {
+      statCard.textContent = '0';
     }
+    renderDashboardTodayAppointmentsPreview();
   }
 }
 
