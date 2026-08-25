@@ -750,7 +750,7 @@ async function ensureSettingsLoaded() {
 }
 
 function getCabinetLogoDataUrl() {
-  const logo = (cachedSettings && cachedSettings.cabinetLogoDataUrl) || '';
+  const logo = (cachedSettings && (cachedSettings.cabinetLogoDataUrl || cachedSettings.cabinetWatermarkLogoDataUrl || cachedSettings.appLogoDataUrl)) || '';
   if (typeof logo !== 'string') return '';
   if (!logo.startsWith('data:image/')) return '';
   return logo;

@@ -1,8 +1,12 @@
 const sharedPrintScope = typeof window !== "undefined" ?window : globalThis
 
 function getDocumentLogoHTML() {
-  const logoDataUrl = typeof getCabinetLogoDataUrl === 'function' ?getCabinetLogoDataUrl() : '';
-  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ?getDefaultAppBrandLogoSrc() : 'assets/logo.png';
+  const logoDataUrl = (typeof getCabinetLogoDataUrl === 'function' ? getCabinetLogoDataUrl() : '')
+    || (typeof getCabinetWatermarkLogoDataUrl === 'function' ? getCabinetWatermarkLogoDataUrl() : '')
+    || (typeof getCustomAppLogoDataUrl === 'function' ? getCustomAppLogoDataUrl() : '')
+    || (cachedSettings && (cachedSettings.cabinetLogoDataUrl || cachedSettings.cabinetWatermarkLogoDataUrl || cachedSettings.appLogoDataUrl))
+    || '';
+  const documentFallbackLogo = typeof getDefaultAppBrandLogoSrc === 'function' ? getDefaultAppBrandLogoSrc() : 'assets/logo.png';
   const safeSrc = String(logoDataUrl || documentFallbackLogo).replace(/"/g, '&quot;');
   return `
     <div class="logo-circle">
