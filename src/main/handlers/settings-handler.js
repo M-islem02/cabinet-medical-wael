@@ -70,6 +70,31 @@ function normalizeDocumentStyleVariant(value) {
   ].includes(raw) ? raw : 'classic';
 }
 
+let settingsColumnsEnsured = false;
+async function ensureSettingsColumns() {
+  if (settingsColumnsEnsured) return;
+  const columnsToAdd = [
+    { name: 'documentDoctorNameScale', type: 'INTEGER DEFAULT 120' },
+    { name: 'documentSpecialtyScale', type: 'INTEGER DEFAULT 100' },
+    { name: 'documentMetaScale', type: 'INTEGER DEFAULT 100' },
+    { name: 'defaultDocumentPageSize', type: "TEXT DEFAULT 'A5'" },
+    { name: 'documentFontFamily', type: "TEXT DEFAULT 'segoe'" },
+    { name: 'documentBonPourTitle', type: "TEXT DEFAULT 'Demande de Bilan'" },
+    { name: 'documentFormats', type: 'TEXT' },
+    { name: 'documentTextScales', type: 'TEXT' },
+    { name: 'documentLogoScale', type: 'INTEGER DEFAULT 90' }
+  ];
+
+  for (const col of columnsToAdd) {
+    try {
+      await run(`ALTER TABLE settings ADD COLUMN ${col.name} ${col.type}`);
+    } catch (_) {
+      // Column already exists or table alteration not supported
+    }
+  }
+  settingsColumnsEnsured = true;
+}
+
 export function handleSettingsEvents() {
   ipcMain.handle('settings:chooseAppLogo', async () => {
     try {

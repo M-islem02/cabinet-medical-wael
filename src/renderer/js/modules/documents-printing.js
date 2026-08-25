@@ -1662,25 +1662,34 @@ function generateHtmlDocument(bodyContent, options = {}) {
           padding-top: 2mm;
         }
         body[data-document-style="professional-center"] .doctor-name {
+          font-size: ${layout.doctorNameFont} !important;
           color: var(--doc-primary) !important;
-          letter-spacing: 0.035em;
+          font-weight: 850 !important;
+          letter-spacing: 0.025em;
+          text-transform: uppercase;
+          line-height: 1.15;
+          margin-bottom: 1.2mm;
+          white-space: nowrap;
         }
         body[data-document-style="professional-center"] .doctor-specialty {
           color: #000000 !important;
-          font-weight: 800 !important;
-          font-size: ${layout.doctorSpecialtyFont};
+          font-weight: 750 !important;
+          font-size: ${layout.doctorSpecialtyFont} !important;
           line-height: 1.25;
           text-transform: uppercase;
           margin-bottom: 0.8mm;
+          white-space: nowrap;
         }
         body[data-document-style="professional-center"] .header-meta-inline {
           margin-top: 1.3mm;
+          font-size: ${layout.metaFont} !important;
           color: var(--doc-primary);
           font-weight: 700;
           display: block;
         }
         body[data-document-style="professional-center"] .header-meta-inline .meta-item {
           display: inline-block;
+          font-size: ${layout.metaFont} !important;
         }
         body[data-document-style="professional-center"] .patient-line-inline {
           display: none;
@@ -1721,10 +1730,11 @@ function generateHtmlDocument(bodyContent, options = {}) {
           justify-content: flex-start;
           gap: 6px;
           margin-bottom: 1.5px;
-          font-size: ${layout.metaFont};
+          font-size: ${layout.metaFont} !important;
           line-height: 1.35;
           text-align: left;
           width: auto;
+          white-space: nowrap;
         }
         body[data-document-style="professional-center"] .header-divider {
           width: 100%;
