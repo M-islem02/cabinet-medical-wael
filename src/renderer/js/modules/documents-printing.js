@@ -4132,16 +4132,16 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
   const ptaLabel = pta ? `PTA: ${pta} dB` : '';
 
   return `
-    <div style="flex: 1; min-width: 0; background: #ffffff; border: 1.2px solid #000000; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+    <div style="flex: 1; min-width: 0; background: transparent; border: 1.2px solid #000000; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;">
       <!-- Title Header -->
-      <div style="background: #ffffff; padding: 4px 10px 3px 10px; border-bottom: 1px solid #000000; display: flex; justify-content: space-between; align-items: center;">
+      <div style="background: transparent; padding: 4px 10px 3px 10px; border-bottom: 1px solid #000000; display: flex; justify-content: space-between; align-items: center;">
         <strong style="color: #000000; font-size: 9.8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
         ${ptaLabel ? `<strong style="font-size: 8.8pt; color: #000000; font-weight: 700;">${ptaLabel}</strong>` : ''}
       </div>
-      <div style="padding: 4px 6px; display: flex; justify-content: center; background: #ffffff;">
+      <div style="padding: 4px 6px; display: flex; justify-content: center; background: transparent;">
         <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: 100%; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
-          <!-- Graph border & clean background -->
-          <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#ffffff" stroke="#000000" stroke-width="1" />
+          <!-- Graph border & clean transparent background -->
+          <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="none" stroke="#000000" stroke-width="1" />
           
           <!-- Axis labels -->
           <text x="${marginLeft - 6}" y="${marginTop - 5}" font-size="8" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">dB</text>
@@ -4157,7 +4157,7 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
         </svg>
       </div>
       <!-- Legend box -->
-      <div style="background: #ffffff; border-top: 1px solid #000000; padding: 3px 6px; display: flex; justify-content: center; gap: 14px; font-size: 8pt; color: #000000;">
+      <div style="background: transparent; border-top: 1px solid #000000; padding: 3px 6px; display: flex; justify-content: center; gap: 14px; font-size: 8pt; color: #000000;">
         <div style="display: flex; align-items: center; gap: 4px;">
           <span style="display: inline-block; width: 12px; height: 2px; background: ${colorTransmission}; vertical-align: middle;"></span>
           <span style="font-weight: 700; color: ${colorTransmission};">CA (Transmission)</span>
