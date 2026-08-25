@@ -1592,6 +1592,7 @@ function buildFittedPreviewHtml(html) {
     <style>
       html, body { overflow: hidden !important; width: 100% !important; height: 100% !important; min-width: 0 !important; background: transparent !important; margin: 0; padding: 0; cursor: grab; box-sizing: border-box; }
       body.is-grabbing { cursor: grabbing !important; user-select: none !important; }
+      body.is-arrow-mode { cursor: default !important; user-select: text !important; }
       body.has-scroll { overflow: auto !important; }
       .page { margin-left: auto !important; margin-right: auto !important; transform-origin: top center !important; box-shadow: 0 6px 22px rgba(15, 23, 42, 0.18) !important; transition: transform 0.1s ease-out !important; }
       .preview-zoom-bar {
@@ -1602,13 +1603,36 @@ function buildFittedPreviewHtml(html) {
         display: flex;
         align-items: center;
         gap: 3px;
-        background: rgba(15, 23, 42, 0.88);
+        background: rgba(15, 23, 42, 0.92);
         backdrop-filter: blur(4px);
         padding: 3px 6px;
         border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.3);
         color: #ffffff;
         font-family: system-ui, -apple-system, sans-serif;
+      }
+      .preview-mode-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 13px;
+        padding: 3px 7px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        transition: all 0.12s ease;
+      }
+      .preview-mode-btn:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .preview-mode-btn.is-active {
+        background: rgba(255, 255, 255, 0.28) !important;
+        color: #ffffff !important;
+        font-weight: 700;
       }
       .preview-zoom-btn {
         background: rgba(255, 255, 255, 0.18);
@@ -1631,14 +1655,18 @@ function buildFittedPreviewHtml(html) {
       .preview-zoom-text {
         font-size: 11px;
         font-weight: 600;
-        min-width: 42px;
+        min-width: 38px;
         text-align: center;
         color: #f1f5f9;
         cursor: pointer;
       }
     </style>
     <div class="preview-zoom-bar">
-      <span style="font-size: 11px; margin-right: 4px; opacity: 0.85; user-select: none;" title="Glissez avec la souris pour déplacer">✋</span>
+      <!-- Outils Flèche & Main -->
+      <div style="display: flex; align-items: center; gap: 1px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 1px; margin-right: 4px;">
+        <button type="button" class="preview-mode-btn" id="__toolArrow" onclick="__setPreviewTool('arrow')" title="Curseur / Flèche (Sélection de texte)">↖</button>
+        <button type="button" class="preview-mode-btn is-active" id="__toolHand" onclick="__setPreviewTool('hand')" title="Outil Main (Glisser et déplacer la page)">✋</button>
+      </div>
       <button type="button" class="preview-zoom-btn" onclick="__adjustZoom(-0.1)" title="Zoom arrière">-</button>
       <span class="preview-zoom-text" id="__zoomLabel" onclick="__resetZoom()" title="Réinitialiser zoom">Fit</span>
       <button type="button" class="preview-zoom-btn" onclick="__adjustZoom(0.1)" title="Zoom avant">+</button>
@@ -1647,6 +1675,28 @@ function buildFittedPreviewHtml(html) {
       (function () {
         var userZoom = null;
         var baseScale = 1;
+        var currentTool = 'hand';
+
+        window.__setPreviewTool = function(tool) {
+          currentTool = tool === 'arrow' ? 'arrow' : 'hand';
+          var arrowBtn = document.getElementById('__toolArrow');
+          var handBtn = document.getElementById('__toolHand');
+          if (arrowBtn && handBtn) {
+            if (currentTool === 'arrow') {
+              arrowBtn.classList.add('is-active');
+              handBtn.classList.remove('is-active');
+              document.body.classList.add('is-arrow-mode');
+              document.body.style.cursor = 'default';
+              document.body.style.userSelect = 'text';
+            } else {
+              handBtn.classList.add('is-active');
+              arrowBtn.classList.remove('is-active');
+              document.body.classList.remove('is-arrow-mode');
+              document.body.style.cursor = 'grab';
+              document.body.style.userSelect = 'none';
+            }
+          }
+        };
 
         function __fitPreviewPage() {
           var page = document.querySelector('.page');
@@ -1691,6 +1741,7 @@ function buildFittedPreviewHtml(html) {
         var scrollX = 0, scrollY = 0;
 
         window.addEventListener('mousedown', function(e) {
+          if (currentTool !== 'hand') return;
           if (e.target.closest && e.target.closest('.preview-zoom-bar')) return;
           if (['BUTTON', 'INPUT', 'TEXTAREA', 'A'].indexOf(e.target.tagName) !== -1) return;
           isPanning = true;
@@ -1702,7 +1753,7 @@ function buildFittedPreviewHtml(html) {
         });
 
         window.addEventListener('mousemove', function(e) {
-          if (!isPanning) return;
+          if (!isPanning || currentTool !== 'hand') return;
           e.preventDefault();
           var dx = e.clientX - startX;
           var dy = e.clientY - startY;
@@ -1713,6 +1764,28 @@ function buildFittedPreviewHtml(html) {
           if (isPanning) {
             isPanning = false;
             document.body.classList.remove('is-grabbing');
+          }
+        });
+
+        window.addEventListener('keydown', function(e) {
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            window.scrollBy({ top: -70, behavior: 'smooth' });
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            window.scrollBy({ top: 70, behavior: 'smooth' });
+          } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            window.scrollBy({ left: -70, behavior: 'smooth' });
+          } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            window.scrollBy({ left: 70, behavior: 'smooth' });
+          } else if (e.key === 'PageUp') {
+            e.preventDefault();
+            window.scrollBy({ top: -280, behavior: 'smooth' });
+          } else if (e.key === 'PageDown') {
+            e.preventDefault();
+            window.scrollBy({ top: 280, behavior: 'smooth' });
           }
         });
 
