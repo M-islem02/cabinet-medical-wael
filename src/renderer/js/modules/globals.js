@@ -642,10 +642,21 @@ function getConsultationActLabel(actValue, config = window._packageConfig || nul
     }
   }
 
-  // Fallback to localStorage for custom acts
+  // Fallback to DOM and localStorage for custom acts
   if (strVal.startsWith('custom_')) {
+    if (typeof document !== 'undefined') {
+      const cb = document.querySelector(`input[name="acts"][value="${strVal}"], input[value="${strVal}"]`);
+      if (cb) {
+        const parent = cb.closest('.checkbox-label');
+        const span = parent?.querySelector('.act-name-span') || parent?.querySelector('span');
+        const txt = span?.textContent?.trim();
+        if (txt && !txt.startsWith('custom_')) return txt;
+      }
+    }
     try {
-      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('medcareso_custom_consultation_acts_v2') : null;
+      const raw = typeof localStorage !== 'undefined'
+        ? (localStorage.getItem('medcareso_custom_consultation_acts_v2') || localStorage.getItem('medcareso_custom_consultation_acts'))
+        : null;
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved && saved[strVal]?.label) {
@@ -657,6 +668,7 @@ function getConsultationActLabel(actValue, config = window._packageConfig || nul
         }
       }
     } catch (_) { /* ignore */ }
+    return 'Acte médical';
   }
 
   const normalized = resolveConsultationActValue(actValue);

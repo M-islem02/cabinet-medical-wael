@@ -199,11 +199,469 @@ function areConsultationAmountsEquivalent(leftValue, rightValue) {
   return left === right;
 }
 
+const CONSULTATION_ACT_LABELS = typeof window !== 'undefined' && window.CONSULTATION_ACT_META
+  ? Object.fromEntries(Object.entries(window.CONSULTATION_ACT_META).map(([key, meta]) => [key, meta.label]))
+  : {
+      consultation: 'Consultation médicale',
+      nasofibroscopie: 'Nasofibroscopie',
+      endoscopie: 'Endoscopie ORL',
+      radio: 'Radio / Radiographie',
+      audiometrie: 'Audiométrie & Impédancemétrie',
+      lavage: 'Lavage d\'oreille / Soins',
+      paracentese: 'Paracentèse',
+      ablationcorpsetranger: 'Extraction corps étranger',
+      echo: 'Échographie',
+      ecg: 'ECG de repos',
+      ecgstress: 'ECG d\'effort',
+      holtermapa: 'Holter / MAPA',
+      kine: 'Séance kiné',
+      reduction: 'Réduction',
+      infiltration: 'Infiltration',
+      electrotherapie: 'Électrothérapie',
+      massage: 'Massage',
+      tecartherapie: 'Tecarthérapie',
+      ondesdechoc: 'Ondes de choc',
+      mesotherapie: 'Mésothérapie',
+      lasertherapie: 'Laser thérapie',
+      dryneedling: 'Dry needling',
+      osteopathie: 'Ostéopathie',
+      other: 'Autre acte'
+    };
+
+const CONSULTATION_ACT_ICONS = {
+  consultation: '',
+  nasofibroscopie: '',
+  endoscopie: '',
+  radio: '',
+  audiometrie: '',
+  lavage: '',
+  paracentese: '',
+  ablationcorpsetranger: '',
+  echo: '',
+  ecg: '',
+  ecgstress: '',
+  holtermapa: '',
+  kine: '',
+  reduction: '',
+  infiltration: '',
+  electrotherapie: '',
+  massage: '',
+  tecartherapie: '',
+  ondesdechoc: '',
+  mesotherapie: '',
+  lasertherapie: '',
+  dryneedling: '',
+  osteopathie: '',
+  other: ''
+};
+
+const customConsultationActsMap = {};
+window.customConsultationActsMap = customConsultationActsMap;
+window.CONSULTATION_ACT_LABELS = CONSULTATION_ACT_LABELS;
+window.CONSULTATION_ACT_ICONS = CONSULTATION_ACT_ICONS;
+
+const CUSTOM_ACTS_STORAGE_KEY = 'medcareso_custom_consultation_acts_v2';
+
+function saveCustomConsultationActs() {
+  try {
+    const toSave = {};
+    Object.entries(customConsultationActsMap).forEach(([key, val]) => {
+      if (key.startsWith('custom_') && val && val.label) {
+        toSave[key] = { label: val.label, price: val.price || 0 };
+      }
+    });
+    localStorage.setItem(CUSTOM_ACTS_STORAGE_KEY, JSON.stringify(toSave));
+
+    // Persistance en base de données (disponible sur toutes les sessions/postes)
+    if (window.api?.customActs?.upsert) {
+      Object.entries(toSave).forEach(([key, val]) => {
+        Promise.resolve(window.api.customActs.upsert({ id: key, label: val.label, price: val.price }))
+          .catch(() => {});
+      });
+    }
+  } catch (_) { /* ignore */ }
+}
+
+// Synchronise les actes personnalisés depuis la base de données (source de vérité)
+async function syncCustomConsultationActsWithDatabase() {
+  if (!window.api?.customActs?.list) return;
+  try {
+    const result = await window.api.customActs.list();
+    if (!result?.success || !Array.isArray(result.data)) return;
+    let changed = false;
+    result.data.forEach((act) => {
+      const key = String(act.id || '');
+      if (!key.startsWith('custom_') || !act.label) return;
+      const price = Number(act.price) || 0;
+      if (!customConsultationActsMap[key] || Number(customConsultationActsMap[key].price) !== price) {
+        customConsultationActsMap[key] = { label: act.label, price };
+        CONSULTATION_ACT_LABELS[key] = act.label;
+        CONSULTATION_ACT_ICONS[key] = '';
+        changed = true;
+      }
+      injectCustomActIntoGrid(key, act.label, price);
+    });
+    if (changed || Object.keys(customConsultationActsMap).length) {
+      saveCustomConsultationActs();
+    }
+    if (changed) {
+      onConsultationActsChanged();
+      // Rafraîchir la liste cochable de la modale de paiement si ouverte
+      if (typeof window.renderPaymentModalActCheckboxes === 'function') {
+        try {
+          const currentSel = typeof getSelectedPaymentActs === 'function'
+            ? getSelectedPaymentActs('payment-acts')
+            : ['consultation'];
+          window.renderPaymentModalActCheckboxes(currentSel);
+        } catch (_) { /* ignore */ }
+      }
+    }
+  } catch (_) { /* offline: le cache localStorage reste utilisé */ }
+}
+
+function _buildCustomActLabel(actKey, name, price) {
+  const safeName = typeof escapeHTML === 'function' ? escapeHTML(name) : name;
+  return `
+    <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; overflow: hidden;">
+      <input type="checkbox" id="act-${actKey}" name="acts" value="${actKey}" onchange="onConsultationActsChanged()" style="flex-shrink: 0;">
+      <span class="act-name-span" title="${safeName}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px;">${safeName}</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+      <span class="act-price-badge" id="price-badge-${actKey}" style="font-size: 11px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px; white-space: nowrap;">${price} DZD</span>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <button type="button" class="btn-act-edit-price" onclick="event.preventDefault(); event.stopPropagation(); openEditConsultationActPriceModal('${actKey}')" title="Modifier le tarif" style="border: 1px solid #cbd5e1; background: #ffffff; border-radius: 3px; padding: 1px 5px; font-size: 10px; line-height: 1.2; color: #475569; cursor: pointer; white-space: nowrap;">Modifier</button>
+        <button type="button" class="btn-act-delete" onclick="event.preventDefault(); event.stopPropagation(); deleteCustomConsultationAct('${actKey}')" title="Supprimer cet acte" style="border: 1px solid #fca5a5; background: #fff1f2; border-radius: 3px; padding: 1px 5px; font-size: 10px; line-height: 1.2; color: #dc2626; cursor: pointer; white-space: nowrap;">Supprimer</button>
+      </div>
+    </div>
+  `;
+}
+
+function injectCustomActIntoGrid(actKey, name, price) {
+  const grid = document.getElementById('consultation-acts-grid');
+  if (!grid || document.getElementById(`label-act-${actKey}`)) return;
+  const label = document.createElement('label');
+  label.className = 'checkbox-label';
+  label.id = `label-act-${actKey}`;
+  label.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: white; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer; min-width: 0; box-sizing: border-box; overflow: hidden;';
+  label.innerHTML = _buildCustomActLabel(actKey, name, price);
+  grid.appendChild(label);
+}
+
+function loadCustomConsultationActs() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_ACTS_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (typeof saved !== 'object' || !saved) return;
+    Object.entries(saved).forEach(([key, val]) => {
+      if (!key.startsWith('custom_') || !val || !val.label) return;
+      // Populate map
+      customConsultationActsMap[key] = { label: val.label, price: val.price || 0 };
+      CONSULTATION_ACT_LABELS[key] = val.label;
+      CONSULTATION_ACT_ICONS[key] = '';
+      // Inject into grid if not already there
+      injectCustomActIntoGrid(key, val.label, val.price || 0);
+    });
+    syncCustomConsultationActsWithDatabase();
+  } catch (_) { /* ignore */ }
+}
+window.loadCustomConsultationActs = loadCustomConsultationActs;
+window.saveCustomConsultationActs = saveCustomConsultationActs;
+
+// Charger immédiatement au démarrage
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      try { loadCustomConsultationActs(); } catch (_) {}
+    });
+  } else {
+    try { loadCustomConsultationActs(); } catch (_) {}
+  }
+}
+
+function deleteCustomConsultationAct(actKey) {
+  if (!actKey || !actKey.startsWith('custom_')) return;
+  // Remove from map
+  delete customConsultationActsMap[actKey];
+  delete CONSULTATION_ACT_LABELS[actKey];
+  delete CONSULTATION_ACT_ICONS[actKey];
+  // Remove from DOM
+  const labelEl = document.getElementById(`label-act-${actKey}`);
+  if (labelEl) labelEl.remove();
+  // Persist (localStorage cache + base de données)
+  saveCustomConsultationActs();
+  if (window.api?.customActs?.remove) {
+    Promise.resolve(window.api.customActs.remove(actKey)).catch(() => {});
+  }
+  onConsultationActsChanged();
+  if (typeof showNotification === 'function') {
+    showNotification('Acte supprimé', 'info');
+  }
+}
+window.deleteCustomConsultationAct = deleteCustomConsultationAct;
+
+function getConsultationActPrice(actValue) {
+  const normalized = String(actValue || '').trim().toLowerCase();
+  if (customConsultationActsMap[actValue]?.price) {
+    return Number(customConsultationActsMap[actValue].price) || 0;
+  }
+  if (customConsultationActsMap[normalized]?.price) {
+    return Number(customConsultationActsMap[normalized].price) || 0;
+  }
+  const badge = document.getElementById(`price-badge-${actValue}`);
+  if (badge) {
+    const num = parseFloat(badge.textContent.replace(/[^0-9.]/g, ''));
+    if (Number.isFinite(num) && num > 0) return num;
+  }
+  try {
+    const raw = localStorage.getItem(CUSTOM_ACTS_STORAGE_KEY) || localStorage.getItem('medcareso_custom_consultation_acts');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && saved[actValue]?.price) return Number(saved[actValue].price) || 0;
+    }
+  } catch (_) {}
+  if (normalized === 'consultation') {
+    const configuredFee = Number(typeof cachedSettings !== 'undefined' ? cachedSettings?.defaultConsultationFee : null);
+    if (Number.isFinite(configuredFee) && configuredFee > 0) {
+      return configuredFee;
+    }
+  }
+  if (typeof PAYMENT_SERVICE_CATALOG !== 'undefined') {
+    const catalogItem = PAYMENT_SERVICE_CATALOG.find((i) => i.value === normalized || (typeof resolvePaymentActValue === 'function' && i.value === resolvePaymentActValue(actValue)));
+    if (catalogItem && catalogItem.defaultAmount > 0) return catalogItem.defaultAmount;
+  }
+  const defaultPrices = {
+    consultation: 2000,
+    nasofibroscopie: 3000,
+    endoscopie: 3500,
+    radio: 1500,
+    audiometrie: 2500,
+    lavage: 1500,
+    paracentese: 2500,
+    ablationcorpsetranger: 2000,
+    echo: 3000,
+    ecg: 1500,
+    ecgstress: 2500,
+    holtermapa: 3000,
+    infiltration: 2500,
+    kine: 1500,
+    reduction: 2000,
+    electrotherapie: 1000,
+    massage: 1500,
+    tecartherapie: 2000,
+    ondesdechoc: 2000,
+    mesotherapie: 2500,
+    lasertherapie: 2000,
+    dryneedling: 1500,
+    osteopathie: 2500
+  };
+  return defaultPrices[normalized] || 0;
+}
+
+function onConsultationActsChanged() {
+  const selectedActs = getSelectedConsultationActs();
+  let total = 0;
+  selectedActs.forEach((act) => {
+    total += getConsultationActPrice(act);
+  });
+
+  const grid = document.getElementById('consultation-acts-grid');
+  if (grid) {
+    grid.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      const parentLabel = cb.closest('.checkbox-label') || cb.closest('label');
+      if (parentLabel) {
+        parentLabel.classList.toggle('is-checked', Boolean(cb.checked));
+      }
+    });
+  }
+
+  const mainPriceInput = document.getElementById('consultation-main-price');
+  const priceInput = document.getElementById('consultation-price');
+  if (total > 0) {
+    if (mainPriceInput) mainPriceInput.value = total;
+    if (priceInput) priceInput.value = total;
+    syncConsultationUnpaidAmountFromPrice(false);
+  }
+  syncConsultationPaymentDraftNotes(false);
+}
+
+function onConsultationMainPriceInput(val) {
+  const price = parseFloat(val) || 0;
+  const secondaryPrice = document.getElementById('consultation-price');
+  if (secondaryPrice) secondaryPrice.value = price > 0 ? price : '';
+  syncConsultationUnpaidAmountFromPrice(false);
+  syncConsultationPaymentDraftNotes(false);
+}
+
+function openAddConsultationActModal(initialName = '') {
+  const modal = document.getElementById('modal-add-consultation-act');
+  const nameInput = document.getElementById('new-act-name-input');
+  const priceInput = document.getElementById('new-act-price-input');
+  if (nameInput) {
+    nameInput.value = String(initialName || '').trim();
+  }
+  if (priceInput) {
+    priceInput.value = 2000;
+  }
+  if (typeof showModal === 'function') {
+    showModal('modal-add-consultation-act');
+  }
+  setTimeout(() => {
+    if (nameInput && !nameInput.value) {
+      nameInput.focus();
+    } else if (priceInput) {
+        priceInput.select();
+    }
+  }, 100);
+}
+
+function confirmAddConsultationAct() {
+  const nameInput = document.getElementById('new-act-name-input');
+  const priceInput = document.getElementById('new-act-price-input');
+  const name = String(nameInput?.value || '').trim();
+  const price = Math.max(0, parseFloat(priceInput?.value || '0') || 2000);
+
+  if (!name) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez saisir le nom de l\'acte', 'warning');
+    }
+    nameInput?.focus();
+    return;
+  }
+
+  const actKey = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  customConsultationActsMap[actKey] = { label: name, price };
+  CONSULTATION_ACT_LABELS[actKey] = name;
+  CONSULTATION_ACT_ICONS[actKey] = '';
+
+  const grid = document.getElementById('consultation-acts-grid');
+  if (grid) {
+    const label = document.createElement('label');
+    label.className = 'checkbox-label is-checked';
+    label.id = `label-act-${actKey}`;
+    label.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: #eff6ff; border: 1.5px solid #2563eb; border-radius: 6px; cursor: pointer; min-width: 0; box-sizing: border-box; overflow: hidden;';
+    label.innerHTML = _buildCustomActLabel(actKey, name, price);
+    grid.appendChild(label);
+    // Check the checkbox immediately (added act is checked by default)
+    const cb = label.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = true;
+  }
+
+  saveCustomConsultationActs();
+
+  const searchInput = document.getElementById('consultation-act-search');
+  if (searchInput) searchInput.value = '';
+  if (typeof closeModal === 'function') {
+    closeModal('modal-add-consultation-act');
+  }
+
+  onConsultationActsChanged();
+  if (typeof showNotification === 'function') {
+    showNotification(`Acte "${name}" (${price} DZD) ajouté et sauvegardé`, 'success');
+  }
+}
+
+function openEditConsultationActPriceModal(actKey) {
+  if (!actKey) return;
+  const keyInput = document.getElementById('edit-act-key-input');
+  const nameDisplay = document.getElementById('edit-act-name-display');
+  const priceInput = document.getElementById('edit-act-price-input');
+
+  const actLabel = typeof window.getConsultationActLabel === 'function'
+    ? window.getConsultationActLabel(actKey)
+    : (CONSULTATION_ACT_LABELS[actKey] || actKey);
+  const currentPrice = getConsultationActPrice(actKey);
+
+  if (keyInput) keyInput.value = actKey;
+  if (nameDisplay) nameDisplay.textContent = actLabel;
+  if (priceInput) {
+    priceInput.value = currentPrice;
+  }
+
+  if (typeof showModal === 'function') {
+    showModal('modal-edit-consultation-act');
+  }
+  setTimeout(() => {
+    if (priceInput) {
+      priceInput.focus();
+      priceInput.select();
+    }
+  }, 100);
+}
+
+function confirmEditConsultationActPrice() {
+  const keyInput = document.getElementById('edit-act-key-input');
+  const priceInput = document.getElementById('edit-act-price-input');
+  const actKey = keyInput?.value;
+  const newPrice = Math.max(0, parseFloat(priceInput?.value || '0'));
+
+  if (!actKey) return;
+
+  const actLabel = typeof window.getConsultationActLabel === 'function'
+    ? window.getConsultationActLabel(actKey)
+    : (CONSULTATION_ACT_LABELS[actKey] || actKey);
+
+  customConsultationActsMap[actKey] = {
+    label: actLabel,
+    price: newPrice
+  };
+
+  if (actKey === 'consultation' && typeof cachedSettings !== 'undefined') {
+    cachedSettings.defaultConsultationFee = newPrice;
+  }
+
+  const badge = document.getElementById(`price-badge-${actKey}`);
+  if (badge) {
+    badge.textContent = `${newPrice} DZD`;
+  }
+
+  if (typeof closeModal === 'function') {
+    closeModal('modal-edit-consultation-act');
+  }
+
+  onConsultationActsChanged();
+  if (typeof showNotification === 'function') {
+    showNotification(`Tarif mis à jour pour "${actLabel}" (${newPrice} DZD)`, 'success');
+  }
+}
+
+function filterConsultationActsGrid(query = '') {
+  const normalized = String(query || '').trim().toLowerCase();
+  const grid = document.getElementById('consultation-acts-grid');
+  if (!grid) return;
+  const labels = grid.querySelectorAll('.checkbox-label');
+  labels.forEach((label) => {
+    const text = label.textContent.toLowerCase();
+    if (!normalized || text.includes(normalized)) {
+      label.style.display = 'flex';
+    } else {
+      label.style.display = 'none';
+    }
+  });
+}
+
+function addCustomConsultationActFromSearch() {
+  const searchInput = document.getElementById('consultation-act-search');
+  openAddConsultationActModal(searchInput?.value || '');
+}
+
+window.openAddConsultationActModal = openAddConsultationActModal;
+window.confirmAddConsultationAct = confirmAddConsultationAct;
+window.openEditConsultationActPriceModal = openEditConsultationActPriceModal;
+window.confirmEditConsultationActPrice = confirmEditConsultationActPrice;
+window.filterConsultationActsGrid = filterConsultationActsGrid;
+window.addCustomConsultationActFromSearch = addCustomConsultationActFromSearch;
+
+window.onConsultationActsChanged = onConsultationActsChanged;
+window.onConsultationMainPriceInput = onConsultationMainPriceInput;
+window.addCustomConsultationActFromSearch = addCustomConsultationActFromSearch;
+window.getConsultationActPrice = getConsultationActPrice;
+
 function buildConsultationPaymentRequestDetails() {
   const reason = document.getElementById('consultation-reason')?.value?.trim() || '';
   const treatment = document.getElementById('consultation-treatment')?.value?.trim() || '';
   const notes = document.getElementById('consultation-notes')?.value?.trim() || '';
-  const actLabels = getConsultationActLabels(getSelectedConsultationActs());
+  const selectedActs = getSelectedConsultationActs();
   const consultationPrice = parseFloat(document.getElementById('consultation-price')?.value || '0');
   const requestedAmount = parseFloat(document.getElementById('consultation-unpaid-amount')?.value || '0');
   const dueDate = document.getElementById('consultation-unpaid-duedate')?.value || '';
@@ -211,11 +669,57 @@ function buildConsultationPaymentRequestDetails() {
   const detailLines = [];
   const effectivePrice = consultationPrice > 0 ? consultationPrice : requestedAmount;
 
-  if (actLabels.length) detailLines.push(`Actes sélectionnés: ${actLabels.join(', ')}`);
+  if (selectedActs.length) {
+    detailLines.push('--- Détail des actes réalisés ---');
+    let totalCalculated = 0;
+    selectedActs.forEach((act) => {
+      let label = '';
+      const cb = document.querySelector(`input[name="acts"][value="${act}"]`);
+      if (cb) {
+        const parent = cb.closest('.checkbox-label');
+        const span = parent?.querySelector('.act-name-span') || parent?.querySelector('span');
+        const txt = span?.textContent?.trim();
+        if (txt && !txt.startsWith('custom_')) label = txt;
+      }
+      if (!label && customConsultationActsMap[act]?.label) {
+        label = customConsultationActsMap[act].label;
+      }
+      if (!label && typeof window.getConsultationActLabel === 'function') {
+        const lbl = window.getConsultationActLabel(act);
+        if (lbl && !lbl.startsWith('custom_')) label = lbl;
+      }
+      if (!label || label.startsWith('custom_')) {
+        label = CONSULTATION_ACT_LABELS[act] || '';
+      }
+      if (!label || label.startsWith('custom_')) {
+        try {
+          const raw = localStorage.getItem(CUSTOM_ACTS_STORAGE_KEY) || localStorage.getItem('medcareso_custom_consultation_acts');
+          if (raw) {
+            const saved = JSON.parse(raw);
+            if (saved && saved[act]?.label) label = saved[act].label;
+          }
+        } catch (_) {}
+      }
+      if (!label || label.startsWith('custom_')) label = 'Acte médical';
+
+      const price = getConsultationActPrice(act);
+      if (price > 0) {
+        detailLines.push(`• ${label} : ${price.toLocaleString('fr-DZ')} DZD`);
+        totalCalculated += price;
+      } else {
+        detailLines.push(`• ${label}`);
+      }
+    });
+    if (totalCalculated > 0) {
+      detailLines.push(`Total des actes : ${totalCalculated.toLocaleString('fr-DZ')} DZD`);
+    }
+    detailLines.push('---------------------------------');
+  }
+
   if (reason) detailLines.push(`Motif: ${reason}`);
   if (treatment) detailLines.push(`Ce qui a été fait / avis: ${treatment}`);
   if (notes) detailLines.push(`Notes complémentaires: ${notes}`);
-  if (effectivePrice > 0) detailLines.push(`Prix: ${effectivePrice.toLocaleString('fr-DZ')} DZD`);
+  if (effectivePrice > 0) detailLines.push(`Montant à collecter: ${effectivePrice.toLocaleString('fr-DZ')} DZD`);
   if (requestedAmount > 0 && consultationPrice > 0 && requestedAmount !== consultationPrice) {
     detailLines.push(`Montant demandé: ${requestedAmount.toLocaleString('fr-DZ')} DZD`);
   }
@@ -360,48 +864,6 @@ function wireConsultationPaymentHelpers() {
   autoResizeConsultationPaymentDraftNotes();
 }
 
-const CONSULTATION_ACT_LABELS = typeof window !== 'undefined' && window.CONSULTATION_ACT_META
-  ? Object.fromEntries(Object.entries(window.CONSULTATION_ACT_META).map(([key, meta]) => [key, meta.label]))
-  : {
-      consultation: 'Consultation médicale',
-      ecg: 'ECG de repos',
-      ecgstress: 'ECG d\'effort',
-      echo: 'Échographie',
-      holtermapa: 'Holter / MAPA',
-      kine: 'Séance kiné',
-      reduction: 'Réduction',
-      infiltration: 'Infiltration',
-      electrotherapie: 'Électrothérapie',
-      massage: 'Massage',
-      tecartherapie: 'Tecarthérapie',
-      ondesdechoc: 'Ondes de choc',
-      mesotherapie: 'Mésothérapie',
-      lasertherapie: 'Laser thérapie',
-      dryneedling: 'Dry needling',
-      osteopathie: 'Ostéopathie',
-      other: 'Autre acte'
-    };
-
-const CONSULTATION_ACT_ICONS = {
-  consultation: '🩺',
-  ecg: '🫀',
-  ecgstress: '🏃',
-  echo: '🔬',
-  holtermapa: '📟',
-  kine: '🏃',
-  reduction: '🩹',
-  infiltration: '💉',
-  electrotherapie: '⚡',
-  massage: '✋',
-  tecartherapie: '🔥',
-  ondesdechoc: '🌊',
-  mesotherapie: '💉',
-  lasertherapie: '🔴',
-  dryneedling: '🪡',
-  osteopathie: '🦴',
-  other: '📝'
-};
-
 function parseConsultationActs(rawActs) {
   let acts = [];
   if (Array.isArray(rawActs)) {
@@ -432,10 +894,31 @@ function getSelectedConsultationActs() {
 
 function getConsultationActLabels(rawActs) {
   return parseConsultationActs(rawActs).map((act) => {
-    if (typeof window.getConsultationActLabel === 'function') {
-      return window.getConsultationActLabel(act) || act;
+    const cb = document.querySelector(`input[name="acts"][value="${act}"]`);
+    if (cb) {
+      const parent = cb.closest('.checkbox-label');
+      const span = parent?.querySelector('.act-name-span') || parent?.querySelector('span');
+      const txt = span?.textContent?.trim();
+      if (txt && !txt.startsWith('custom_')) return txt;
     }
-    return CONSULTATION_ACT_LABELS[act] || act;
+    if (customConsultationActsMap[act]?.label) {
+      return customConsultationActsMap[act].label;
+    }
+    if (typeof window.getConsultationActLabel === 'function') {
+      const lbl = window.getConsultationActLabel(act);
+      if (lbl && !lbl.startsWith('custom_')) return lbl;
+    }
+    if (CONSULTATION_ACT_LABELS[act] && !CONSULTATION_ACT_LABELS[act].startsWith('custom_')) {
+      return CONSULTATION_ACT_LABELS[act];
+    }
+    try {
+      const raw = localStorage.getItem(CUSTOM_ACTS_STORAGE_KEY) || localStorage.getItem('medcareso_custom_consultation_acts');
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && saved[act]?.label) return saved[act].label;
+      }
+    } catch (_) {}
+    return String(act).startsWith('custom_') ? 'Acte médical' : (CONSULTATION_ACT_LABELS[act] || act);
   });
 }
 
@@ -453,19 +936,20 @@ function applyConsultationActsSelection(rawActs) {
 
   document.querySelectorAll('input[name="acts"]').forEach((checkbox) => {
     const label = checkbox.closest('.checkbox-label');
-    const isAllowed = allowedActs ? allowedActs.has(checkbox.value) : true;
+    const isCustom = String(checkbox.value).startsWith('custom_');
+    const isAllowed = isCustom || (allowedActs ? allowedActs.has(checkbox.value) : true);
     const labelText = typeof window.getConsultationActLabel === 'function'
       ? window.getConsultationActLabel(checkbox.value)
       : (CONSULTATION_ACT_LABELS[checkbox.value] || checkbox.value);
-    const icon = CONSULTATION_ACT_ICONS[checkbox.value] || '📝';
-    const textSpan = label?.querySelector('span');
+    const textSpan = label?.querySelector('.act-name-span') || label?.querySelector('span');
 
     checkbox.checked = isAllowed && actsToApply.includes(checkbox.value);
     checkbox.disabled = !isAllowed;
     if (label) {
       label.style.display = isAllowed ? 'flex' : 'none';
+      label.classList.toggle('is-checked', Boolean(checkbox.checked));
     }
-    if (textSpan) {
+    if (textSpan && !isCustom) {
       textSpan.textContent = labelText;
     }
   });
@@ -1496,9 +1980,10 @@ function switchTab(tabId) {
             { label: 'Certificats', value: 'tab-certificats' },
             { label: 'Arrêts', value: 'tab-arrets' },
             { label: 'Factures', value: 'tab-factures' },
-            { label: 'Rapports', value: 'tab-rapports' },
-            { label: 'Bon Pour / Faire Svp', value: 'tab-bonpour' },
+            { label: typeof resolveBonPourDocumentTitle === 'function' ? resolveBonPourDocumentTitle() : 'Demande de Bilan', value: 'tab-bonpour' },
             { label: 'Orientations', value: 'tab-orientations' },
+            { label: 'Nasofibroscopies', value: 'tab-nasofibroscopies' },
+            { label: 'Échographies', value: 'tab-echographies' },
           ],
           defaultValue: tabId || 'tab-prescriptions',
           onChange: (value) => switchTab(value),
@@ -1552,6 +2037,8 @@ function switchTab(tabId) {
   if (tabId === 'tab-rapports') loadPatientRapports(currentPatientId);
   if (tabId === 'tab-bonpour') loadPatientBonPour(currentPatientId);
   if (tabId === 'tab-orientations') loadPatientOrientations(currentPatientId);
+  if (tabId === 'tab-nasofibroscopies') loadPatientNasofibroscopies(currentPatientId);
+  if (tabId === 'tab-echographies') loadPatientEchographies(currentPatientId);
   if (tabId === 'tab-attachments') loadPatientAttachments(currentPatientId);
   if (tabId === 'tab-appointments') loadPatientAppointments(currentPatientId);
   if (tabId === 'tab-patient-payments' || tabId === 'tab-facturation') loadPatientPayments(currentPatientId);
@@ -1954,6 +2441,8 @@ async function openNewConsultationModal() {
     paymentDraftNotes.dataset.autoValue = '';
   }
   wireConsultationPaymentHelpers();
+  // Recharger les actes personnalisés (cache local + base de données)
+  loadCustomConsultationActs();
   applyConsultationActsSelection(['consultation']);
   syncConsultationPaymentDraftNotes(true);
   updateConsultationPaymentRequestVisibility();

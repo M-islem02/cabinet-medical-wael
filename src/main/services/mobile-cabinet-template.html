@@ -548,35 +548,44 @@
       </div>
     </section>
 
-    <!-- ================= TAB 5: NOTES & DICTÉE ================= -->
-    <section id="tab-notes" class="section-view">
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">🎙️ Dictée & Note Rapide</span>
-          <span class="badge badge-success">Live Sync</span>
+    <!-- ================= TAB 5: PAIEMENT (JOUR COURANT UNIQUEMENT) ================= -->
+    <section id="tab-payments" class="section-view">
+      <div class="card" style="padding: 14px 16px; margin-bottom: 12px; background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border: none; border-radius: 12px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 11px; opacity: 0.85; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Encaissements du Jour</div>
+            <div id="payments-today-date-label" style="font-size: 14px; font-weight: 700; margin-top: 2px;">Aujourd'hui</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 11px; opacity: 0.85;">Total Encaissé</div>
+            <div id="payments-today-total" style="font-size: 18px; font-weight: 800;">0 DZD</div>
+          </div>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label">Patient</label>
-          <select id="notes-patient-select" class="form-control">
-            <option value="">-- Sélectionner un patient --</option>
-          </select>
+      <!-- Demandes en attente -->
+      <div style="margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13.5px; font-weight: 700; color: #b45309; display: flex; align-items: center; gap: 6px;">
+            <span>⏳</span> Demandes en attente (<span id="payments-pending-count">0</span>)
+          </span>
+          <button class="btn btn-secondary btn-small" onclick="loadTodayPayments()" style="padding: 3px 8px; font-size: 11.5px;">Actualiser</button>
         </div>
+        <div id="payments-pending-list">
+          <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12.5px; background: #ffffff; border-radius: 8px; border: 1px solid var(--border);">Aucune demande en attente</div>
+        </div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label">Note / Compte-rendu</label>
-          <textarea id="notes-text" class="form-control" rows="4" placeholder="Tapez ou utilisez la dictée vocale..."></textarea>
+      <!-- Paiements reçus aujourd'hui -->
+      <div>
+        <div style="margin-bottom: 8px;">
+          <span style="font-size: 13.5px; font-weight: 700; color: #15803d; display: flex; align-items: center; gap: 6px;">
+            <span>✅</span> Paiements reçus aujourd'hui (<span id="payments-received-count">0</span>)
+          </span>
         </div>
-
-        <div style="display: flex; gap: 10px; margin-top: 10px;">
-          <button id="mic-btn" class="btn btn-secondary" onclick="toggleVoiceDictation()" style="flex: 1; height: 42px;">
-            🎙️ Dictée vocale
-          </button>
-          <button class="btn btn-primary" onclick="sendQuickNote()" style="flex: 1; height: 42px;">
-            ✉️ Envoyer au PC
-          </button>
+        <div id="payments-received-list">
+          <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 12.5px; background: #ffffff; border-radius: 8px; border: 1px solid var(--border);">Aucun paiement enregistré aujourd'hui</div>
         </div>
-        <p id="mic-status-label" style="font-size: 11.5px; color: var(--text-muted); text-align: center; margin-top: 6px;"></p>
       </div>
     </section>
   </main>
@@ -599,11 +608,49 @@
       <span class="nav-tab-icon">📷</span>
       <span>Photo</span>
     </button>
-    <button class="nav-tab" data-target="tab-notes" onclick="switchTab('tab-notes')">
-      <span class="nav-tab-icon">🎙️</span>
-      <span>Dictée</span>
+    <button class="nav-tab" data-target="tab-payments" onclick="switchTab('tab-payments')">
+      <span class="nav-tab-icon">💳</span>
+      <span>Paiement</span>
     </button>
   </nav>
+
+  <!-- ================= MODAL VOIR / ENCAISSER PAIEMENT (LECTURE SEULE) ================= -->
+  <div id="modal-payment-view" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-payment-view')">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-payment-view-title">💳 Détail du Paiement</span>
+        <button class="btn-close" onclick="closeModal('modal-payment-view')">✕</button>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Patient</div>
+            <div id="modal-payment-patient" style="font-size: 15px; font-weight: 700; color: #0f172a;">-</div>
+          </div>
+          <span id="modal-payment-status-badge" class="badge badge-warning">En attente</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Acte(s) / Service</div>
+            <div id="modal-payment-service" style="font-size: 13px; font-weight: 600; color: #334155;">-</div>
+          </div>
+          <div>
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Montant</div>
+            <div id="modal-payment-amount" style="font-size: 16px; font-weight: 800; color: #0284c7;">-</div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);">
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">Détail / Actes mentionnés (Lecture seule) :</div>
+          <div id="modal-payment-notes" style="font-size: 12px; color: #475569; white-space: pre-wrap; background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; max-height: 140px; overflow-y: auto; line-height: 1.5;">-</div>
+        </div>
+      </div>
+      <div id="modal-payment-action-container">
+        <button type="button" id="modal-payment-confirm-btn" class="btn btn-hero" onclick="confirmMobilePaymentCollection()">
+          ✅ Confirmer l'encaissement
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ================= MODAL NOUVEAU RDV ================= -->
   <div id="modal-appointment" class="modal-backdrop" onclick="if(event.target===this)closeModal('modal-appointment')">
@@ -843,7 +890,8 @@
       if (targetId === 'tab-agenda') loadAgenda();
       if (targetId === 'tab-waiting') loadWaitingRoom();
       if (targetId === 'tab-patients') searchPatients('');
-      if (targetId === 'tab-camera' || targetId === 'tab-notes') loadPatientDropdowns();
+      if (targetId === 'tab-camera') loadPatientDropdowns();
+      if (targetId === 'tab-payments') loadTodayPayments();
     }
 
     // Language switcher
@@ -1054,8 +1102,8 @@
         const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room');
         const json = await res.json();
         
-        const queue = json.data?.queue || [];
-        const inConsult = json.data?.inConsultation;
+        const queue = (json && json.data && json.data.queue) || [];
+        const inConsult = json && json.data && json.data.inConsultation;
 
         if (sub) {
           sub.textContent = inConsult 
@@ -1111,7 +1159,7 @@
         const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room/call-next', { method: 'POST' });
         const json = await res.json();
         if (json.success) {
-          showToast('🔔 Appel patient : ' + (json.data?.patientName || 'Patient suivant'));
+          showToast('🔔 Appel patient : ' + ((json && json.data && json.data.patientName) || 'Patient suivant'));
           loadWaitingRoom();
         } else {
           showToast(json.error || 'Aucun patient en attente');
@@ -1172,11 +1220,12 @@
           const res = await fetch(url);
           const json = await res.json();
           const list = json.data || [];
+          window.currentMobilePatientsList = list;
           if (!list.length) {
             container.innerHTML = '<div class="card" style="text-align:center; padding:25px; color:var(--text-muted);">Aucun patient trouvé</div>';
             return;
           }
-          container.innerHTML = list.map(function(p) {
+          container.innerHTML = list.map(function(p, idx) {
             const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
             const birth = p.dateOfBirth || p.birthDate;
             const gender = p.gender || '';
@@ -1193,9 +1242,9 @@
               '</div>' +
               (history ? '<div style="font-size:11.5px; color:#b91c1c; background:#fef2f2; padding:4px 8px; border-radius:6px;">⚠️ ' + escapeHTML(history) + '</div>' : '') +
               '<div class="item-actions" style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">' +
-                '<button class="btn btn-secondary btn-small" onclick="selectPatientForCamera(\'' + p.id + '\')">📷 Photo</button>' +
-                '<button class="btn btn-secondary btn-small" onclick="selectPatientForNote(\'' + p.id + '\')">🎙️ Note</button>' +
-                '<button class="btn btn-secondary btn-small" onclick="checkinExistingPatient(\'' + p.id + '\', \'' + escapeHTML(name) + '\', \'' + (p.phone || '') + '\')">📥 Salle d\'attente</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="selectPatientForCamera(\'' + p.id + '\')">📷 Photo</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="selectPatientForNote(\'' + p.id + '\')">🎙️ Note</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="checkinExistingPatientByIndex(' + idx + ')">📥 Salle d\'attente</button>' +
               '</div>' +
             '</div>';
           }).join('');
@@ -1205,9 +1254,12 @@
       }, 250);
     }
 
-    function checkinExistingPatient(patientId, name, phone) {
-      document.getElementById('modal-checkin-name').value = name || '';
-      document.getElementById('modal-checkin-phone').value = phone || '';
+    function checkinExistingPatientByIndex(idx) {
+      const p = window.currentMobilePatientsList && window.currentMobilePatientsList[idx];
+      if (!p) return;
+      const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
+      document.getElementById('modal-checkin-name').value = name;
+      document.getElementById('modal-checkin-phone').value = p.phone || '';
       openModal('modal-checkin');
     }
 
@@ -1362,13 +1414,6 @@
       }, 100);
     }
 
-    function selectPatientForNote(id) {
-      switchTab('tab-notes');
-      setTimeout(function() {
-        document.getElementById('notes-patient-select').value = id;
-      }, 100);
-    }
-
     async function loadPatientDropdowns() {
       try {
         const res = await fetch('/api/mobile/' + TOKEN + '/patients?limit=30');
@@ -1380,84 +1425,311 @@
           }).join('');
 
         const sel1 = document.getElementById('camera-patient-select');
-        const sel2 = document.getElementById('notes-patient-select');
         if (sel1) sel1.innerHTML = options;
-        if (sel2) sel2.innerHTML = options;
       } catch (e) {}
     }
 
-    // ================= 5. DICTÉE VOCALE & NOTES =================
-    function toggleVoiceDictation() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert('La dictée vocale n\'est pas supportée par ce navigateur. Vous pouvez taper directement au clavier.');
-        return;
-      }
+    // ================= 5. SECTION PAIEMENT (JOUR COURANT UNIQUEMENT) =================
+    let pendingPaymentRequestIdToCollect = null;
 
-      if (isRecording) {
-        recognition.stop();
-        return;
-      }
-
-      recognition = new SpeechRecognition();
-      recognition.lang = currentLang === 'ar' ? 'ar-TN' : 'fr-FR';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      const micBtn = document.getElementById('mic-btn');
-      const label = document.getElementById('mic-status-label');
-      const textarea = document.getElementById('notes-text');
-
-      recognition.onstart = function() {
-        isRecording = true;
-        micBtn.classList.add('recording');
-        label.textContent = '🎙️ Écoute en cours... Parlez maintenant';
-      };
-
-      recognition.onresult = function(event) {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        textarea.value = (textarea.value + ' ' + transcript).trim();
-      };
-
-      recognition.onerror = function() {
-        isRecording = false;
-        micBtn.classList.remove('recording');
-        label.textContent = 'Erreur micro. Réessayez.';
-      };
-
-      recognition.onend = function() {
-        isRecording = false;
-        micBtn.classList.remove('recording');
-        label.textContent = 'Dictée terminée. Appuyez pour reprendre.';
-      };
-
-      recognition.start();
+    function formatMoneyDZD(val) {
+      return (Number(val) || 0).toLocaleString('fr-DZ') + ' DZD';
     }
 
-    async function sendQuickNote() {
-      const patientId = document.getElementById('notes-patient-select').value;
-      const text = document.getElementById('notes-text').value;
-      if (!patientId) {
-        alert('Veuillez choisir un patient');
-        return;
+    async function loadTodayPayments() {
+      const pendingContainer = document.getElementById('payments-pending-list');
+      const receivedContainer = document.getElementById('payments-received-list');
+      const pendingCount = document.getElementById('payments-pending-count');
+      const receivedCount = document.getElementById('payments-received-count');
+      const totalAmount = document.getElementById('payments-today-total');
+      const dateLabel = document.getElementById('payments-today-date-label');
+
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/payments');
+        const json = await res.json();
+        if (!json.success || !json.data) return;
+
+        const data = json.data;
+        if (dateLabel && data.today) {
+          const d = new Date(data.today);
+          dateLabel.textContent = !isNaN(d.getTime()) ? d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Aujourd\'hui';
+        }
+
+        if (totalAmount) {
+          totalAmount.textContent = formatMoneyDZD(data.totalReceived || 0);
+        }
+
+        // 1. Pending requests
+        const pendingList = data.pendingRequests || [];
+        window.currentPendingPaymentsList = pendingList;
+        if (pendingCount) pendingCount.textContent = String(pendingList.length);
+
+        if (!pendingList.length) {
+          pendingContainer.innerHTML = '<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; background: #ffffff; border-radius: 8px; border: 1px solid var(--border);">Aucune demande en attente</div>';
+        } else {
+          pendingContainer.innerHTML = pendingList.map(function(item, idx) {
+            let reqData = {};
+            try { reqData = JSON.parse(item.data || '{}'); } catch(_) {}
+            const amount = reqData.amount || 0;
+            const patientName = reqData.patientName || item.title || 'Patient';
+            const service = reqData.service || 'Consultation médicale';
+            const safePatientName = escapeHTML(patientName);
+            const safeService = escapeHTML(service);
+
+            return '<div class="item-card" style="border-left: 4px solid #f59e0b; background: #fffbeb;">' +
+              '<div class="item-top">' +
+                '<span class="item-name" style="font-size: 14.5px; color: #0f172a;">👤 ' + safePatientName + '</span>' +
+                '<span class="badge badge-warning">En attente</span>' +
+              '</div>' +
+              '<div class="item-sub" style="justify-content: space-between; align-items: center; margin-top: 6px;">' +
+                '<span>📋 ' + safeService + '</span>' +
+                '<strong style="font-size: 15px; color: #0284c7;">' + formatMoneyDZD(amount) + '</strong>' +
+              '</div>' +
+              '<div class="item-actions" style="margin-top: 10px;">' +
+                '<button type="button" class="btn btn-primary" onclick="openPendingPaymentByIndex(' + idx + ')" style="width: 100%; height: 36px; font-size: 13px; font-weight: 700; background: #0284c7; border-color: #0284c7;">' +
+                  '💰 Encaisser (' + formatMoneyDZD(amount) + ')' +
+                '</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+
+        // 2. Payments received today
+        const receivedList = data.paymentsToday || [];
+        window.currentReceivedPaymentsList = receivedList;
+        if (receivedCount) receivedCount.textContent = String(receivedList.length);
+
+        if (!receivedList.length) {
+          receivedContainer.innerHTML = '<div style="text-align: center; padding: 18px; color: #94a3b8; font-size: 12.5px; background: #ffffff; border-radius: 8px; border: 1px solid var(--border);">Aucun paiement enregistré aujourd\'hui</div>';
+        } else {
+          receivedContainer.innerHTML = receivedList.map(function(p, idx) {
+            const name = ((p.patientLastName || '') + ' ' + (p.patientFirstName || '')).trim() || 'Patient';
+            const amount = p.amount || 0;
+            const timeStr = p.createdAt ? p.createdAt.slice(11, 16) : '';
+            const service = p.description || 'Paiement';
+            const safeName = escapeHTML(name);
+            const safeService = escapeHTML(service);
+
+            return '<div class="item-card" style="border-left: 4px solid #10b981;">' +
+              '<div class="item-top">' +
+                '<span class="item-name">👤 ' + safeName + '</span>' +
+                '<span class="badge badge-success">Reçu • ' + (timeStr || 'Aujourd\'hui') + '</span>' +
+              '</div>' +
+              '<div class="item-sub" style="justify-content: space-between; align-items: center; margin-top: 6px;">' +
+                '<span>📋 ' + safeService + '</span>' +
+                '<strong style="font-size: 14px; color: #15803d;">' + formatMoneyDZD(amount) + '</strong>' +
+              '</div>' +
+              '<div class="item-actions" style="margin-top: 8px;">' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="openReceivedPaymentByIndex(' + idx + ')" style="width: 100%; height: 32px; font-size: 12px;">' +
+                  '👁️ Voir le détail' +
+                '</button>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+      } catch (e) {
+        console.error('Error loading today payments on mobile:', e);
       }
-      if (!text.trim()) {
-        alert('Veuillez saisir une note');
-        return;
+    }
+
+    function openPendingPaymentByIndex(idx) {
+      const item = window.currentPendingPaymentsList && window.currentPendingPaymentsList[idx];
+      if (!item) return;
+      let reqData = {};
+      try { reqData = JSON.parse(item.data || '{}'); } catch(_) {}
+      openMobilePaymentView(item.id, null, reqData.patientName || item.title || 'Patient', reqData.amount || 0, reqData.service || 'Consultation médicale', reqData.notes || '', false);
+    }
+
+    function openReceivedPaymentByIndex(idx) {
+      const p = window.currentReceivedPaymentsList && window.currentReceivedPaymentsList[idx];
+      if (!p) return;
+      const name = ((p.patientLastName || '') + ' ' + (p.patientFirstName || '')).trim() || 'Patient';
+      openMobilePaymentView(null, p.id, name, p.amount || 0, p.description || 'Paiement', p.notes || '', true);
+    }
+
+    function renderPaymentNotesFormatted(rawNotes) {
+      if (!rawNotes || !rawNotes.trim()) {
+        return '<div style="color: var(--text-muted); font-style: italic; font-size: 12.5px;">Aucune note supplémentaire</div>';
       }
 
-      const res = await fetch('/api/mobile/' + TOKEN + '/quick-note', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patientId: patientId, note: text })
+      const lines = rawNotes.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+      const actLines = [];
+      const otherLines = [];
+      let inActsSection = false;
+
+      lines.forEach(function(line) {
+        if (line.indexOf('Détail des actes réalisés') !== -1) {
+          inActsSection = true;
+          return;
+        }
+        if (line.startsWith('---') || line.startsWith('===') || line.startsWith('___')) {
+          inActsSection = false;
+          return;
+        }
+        if (line.startsWith('Total des actes')) {
+          return;
+        }
+        if (line.startsWith('•') || line.startsWith('-') || inActsSection) {
+          const clean = line.replace(/^[•\-*]\s*/, '');
+          if (clean.indexOf(':') !== -1 || clean.indexOf('DZD') !== -1 || inActsSection) {
+            actLines.push(clean);
+            return;
+          }
+        }
+        otherLines.push(line);
       });
-      const json = await res.json();
-      if (json.success) {
-        showToast('✅ Note transmise au PC');
-        document.getElementById('notes-text').value = '';
+
+      let html = '';
+      if (actLines.length) {
+        html += '<div style="font-weight: 700; font-size: 11.5px; color: #1e293b; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.3px;">📋 Actes réalisés :</div>';
+        html += '<div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">';
+        actLines.forEach(function(actStr) {
+          let actName = actStr;
+          let actPrice = '';
+          if (actStr.indexOf(':') !== -1) {
+            const parts = actStr.split(':');
+            actName = parts[0].trim();
+            actPrice = parts.slice(1).join(':').trim();
+          }
+          if (actName.startsWith('custom_')) {
+            actName = 'Acte médical complémentaire';
+          }
+          const safeName = escapeHTML(actName);
+          const safePrice = escapeHTML(actPrice);
+          html += '<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; background: #ffffff; border: 1.5px solid #0284c7; border-radius: 8px;">' +
+            '<div style="display: flex; align-items: center; gap: 7px; min-width: 0; flex: 1;">' +
+              '<span style="color: #0284c7; font-size: 14px; font-weight: 700;">☑️</span>' +
+              '<span style="font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + safeName + '</span>' +
+            '</div>' +
+            (safePrice ? '<span style="font-size: 11.5px; font-weight: 700; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 5px; white-space: nowrap;">' + safePrice + '</span>' : '') +
+          '</div>';
+        });
+        html += '</div>';
+      }
+
+      if (otherLines.length) {
+        html += '<div style="font-size: 12px; color: #475569; line-height: 1.5; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px;">';
+        otherLines.forEach(function(ol) {
+          html += '<div>' + escapeHTML(ol) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      return html || ('<div style="font-size: 12px; color: #475569;">' + escapeHTML(rawNotes) + '</div>');
+    }
+
+    function openMobilePaymentView(requestId, paymentId, patientName, amount, service, notes, isPaid) {
+      pendingPaymentRequestIdToCollect = requestId || null;
+      document.getElementById('modal-payment-patient').textContent = patientName || 'Patient';
+      document.getElementById('modal-payment-service').textContent = service || 'Consultation médicale';
+      document.getElementById('modal-payment-amount').textContent = formatMoneyDZD(amount || 0);
+      document.getElementById('modal-payment-notes').innerHTML = renderPaymentNotesFormatted(notes || '');
+
+      const badge = document.getElementById('modal-payment-status-badge');
+      const actionContainer = document.getElementById('modal-payment-action-container');
+      const confirmBtn = document.getElementById('modal-payment-confirm-btn');
+
+      if (isPaid) {
+        if (badge) {
+          badge.className = 'badge badge-success';
+          badge.textContent = 'Encaissé (Reçu)';
+        }
+        if (actionContainer) actionContainer.style.display = 'none';
+      } else {
+        if (badge) {
+          badge.className = 'badge badge-warning';
+          badge.textContent = 'En attente d\'encaissement';
+        }
+        if (actionContainer) actionContainer.style.display = 'block';
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = '✅ Confirmer l\'encaissement (' + formatMoneyDZD(amount) + ')';
+        }
+      }
+
+      openModal('modal-payment-view');
+    }
+
+    async function confirmMobilePaymentCollection() {
+      if (!pendingPaymentRequestIdToCollect) return;
+      const btn = document.getElementById('modal-payment-confirm-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Encaissement en cours...';
+      }
+
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/payments/collect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: pendingPaymentRequestIdToCollect, method: 'Espèces' })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Paiement encaissé avec succès !');
+          closeModal('modal-payment-view');
+          pendingPaymentRequestIdToCollect = null;
+          loadTodayPayments();
+        } else {
+          alert(json.error || 'Erreur lors de l\'encaissement');
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '✅ Confirmer l\'encaissement';
+          }
+        }
+      } catch (err) {
+        alert('Erreur de connexion avec le serveur');
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '✅ Confirmer l\'encaissement';
+        }
+      }
+    }
+
+    // Real-Time EventSource (SSE) Connection for Instant Instant Sync
+    let mobileEventSource = null;
+    function connectMobileRealtime() {
+      if (!window.EventSource) return;
+      try {
+        if (mobileEventSource) {
+          mobileEventSource.close();
+        }
+        mobileEventSource = new EventSource('/api/mobile/' + TOKEN + '/events');
+        
+        mobileEventSource.onopen = function() {
+          const liveIndicator = document.querySelector('.live-indicator');
+          if (liveIndicator) {
+            liveIndicator.style.background = 'var(--success)';
+            liveIndicator.title = 'Connecté en temps réel';
+          }
+        };
+
+        mobileEventSource.onmessage = function(e) {
+          try {
+            const data = JSON.parse(e.data || '{}');
+            const eventName = data.event || data.type || '';
+
+            if (eventName.includes('payment') || eventName === 'payment_updated') {
+              loadTodayPayments();
+            }
+            if (eventName.includes('waiting') || eventName === 'waiting_updated') {
+              loadWaitingRoom();
+            }
+            if (eventName.includes('agenda') || eventName.includes('appointment') || eventName === 'agenda_updated') {
+              loadAgenda();
+            }
+          } catch (_) {}
+        };
+
+        mobileEventSource.onerror = function() {
+          const liveIndicator = document.querySelector('.live-indicator');
+          if (liveIndicator) {
+            liveIndicator.style.background = '#f59e0b';
+            liveIndicator.title = 'Reconnexion en cours...';
+          }
+        };
+      } catch (err) {
+        console.warn('Realtime connection error:', err);
       }
     }
 
@@ -1466,14 +1738,44 @@
       const today = new Date().toISOString().split('T')[0];
       const agendaDate = document.getElementById('agenda-date');
       if (agendaDate) agendaDate.value = today;
+      
       loadAgenda();
       loadWaitingRoom();
+      loadTodayPayments();
+      connectMobileRealtime();
+
+      // Fast sync heartbeat
       setInterval(function() {
         const waitingTab = document.getElementById('tab-waiting');
         if (waitingTab && waitingTab.classList.contains('active')) {
           loadWaitingRoom();
         }
-      }, 4000);
+        const paymentsTab = document.getElementById('tab-payments');
+        if (paymentsTab && paymentsTab.classList.contains('active')) {
+          loadTodayPayments();
+        }
+      }, 2500);
+
+      // Instant refresh on phone screen unlock or tab focus
+      window.addEventListener('focus', function() {
+        loadTodayPayments();
+        loadWaitingRoom();
+        loadAgenda();
+        if (!mobileEventSource || mobileEventSource.readyState === 2) {
+          connectMobileRealtime();
+        }
+      });
+
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          loadTodayPayments();
+          loadWaitingRoom();
+          loadAgenda();
+          if (!mobileEventSource || mobileEventSource.readyState === 2) {
+            connectMobileRealtime();
+          }
+        }
+      });
     }());
   </script>
 </body>
