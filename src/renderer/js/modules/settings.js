@@ -189,13 +189,36 @@ function updateDocumentStylePreview() {
   updateHeaderLivePreview();
 }
 
+function getComposedDoctorSpecialty() {
+  const line1 = document.getElementById('doctor-specialty-line1')?.value?.trim() || '';
+  const line2 = document.getElementById('doctor-specialty-line2')?.value?.trim() || '';
+  if (line1 && line2) {
+    return `${line1}\n${line2}`;
+  }
+  if (line1) return line1;
+  if (line2) return line2;
+  return document.getElementById('doctor-specialty')?.value?.trim() || '';
+}
+
+function onDoctorSpecialtyLineInput() {
+  const composed = getComposedDoctorSpecialty();
+  const hiddenEl = document.getElementById('doctor-specialty');
+  if (hiddenEl) hiddenEl.value = composed;
+  updateHeaderLivePreview();
+  if (typeof triggerDocumentSettingsAutoSave === 'function') {
+    triggerDocumentSettingsAutoSave();
+  }
+}
+window.getComposedDoctorSpecialty = getComposedDoctorSpecialty;
+window.onDoctorSpecialtyLineInput = onDoctorSpecialtyLineInput;
+
 function updateHeaderLivePreview() {
   const container = document.getElementById('settings-header-live-preview-box');
   if (!container) return;
 
-  const doctorName = document.getElementById('cabinet-name')?.value?.trim() || cachedSettings?.cabinetName || 'DR. NADIR MALOUM';
-  const doctorSpecialty = document.getElementById('cabinet-specialty')?.value?.trim() || cachedSettings?.cabinetSpecialty || 'ORL ET CHIRURGIE CERVICO-FACIALE\nCHIRURGIE ENDOSCOPIQUE DU NEZ ET DES SINUS';
-  const doctorRPPS = document.getElementById('cabinet-rpps')?.value?.trim() || cachedSettings?.cabinetRPPS || '3149/23';
+  const doctorName = document.getElementById('doctor-name-input')?.value?.trim() || document.getElementById('cabinet-name')?.value?.trim() || cachedSettings?.doctorName || cachedSettings?.cabinetName || 'DR. NADIR MALOUM';
+  const doctorSpecialty = getComposedDoctorSpecialty() || document.getElementById('cabinet-specialty')?.value?.trim() || cachedSettings?.doctorSpecialty || cachedSettings?.cabinetSpecialty || 'ORL ET CHIRURGIE CERVICO-FACIALE\nCHIRURGIE ENDOSCOPIQUE DU NEZ ET DES SINUS';
+  const doctorRPPS = document.getElementById('doctor-rpps')?.value?.trim() || document.getElementById('cabinet-rpps')?.value?.trim() || cachedSettings?.doctorRPPS || cachedSettings?.cabinetRPPS || '3149/23';
   const primaryColor = normalizeHexColor(document.getElementById('document-primary-color')?.value, '#0284c7');
   
   const docNameScale = (Number(document.getElementById('document-doctor-name-scale')?.value) || 120) / 100;
@@ -855,7 +878,25 @@ async function loadSettings() {
     document.getElementById('cabinet-email').value = s.cabinetEmail || '';
     document.getElementById('doctor-name-input').value = s.doctorName || '';
     document.getElementById('doctor-rpps').value = s.doctorRPPS || '';
-    document.getElementById('doctor-specialty').value = s.doctorSpecialty || '';
+    const rawSpecialty = s.doctorSpecialty || '';
+    let specL1 = '';
+    let specL2 = '';
+    if (rawSpecialty.includes('\n')) {
+      const parts = rawSpecialty.split('\n');
+      specL1 = (parts[0] || '').trim();
+      specL2 = (parts.slice(1).join(' ') || '').trim();
+    } else {
+      specL1 = rawSpecialty.trim();
+    }
+    if (document.getElementById('doctor-specialty-line1')) {
+      document.getElementById('doctor-specialty-line1').value = specL1;
+    }
+    if (document.getElementById('doctor-specialty-line2')) {
+      document.getElementById('doctor-specialty-line2').value = specL2;
+    }
+    if (document.getElementById('doctor-specialty')) {
+      document.getElementById('doctor-specialty').value = rawSpecialty;
+    }
     if (document.getElementById('default-consultation-fee')) {
       document.getElementById('default-consultation-fee').value = s.defaultConsultationFee !== undefined && s.defaultConsultationFee !== null ? s.defaultConsultationFee : 2000;
     }
@@ -1058,7 +1099,7 @@ function buildSettingsPayload({
     cabinetEmail: includePractice ? document.getElementById('cabinet-email')?.value?.trim() || '' : (existing.cabinetEmail || ''),
     doctorName: includePractice ? document.getElementById('doctor-name-input')?.value?.trim() || '' : (existing.doctorName || ''),
     doctorRPPS: includePractice ? document.getElementById('doctor-rpps')?.value?.trim() || '' : (existing.doctorRPPS || ''),
-    doctorSpecialty: includePractice ? document.getElementById('doctor-specialty')?.value?.trim() || '' : (existing.doctorSpecialty || ''),
+    doctorSpecialty: includePractice ? getComposedDoctorSpecialty() : (existing.doctorSpecialty || ''),
     defaultConsultationFee: includePractice ? (Number(document.getElementById('default-consultation-fee')?.value) || 2000) : (Number(existing.defaultConsultationFee) || 2000),
     customTreatmentTypes: includePractice ? document.getElementById('custom-treatment-types')?.value?.trim() || '' : (existing.customTreatmentTypes || ''),
     documentColorMode: includePractice ? (document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color') : (existing.documentColorMode === 'bw' ? 'bw' : 'color'),
@@ -1183,9 +1224,9 @@ async function saveSettings() {
     cabinetAddress: document.getElementById('cabinet-address').value,
     cabinetPhone: document.getElementById('cabinet-phone').value,
     cabinetEmail: document.getElementById('cabinet-email').value,
-    doctorName: document.getElementById('doctor-name-input').value,
-    doctorRPPS: document.getElementById('doctor-rpps').value,
-    doctorSpecialty: document.getElementById('doctor-specialty').value,
+    doctorName: document.getElementById('doctor-name-input')?.value || document.getElementById('cabinet-name')?.value || '',
+    doctorRPPS: document.getElementById('doctor-rpps')?.value || '',
+    doctorSpecialty: getComposedDoctorSpecialty(),
     customTreatmentTypes: document.getElementById('custom-treatment-types')?.value || '',
     documentColorMode: document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color',
     documentPrimaryColor: normalizeHexColor(String(document.getElementById('document-primary-color')?.value || '').trim(), '#1a8c7e'),
@@ -1996,7 +2037,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 400);
   };
 
-  ['cabinet-name', 'cabinet-specialty', 'cabinet-rpps', 'document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-doctor-name-scale', 'document-specialty-scale', 'document-meta-scale', 'document-logo-scale', 'document-font-family', 'default-document-page-size', 'document-bonpour-title'].forEach((id) => {
+  ['cabinet-name', 'cabinet-specialty', 'cabinet-rpps', 'doctor-name-input', 'doctor-rpps', 'doctor-specialty-line1', 'doctor-specialty-line2', 'document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-doctor-name-scale', 'document-specialty-scale', 'document-meta-scale', 'document-logo-scale', 'document-font-family', 'default-document-page-size', 'document-bonpour-title'].forEach((id) => {
     const field = document.getElementById(id);
     if (field && !field.dataset.previewBound) {
       field.addEventListener('input', () => {
