@@ -4016,12 +4016,12 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
   const freqs = [125, 250, 500, 1000, 2000, 4000, 8000];
   const dbSteps = [-10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130];
   
-  const width = 310;
-  const height = 240;
-  const marginLeft = 34;
-  const marginRight = 12;
+  const width = 330;
+  const height = 248;
+  const marginLeft = 38;
+  const marginRight = 16;
   const marginTop = 20;
-  const marginBottom = 24;
+  const marginBottom = 26;
   const plotW = width - marginLeft - marginRight;
   const plotH = height - marginTop - marginBottom;
 
@@ -4036,18 +4036,18 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
     const isNormalLine = db === 20;
     const isZeroLine = db === 0;
     const strokeColor = isNormalLine ? '#10b981' : (isZeroLine ? '#000000' : '#e2e8f0');
-    const strokeWidth = isNormalLine ? '1.3' : (isZeroLine ? '1.1' : '0.6');
+    const strokeWidth = isNormalLine ? '1.3' : (isZeroLine ? '1.1' : '0.65');
     const strokeDash = isNormalLine ? '3,3' : 'none';
     gridLines += `<line x1="${marginLeft}" y1="${y}" x2="${width - marginRight}" y2="${y}" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-dasharray="${strokeDash}" />`;
-    gridLines += `<text x="${marginLeft - 4}" y="${y + 3}" font-size="8" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="${isNormalLine ? '#059669' : '#475569'}" text-anchor="end">${db}</text>`;
+    gridLines += `<text x="${marginLeft - 5}" y="${y + 3}" font-size="8" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="${isNormalLine ? '#059669' : '#475569'}" text-anchor="end">${db}</text>`;
   });
 
   // Vertical frequency lines
   freqs.forEach((f, idx) => {
     const x = getX(idx);
-    gridLines += `<line x1="${x}" y1="${marginTop}" x2="${x}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="0.7" />`;
+    gridLines += `<line x1="${x}" y1="${marginTop}" x2="${x}" y2="${height - marginBottom}" stroke="#cbd5e1" stroke-width="0.75" />`;
     const label = f >= 1000 ? `${f / 1000}k` : f;
-    gridLines += `<text x="${x}" y="${height - marginBottom + 12}" font-size="8.5" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="#000000" text-anchor="middle">${label}</text>`;
+    gridLines += `<text x="${x}" y="${height - marginBottom + 13}" font-size="8.5" font-family="system-ui, -apple-system, sans-serif" font-weight="600" fill="#000000" text-anchor="middle">${label}</text>`;
   });
 
   // Intermediate vertical dashed lines
@@ -4128,20 +4128,20 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
   const ptaLabel = pta ? `PTA: ${pta} dB` : '';
 
   return `
-    <div style="flex: 1; min-width: 0; background: transparent; border: 1px solid #000000; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column;">
+    <div style="flex: 1; min-width: 0; background: #ffffff; border: 1.2px solid #000000; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
       <!-- Title Header -->
-      <div style="background: transparent; padding: 4px 8px 3px 8px; border-bottom: 1px solid #000000; display: flex; justify-content: space-between; align-items: center;">
+      <div style="background: #ffffff; padding: 4px 10px 3px 10px; border-bottom: 1px solid #000000; display: flex; justify-content: space-between; align-items: center;">
         <strong style="color: #000000; font-size: 9.8pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em;">${earTitle}</strong>
         ${ptaLabel ? `<strong style="font-size: 8.8pt; color: #000000; font-weight: 700;">${ptaLabel}</strong>` : ''}
       </div>
-      <div style="padding: 3px 4px; display: flex; justify-content: center; background: transparent;">
-        <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: ${width}px; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
+      <div style="padding: 4px 6px; display: flex; justify-content: center; background: #ffffff;">
+        <svg viewBox="0 0 ${width} ${height}" style="width: 100%; max-width: 100%; height: auto; display: block;" xmlns="http://www.w3.org/2000/svg">
           <!-- Graph border & clean background -->
           <rect x="${marginLeft}" y="${marginTop}" width="${plotW}" height="${plotH}" fill="#ffffff" stroke="#000000" stroke-width="1" />
           
           <!-- Axis labels -->
           <text x="${marginLeft - 6}" y="${marginTop - 5}" font-size="8" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">dB</text>
-          <text x="${width - marginRight}" y="${height - 3}" font-size="8" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">Hz</text>
+          <text x="${width - marginRight + 2}" y="${height - 2}" font-size="8" font-family="system-ui, sans-serif" font-weight="700" fill="#000000" text-anchor="end">Hz</text>
           
           <!-- Grid & Markers -->
           ${gridLines}
@@ -4153,7 +4153,7 @@ function generateAudiogramSvg({ ear = 'gauche', ca = {}, co = {}, inconfort = ''
         </svg>
       </div>
       <!-- Legend box -->
-      <div style="background: transparent; border-top: 1px solid #000000; padding: 3px 6px; display: flex; justify-content: center; gap: 12px; font-size: 8pt; color: #000000;">
+      <div style="background: #ffffff; border-top: 1px solid #000000; padding: 3px 6px; display: flex; justify-content: center; gap: 14px; font-size: 8pt; color: #000000;">
         <div style="display: flex; align-items: center; gap: 4px;">
           <span style="display: inline-block; width: 12px; height: 2px; background: ${colorTransmission}; vertical-align: middle;"></span>
           <span style="font-weight: 700; color: ${colorTransmission};">CA (Transmission)</span>
