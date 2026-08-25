@@ -1518,11 +1518,11 @@ async function loadPatientAudiogrammes(patientId, options = {}) {
                   <rect x="40" y="32" width="6" height="10" rx="2" fill="#0284c7"/>
                 </svg>
               </div>
-              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun rapport audiologique enregistré</div>
-              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un rapport d'audiométrie tonale en format A5.</div>
+              <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 4px;">Aucun audiogramme enregistré</div>
+              <div style="font-size: 13px; color: #64748b; margin-bottom: 14px;">Réalisez et imprimez un audiogramme tonal en format A5.</div>
               <button type="button" class="btn btn-primary btn-small" onclick="openAudiogrammeModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1; display: inline-flex; align-items: center; gap: 5px;">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Nouveau Rapport Audiologique
+                Nouvel Audiogramme
               </button>
             </div>
           </td>

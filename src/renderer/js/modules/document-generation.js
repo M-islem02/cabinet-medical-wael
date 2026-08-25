@@ -3816,7 +3816,7 @@ function updateAudiogrammeLivePreview() {
 
   if (typeof buildDoc === 'function') {
     const fullDocHtml = buildDoc({
-      title: 'RAPPORT AUDIOLOGIQUE',
+      title: 'AUDIOGRAMME',
       subtitle: 'Compte-rendu d\'audiométrie tonale',
       dateLabel,
       patient,
@@ -3883,7 +3883,7 @@ async function saveAndPrintAudiogramme() {
   const docPayload = {
     patientId,
     documentType: 'audiogramme',
-    title: 'Rapport Audiologique',
+    title: 'Audiogramme',
     data: {
       date,
       caDroite,

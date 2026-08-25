@@ -4388,7 +4388,7 @@ async function renderAudiogrammeDocument({ patient, data = {}, dateLabel, onEdit
   const pageSize = resolveDocumentPageSize('audiogramme', 'A5');
 
   await openPrintDocument({
-    title: 'RAPPORT AUDIOLOGIQUE',
+    title: 'AUDIOGRAMME',
     subtitle: 'Compte-rendu d\'audiométrie tonale',
     dateLabel,
     patient,
