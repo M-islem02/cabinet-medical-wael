@@ -2076,6 +2076,61 @@ window.closeIntegratedDocumentPreview = closeIntegratedDocumentPreview
 window.printIntegratedDocumentPreview = printIntegratedDocumentPreview
 window.editIntegratedDocumentPreview = editIntegratedDocumentPreview
 
+let currentIntegratedPreviewTool = 'hand';
+
+function setIntegratedPreviewTool(tool) {
+  currentIntegratedPreviewTool = tool === 'arrow' ? 'arrow' : 'hand';
+  const arrowBtn = document.getElementById('preview-tool-arrow');
+  const handBtn = document.getElementById('preview-tool-hand');
+  if (arrowBtn && handBtn) {
+    if (currentIntegratedPreviewTool === 'arrow') {
+      arrowBtn.style.background = '#0284c7';
+      arrowBtn.style.color = '#ffffff';
+      arrowBtn.style.fontWeight = '700';
+      arrowBtn.style.border = '1px solid #0284c7';
+
+      handBtn.style.background = 'transparent';
+      handBtn.style.color = '#475569';
+      handBtn.style.fontWeight = '600';
+      handBtn.style.border = 'none';
+    } else {
+      handBtn.style.background = '#0284c7';
+      handBtn.style.color = '#ffffff';
+      handBtn.style.fontWeight = '700';
+      handBtn.style.border = '1px solid #0284c7';
+
+      arrowBtn.style.background = 'transparent';
+      arrowBtn.style.color = '#475569';
+      arrowBtn.style.fontWeight = '600';
+      arrowBtn.style.border = 'none';
+    }
+  }
+
+  const frame = document.getElementById('integrated-document-preview-frame');
+  if (frame && frame.contentDocument && frame.contentDocument.body) {
+    const doc = frame.contentDocument;
+    if (currentIntegratedPreviewTool === 'hand') {
+      doc.body.style.cursor = 'grab';
+      doc.body.style.userSelect = 'none';
+    } else {
+      doc.body.style.cursor = 'default';
+      doc.body.style.userSelect = 'text';
+    }
+  }
+}
+
+function scrollIntegratedPreview(delta) {
+  const frame = document.getElementById('integrated-document-preview-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.scrollBy({ top: delta, behavior: 'smooth' });
+  }
+}
+
+sharedPrintScope.setIntegratedPreviewTool = setIntegratedPreviewTool;
+sharedPrintScope.scrollIntegratedPreview = scrollIntegratedPreview;
+window.setIntegratedPreviewTool = setIntegratedPreviewTool;
+window.scrollIntegratedPreview = scrollIntegratedPreview;
+
 function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Document médical', printerType = 'standard', printerName = '', duplexMode = 'longEdge', windowFeatures = "width=980,height=1100", onEdit = null } = {}) {
   ensurePreviewMessageBridge()
 
@@ -2096,11 +2151,30 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
         <div style="min-height:56px;padding:10px 14px;border-bottom:1px solid #dbe2ea;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff">
           <strong style="font-size:14px;color:#1f2937">Aperçu - ${escapePrintingHtml(documentTitle)}</strong>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
+            
+            <!-- Sélecteur d'outil : Flèche / Main -->
+            <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:2px;">
+              <button type="button" id="preview-tool-arrow" class="btn btn-secondary btn-small" onclick="setIntegratedPreviewTool('arrow')" title="Mode Curseur / Flèche (Sélection de texte)" style="height:28px;padding:0 8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px;border-radius:4px;background:transparent;border:none;color:#475569;">
+                <span style="font-size:13px;">↖</span> <span>Flèche</span>
+              </button>
+              <button type="button" id="preview-tool-hand" class="btn btn-secondary btn-small" onclick="setIntegratedPreviewTool('hand')" title="Mode Main (Glisser et déplacer la page)" style="height:28px;padding:0 8px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;border-radius:4px;background:#0284c7;border:1px solid #0284c7;color:#ffffff;">
+                <span style="font-size:13px;">✋</span> <span>Main</span>
+              </button>
+            </div>
+
+            <!-- Flèches de défilement -->
+            <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:2px;">
+              <button type="button" class="btn btn-secondary btn-small" onclick="scrollIntegratedPreview(-120)" title="Défiler vers le haut (Flèche Haut)" style="height:28px;width:28px;padding:0;min-width:28px;font-size:12px;font-weight:700;line-height:1;">▲</button>
+              <button type="button" class="btn btn-secondary btn-small" onclick="scrollIntegratedPreview(120)" title="Défiler vers le bas (Flèche Bas)" style="height:28px;width:28px;padding:0;min-width:28px;font-size:12px;font-weight:700;line-height:1;">▼</button>
+            </div>
+
+            <!-- Zoom -->
             <div style="display:flex;align-items:center;gap:4px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:2px 6px;">
               <button type="button" class="btn btn-secondary btn-small" onclick="adjustIntegratedPreviewZoom(-0.1)" title="Zoom arrière" style="height:28px;width:28px;padding:0;min-width:28px;font-size:14px;font-weight:700;line-height:1;">-</button>
               <button type="button" class="btn btn-secondary btn-small" onclick="resetIntegratedPreviewZoom()" id="integrated-preview-zoom-label" title="Réinitialiser zoom" style="height:28px;padding:0 8px;font-size:12px;font-weight:600;min-width:48px;">100%</button>
               <button type="button" class="btn btn-secondary btn-small" onclick="adjustIntegratedPreviewZoom(0.1)" title="Zoom avant" style="height:28px;width:28px;padding:0;min-width:28px;font-size:14px;font-weight:700;line-height:1;">+</button>
             </div>
+
             ${sharedPrintScope.__pendingPreviewEditAction ? '<button type="button" class="btn btn-secondary" onclick="editIntegratedDocumentPreview()">Modifier</button>' : ''}
             <button type="button" class="btn btn-primary" onclick="printIntegratedDocumentPreview()">Imprimer</button>
             <button type="button" class="btn btn-secondary" onclick="closeIntegratedDocumentPreview()">Fermer</button>
@@ -2115,17 +2189,48 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
   if (!previewFrame) return false
   previewFrame.srcdoc = String(html || '')
 
+  const handleKeyNav = (e) => {
+    const step = 80;
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      scrollIntegratedPreview(-step);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      scrollIntegratedPreview(step);
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      scrollIntegratedPreview(-300);
+    } else if (e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault();
+      scrollIntegratedPreview(300);
+    } else if (e.key === 'Escape') {
+      closeIntegratedDocumentPreview();
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyNav);
+
   previewFrame.onload = () => {
     try {
       const doc = previewFrame.contentDocument;
       if (!doc) return;
-      doc.body.style.cursor = 'grab';
+      
+      doc.addEventListener('keydown', handleKeyNav);
+
+      if (currentIntegratedPreviewTool === 'hand') {
+        doc.body.style.cursor = 'grab';
+        doc.body.style.userSelect = 'none';
+      } else {
+        doc.body.style.cursor = 'default';
+        doc.body.style.userSelect = 'text';
+      }
 
       let isDragging = false;
       let startX = 0, startY = 0;
       let sX = 0, sY = 0;
 
       doc.addEventListener('mousedown', (e) => {
+        if (currentIntegratedPreviewTool !== 'hand') return;
         if (['BUTTON', 'INPUT', 'TEXTAREA', 'A'].indexOf(e.target.tagName) !== -1) return;
         isDragging = true;
         startX = e.clientX;
@@ -2137,7 +2242,7 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
       });
 
       doc.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
+        if (!isDragging || currentIntegratedPreviewTool !== 'hand') return;
         e.preventDefault();
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
@@ -2147,8 +2252,13 @@ function openPreparedPrintWindow(html, { pageSize = 'A5', documentTitle = 'Docum
       const stopDrag = () => {
         if (isDragging) {
           isDragging = false;
-          doc.body.style.cursor = 'grab';
-          doc.body.style.userSelect = '';
+          if (currentIntegratedPreviewTool === 'hand') {
+            doc.body.style.cursor = 'grab';
+            doc.body.style.userSelect = 'none';
+          } else {
+            doc.body.style.cursor = 'default';
+            doc.body.style.userSelect = 'text';
+          }
         }
       };
 
