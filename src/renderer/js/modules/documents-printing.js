@@ -809,18 +809,20 @@ function generateHtmlDocument(bodyContent, options = {}) {
           flex: 1;
           display: flex;
           flex-direction: column;
-          align-items: flex-end;
+          align-items: flex-start;
           justify-content: center;
-          text-align: right;
+          text-align: left;
           gap: 1.2px;
+          padding-left: 4mm;
         }
         .professional-patient-info .patient-line-item {
           display: flex;
-          justify-content: flex-end;
+          justify-content: flex-start;
           align-items: baseline;
           gap: 4px;
           font-size: ${layout.metaFont};
           line-height: 1.3;
+          white-space: nowrap;
         }
         .logo-circle {
           width: 100%;

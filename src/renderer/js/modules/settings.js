@@ -267,7 +267,7 @@ function updateHeaderLivePreview() {
         </div>
 
         <!-- Right: Patient Info -->
-        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 1.5px; font-size: ${metaFont}; min-width: 0;">
+        <div style="text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1.5px; font-size: ${metaFont}; min-width: 0; padding-left: 8px;">
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">NOM :</span> <span style="font-weight: 700; color: #000000;">BENALI</span></div>
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">PRÉNOM :</span> <span style="font-weight: 700; color: #000000;">KARIM</span></div>
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">ÂGE :</span> <span style="font-weight: 700; color: #000000;">34 ans</span></div>
