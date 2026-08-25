@@ -2306,42 +2306,34 @@ async function printBonPour() {
     }
 
     const detailsLines = details.split('\n').filter(line => line.trim());
-    let detailsHtml = `<div class="exam-list" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px; font-size:${bodyFontSize}pt;">`;
+    let detailsHtml = '<div class="bonpour-exam-list" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px 10px; margin-bottom: 6px;">';
     detailsLines.forEach((line) => {
-      const cleanLine = line.replace(/^[-?]\s*/, '').trim();
-      detailsHtml += `<div class="exam-item">- ${escapeHTML(cleanLine)}</div>`;
+      const cleanLine = line.replace(/^[-•]\s*/, '').trim();
+      detailsHtml += `<div class="bonpour-exam-item" style="font-size: ${Math.min(bodyFontSize, 9.8)}pt; padding: 1.5px 0; line-height: 1.35; color: #000000; break-inside: avoid; word-break: break-word;">- ${escapeHTML(cleanLine)}</div>`;
     });
     detailsHtml += '</div>';
 
-    const frontPageContent = `
-      <div class="content-box">
-        <h3>Examens demandes</h3>
+    const pageContent = `
+      <div class="content-box bon-pour-shell">
         <style>
-          .exam-item { font-size: ${Math.min(bodyFontSize, 10.4)}pt; padding: 2px 0; line-height: 1.4; break-inside: avoid; word-break: break-word; }
-          .exam-list { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px; align-items:start; }
-          .bonpour-body-text { font-size: ${bodyFontSize}pt; line-height: 1.6; }
+          .bonpour-section-header { font-size: 10pt; font-weight: 750; color: #0284c7; text-transform: uppercase; margin: 6px 0 3px 0; }
+          .bonpour-body-text { font-size: ${Math.min(bodyFontSize, 9.8)}pt; line-height: 1.4; color: #000000; }
         </style>
+        <div class="bonpour-section-header" style="margin-top: 0;">Examens demandés :</div>
         ${detailsHtml}
+        ${indication ? `
+          <div class="bonpour-section-header">Indication clinique :</div>
+          <div class="bonpour-body-text">${escapeHTML(indication)}</div>
+        ` : ''}
+        ${notes ? `
+          <div class="bonpour-section-header">Notes complémentaires :</div>
+          <div class="bonpour-body-text">${escapeHTML(notes)}</div>
+        ` : ''}
       </div>
     `;
 
-    const backPageContent = `
-      ${indication ?`
-        <div class="content-box">
-          <h3>Indication clinique</h3>
-          <div class="content-text bonpour-body-text">${escapeHTML(indication)}</div>
-        </div>
-      ` : ''}
-      ${notes ?`
-        <div class="content-box">
-          <h3>Notes complementaires</h3>
-          <div class="content-text bonpour-body-text">${escapeHTML(notes)}</div>
-        </div>
-      ` : ''}
-    `;
-
     const editIdEl = document.getElementById('bonpour-edit-id');
-    const existingDocId = editIdEl ?editIdEl.value : null;
+    const existingDocId = editIdEl ? editIdEl.value : null;
     const savePayload = {
       patientId,
       documentType: 'bonpour',
@@ -2359,7 +2351,7 @@ async function printBonPour() {
 
     if (existingDocId) {
       savePayload.id = existingDocId;
-      console.log('?Updating existing Bon Pour:', existingDocId);
+      console.log('✏️ Updating existing Bon Pour:', existingDocId);
     }
 
     const saveResult = await window.api.document.save(savePayload);
@@ -2374,14 +2366,13 @@ async function printBonPour() {
     }
 
     closeModal('modal-bonpour');
-    showNotification('Bon pour enregistre, impression en cours', 'success');
+    showNotification('Bon pour enregistré, impression en cours', 'success');
     void runBonPourPrintPipeline({
       patientId,
       title: type,
       dateLabel: formatDocumentDateLabel(date),
       patient,
-      frontPageContent,
-      backPageContent
+      pageContent
     });
   } catch (error) {
     console.error('Error printing bon pour:', error);
@@ -2760,18 +2751,19 @@ window.renderOrientationPreview = renderOrientationPreview;
 
 document.addEventListener('DOMContentLoaded', initializeDocumentPreviewBindings);
 
-async function runBonPourPrintPipeline({ patientId, title, dateLabel, patient, frontPageContent, backPageContent }) {
+async function runBonPourPrintPipeline({ patientId, title, dateLabel, patient, pageContent, frontPageContent, backPageContent }) {
   try {
     const printFn = (typeof sharedPrintScope !== 'undefined' && sharedPrintScope.openA5PrintDocument)
-      ?sharedPrintScope.openA5PrintDocument
-      : (typeof openA5PrintDocument === 'function' ?openA5PrintDocument : null);
+      ? sharedPrintScope.openA5PrintDocument
+      : (typeof openA5PrintDocument === 'function' ? openA5PrintDocument : null);
 
     if (!printFn) {
       throw new Error("Fonction d'impression non disponible");
     }
 
-    const pages = [frontPageContent];
-    if (String(backPageContent || '').trim()) {
+    const content = pageContent || frontPageContent;
+    const pages = [content];
+    if (backPageContent && String(backPageContent).trim()) {
       pages.push(backPageContent);
     }
 

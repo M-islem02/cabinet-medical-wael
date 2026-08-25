@@ -2452,7 +2452,7 @@ function getPatientDocumentSpecialtyConfig() {
       '- FT3, FT4',
       '- Sérologie (HIV, Syphilis, VHB, VHC)'
     ].join('\n'),
-    indication: 'Bilan complet standard'
+    indication: ''
   };
 
   const configs = {

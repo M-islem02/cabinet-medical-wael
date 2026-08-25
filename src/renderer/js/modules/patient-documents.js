@@ -733,19 +733,35 @@ async function reprintBonPour(documentId) {
       console.error('Error loading patient:', e);
     }
     
-    // Format the details as a single ordered list to avoid cropped first-row items
+    // Format the details as a 3-column grid on a single page
     const details = payload.details || '';
+    const indication = payload.indication || '';
+    const notes = payload.notes || '';
     const detailsLines = details.split('\n').filter(line => line.trim());
 
-    let detailsHtml = '<div class="exam-list" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px 10px;">';
+    let detailsHtml = '<div class="bonpour-exam-list" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px 10px; margin-bottom: 6px;">';
     detailsLines.forEach(line => {
-      detailsHtml += `<div class="exam-item">${escapeHTML(line.trim())}</div>`;
+      const cleanLine = line.replace(/^[-•]\s*/, '').trim();
+      detailsHtml += `<div class="bonpour-exam-item" style="font-size: 9.8pt; padding: 1.5px 0; line-height: 1.35; color: #000000; break-inside: avoid; word-break: break-word;">- ${escapeHTML(cleanLine)}</div>`;
     });
     detailsHtml += '</div>';
 
     const pageContent = `
       <div class="content-box bon-pour-shell">
-        <div class="content-text bon-pour-text">${detailsHtml}</div>
+        <style>
+          .bonpour-section-header { font-size: 10pt; font-weight: 750; color: #0284c7; text-transform: uppercase; margin: 6px 0 3px 0; }
+          .bonpour-body-text { font-size: 9.8pt; line-height: 1.4; color: #000000; }
+        </style>
+        <div class="bonpour-section-header" style="margin-top: 0;">Examens demandés :</div>
+        ${detailsHtml}
+        ${indication ? `
+          <div class="bonpour-section-header">Indication clinique :</div>
+          <div class="bonpour-body-text">${escapeHTML(indication)}</div>
+        ` : ''}
+        ${notes ? `
+          <div class="bonpour-section-header">Notes complémentaires :</div>
+          <div class="bonpour-body-text">${escapeHTML(notes)}</div>
+        ` : ''}
       </div>
     `;
 
