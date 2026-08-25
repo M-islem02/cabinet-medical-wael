@@ -6707,23 +6707,23 @@
 
     <!-- Modal: Compte-rendu d'Audiogramme (ORL) -->
     <div id="modal-audiogramme" class="modal medical-document-modal">
-        <div class="modal-content modal-large" style="max-width: 1560px; width: min(1560px, 98vw); max-height: 94vh; height: 94vh; display: flex; flex-direction: column;">
+        <div class="modal-content modal-large" style="max-width: 1680px; width: min(1680px, 98.5vw); max-height: 95vh; height: 95vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                 <h2 id="audio-modal-title" style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
                     Compte-rendu d'Audiogramme
                 </h2>
                 <button class="close-btn" onclick="closeModal('modal-audiogramme')" style="color: #ffffff; background: none; border: none; font-size: 22px; cursor: pointer;">&times;</button>
             </div>
-            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow-y: auto; flex: 1; min-height: 0;">
+            <div class="modal-body document-modal-body" style="padding: 14px 20px; overflow: hidden; flex: 1; min-height: 0;">
                 <form id="audiogramme-form" onsubmit="event.preventDefault(); saveAndPrintAudiogramme();" style="height: 100%; display: flex; flex-direction: column;">
                     <input type="hidden" id="audio-patient-id">
                     <input type="hidden" id="audio-doc-id">
 
                     <!-- 2-COLUMN SPLIT WORKSTATION: Inputs on Left, Live Preview on Right -->
-                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: minmax(580px, 1.28fr) minmax(460px, 1fr); gap: 18px; flex: 1; min-height: 0;">
+                    <div class="document-workstation-layout" style="display: grid; grid-template-columns: minmax(580px, 1.25fr) minmax(520px, 1.1fr); gap: 18px; flex: 1; min-height: 0; height: 100%;">
                         
                         <!-- Colonne Gauche : Formulaire de Saisie Scrollable -->
-                        <div class="document-workstation-form" style="overflow-y: auto; padding-right: 8px; display: flex; flex-direction: column; gap: 10px; max-height: calc(94vh - 145px);">
+                        <div class="document-workstation-form" style="overflow-y: auto; padding-right: 8px; display: flex; flex-direction: column; gap: 10px; max-height: calc(95vh - 145px);">
                             
                             <!-- Patient Banner & Date -->
                             <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -6893,22 +6893,16 @@
                                 </div>
                             </div>
 
-                            <!-- 3. Observations -->
-                            <div class="form-group" style="margin-bottom: 0;">
-                                <label style="font-weight: 750; font-size: 12px; color: #334155; margin-bottom: 4px;">OBSERVATIONS</label>
-                                <textarea id="audio-observations" class="form-control" rows="2" placeholder="Description des courbes, degré de perte auditive, symétrie..." style="font-size: 12.5px; resize: vertical; min-height: 48px;"></textarea>
-                            </div>
-
-                            <!-- 4. Conclusion -->
+                            <!-- 3. Conclusion -->
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-weight: 800; font-size: 12.5px; color: #0284c7; margin-bottom: 4px; display: block;">CONCLUSION</label>
-                                <textarea id="audio-conclusion" class="form-control" rows="2" placeholder="Synthèse de l'audiogramme et conduite à tenir..." style="font-size: 13px; font-weight: 600; font-style: italic; line-height: 1.4; resize: vertical; min-height: 52px;"></textarea>
+                                <textarea id="audio-conclusion" class="form-control" rows="3" placeholder="Synthèse de l'audiogramme et conduite à tenir..." style="font-size: 13px; font-weight: 600; line-height: 1.4; resize: vertical; min-height: 60px;"></textarea>
                             </div>
                         </div>
 
                         <!-- Colonne Droite : Aperçu Visuel Feuille A4 Réaliste -->
-                        <div class="document-workstation-preview" style="display: flex; flex-direction: column; min-height: 0; max-height: calc(94vh - 145px);">
-                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                        <div class="document-workstation-preview" style="display: flex; flex-direction: column; min-height: 0; max-height: calc(95vh - 145px); height: 100%;">
+                            <div class="form-group document-preview-card" style="margin: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-shrink: 0;">
                                     <label style="font-weight: 750; font-size: 13px; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
                                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0284c7" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -6916,7 +6910,7 @@
                                     </label>
                                     <span style="font-size: 11px; font-weight: 600; color: #0284c7; background: #e0f2fe; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;">Mise à jour instantanée</span>
                                 </div>
-                                <div id="audio-live-preview-sheet" class="document-live-preview" style="flex: 1; min-height: 420px; background: #475569; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.12);"></div>
+                                <div id="audio-live-preview-sheet" class="document-live-preview" style="flex: 1; height: 100%; min-height: 0; background: #475569; border: 1.5px solid #cbd5e1; border-radius: 6px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.12);"></div>
                             </div>
                         </div>
                     </div>

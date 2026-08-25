@@ -4316,14 +4316,6 @@ function buildAudiogrammeBodyHtml(data = {}) {
         </div>
       </div>
 
-      <!-- Observations -->
-      ${observations ? `
-        <div class="audio-item">
-          <div class="audio-item-title">OBSERVATIONS :</div>
-          <div class="audio-item-content">${escapePrintingHtml(observations)}</div>
-        </div>
-      ` : ''}
-
       <!-- Conclusion -->
       <div class="audio-conclusion-section">
         <div class="audio-conclusion-header">CONCLUSION :</div>

@@ -1590,8 +1590,9 @@ window.fitDocumentPreviewA5 = fitDocumentPreviewA5;
 function buildFittedPreviewHtml(html) {
   const fitBlock = `
     <style>
-      html, body { overflow: auto !important; width: 100% !important; min-width: 0 !important; background: transparent !important; margin: 0; padding: 0; cursor: grab; }
+      html, body { overflow: hidden !important; width: 100% !important; height: 100% !important; min-width: 0 !important; background: transparent !important; margin: 0; padding: 0; cursor: grab; box-sizing: border-box; }
       body.is-grabbing { cursor: grabbing !important; user-select: none !important; }
+      body.has-scroll { overflow: auto !important; }
       .page { margin-left: auto !important; margin-right: auto !important; transform-origin: top center !important; box-shadow: 0 6px 22px rgba(15, 23, 42, 0.18) !important; transition: transform 0.1s ease-out !important; }
       .preview-zoom-bar {
         position: fixed;
@@ -1653,10 +1654,20 @@ function buildFittedPreviewHtml(html) {
           var pw = page.offsetWidth || 500;
           var ph = page.scrollHeight || page.offsetHeight || 650;
           if (pw <= 0 || ph <= 0) return;
-          baseScale = Math.min(window.innerWidth / pw, (window.innerHeight - 20) / ph, 1);
+          baseScale = Math.min((window.innerWidth - 8) / pw, (window.innerHeight - 8) / ph, 1);
           var effectiveScale = userZoom !== null ? userZoom : baseScale;
           page.style.transform = 'scale(' + effectiveScale + ')';
-          document.body.style.minHeight = Math.ceil(ph * effectiveScale + 40) + 'px';
+          
+          if (userZoom !== null && userZoom > baseScale) {
+            document.body.classList.add('has-scroll');
+            document.body.style.minHeight = Math.ceil(ph * effectiveScale + 20) + 'px';
+          } else {
+            document.body.classList.remove('has-scroll');
+            document.body.style.minHeight = '100%';
+            document.body.style.overflow = 'hidden';
+            window.scrollTo(0, 0);
+          }
+
           var lbl = document.getElementById('__zoomLabel');
           if (lbl) {
             lbl.textContent = userZoom !== null ? Math.round(userZoom * 100) + '%' : 'Fit';
@@ -1716,7 +1727,7 @@ function buildFittedPreviewHtml(html) {
           if (userZoom === null) __fitPreviewPage();
         });
 
-        [0, 60, 250, 600].forEach(function (d) { setTimeout(__fitPreviewPage, d); });
+        [0, 50, 150, 400].forEach(function (d) { setTimeout(__fitPreviewPage, d); });
       })();
     <\/script>
   `;

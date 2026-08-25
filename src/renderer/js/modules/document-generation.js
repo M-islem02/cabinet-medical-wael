@@ -3658,7 +3658,6 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
   const tgEl = document.getElementById('audio-type-gauche');
   const idEl = document.getElementById('audio-inconfort-droite');
   const igEl = document.getElementById('audio-inconfort-gauche');
-  const obsEl = document.getElementById('audio-observations');
   const cclEl = document.getElementById('audio-conclusion');
 
   if (existingData) {
@@ -3668,7 +3667,6 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
     if (tgEl) tgEl.value = existingData.typeSurditeGauche || 'Normale';
     if (idEl) idEl.value = existingData.inconfortDroite || '';
     if (igEl) igEl.value = existingData.inconfortGauche || '';
-    if (obsEl) obsEl.value = existingData.observations || '';
     if (cclEl) cclEl.value = existingData.conclusion || '';
   } else {
     if (modalTitle) modalTitle.textContent = 'Compte-rendu d\'Audiogramme';
@@ -3677,7 +3675,6 @@ async function openAudiogrammeModal(patientId, documentId = null, existingData =
     if (tgEl) tgEl.value = 'Normale';
     if (idEl) idEl.value = '';
     if (igEl) igEl.value = '';
-    if (obsEl) obsEl.value = '';
     if (cclEl) cclEl.value = 'Audiométrie tonale dans les limites de la normale bilatérale.';
   }
 
@@ -3697,7 +3694,7 @@ function bindAudiogrammeLiveInputs() {
     'audio-date',
     'audio-type-droite', 'audio-type-gauche',
     'audio-inconfort-droite', 'audio-inconfort-gauche',
-    'audio-observations', 'audio-conclusion'
+    'audio-conclusion'
   ];
   AUDIO_FREQUENCIES.forEach(f => {
     ids.push(`audio-cad-${f}`, `audio-cod-${f}`, `audio-cag-${f}`, `audio-cog-${f}`);
@@ -3722,7 +3719,6 @@ function updateAudiogrammeLivePreview() {
   const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
   const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
   const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
-  const observations = document.getElementById('audio-observations')?.value || '';
   const conclusion = document.getElementById('audio-conclusion')?.value || '';
 
   const caDroite = {};
@@ -3769,7 +3765,6 @@ function updateAudiogrammeLivePreview() {
     inconfortGauche,
     typeSurditeDroite,
     typeSurditeGauche,
-    observations,
     conclusion
   };
 
@@ -3831,7 +3826,6 @@ async function saveAndPrintAudiogramme() {
   const typeSurditeGauche = document.getElementById('audio-type-gauche')?.value || 'Normale';
   const inconfortDroite = document.getElementById('audio-inconfort-droite')?.value || '';
   const inconfortGauche = document.getElementById('audio-inconfort-gauche')?.value || '';
-  const observations = document.getElementById('audio-observations')?.value || '';
   const conclusion = document.getElementById('audio-conclusion')?.value || '';
 
   const caDroite = {};
@@ -3870,7 +3864,6 @@ async function saveAndPrintAudiogramme() {
       inconfortGauche,
       typeSurditeDroite,
       typeSurditeGauche,
-      observations,
       conclusion
     }
   };
