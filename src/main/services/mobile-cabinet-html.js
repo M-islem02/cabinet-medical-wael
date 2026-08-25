@@ -17,8 +17,8 @@ try {
   console.error('Error reading mobile cabinet template:', err);
 }
 
-export function renderMobileCabinetHtml(shareData = {}) {
-  const token = shareData.token || '';
+export function renderMobileCabinetHtml(shareData = {}, tokenOverride = '') {
+  const token = tokenOverride || shareData.token || '';
   const cabinetName = String(shareData.cabinetName || 'Cabinet Médical').replace(/"/g, '&quot;');
   const doctorName = String(shareData.doctorName || 'Médecin').replace(/"/g, '&quot;');
 
@@ -28,7 +28,7 @@ export function renderMobileCabinetHtml(shareData = {}) {
     } catch (_) {}
   }
 
-  return templateHtml
+  return (templateHtml || '')
     .replaceAll('__CABINET_NAME__', cabinetName)
     .replaceAll('__DOCTOR_NAME__', doctorName)
     .replaceAll('__TOKEN__', token);

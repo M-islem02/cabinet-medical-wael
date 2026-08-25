@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Gestionnaire IPC pour la configuration des packages client
  * PhysioCare - SystÃ¨me de Packages
  */
@@ -19,19 +19,16 @@ import {
 const PACKAGE_DEFINITIONS = {
   basic: {
     name: 'Pack Basique',
-    description: 'Pour mÃ©decin solo',
+    description: 'Pour médecin solo',
     maxDoctors: 1,
     maxAssistants: 0,
     features: {
       prescriptions: true,
       waitingRoom: true,
-      dailySummary: true,
+      dailySummary: false,
       statistics: true,
       inventory: true,
-      kineStaff: false,
-      rehabilitation: false,
-      dentistry: false,
-      cardiology: false,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -45,19 +42,16 @@ const PACKAGE_DEFINITIONS = {
   },
   standard: {
     name: 'Pack Standard',
-    description: 'MÃ©decin + Assistante',
+    description: 'Médecin + Assistante',
     maxDoctors: 1,
     maxAssistants: 1,
     features: {
       prescriptions: true,
       waitingRoom: true,
-      dailySummary: true,
+      dailySummary: false,
       statistics: true,
       inventory: true,
-      kineStaff: false,
-      rehabilitation: false,
-      dentistry: false,
-      cardiology: false,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -71,19 +65,16 @@ const PACKAGE_DEFINITIONS = {
   },
   professional: {
     name: 'Pack Pro + IA',
-    description: 'MÃ©decin + IA (chat et rapports)',
+    description: 'Médecin + IA (chat et rapports)',
     maxDoctors: 1,
     maxAssistants: 1,
     features: {
       prescriptions: true,
       waitingRoom: true,
-      dailySummary: true,
+      dailySummary: false,
       statistics: true,
       inventory: true,
-      kineStaff: true,
-      rehabilitation: true,
-      dentistry: true,
-      cardiology: true,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -96,11 +87,13 @@ const PACKAGE_DEFINITIONS = {
     basePrice: 105000
   },
   custom: {
-    name: 'Pack PersonnalisÃ©',
-    description: 'Choisissez vos fonctionnalitÃ©s',
+    name: 'Pack Personnalisé',
+    description: 'Choisissez vos fonctionnalités',
     maxDoctors: 1,
     maxAssistants: 0,
-    features: {},
+    features: {
+      orl: true
+    },
     basePrice: 0
   }
 };
@@ -108,9 +101,7 @@ const PACKAGE_DEFINITIONS = {
 const OPTION_PRICES = {
   doctor: 60000,
   assistant: 15000,
-  rehabilitation: 12000,
-  dentistry: 12000,
-  cardiology: 12000,
+  orl: 0,
   aiReports: 10000,
   aiChatbot: 8000,
   afterSalesSupport: 0,
@@ -133,11 +124,11 @@ function getEnabledSpecialtiesFromConfig(config = {}) {
 
 function sanitizePackageConfig(rawConfig = {}) {
   const enabledSpecialties = parseEnabledSpecialties(rawConfig.enabledSpecialties, rawConfig);
-  const safeEnabledSpecialties = enabledSpecialties.length ? enabledSpecialties : ['general'];
-  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || safeEnabledSpecialties[0] || 'general');
+  const safeEnabledSpecialties = enabledSpecialties.length ? enabledSpecialties : ['orl'];
+  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || safeEnabledSpecialties[0] || 'orl');
   const activeSpecialty = safeEnabledSpecialties.includes(requestedSpecialty)
     ? requestedSpecialty
-    : (safeEnabledSpecialties[0] || 'general');
+    : (safeEnabledSpecialties[0] || 'orl');
 
   const rawCabinetType = String(rawConfig.cabinetType || '').toLowerCase();
   const cabinetType = rawCabinetType === 'singulier' || rawCabinetType === 'single'
@@ -149,10 +140,7 @@ function sanitizePackageConfig(rawConfig = {}) {
     enabledSpecialties: safeEnabledSpecialties,
     activeSpecialty,
     cabinetType,
-    featureRehabilitation: safeEnabledSpecialties.includes('rehabilitation'),
-    featureKineStaff: safeEnabledSpecialties.includes('rehabilitation'),
-    featureCardiology: safeEnabledSpecialties.includes('cardiology'),
-    featureDentistry: safeEnabledSpecialties.includes('dentistry')
+    featureORL: safeEnabledSpecialties.includes('orl')
   };
 }
 
@@ -200,11 +188,8 @@ function calculateTotalFromConfig(config) {
   if (config.featureRehabilitation || config.featureKineStaff) {
     total += OPTION_PRICES.rehabilitation;
   }
-  if (config.featureDentistry) {
-    total += OPTION_PRICES.dentistry;
-  }
-  if (config.featureCardiology) {
-    total += OPTION_PRICES.cardiology;
+  if (config.featureORL && OPTION_PRICES.orl) {
+    total += OPTION_PRICES.orl;
   }
   if (config.featureAiReports) {
     total += OPTION_PRICES.aiReports;
@@ -299,20 +284,17 @@ export function handlePackageEvents() {
       const commonEntries = [
         ['clientName', normalizedConfig.clientName],
         ['packageType', normalizedConfig.packageType || 'basic'],
-        ['activeSpecialty', normalizedConfig.activeSpecialty || 'general'],
+        ['activeSpecialty', normalizedConfig.activeSpecialty || 'orl'],
         ['cabinetType', finalCabinetType],
-        ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['general'])],
+        ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['orl'])],
         ['maxDoctors', normalizedConfig.maxDoctors || 1],
         ['maxAssistants', normalizedConfig.maxAssistants || 0],
         ['featurePrescriptions', toBool(normalizedConfig.featurePrescriptions ?? true)],
         ['featureWaitingRoom', toBool(normalizedConfig.featureWaitingRoom ?? true)],
-        ['featureDailySummary', toBool(normalizedConfig.featureDailySummary ?? true)],
+        ['featureDailySummary', toBool(normalizedConfig.featureDailySummary ?? false)],
         ['featureStatistics', toBool(normalizedConfig.featureStatistics ?? true)],
         ['featureInventory', toBool(normalizedConfig.featureInventory ?? true)],
-        ['featureKineStaff', toBool(normalizedConfig.featureKineStaff)],
-        ['featureRehabilitation', toBool(normalizedConfig.featureRehabilitation)],
-        ['featureDentistry', toBool(normalizedConfig.featureDentistry)],
-        ['featureCardiology', toBool(normalizedConfig.featureCardiology)],
+        ['featureORL', toBool(normalizedConfig.featureORL ?? true)],
         ['featureMedicalImaging', toBool(normalizedConfig.featureMedicalImaging ?? true)],
         ['featureDebts', toBool(normalizedConfig.featureDebts ?? true)],
         ['featureCalendar', toBool(normalizedConfig.featureCalendar ?? true)],
@@ -326,8 +308,7 @@ export function handlePackageEvents() {
         ['priceAssistant', OPTION_PRICES.assistant],
         ['pricePrescriptions', 0],
         ['priceMultiPC', OPTION_PRICES.multiPC],
-        ['priceDentistry', OPTION_PRICES.dentistry],
-        ['priceCardiology', OPTION_PRICES.cardiology],
+        ['priceORL', OPTION_PRICES.orl || 0],
         ['priceAiReports', OPTION_PRICES.aiReports],
         ['priceAiChatbot', OPTION_PRICES.aiChatbot],
         ['priceAfterSales', OPTION_PRICES.afterSalesSupport],

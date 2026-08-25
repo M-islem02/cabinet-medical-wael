@@ -6,6 +6,7 @@ import { ipcMain } from 'electron';
 import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
+import { broadcastRealtimeEvent } from '../realtime-server.js';
 
 const toNullIfEmpty = (val) => (val === '' || val === undefined ? null : val);
 const toNumberOrNull = (val) => {
@@ -148,6 +149,14 @@ export function handlePaymentEvents() {
           now
         ]
       );
+
+      broadcastRealtimeEvent({
+        type: 'payment:created',
+        id,
+        paymentId: id,
+        patientId: paymentData.patientId,
+        amount: paymentData.amount
+      });
 
       return { success: true, id };
       });
@@ -462,6 +471,7 @@ export function handlePaymentEvents() {
         ]
       );
 
+      broadcastRealtimeEvent({ type: 'payment:updated', id: paymentId, paymentId });
       return { success: true };
       });
     } catch (error) {
@@ -492,6 +502,7 @@ export function handlePaymentEvents() {
       }
 
       await run('DELETE FROM payments WHERE id = ?', [paymentId]);
+      broadcastRealtimeEvent({ type: 'payment:deleted', id: paymentId, paymentId });
       return { success: true };
       });
     } catch (error) {

@@ -83,6 +83,20 @@ function buildPaginationMeta(total, page, pageSize) {
   };
 }
 
+// Recherche insensible aux accents : « Benali » trouve « Bénâli », « Ali » trouve « Âli »…
+const SEARCH_ACCENTED_CHARS = 'àáâãäçèéêëìíîïñòóôõöùúûüýÿ';
+const SEARCH_PLAIN_CHARS = 'aaaaaceeeeiiiinooooouuuuyy';
+
+function accentInsensitiveSql(expr) {
+  return `translate(lower(${expr}), '${SEARCH_ACCENTED_CHARS}', '${SEARCH_PLAIN_CHARS}')`;
+}
+
+function buildPatientSearchClause(fields, searchTerm) {
+  const pattern = `%${searchTerm}%`;
+  const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ${accentInsensitiveSql('?')}`);
+  return { clause: `(${comparisons.join(' OR ')})`, pattern };
+}
+
 function normalizePatientListRequest(payload = null) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return {
@@ -311,9 +325,9 @@ export function handlePatientEvents() {
 
       if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
       const scope = await resolvePatientScope(userContext, payload?.doctorId);
-      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId) {
-        whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
-        params.push(scope.doctorId);
+      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId && scope.cabinetMode && !userContext.isTest) {
+        whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?) OR patients.primaryDoctorId = ? OR patients.createdByUserId = ? OR (patients.primaryDoctorId IS NULL AND NOT EXISTS (SELECT 1 FROM patient_practitioners pp2 WHERE pp2.patientId = patients.id)))');
+        params.push(scope.doctorId, scope.doctorId, scope.doctorId);
       }
 
       const whereClause = whereParts.length ? ` WHERE ${whereParts.join(' AND ')}` : '';
@@ -473,14 +487,17 @@ export function handlePatientEvents() {
       const scope = await resolvePatientScope(userContext, request.doctorId);
       const isTestUser = String(userContext.username || '').trim().toLowerCase().includes('test') || userContext.role === 'test';
       if (userContext.isPractitioner && scope.doctorId && scope.cabinetMode && !isTestUser) {
-        whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = p.id AND pp.practitionerId = ?) OR p.primaryDoctorId = ? OR p.createdByUserId = ?)');
+        whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = p.id AND pp.practitionerId = ?) OR p.primaryDoctorId = ? OR p.createdByUserId = ? OR (p.primaryDoctorId IS NULL AND NOT EXISTS (SELECT 1 FROM patient_practitioners pp2 WHERE pp2.patientId = p.id)))');
         params.push(scope.doctorId, scope.doctorId, scope.doctorId);
       }
 
       if (request.searchTerm) {
-        const searchPattern = `%${request.searchTerm}%`;
-        whereParts.push('(p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.email ILIKE ? OR p.phone ILIKE ? OR p.socialSecurityNumber ILIKE ?)');
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+        const { clause, pattern } = buildPatientSearchClause(
+          ['p.firstName', 'p.lastName', 'p.email', 'p.phone', 'p.socialSecurityNumber'],
+          request.searchTerm
+        );
+        whereParts.push(clause);
+        params.push(pattern, pattern, pattern, pattern, pattern);
       }
 
       if (scope.cabinetMode && request.medecinId) {
@@ -622,8 +639,11 @@ export function handlePatientEvents() {
       const params = [];
       const whereParts = [];
       if (request.searchTerm) {
-        const pattern = `%${request.searchTerm}%`;
-        whereParts.push('(p.firstName ILIKE ? OR p.lastName ILIKE ? OR p.phone ILIKE ? OR p.email ILIKE ?)');
+        const { clause, pattern } = buildPatientSearchClause(
+          ['p.firstName', 'p.lastName', 'p.phone', 'p.email'],
+          request.searchTerm
+        );
+        whereParts.push(clause);
         params.push(pattern, pattern, pattern, pattern);
       }
 
@@ -742,17 +762,26 @@ export function handlePatientEvents() {
         return { success: true, data: [] };
       }
 
-      const searchPattern = `%${request.searchTerm}%`;
+      const { clause: searchClause, pattern: searchPattern } = buildPatientSearchClause(
+        [
+          'firstName',
+          'lastName',
+          `(COALESCE(lastName, '') || ' ' || COALESCE(firstName, ''))`,
+          `(COALESCE(firstName, '') || ' ' || COALESCE(lastName, ''))`,
+          'email',
+          'phone',
+          'socialSecurityNumber'
+        ],
+        request.searchTerm
+      );
       const userContext = getCurrentUserContext();
 
       if (userContext.isSuperAdmin) {
         return { success: false, error: 'Accès refusé' };
       }
 
-      const whereParts = [
-        `(firstName ILIKE ? OR lastName ILIKE ? OR (COALESCE(lastName, '') || ' ' || COALESCE(firstName, '')) ILIKE ? OR (COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) ILIKE ? OR email ILIKE ? OR phone ILIKE ? OR socialSecurityNumber ILIKE ?)`
-      ];
-      const params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern];
+      const whereParts = [searchClause];
+      const params = Array.from({ length: 7 }, () => searchPattern);
       const scope = await resolvePatientScope(userContext, request.doctorId);
       if (userContext.isPractitioner && scope.doctorId && request.doctorId) {
         whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');

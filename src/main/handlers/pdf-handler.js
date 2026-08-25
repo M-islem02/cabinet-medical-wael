@@ -406,7 +406,11 @@ export function setupPDFHandlers() {
         { label: 'Sorties', value: allowedOutings ? 'Autorisées' : 'Interdites' }
       ]);
 
-      const baseSentence = `Je soussigné(e) Dr ${settings?.doctorName || 'Docteur'} certifie que l'état de santé de ${patient.firstName} ${patient.lastName} nécessite un arrêt de travail du ${startMoment.format('DD/MM/YYYY')} au ${endMoment.format('DD/MM/YYYY')} inclus.`;
+      const isSingleDay = !startMoment.isSame(endMoment, 'day') ? false : true;
+      const periodLabel = isSingleDay
+        ? `le ${startMoment.format('DD/MM/YYYY')}`
+        : `du ${startMoment.format('DD/MM/YYYY')} au ${endMoment.format('DD/MM/YYYY')} inclus`;
+      const baseSentence = `Je soussigné(e) Dr ${settings?.doctorName || 'Docteur'} certifie que l'état de santé de ${patient.firstName} ${patient.lastName} nécessite un arrêt de travail ${periodLabel}.`;
       const additional = [];
       if (diagnosis) additional.push(`Motif médical : ${diagnosis}`);
       if (cim10Code) additional.push(`Code CIM-10 : ${cim10Code}`);

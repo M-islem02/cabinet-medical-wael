@@ -538,13 +538,15 @@ async function handleMobileWaitingCheckin(body = {}) {
     );
     const ticketCode = `A-${String(Number(countRow?.count || 0) + 1).padStart(3, '0')}`;
     const id = uuidv4();
+    const isUrgent = Boolean(body.isUrgent || body.priority === 1 || body.priority === '1');
+    const priority = isUrgent ? 1 : 0;
 
     await run(
       `INSERT INTO waiting_room (
          id, patientId, arrivalTime, reason, status, priority,
          assignedTo, publicTicketCode, arrivalSource, createdAt, updatedAt
-       ) VALUES (?, ?, ?, ?, 'waiting', 0, ?, ?, 'mobile-app', ?, ?)`,
-      [id, patientId, now, reason, assignedTo, ticketCode, now, now]
+       ) VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?, 'mobile-app', ?, ?)`,
+      [id, patientId, now, reason, priority, assignedTo, ticketCode, now, now]
     );
 
     broadcastRealtimeEvent({
@@ -553,11 +555,13 @@ async function handleMobileWaitingCheckin(body = {}) {
       patientId,
       assignedTo,
       ticketCode,
-      title: 'Nouvelle entrée en salle d\'attente',
-      message: `${fullName || 'Patient'} (${ticketCode}) est en salle d\'attente`
+      priority,
+      isUrgent,
+      title: isUrgent ? '🚨 URGENCE en salle d\'attente' : 'Nouvelle entrée en salle d\'attente',
+      message: isUrgent ? `🚨 URGENCE : ${fullName || 'Patient'} (${ticketCode})` : `${fullName || 'Patient'} (${ticketCode}) est en salle d\'attente`
     });
 
-    return { success: true, data: { id, ticketCode } };
+    return { success: true, data: { id, ticketCode, priority, isUrgent } };
   } catch (err) {
     console.error('Error in handleMobileWaitingCheckin:', err);
     return { success: false, error: err.message };
@@ -2016,6 +2020,31 @@ async function requestHandler(req, res) {
         return;
       }
 
+      if (action === 'waiting-room' && (subAction === 'toggle-priority' || subAction === 'priority') && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        if (body.id) {
+          const entry = await queryOne('SELECT id, priority, patientId FROM waiting_room WHERE id = ?', [body.id]);
+          if (!entry) {
+            sendJson(res, 404, { success: false, error: 'Patient introuvable en salle d\'attente' });
+            return;
+          }
+          const newPriority = entry.priority ? 0 : 1;
+          await run('UPDATE waiting_room SET priority = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [newPriority, body.id]);
+          broadcastRealtimeEvent({
+            type: 'waiting-room:update',
+            id: body.id,
+            priority: newPriority,
+            isUrgent: newPriority === 1,
+            title: newPriority === 1 ? '🚨 Patient passé en URGENCE' : 'Patient repassé en file normale',
+            message: newPriority === 1 ? 'Un patient a été placé en priorité urgence' : 'Priorité normale rétablie'
+          });
+          sendJson(res, 200, { success: true, priority: newPriority, isUrgent: newPriority === 1 });
+        } else {
+          sendJson(res, 400, { success: false, error: 'ID manquant' });
+        }
+        return;
+      }
+
       if (action === 'waiting-room' && subAction === 'checkin' && req.method === 'POST') {
         const body = await readJsonBody(req);
         const result = await handleMobileWaitingCheckin(body);
@@ -2023,26 +2052,85 @@ async function requestHandler(req, res) {
         return;
       }
 
+      if (action === 'stats' && req.method === 'GET') {
+        const today = moment().format('YYYY-MM-DD');
+        const startOfDay = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const endOfDay = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+        const [patientsCountRow, appointmentsTodayRow, waitingCountRow, revenueRow, pendingPayRow] = await Promise.all([
+          queryOne('SELECT COUNT(*) as count FROM patients').catch(() => ({ count: 0 })),
+          queryOne('SELECT COUNT(*) as count FROM appointments WHERE appointmentDateTime BETWEEN ? AND ?', [startOfDay, endOfDay]).catch(() => ({ count: 0 })),
+          queryOne('SELECT COUNT(*) as count FROM waiting_room WHERE DATE(arrivalTime) = ? AND status IN ("waiting", "in-consultation")', [today]).catch(() => ({ count: 0 })),
+          query('SELECT amount FROM payments WHERE DATE(paymentDate) = ? OR createdAt BETWEEN ? AND ?', [today, startOfDay, endOfDay]).catch(() => []),
+          queryOne('SELECT COUNT(*) as count FROM user_notifications WHERE type = "payment_request" AND isRead = 0').catch(() => ({ count: 0 }))
+        ]);
+
+        const totalRevenue = (revenueRow || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+        sendJson(res, 200, {
+          success: true,
+          data: {
+            totalPatients: Number(patientsCountRow?.count) || 0,
+            appointmentsToday: Number(appointmentsTodayRow?.count) || 0,
+            waitingCount: Number(waitingCountRow?.count) || 0,
+            revenueToday: totalRevenue,
+            pendingPayments: Number(pendingPayRow?.count) || 0,
+            cabinetName: settings?.cabinetName || 'Cabinet médical',
+            doctorName: settings?.doctorName || ''
+          }
+        });
+        return;
+      }
+
+      if (action === 'patients' && subAction && subAction !== 'list' && subAction !== 'create' && req.method === 'GET') {
+        const patientId = subAction;
+        const patient = await queryOne('SELECT * FROM patients WHERE id = ?', [patientId]);
+        if (!patient) {
+          sendJson(res, 404, { success: false, error: 'Patient introuvable' });
+          return;
+        }
+
+        const [consultations, appointments, payments, attachments] = await Promise.all([
+          query('SELECT * FROM consultations WHERE patientId = ? ORDER BY consultationDate DESC, createdAt DESC LIMIT 50', [patientId]).catch(() => []),
+          query('SELECT * FROM appointments WHERE patientId = ? ORDER BY appointmentDateTime DESC LIMIT 30', [patientId]).catch(() => []),
+          query('SELECT * FROM payments WHERE patientId = ? ORDER BY paymentDate DESC, createdAt DESC LIMIT 50', [patientId]).catch(() => []),
+          query('SELECT id, patientId, fileName, fileType, fileSize, category, createdAt FROM patient_attachments WHERE patientId = ? ORDER BY createdAt DESC LIMIT 30', [patientId]).catch(() => [])
+        ]);
+
+        sendJson(res, 200, {
+          success: true,
+          data: {
+            patient,
+            consultations: consultations || [],
+            appointments: appointments || [],
+            payments: payments || [],
+            attachments: attachments || []
+          }
+        });
+        return;
+      }
+
       if (action === 'patients' && (!subAction || subAction === 'list') && req.method === 'GET') {
         const q = String(url.searchParams.get('q') || '').trim();
-        const limit = Number(url.searchParams.get('limit')) || 8;
+        const limit = Math.min(Number(url.searchParams.get('limit')) || 60, 200);
         let rows = [];
         if (q) {
           const pattern = `%${q}%`;
           rows = await query(
-            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies
+            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies, bloodType, socialSecurityNumber
              FROM patients
              WHERE (LOWER(COALESCE(firstName, '') || ' ' || COALESCE(lastName, '')) LIKE LOWER(?))
                 OR (LOWER(COALESCE(lastName, '') || ' ' || COALESCE(firstName, '')) LIKE LOWER(?))
                 OR (phone LIKE ?)
                 OR (LOWER(firstName) LIKE LOWER(?))
                 OR (LOWER(lastName) LIKE LOWER(?))
+                OR (socialSecurityNumber LIKE ?)
              ORDER BY lastName ASC, firstName ASC LIMIT ?`,
-            [pattern, pattern, pattern, pattern, pattern, limit]
+            [pattern, pattern, pattern, pattern, pattern, pattern, limit]
           );
         } else {
           rows = await query(
-            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies
+            `SELECT id, firstName, lastName, phone, dateOfBirth, gender, address, email, medicalHistory, allergies, bloodType, socialSecurityNumber
              FROM patients
              ORDER BY createdAt DESC LIMIT ?`,
             [limit]

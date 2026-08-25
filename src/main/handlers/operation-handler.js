@@ -26,7 +26,9 @@ function getOperationContext() {
   };
 }
 
+let tablesEnsured = false;
 async function ensureOperationsTables() {
+  if (tablesEnsured) return;
   try {
     await run(`
       CREATE TABLE IF NOT EXISTS operations (
@@ -89,6 +91,7 @@ async function ensureOperationsTables() {
     await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paidAmount NUMERIC(10,2) DEFAULT 0`);
     await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paymentStatus VARCHAR(30) DEFAULT 'unpaid'`);
     await run(`ALTER TABLE operations ADD COLUMN IF NOT EXISTS paymentId VARCHAR(36)`);
+    tablesEnsured = true;
   } catch (e) {
     console.warn('ensureOperationsTables notice:', e.message);
   }
@@ -100,7 +103,8 @@ export function handleOperationEvents() {
   // ── 1. CATALOGUE D'ACTES & TYPES D'OPÉRATIONS ─────────────────────────────
   ipcMain.handle('operation:getTypesCatalog', async (event, specialty = null) => {
     try {
-      let sql = `SELECT * FROM operation_types_catalog WHERE isActive = TRUE`;
+      await ensureOperationsTables();
+      let sql = `SELECT * FROM operation_types_catalog WHERE (isActive IS TRUE OR isActive = TRUE)`;
       const params = [];
       if (specialty) {
         sql += ` AND (specialty = ? OR specialty = 'general')`;
@@ -117,6 +121,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:saveTypeCatalog', async (event, data) => {
     try {
+      await ensureOperationsTables();
       const ctx = getOperationContext();
       if (!ctx.canManage) return { success: false, error: 'Accès non autorisé' };
       const id = data.id || `op_custom_${Date.now()}`;
@@ -206,6 +211,7 @@ export function handleOperationEvents() {
   // ── 2. CRUD OPÉRATIONS ───────────────────────────────────────────────────
   ipcMain.handle('operation:create', async (event, data) => {
     try {
+      await ensureOperationsTables();
       const ctx = getOperationContext();
       if (!data.patientId) return { success: false, error: 'Patient requis' };
       if (!data.operationType) return { success: false, error: 'Type d\'opération requis' };
@@ -356,6 +362,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:getAll', async (event, filters = {}) => {
     try {
+      await ensureOperationsTables();
       let sql = `
         SELECT o.*,
                p.firstName AS patientFirstName,
@@ -415,6 +422,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:getByPatient', async (event, patientId) => {
     try {
+      await ensureOperationsTables();
       if (!patientId) return { success: true, data: [] };
       const rows = await query(
         `SELECT o.*, p.firstName AS patientFirstName, p.lastName AS patientLastName
@@ -433,6 +441,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:getById', async (event, id) => {
     try {
+      await ensureOperationsTables();
       if (!id) return { success: false, error: 'ID requis' };
       let row = await queryOne(
         `SELECT o.*,
@@ -473,6 +482,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:update', async (event, id, data) => {
     try {
+      await ensureOperationsTables();
       const existing = await queryOne(`SELECT * FROM operations WHERE id = ?`, [id]);
       if (!existing) return { success: false, error: 'Opération introuvable' };
 
@@ -490,7 +500,13 @@ export function handleOperationEvents() {
       const clinicalNotes = data.clinicalNotes !== undefined ? toNull(data.clinicalNotes) : existing.clinicalNotes;
       const postOpInstructions = data.postOpInstructions !== undefined ? toNull(data.postOpInstructions) : existing.postOpInstructions;
       const cost = data.cost !== undefined ? toNum(data.cost) : existing.cost;
-      const paymentStatus = data.paymentStatus || existing.paymentStatus;
+      let paidAmount = data.paidAmount !== undefined ? toNum(data.paidAmount) : (Number(existing.paidAmount) || 0);
+      let paymentStatus = data.paymentStatus || existing.paymentStatus;
+      if (paymentStatus === 'paid' && cost > 0 && paidAmount < cost) {
+        paidAmount = cost;
+      } else if (cost > 0 && paidAmount >= cost) {
+        paymentStatus = 'paid';
+      }
       const equipmentUsed = Array.isArray(data.equipmentUsed) ? JSON.stringify(data.equipmentUsed) : (data.equipmentUsed !== undefined ? toNull(data.equipmentUsed) : existing.equipmentUsed);
       const consumablesUsed = Array.isArray(data.consumablesUsed) ? JSON.stringify(data.consumablesUsed) : (data.consumablesUsed !== undefined ? toNull(data.consumablesUsed) : existing.consumablesUsed);
 
@@ -499,17 +515,17 @@ export function handleOperationEvents() {
          SET operationDate = ?, operationTime = ?, operationType = ?, operationCode = ?, category = ?,
              practitionerId = ?, practitionerName = ?, room = ?, status = ?, anesthesiaType = ?,
              durationMinutes = ?, clinicalNotes = ?, postOpInstructions = ?, equipmentUsed = ?,
-             consumablesUsed = ?, cost = ?, paymentStatus = ?, updatedAt = ?
+             consumablesUsed = ?, cost = ?, paidAmount = ?, paymentStatus = ?, updatedAt = ?
          WHERE id = ?`,
         [
           operationDate, operationTime, operationType, operationCode, category,
           practitionerId, practitionerName, room, status, anesthesiaType,
           durationMinutes, clinicalNotes, postOpInstructions, equipmentUsed,
-          consumablesUsed, cost, paymentStatus, nowSql(), id
+          consumablesUsed, cost, paidAmount, paymentStatus, nowSql(), id
         ]
       );
 
-      return { success: true, data: { id, operationType, cost, status } };
+      return { success: true, data: { id, operationType, cost, status, paidAmount, paymentStatus } };
     } catch (error) {
       console.error('Error in operation:update:', error);
       return { success: false, error: error.message };
@@ -530,6 +546,7 @@ export function handleOperationEvents() {
 
   ipcMain.handle('operation:recordPayment', async (event, data) => {
     try {
+      await ensureOperationsTables();
       const { operationId, amount, paymentMethod, paymentDate, notes } = data || {};
       if (!operationId) return { success: false, error: 'operationId requis' };
       const op = await queryOne(`SELECT * FROM operations WHERE id = ?`, [operationId]);
@@ -538,7 +555,7 @@ export function handleOperationEvents() {
       const cost = Number(op.cost) || 0;
       const alreadyPaid = Number(op.paidAmount) || 0;
       const remaining = Math.max(0, cost - alreadyPaid);
-      if (cost > 0 && alreadyPaid >= cost) {
+      if ((cost > 0 && alreadyPaid >= cost) || op.paymentStatus === 'paid') {
         return { success: false, error: 'Opération déjà réglée en totalité — aucun paiement supplémentaire possible' };
       }
       const payAmount = Number(amount) > 0 ? Math.min(Number(amount), remaining) : remaining;

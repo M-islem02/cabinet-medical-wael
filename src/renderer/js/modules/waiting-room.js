@@ -234,12 +234,15 @@ async function addToWaitingRoom(event) {
     const today = new Date().toISOString().split('T')[0];
     const fullArrivalTime = `${today}T${arrivalTime || '09:00'}:00`;
 
+    const isUrgent = Boolean(document.getElementById('waiting-is-urgent')?.checked);
     const result = await window.api.waitingRoom.add({
       patientId,
       assignedTo,
       arrivalTime: fullArrivalTime,
       reason,
       notes,
+      isUrgent,
+      priority: isUrgent ? 1 : 0,
       createdBy: currentUserId || localStorage.getItem('currentUserId')
     });
 
@@ -386,25 +389,29 @@ function renderWaitingItem(item, status, position = null) {
   const arrivalTime = new Date(item.arrivalTime);
   const timeStr = `${String(arrivalTime.getHours()).padStart(2, '0')}:${String(arrivalTime.getMinutes()).padStart(2, '0')}`;
   const actions = getWaitingActions(item, status);
+  const isUrgent = Boolean(item.priority > 0 || item.isUrgent);
   const statusLabel = status === 'in-consultation'
     ? 'En consultation'
     : status === 'completed'
       ? 'Terminé'
-      : 'En attente';
+      : (isUrgent ? '🚨 URGENCE' : 'En attente');
   
   // Calculate patients before this one
   const patientsBefore = position ? position - 1 : 0;
   const patientsBeforeText = patientsBefore === 0 
-    ? 'Premier en file'
+    ? (isUrgent ? '🚨 Prioritaire (Urgence)' : 'Premier en file')
     : `${patientsBefore} patient${patientsBefore > 1 ? 's' : ''} avant`;
   
+  const urgentBorder = isUrgent ? 'border-left: 4px solid #ef4444; background: #fff1f2;' : '';
+  
   return `
-    <article class="waiting-item status-${status}">
+    <article class="waiting-item status-${status} ${isUrgent ? 'waiting-item-urgent' : ''}" style="${urgentBorder}">
       <div class="waiting-item-main">
-        ${position ? `<div class="waiting-position">#${position}</div>` : '<div class="waiting-position waiting-position-status">•</div>'}
+        ${position ? `<div class="waiting-position" style="${isUrgent ? 'background:#ef4444; color:#fff; font-weight:800;' : ''}">#${position}</div>` : '<div class="waiting-position waiting-position-status">•</div>'}
         <div class="waiting-patient-block">
-          <div class="waiting-patient-row">
-            <strong class="waiting-patient-name">${item.lastName} ${item.firstName}</strong>
+          <div class="waiting-patient-row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <strong class="waiting-patient-name" style="${isUrgent ? 'color:#b91c1c;' : ''}">${item.lastName} ${item.firstName}</strong>
+            ${isUrgent ? `<span class="waiting-status-chip" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; font-weight:800; font-size:11px; padding:2px 8px; border-radius:12px;">🚨 URGENCE</span>` : ''}
             <span class="waiting-status-chip waiting-status-chip-${status}">${statusLabel}</span>
           </div>
           <div class="waiting-metadata">
@@ -412,11 +419,11 @@ function renderWaitingItem(item, status, position = null) {
             <span>${item.reason || 'Consultation'}</span>
             ${item.assignedDoctorName ? `<span>Dr. ${item.assignedDoctorName}</span>` : ''}
           </div>
-          ${status === 'waiting' && position ? `<div class="waiting-queue-note ${patientsBefore === 0 ? 'first' : ''}">${patientsBeforeText}</div>` : ''}
+          ${status === 'waiting' && position ? `<div class="waiting-queue-note ${patientsBefore === 0 || isUrgent ? 'first' : ''}" style="${isUrgent ? 'color:#dc2626; font-weight:700;' : ''}">${patientsBeforeText}</div>` : ''}
           ${item.notes ? `<div class="waiting-note">${item.notes}</div>` : ''}
         </div>
       </div>
-      <div class="waiting-actions">
+      <div class="waiting-actions" style="display:flex; align-items:center; gap:6px;">
         ${actions}
       </div>
     </article>
@@ -427,22 +434,32 @@ function renderWaitingItem(item, status, position = null) {
  * Get action buttons for waiting item based on user role
  * 
  * WORKFLOW:
- * - Assistant: Add patient only (no actions on waiting/in-consultation patients)
- * - Doctor: Consulter → Terminer (list stays as history for the day)
+ * - Assistant: Add patient only (no actions on waiting/in-consultation patients) + Urgence toggle
+ * - Doctor: Consulter → Terminer + Urgence toggle
  */
 function getWaitingActions(item, status) {
   // Get role from global or localStorage
   const role = typeof currentUserRole !== 'undefined' ? currentUserRole : (localStorage.getItem('currentUserRole') || 'doctor');
   const isDoctor = role === 'doctor' || role === 'dentist' || role === 'admin';
   const isAssistant = role === 'assistant';
+  const isUrgent = Boolean(item.priority > 0 || item.isUrgent);
   
   if (status === 'waiting') {
+    const urgencyToggleBtn = `
+      <button type="button" class="btn btn-small" onclick="toggleWaitingRoomUrgency('${item.id}')" title="${isUrgent ? 'Retirer la priorité urgence' : 'Placer en URGENCE (Passe en priorité)'}" style="height: 30px; padding: 0 9px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; border: 1.5px solid ${isUrgent ? '#ef4444' : '#cbd5e1'}; background: ${isUrgent ? '#fee2e2' : '#ffffff'}; color: ${isUrgent ? '#b91c1c' : '#475569'}; cursor: pointer;">
+        ${isUrgent ? '🚨 Urgent' : '⚡ Urgence'}
+      </button>
+    `;
+
     if (isAssistant) {
-      // Assistant: no actions on waiting patients (just adds them)
-      return `<span class="waiting-inline-status waiting-inline-status-queue">En attente</span>`;
+      return `
+        ${urgencyToggleBtn}
+        <span class="waiting-inline-status waiting-inline-status-queue">En attente</span>
+      `;
     }
-    // Doctor: can start consultation
+    // Doctor: can start consultation + toggle urgency
     return `
+      ${urgencyToggleBtn}
       <button class="btn btn-small btn-primary" onclick="startConsultation('${item.id}')" title="Commencer la consultation" style="background: #0d7377; border-color: #0d7377;">
         Consulter
       </button>
@@ -797,6 +814,25 @@ function closeNotificationToast() {
   }
 }
 
+/**
+ * Toggle urgency for a patient in waiting room
+ */
+async function toggleWaitingRoomUrgency(id) {
+  if (!id) return;
+  try {
+    if (window.api?.waitingRoom?.togglePriority) {
+      const res = await window.api.waitingRoom.togglePriority(id);
+      if (res?.success) {
+        showNotification(res.isUrgent ? '🚨 Patient passé en URGENCE' : 'Priorité normale rétablie', res.isUrgent ? 'warning' : 'info');
+        loadWaitingRoom();
+      }
+    }
+  } catch (err) {
+    console.error('Error toggling waiting room urgency:', err);
+    showNotification('Impossible de modifier le statut d\'urgence', 'error');
+  }
+}
+
 // Make functions global
 window.openAddToWaitingRoomModal = openAddToWaitingRoomModal;
 window.addToWaitingRoom = addToWaitingRoom;
@@ -809,6 +845,7 @@ window.completeConsultation = completeConsultation;
 window.completeAndCollect = completeAndCollect;
 window.sendPaymentRequest = sendPaymentRequest;
 window.removeFromWaitingRoom = removeFromWaitingRoom;
+window.toggleWaitingRoomUrgency = toggleWaitingRoomUrgency;
 window.closeNotificationToast = closeNotificationToast;
 window.showNotificationToast = showNotificationToast;
 window.toggleKineSelection = toggleKineSelection;

@@ -715,6 +715,12 @@
           <label class="form-label">Motif de venue</label>
           <input type="text" id="modal-checkin-reason" class="form-control" placeholder="Ex: Consultation, contrôle, urgence...">
         </div>
+        <div style="background: #fff1f2; border: 1.5px solid #fca5a5; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; font-weight: 700; color: #dc2626; font-size: 13.5px;">
+            <input type="checkbox" id="modal-checkin-urgent" style="width: 20px; height: 20px; cursor: pointer; accent-color: #dc2626;">
+            <span>🚨 Marquer comme URGENCE (Priorité Maximale)</span>
+          </label>
+        </div>
         <button type="submit" class="btn btn-primary" style="margin-top: 10px; width: 100%; height: 42px; font-weight: 700;">Valider l'Arrivée</button>
       </form>
     </div>
@@ -1132,17 +1138,20 @@
 
         html += queue.map(function(item, idx) {
           const name = item.patientName || ('Patient #' + item.ticketCode);
-          return '<div class="item-card">' +
+          const isUrgent = Boolean(item.priority > 0 || item.isUrgent);
+          const cardStyle = isUrgent ? 'border: 2px solid #ef4444; background: #fff1f2;' : '';
+          return '<div class="item-card" style="' + cardStyle + '">' +
             '<div class="item-top">' +
-              '<span style="font-weight: 700; color: var(--primary);">#' + (item.ticketCode || (idx+1)) + '</span>' +
-              '<span class="badge badge-warning">En attente</span>' +
+              '<span style="font-weight: 800; color: ' + (isUrgent ? '#dc2626' : 'var(--primary)') + ';">#' + (item.ticketCode || (idx+1)) + '</span>' +
+              (isUrgent ? '<span class="badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; font-weight:800;">🚨 URGENCE</span>' : '<span class="badge badge-warning">En attente</span>') +
             '</div>' +
-            '<div class="item-name">👤 ' + escapeHTML(name) + '</div>' +
+            '<div class="item-name" style="' + (isUrgent ? 'color:#b91c1c; font-weight:800;' : '') + '">👤 ' + escapeHTML(name) + '</div>' +
             '<div class="item-sub">' +
               '<span>🕒 Arrivé à ' + ((item.arrivalTime || '').slice(11, 16) || '--:--') + '</span>' +
               (item.phone ? '<a href="tel:' + item.phone + '" style="color: var(--primary); text-decoration: none;">📞 ' + escapeHTML(item.phone) + '</a>' : '') +
             '</div>' +
-            '<div class="item-actions">' +
+            '<div class="item-actions" style="display:flex; gap:6px; align-items:center;">' +
+              '<button type="button" class="btn btn-small" onclick="toggleMobileUrgency(\'' + item.id + '\')" style="background:' + (isUrgent ? '#fee2e2' : '#ffffff') + '; color:' + (isUrgent ? '#b91c1c' : '#475569') + '; border:1px solid ' + (isUrgent ? '#f87171' : '#cbd5e1') + '; font-weight:700;">' + (isUrgent ? '🚨 Urgent' : '⚡ Urgence') + '</button>' +
               '<button class="btn btn-primary btn-small" onclick="updateWaitingStatus(\'' + item.id + '\', \'in-consultation\')">▶ Faire entrer</button>' +
             '</div>' +
           '</div>';
@@ -1151,6 +1160,25 @@
         container.innerHTML = html;
       } catch (e) {
         container.innerHTML = '<div class="card" style="color: var(--danger); text-align: center;">Erreur file d\'attente</div>';
+      }
+    }
+
+    async function toggleMobileUrgency(id) {
+      try {
+        const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room/toggle-priority', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id })
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast(json.isUrgent ? '🚨 Patient placé en URGENCE' : 'Priorité normale rétablie');
+          loadWaitingRoom();
+        } else {
+          showToast(json.error || 'Erreur modification urgence');
+        }
+      } catch (err) {
+        showToast('Erreur de communication');
       }
     }
 
@@ -1180,10 +1208,13 @@
 
     async function submitCheckin(e) {
       e.preventDefault();
+      const isUrgent = Boolean(document.getElementById('modal-checkin-urgent')?.checked);
       const payload = {
         fullName: document.getElementById('modal-checkin-name').value,
         phone: document.getElementById('modal-checkin-phone').value,
-        reason: document.getElementById('modal-checkin-reason').value
+        reason: document.getElementById('modal-checkin-reason').value,
+        isUrgent: isUrgent,
+        priority: isUrgent ? 1 : 0
       };
       try {
         const res = await fetch('/api/mobile/' + TOKEN + '/waiting-room/checkin', {
@@ -1193,11 +1224,12 @@
         });
         const json = await res.json();
         if (json.success) {
-          showToast('✅ Patient ajouté en salle d\'attente');
+          showToast(isUrgent ? '🚨 Patient ajouté en URGENCE' : '✅ Patient ajouté en salle d\'attente');
           closeModal('modal-checkin');
           document.getElementById('modal-checkin-name').value = '';
           document.getElementById('modal-checkin-phone').value = '';
           document.getElementById('modal-checkin-reason').value = '';
+          if (document.getElementById('modal-checkin-urgent')) document.getElementById('modal-checkin-urgent').checked = false;
           loadWaitingRoom();
         } else {
           alert(json.error || 'Erreur lors de l\'enregistrement de l\'arrivée');

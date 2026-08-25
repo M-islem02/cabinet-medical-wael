@@ -32,12 +32,38 @@ function normalizeMedicationSearchText(value) {
 }
 
 function specialtyMedicationMatches(entry, normalizedTerm) {
-  const searchableFields = [entry.nom_medicament, entry.name, entry.nom_commercial];
+  if (!entry || !normalizedTerm) return false;
+  const searchableFields = [
+    entry.nom_medicament,
+    entry.name,
+    entry.nom_commercial,
+    entry.dci,
+    entry.genericName,
+    entry.dosage_posologie,
+    entry.dosage
+  ];
 
   return searchableFields.some((field) => {
+    if (!field) return false;
     const normalizedField = normalizeMedicationSearchText(field);
-    return normalizedField.startsWith(normalizedTerm);
+    if (!normalizedField) return false;
+    if (normalizedField.startsWith(normalizedTerm)) return true;
+    if (normalizedField.includes(normalizedTerm)) return true;
+    const words = normalizedField.split(/[\s,+/()\-]+/);
+    return words.some((w) => w.startsWith(normalizedTerm));
   });
+}
+
+function getSpecialtyMedicationScore(entry, normalizedTerm) {
+  const name = normalizeMedicationSearchText(entry.nom_medicament || entry.name || '');
+  const dci = normalizeMedicationSearchText(entry.dci || entry.genericName || '');
+  if (name.startsWith(normalizedTerm)) return 0;
+  if (name.split(/[\s,+/()\-]+/).some((w) => w.startsWith(normalizedTerm))) return 1;
+  if (dci.startsWith(normalizedTerm)) return 2;
+  if (dci.split(/[\s,+/()\-]+/).some((w) => w.startsWith(normalizedTerm))) return 3;
+  if (name.includes(normalizedTerm)) return 4;
+  if (dci.includes(normalizedTerm)) return 5;
+  return 6;
 }
 
 export function handleMedicationEvents() {
@@ -280,24 +306,29 @@ export function handleMedicationEvents() {
       const seen = new Set();
       const matches = [];
       const sources = specialty === 'general'
-        ? [{ items: specialtyMedications, key: specialty }]
-        : [{ items: generalMedications, key: 'general' }, { items: specialtyMedications, key: specialty }];
+        ? [{ items: generalMedications, key: 'general' }]
+        : [{ items: specialtyMedications, key: specialty }, { items: generalMedications, key: 'general' }];
 
+      const maxPoolSize = limit * 4;
       for (const { items, key } of sources) {
+        if (!Array.isArray(items)) continue;
         for (const entry of items) {
-          if (matches.length >= limit) break;
           if (!specialtyMedicationMatches(entry, normalizedTerm)) continue;
           const identity = `${normalizeMedicationSearchText(entry.nom_medicament)}|${normalizeMedicationSearchText(entry.dosage_posologie)}`;
           if (seen.has(identity)) continue;
           seen.add(identity);
           matches.push({ ...entry, specialtyKey: key, source: 'specialty-json' });
+          if (matches.length >= maxPoolSize) break;
         }
-        if (matches.length >= limit) break;
+        if (matches.length >= maxPoolSize) break;
       }
 
       matches.sort((left, right) => {
-        const leftName = normalizeMedicationSearchText(left.nom_medicament);
-        const rightName = normalizeMedicationSearchText(right.nom_medicament);
+        const scoreA = getSpecialtyMedicationScore(left, normalizedTerm);
+        const scoreB = getSpecialtyMedicationScore(right, normalizedTerm);
+        if (scoreA !== scoreB) return scoreA - scoreB;
+        const leftName = normalizeMedicationSearchText(left.nom_medicament || left.name || '');
+        const rightName = normalizeMedicationSearchText(right.nom_medicament || right.name || '');
         return leftName.localeCompare(rightName, 'fr');
       });
 
@@ -312,7 +343,7 @@ export function handleMedicationEvents() {
   ipcMain.handle('medication:getAll', async () => {
     try {
       const medications = await query(
-        'SELECT * FROM medications WHERE isActive = 1 ORDER BY usageCount DESC, name'
+        'SELECT * FROM medications WHERE (isActive IS TRUE OR isActive = TRUE) ORDER BY usageCount DESC, name'
       );
       return { success: true, data: medications };
     } catch (error) {
@@ -330,6 +361,7 @@ export function handleMedicationEvents() {
       }
 
       const prefixPattern = `${normalizedTerm.toLowerCase()}%`;
+      const containsPattern = `%${normalizedTerm.toLowerCase()}%`;
       const medications = await query(
         `SELECT id,
                 name,
@@ -347,14 +379,14 @@ export function handleMedicationEvents() {
                   ELSE 2
                 END AS searchRank
          FROM medications 
-         WHERE isActive = 1
+         WHERE (isActive IS TRUE OR isActive = TRUE)
            AND (
              LOWER(name) LIKE ?
              OR LOWER(genericName) LIKE ?
            )
          ORDER BY searchRank ASC, usageCount DESC, name ASC
-         LIMIT 12`,
-        [prefixPattern, prefixPattern, prefixPattern, prefixPattern]
+         LIMIT 20`,
+        [prefixPattern, prefixPattern, containsPattern, containsPattern]
       );
       return { success: true, data: medications };
     } catch (error) {
@@ -441,7 +473,7 @@ export function handleMedicationEvents() {
   ipcMain.handle('medication:delete', async (event, id) => {
     try {
       await run(
-        'UPDATE medications SET isActive = 0, updatedAt = ? WHERE id = ?',
+        'UPDATE medications SET isActive = FALSE, updatedAt = ? WHERE id = ?',
         [moment().format('YYYY-MM-DD HH:mm:ss'), id]
       );
       return { success: true };
@@ -455,7 +487,7 @@ export function handleMedicationEvents() {
   ipcMain.handle('medication:getCategories', async () => {
     try {
       const categories = await query(
-        'SELECT DISTINCT category FROM medications WHERE isActive = 1 AND category IS NOT NULL ORDER BY category'
+        'SELECT DISTINCT category FROM medications WHERE (isActive IS TRUE OR isActive = TRUE) AND category IS NOT NULL ORDER BY category'
       );
       return { success: true, data: categories.map(c => c.category) };
     } catch (error) {

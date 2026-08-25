@@ -107,25 +107,28 @@ export function handleWaitingRoomEvents() {
       `, [data.patientId, today, ...targetDoctorIds]);
 
       if (existing) {
-        return { success: false, error: 'Ce patient est dÃ©jÃ  dans la salle d\'attente aujourd\'hui' };
+        return { success: false, error: 'Ce patient est déjà dans la salle d\'attente aujourd\'hui' };
       }
 
       const insertedIds = [];
       const realtimeEvents = [];
+      const priority = (data?.priority === 1 || data?.priority === '1' || data?.isUrgent) ? 1 : 0;
       for (const doctorId of sortedDoctorIds) {
         const id = uuidv4();
         await run(`
-          INSERT INTO waiting_room (id, patientId, arrivalTime, reason, notes, createdBy, assignedTo, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting')
-        `, [id, data.patientId, data.arrivalTime, toNullIfEmpty(data.reason), toNullIfEmpty(data.notes), toNullIfEmpty(data.createdBy), toNullIfEmpty(doctorId)]);
+          INSERT INTO waiting_room (id, patientId, arrivalTime, reason, notes, createdBy, assignedTo, status, priority)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting', ?)
+        `, [id, data.patientId, data.arrivalTime, toNullIfEmpty(data.reason), toNullIfEmpty(data.notes), toNullIfEmpty(data.createdBy), toNullIfEmpty(doctorId), priority]);
         insertedIds.push(id);
         realtimeEvents.push({
           type: 'waiting-room:new',
           id,
           patientId: data.patientId,
           assignedTo: doctorId,
-          title: 'Nouveau patient en salle d’attente',
-          message: data.reason || 'Patient ajouté à la salle d’attente',
+          priority,
+          isUrgent: priority === 1,
+          title: priority === 1 ? '🚨 URGENCE en salle d’attente' : 'Nouveau patient en salle d’attente',
+          message: priority === 1 ? `🚨 URGENCE : ${data.reason || 'Patient prioritaire'}` : (data.reason || 'Patient ajouté à la salle d’attente'),
           targetUserId: doctorId
         });
       }
@@ -140,6 +143,28 @@ export function handleWaitingRoomEvents() {
     } catch (error) {
       console.error('Error adding to waiting room:', error);
       throw error;
+    }
+  });
+
+  // Toggle urgency / priority
+  ipcMain.handle('waiting-room:toggle-priority', async (event, id) => {
+    try {
+      const entry = await queryOne('SELECT id, priority, patientId, reason FROM waiting_room WHERE id = ?', [id]);
+      if (!entry) return { success: false, error: 'Entrée introuvable' };
+      const newPriority = entry.priority ? 0 : 1;
+      await run('UPDATE waiting_room SET priority = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [newPriority, id]);
+      broadcastRealtimeEvent({
+        type: 'waiting-room:update',
+        id,
+        priority: newPriority,
+        isUrgent: newPriority === 1,
+        title: newPriority === 1 ? '🚨 Patient passé en URGENCE' : 'Patient repassé en file normale',
+        message: newPriority === 1 ? 'Un patient a été placé en priorité urgence' : 'Priorité normale rétablie'
+      });
+      return { success: true, priority: newPriority, isUrgent: newPriority === 1 };
+    } catch (error) {
+      console.error('Error toggling waiting room priority:', error);
+      return { success: false, error: error.message };
     }
   });
 

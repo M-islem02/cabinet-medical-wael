@@ -103,6 +103,13 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => ipcRenderer.invoke('sickleave:delete', id)
   },
 
+  // API Actes personnalisés (Actes Réalisés)
+  customActs: {
+    list: () => ipcRenderer.invoke('customacts:list'),
+    upsert: (payload) => ipcRenderer.invoke('customacts:upsert', payload),
+    remove: (id) => ipcRenderer.invoke('customacts:delete', id)
+  },
+
   // API Rendez-vous
   appointment: {
     create: (data) => ipcRenderer.invoke('appointment:create', data),
@@ -137,7 +144,8 @@ contextBridge.exposeInMainWorld('api', {
     save: (data) => ipcRenderer.invoke('settings:save', data),
     update: (data) => ipcRenderer.invoke('settings:update', data),
     listPrinters: () => ipcRenderer.invoke('settings:listPrinters'),
-    listScanners: () => ipcRenderer.invoke('settings:listScanners')
+    listScanners: () => ipcRenderer.invoke('settings:listScanners'),
+    getDisplayInfo: () => ipcRenderer.invoke('settings:getDisplayInfo')
   },
 
   // API Fichiers
@@ -147,6 +155,9 @@ contextBridge.exposeInMainWorld('api', {
     pickAttachments: () => ipcRenderer.invoke('file:pickAttachments'),
     pickImagingAttachments: () => ipcRenderer.invoke('file:pickImagingAttachments'),
     pickImagingFolder: () => ipcRenderer.invoke('file:pickImagingFolder'),
+    selectFolder: () => ipcRenderer.invoke('file:selectFolder'),
+    listRadioExportFiles: (customPath) => ipcRenderer.invoke('file:listRadioExportFiles', customPath),
+    importRadioFiles: (payload) => ipcRenderer.invoke('file:importRadioFiles', payload),
     openAttachment: (filePath) => ipcRenderer.invoke('file:openAttachment', filePath),
     readAsDataURL: (filePath) => ipcRenderer.invoke('file:readAsDataURL', filePath),
     listScanners: () => ipcRenderer.invoke('file:listScanners'),
@@ -179,6 +190,10 @@ contextBridge.exposeInMainWorld('api', {
 
   dialog: {
     open: (options) => ipcRenderer.invoke('dialog:open', options)
+  },
+
+  app: {
+    getDisplayInfo: () => ipcRenderer.invoke('app:getDisplayInfo')
   },
 
   // API System
@@ -472,6 +487,7 @@ contextBridge.exposeInMainWorld('api', {
     add: (data) => ipcRenderer.invoke('waiting-room:add', data),
     getToday: () => ipcRenderer.invoke('waiting-room:get-today'),
     updateStatus: (id, status) => ipcRenderer.invoke('waiting-room:update-status', id, status),
+    togglePriority: (id) => ipcRenderer.invoke('waiting-room:toggle-priority', id),
     delete: (id) => ipcRenderer.invoke('waiting-room:delete', id)
   },
 

@@ -3,7 +3,7 @@
  * PhysioCare - Gestion de Cabinet de MÃ©decine Physique et Fonctionnelle
  */
 
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import moment from 'moment';
@@ -32,6 +32,7 @@ import { handlePatientEvents } from './handlers/patient-handler.js';
 import { handleConsultationEvents } from './handlers/consultation-handler.js';
 import { handlePrescriptionEvents } from './handlers/prescription-handler.js';
 import { handleSickLeaveEvents } from './handlers/sick-leave-handler.js';
+import { handleCustomActsEvents } from './handlers/custom-acts-handler.js';
 import { handleAppointmentEvents } from './handlers/appointment-handler.js';
 import { handleSettingsEvents } from './handlers/settings-handler.js';
 import { ensureSystemAccounts, handleUserEvents } from './handlers/user-handler.js';
@@ -765,6 +766,68 @@ function setupIPCHandlers() {
     }
     return { success: true, zoom: DEFAULT_APP_ZOOM };
   });
+
+  ipcMain.handle('app:getDisplayInfo', (event) => {
+    try {
+      const senderWindow = BrowserWindow.fromWebContents(event.sender);
+      const display = senderWindow ? screen.getDisplayMatching(senderWindow.getBounds()) : screen.getPrimaryDisplay();
+      const bounds = display.bounds;
+      const workArea = display.workArea;
+      const width = bounds.width;
+      const height = bounds.height;
+      const scaleFactor = display.scaleFactor || 1;
+      const ratio = width / height;
+      const isSquareOrCompact = ratio < 1.55;
+
+      return {
+        success: true,
+        data: {
+          width,
+          height,
+          workAreaWidth: workArea.width,
+          workAreaHeight: workArea.height,
+          scaleFactor,
+          ratio: Number(ratio.toFixed(2)),
+          isSquareOrCompact,
+          formattedResolution: `${width} × ${height}`,
+          ratioLabel: isSquareOrCompact ? 'Format compact / carré (~5:4 ou 4:3)' : 'Format large (16:9 / 16:10)'
+        }
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('settings:getDisplayInfo', (event) => {
+    try {
+      const senderWindow = BrowserWindow.fromWebContents(event.sender);
+      const display = senderWindow ? screen.getDisplayMatching(senderWindow.getBounds()) : screen.getPrimaryDisplay();
+      const bounds = display.bounds;
+      const workArea = display.workArea;
+      const width = bounds.width;
+      const height = bounds.height;
+      const scaleFactor = display.scaleFactor || 1;
+      const ratio = width / height;
+      const isSquareOrCompact = ratio < 1.55;
+
+      return {
+        success: true,
+        data: {
+          width,
+          height,
+          workAreaWidth: workArea.width,
+          workAreaHeight: workArea.height,
+          scaleFactor,
+          ratio: Number(ratio.toFixed(2)),
+          isSquareOrCompact,
+          formattedResolution: `${width} × ${height}`,
+          ratioLabel: isSquareOrCompact ? 'Format compact / carré (~5:4 ou 4:3)' : 'Format large (16:9 / 16:10)'
+        }
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
   
   // Handlers de licence
   ipcMain.handle('license:validate', (event, licenseKey) => {
@@ -934,7 +997,10 @@ function setupIPCHandlers() {
   
   // Handlers d'arrÃªts de travail
   handleSickLeaveEvents();
-  
+
+  // Handlers d'actes personnalisÃ©s (Actes RÃ©alisÃ©s)
+  handleCustomActsEvents();
+
   // Handlers de rendez-vous
   handleAppointmentEvents();
   

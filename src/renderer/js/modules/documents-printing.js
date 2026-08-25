@@ -2351,17 +2351,29 @@ async function printPrescriptionDetails(prescriptionId) {
       prescription = pResult.data
     }
 
-    let patient = sharedPrintScope.currentPrescriptionPatient
-    if (!patient || patient.id !== prescription.patientId) {
-      const patResult = await window.api.patient.getById(prescription.patientId)
-      if (!patResult.success) throw new Error('Patient introuvable')
-      patient = patResult.data
+    let patient = sharedPrintScope.currentPrescriptionPatient || window.currentPatient || null;
+    const targetPatientId = prescription.patientId || prescription.patientid || window.currentPatientId || patient?.id;
+    if (!patient || (targetPatientId && patient.id !== targetPatientId)) {
+      if (targetPatientId) {
+        try {
+          const patResult = await window.api.patient.getById(targetPatientId);
+          if (patResult?.success && patResult.data) {
+            patient = patResult.data;
+          }
+        } catch (_) {}
+      }
+    }
+    if (!patient) {
+      patient = {
+        firstName: prescription.patientFirstName || prescription.firstName || '',
+        lastName: prescription.patientLastName || prescription.lastName || 'Patient'
+      };
     }
 
     const rawMedications = Array.isArray(prescription.medications)
-      ?prescription.medications
+      ? prescription.medications
       : JSON.parse(prescription.medications || '[]')
-    const medications = (Array.isArray(rawMedications) ?rawMedications : [])
+    const medications = (Array.isArray(rawMedications) ? rawMedications : [])
       .map((med) => ({
         name: String(med?.name || '').trim(),
         dosage: String(med?.dosage || '').trim(),
@@ -2439,7 +2451,7 @@ async function printPrescriptionDetails(prescriptionId) {
               <span class="med-qty" style="color:${medColor}">Qté: ${safeQty}</span>
             </div>
             <div class="med-line med-line-2">
-              ${posologyLine ?`<span class="med-field med-field-strong">${posologyLine}</span>` : ''}
+              ${posologyLine ? `<span class="med-field med-field-strong">${posologyLine}</span>` : ''}
             </div>
           </div>
         `
@@ -2479,6 +2491,10 @@ async function printPrescriptionDetails(prescriptionId) {
       `)
     }
 
+    const onEditCallback = typeof editPrescription === 'function'
+      ? () => editPrescription(idToUse)
+      : (typeof window.editPrescription === 'function' ? () => window.editPrescription(idToUse) : null);
+
     await openA5PrintDocument({
       title: 'ORDONNANCE',
       subtitle: 'Prescription médicale',
@@ -2488,11 +2504,11 @@ async function printPrescriptionDetails(prescriptionId) {
       documentNumber: prescription.number || prescription.reference || prescription.id,
       pages: pageContents,
       duplexMode: pageContents.length > 1 ? 'longEdge' : 'simplex',
-      onEdit: () => editPrescription(idToUse)
+      onEdit: onEditCallback
     })
   } catch (error) {
     console.error('Error printing prescription:', error)
-    showNotification('Erreur lors de l\'impression', 'error')
+    showNotification(error?.message || 'Erreur lors de l\'impression', 'error')
   }
 }
 

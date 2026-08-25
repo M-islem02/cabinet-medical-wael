@@ -379,6 +379,140 @@ export function handleFileEvents() {
     }
   });
 
+  ipcMain.handle('file:selectFolder', async () => {
+    try {
+      const win = BrowserWindow.getAllWindows()[0];
+      const result = await dialog.showOpenDialog(win, {
+        title: 'Sélectionner le dossier de sortie Radio',
+        properties: ['openDirectory']
+      });
+      if (result.canceled || !result.filePaths?.length) {
+        return { success: false, canceled: true };
+      }
+      return { success: true, folderPath: result.filePaths[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('file:listRadioExportFiles', async (event, customPath) => {
+    try {
+      let folderPath = customPath;
+      if (!folderPath) {
+        const settings = await getScopedSettings().catch(() => null);
+        folderPath = settings?.radioExportFolderPath;
+      }
+
+      if (!folderPath || typeof folderPath !== 'string' || !folderPath.trim()) {
+        return { success: false, error: 'Aucun dossier de sortie Radio configuré. Veuillez le définir dans les Paramètres (Matériel / Périphériques).' };
+      }
+
+      const cleanPath = folderPath.trim();
+      const entries = await fs.readdir(cleanPath, { withFileTypes: true });
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.webp', '.dcm', '.dicom', '.pdf'];
+
+      const files = [];
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!validExtensions.includes(ext)) continue;
+
+        const fullPath = path.join(cleanPath, entry.name);
+        try {
+          const stats = await fs.stat(fullPath);
+          let thumbnail = null;
+          if (['.jpg', '.jpeg', '.png', '.bmp', '.webp'].includes(ext) && stats.size < 15 * 1024 * 1024) {
+            try {
+              const buf = await fs.readFile(fullPath);
+              const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+              thumbnail = `data:${mime};base64,${buf.toString('base64')}`;
+            } catch (_) {}
+          }
+
+          files.push({
+            name: entry.name,
+            path: fullPath,
+            size: stats.size,
+            mtime: stats.mtimeMs,
+            ext,
+            thumbnail
+          });
+        } catch (_) {}
+      }
+
+      files.sort((a, b) => b.mtime - a.mtime);
+
+      return {
+        success: true,
+        folderPath: cleanPath,
+        files: files.slice(0, 100)
+      };
+    } catch (error) {
+      console.error('Error listing radio export files:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('file:importRadioFiles', async (event, { patientId, filePaths, examFamily = 'Radiographie ORL (Blondeau, Cavum, OPN)', notes = '' } = {}) => {
+    try {
+      if (!patientId) {
+        return { success: false, error: 'Patient non spécifié' };
+      }
+      if (!Array.isArray(filePaths) || filePaths.length === 0) {
+        return { success: false, error: 'Aucun fichier sélectionné' };
+      }
+
+      await ensureAttachmentsDir();
+      const savedItems = [];
+
+      for (const sourcePath of filePaths) {
+        const copied = await copyAttachmentFromPath(sourcePath);
+        const id = uuidv4();
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+        await run(
+          `INSERT INTO patient_attachments
+           (id, patientId, consultationId, fileName, filePath, mimeType, fileSize, examFamily, sourceType, sourceLabel, notes, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            patientId,
+            null,
+            copied.originalName || copied.name,
+            copied.path,
+            copied.type,
+            parseInt(copied.size, 10) || 0,
+            examFamily,
+            'radio_import',
+            'Appareil Radio (X-ray)',
+            notes || 'Importé directement depuis appareil Radio',
+            now,
+            now
+          ]
+        );
+
+        savedItems.push({
+          id,
+          patientId,
+          fileName: copied.originalName || copied.name,
+          filePath: copied.path,
+          mimeType: copied.type,
+          fileSize: copied.size,
+          examFamily
+        });
+      }
+
+      return {
+        success: true,
+        importedCount: savedItems.length,
+        data: savedItems
+      };
+    } catch (error) {
+      console.error('Error importing radio files:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('file:listScanners', async () => {
     try {
       const scanners = await listAvailableScanners();

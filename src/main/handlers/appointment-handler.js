@@ -7,6 +7,7 @@ import { query, run, queryOne, withTransaction } from '../database-unified.js';
 import { v4 as uuidv4 } from 'uuid';
 import moment from 'moment';
 import { sendAppointmentCreatedSMS } from './sms-handler.js';
+import { broadcastRealtimeEvent } from '../realtime-server.js';
 
 // Helper pour convertir les valeurs vides en null (MariaDB compatibility)
 const toNullIfEmpty = (val) => (val === '' || val === undefined) ? null : val;
@@ -201,6 +202,15 @@ export function handleAppointmentEvents() {
           smsResult = { success: false, skipped: false, error: smsError.message };
         }
       }
+
+      broadcastRealtimeEvent({
+        type: 'appointment:created',
+        id,
+        appointmentId: id,
+        patientId: appointmentData.patientId,
+        date: appointmentData.date,
+        time: appointmentData.time
+      });
 
       return {
         success: true,
@@ -397,6 +407,7 @@ export function handleAppointmentEvents() {
           id
         ]
       );
+      broadcastRealtimeEvent({ type: 'appointment:updated', id, appointmentId: id });
       return { success: true };
     } catch (error) {
       console.error('Erreur lors de la mise a jour du rendez-vous:', error);
@@ -408,6 +419,7 @@ export function handleAppointmentEvents() {
   ipcMain.handle('appointment:delete', async (event, id) => {
     try {
       await run('DELETE FROM appointments WHERE id = ?', [id]);
+      broadcastRealtimeEvent({ type: 'appointment:deleted', id, appointmentId: id });
       return { success: true };
     } catch (error) {
       console.error('Erreur lors de la suppression du rendez-vous:', error);
