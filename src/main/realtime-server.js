@@ -58,6 +58,12 @@ export function getRealtimeConfig() {
   };
 }
 
+let mobileNotifier = null;
+
+export function setMobileNotifier(fn) {
+  mobileNotifier = fn;
+}
+
 export function broadcastRealtimeEvent(payload = {}, target = {}) {
   const message = {
     ...payload,
@@ -68,6 +74,12 @@ export function broadcastRealtimeEvent(payload = {}, target = {}) {
     if (target.userId && String(target.userId) !== String(userId)) continue;
     if (target.role && String(target.role) !== String(role)) continue;
     sendJson(socket, message);
+  }
+
+  if (typeof mobileNotifier === 'function') {
+    try {
+      mobileNotifier(payload.type || 'update', payload);
+    } catch (_) {}
   }
 }
 
