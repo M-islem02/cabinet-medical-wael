@@ -737,8 +737,8 @@ function generateHtmlDocument(bodyContent, options = {}) {
 
         /* HEADER STYLES */
         .page-header {
-          margin-bottom: 0;
-          padding: 4px 0;
+          margin-bottom: 2mm;
+          padding: 3.5mm 0 3mm 0;
         }
         .header-top {
           display: flex;
@@ -757,7 +757,7 @@ function generateHtmlDocument(bodyContent, options = {}) {
         .doctor-name {
           font-size: ${layout.doctorNameFont};
           font-weight: 750;
-          margin-bottom: 0.8mm;
+          margin-bottom: 1.2mm;
           text-transform: uppercase;
           color: var(--doc-primary);
           line-height: 1.15;
@@ -768,11 +768,11 @@ function generateHtmlDocument(bodyContent, options = {}) {
           font-weight: 700;
           line-height: 1.25;
           text-transform: uppercase;
-          margin-bottom: 0.6mm;
+          margin-bottom: 0.8mm;
           color: #000000;
         }
         .header-meta-inline {
-          margin-top: 0.6mm;
+          margin-top: 1.2mm;
           font-size: ${layout.metaFont};
         }
         .header-meta-inline .meta-item {

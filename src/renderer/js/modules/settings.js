@@ -237,23 +237,23 @@ function updateHeaderLivePreview() {
   const safeDoctorName = typeof escapeHtml === 'function' ? escapeHtml(doctorName.toUpperCase()) : doctorName.toUpperCase();
 
   container.innerHTML = `
-    <div style="width: 100%; max-width: 780px; margin: 0 auto; background: #ffffff; padding: 8px 12px; border-top: 2px solid ${primaryColor}; border-bottom: 2px solid ${primaryColor}; font-family: Segoe UI, sans-serif;">
-      <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(36px, 60px) minmax(0, 1fr); align-items: center; gap: 12px;">
+    <div style="width: 100%; max-width: 780px; margin: 0 auto; background: #ffffff; padding: 18px 16px; border-top: 2.2px solid ${primaryColor}; border-bottom: 2.2px solid ${primaryColor}; font-family: Segoe UI, sans-serif;">
+      <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(36px, 60px) minmax(0, 1fr); align-items: center; gap: 14px;">
         <!-- Left: Doctor Info -->
         <div style="text-align: left; min-width: 0;">
-          <div style="font-size: ${docNameFont}; font-weight: 800; color: ${primaryColor}; text-transform: uppercase; line-height: 1.2; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-size: ${docNameFont}; font-weight: 800; color: ${primaryColor}; text-transform: uppercase; line-height: 1.2; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             DR. ${safeDoctorName}
           </div>
-          <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${specParts[0]}
           </div>
           ${specParts[1] ? `
-            <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ${specParts[1]}
             </div>
           ` : ''}
           ${doctorRPPS ? `
-            <div style="font-size: ${metaFont}; font-weight: 700; color: #1e293b; margin-top: 2px;">
+            <div style="font-size: ${metaFont}; font-weight: 700; color: #1e293b; margin-top: 4px;">
               <span style="color: ${primaryColor}; font-weight: 800;">N° D'ORDRE :</span> ${doctorRPPS}
             </div>
           ` : ''}
@@ -261,13 +261,13 @@ function updateHeaderLivePreview() {
 
         <!-- Center: Logo -->
         <div style="display: flex; align-items: center; justify-content: center;">
-          <div style="width: ${logoSize}; height: ${logoSize}; max-width: 60px; max-height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden;">
+          <div style="width: ${logoSize}; height: ${logoSize}; max-width: 65px; max-height: 65px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden;">
             <img src="${logoDataUrl}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
         </div>
 
         <!-- Right: Patient Info -->
-        <div style="text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1.5px; font-size: ${metaFont}; min-width: 0; padding-left: 8px;">
+        <div style="text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3.5px; font-size: ${metaFont}; min-width: 0; padding-left: 8px;">
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">NOM :</span> <span style="font-weight: 700; color: #000000;">BENALI</span></div>
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">PRÉNOM :</span> <span style="font-weight: 700; color: #000000;">KARIM</span></div>
           <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">ÂGE :</span> <span style="font-weight: 700; color: #000000;">34 ans</span></div>
