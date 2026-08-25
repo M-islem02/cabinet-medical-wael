@@ -3834,8 +3834,6 @@ async function saveAndPrintAudiogramme() {
       conclusion: observation
     }
   };
-    }
-  };
 
   try {
     let saveResult = null;
