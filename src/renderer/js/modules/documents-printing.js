@@ -1030,31 +1030,6 @@ function generateHtmlDocument(bodyContent, options = {}) {
           padding-top: 1.2mm;
           padding-bottom: 1.8mm;
         }
-        body[data-document-type="prescription"] .header-top {
-          align-items: flex-start;
-          gap: 4mm;
-        }
-        body[data-document-type="prescription"] .logo-container {
-          width: calc(${layout.logoSize} * 0.72);
-          height: calc(${layout.logoSize} * 0.72);
-        }
-        body[data-document-type="prescription"] .doctor-name {
-          margin-bottom: 0.6mm;
-          font-size: ${layout.doctorNameFont};
-          letter-spacing: 0.25px;
-          font-weight: 850;
-          white-space: nowrap;
-        }
-        body[data-document-type="prescription"] .doctor-specialty {
-          font-size: ${layout.doctorSpecialtyFont};
-          font-weight: 750;
-          letter-spacing: 0.2px;
-          line-height: 1.25;
-        }
-        body[data-document-type="prescription"] .header-divider {
-          margin-top: 0.6mm;
-          margin-bottom: 1.2mm;
-        }
         body[data-document-type="prescription"] .medication-list {
           gap: 0;
         }
@@ -1723,9 +1698,10 @@ function generateHtmlDocument(bodyContent, options = {}) {
           align-items: flex-start;
           justify-self: end;
           min-width: 46mm;
-          margin-top: 5mm;
+          padding-top: 2mm;
+          margin-top: 0;
           margin-left: 6mm;
-          padding: 0;
+          padding-left: 0;
           border: 0;
           text-align: left;
         }
