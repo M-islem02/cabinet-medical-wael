@@ -1282,7 +1282,8 @@
               '<div class="item-actions" style="margin-top:4px; display:flex; gap:6px; flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-secondary btn-small" onclick="selectPatientForCamera(\'' + p.id + '\')">📷 Photo</button>' +
                 '<button type="button" class="btn btn-secondary btn-small" onclick="selectPatientForNote(\'' + p.id + '\')">🎙️ Note</button>' +
-                '<button type="button" class="btn btn-secondary btn-small" onclick="checkinExistingPatientByIndex(' + idx + ')">📥 Salle d\'attente</button>' +
+                '<button type="button" class="btn btn-secondary btn-small" onclick="checkinExistingPatientByIndex(' + idx + ', false)">🪑 Salle d\'attente</button>' +
+                '<button type="button" class="btn btn-small" onclick="checkinExistingPatientByIndex(' + idx + ', true)" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; font-weight:700;">🚨 Urgence</button>' +
               '</div>' +
             '</div>';
           }).join('');
@@ -1292,12 +1293,15 @@
       }, 250);
     }
 
-    function checkinExistingPatientByIndex(idx) {
+    function checkinExistingPatientByIndex(idx, isUrgent = false) {
       const p = window.currentMobilePatientsList && window.currentMobilePatientsList[idx];
       if (!p) return;
       const name = ((p.lastName || '') + ' ' + (p.firstName || '')).trim() || 'Patient';
       document.getElementById('modal-checkin-name').value = name;
       document.getElementById('modal-checkin-phone').value = p.phone || '';
+      if (document.getElementById('modal-checkin-urgent')) {
+        document.getElementById('modal-checkin-urgent').checked = Boolean(isUrgent);
+      }
       openModal('modal-checkin');
     }
 

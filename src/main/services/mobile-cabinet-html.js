@@ -22,13 +22,14 @@ export function renderMobileCabinetHtml(shareData = {}, tokenOverride = '') {
   const cabinetName = String(shareData.cabinetName || 'Cabinet Médical').replace(/"/g, '&quot;');
   const doctorName = String(shareData.doctorName || 'Médecin').replace(/"/g, '&quot;');
 
-  if (!templateHtml) {
-    try {
-      templateHtml = fs.readFileSync(templatePath, 'utf8');
-    } catch (_) {}
+  let html = '';
+  try {
+    html = fs.readFileSync(templatePath, 'utf8');
+  } catch (_) {
+    html = templateHtml || '';
   }
 
-  return (templateHtml || '')
+  return (html || '')
     .replaceAll('__CABINET_NAME__', cabinetName)
     .replaceAll('__DOCTOR_NAME__', doctorName)
     .replaceAll('__TOKEN__', token);
