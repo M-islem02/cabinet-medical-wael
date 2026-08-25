@@ -3,15 +3,64 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { execFile } from 'child_process';
 import moment from 'moment';
 import QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
 import { app, ipcMain } from 'electron';
 import { query, queryOne, run, withTransaction } from '../database-unified.js';
 import { sendAppointmentCreatedSMS } from '../handlers/sms-handler.js';
-import { broadcastRealtimeEvent } from '../realtime-server.js';
+import { broadcastRealtimeEvent, setMobileNotifier } from '../realtime-server.js';
 import { resolvePublicPractitioner } from './public-practitioner-selection.js';
 import { renderMobileCabinetHtml } from './mobile-cabinet-html.js';
+
+/**
+ * Opens the Windows Firewall for a given port so that phones on the same
+ * network (hotspot / Wi-Fi) can reach the mobile server.
+ * Silently ignored on non-Windows platforms or if the rule already exists.
+ */
+function ensureFirewallRule(port) {
+  if (process.platform !== 'win32') return Promise.resolve(true);
+  const ruleName = `MedCareSO Mobile Port ${port}`;
+  // Delete any stale rule first (ignore errors), then add a fresh one.
+  return new Promise((resolve) => {
+    execFile('netsh', [
+      'advfirewall', 'firewall', 'delete', 'rule',
+      `name=${ruleName}`
+    ], () => {
+      execFile('netsh', [
+        'advfirewall', 'firewall', 'add', 'rule',
+        `name=${ruleName}`,
+        'dir=in', 'action=allow', 'protocol=TCP',
+        `localport=${port}`,
+        'profile=any'
+      ], (err) => {
+        if (err) {
+          console.warn('[Firewall] Could not add rule (non-admin?):', err.message);
+          resolve(false);
+        } else {
+          console.log(`[Firewall] Opened port ${port} for mobile access.`);
+          resolve(true);
+        }
+      });
+    });
+  });
+}
+
+const mobileSseClients = new Set();
+
+export function notifyMobileClients(eventType = 'update', payload = {}) {
+  const message = `data: ${JSON.stringify({ event: eventType, data: payload, timestamp: Date.now() })}\n\n`;
+  for (const client of Array.from(mobileSseClients)) {
+    try {
+      client.write(message);
+    } catch (_) {
+      mobileSseClients.delete(client);
+    }
+  }
+}
+
+setMobileNotifier(notifyMobileClients);
 
 let bookingServer = null;
 let publicBookingSchemaPromise = null;
@@ -37,11 +86,135 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
-function getLocalNetworkAddress() {
+export function getAllNetworkAddresses() {
   const interfaces = os.networkInterfaces() || {};
-  for (const group of Object.values(interfaces)) {
-    for (const iface of group || []) {
-      if (iface && iface.family === 'IPv4' && !iface.internal) {
+  const candidates = [];
+
+  const isVirtualOrIgnoredName = (name = '') => {
+    const lower = name.toLowerCase();
+    return (
+      lower.includes('virtualbox') ||
+      lower.includes('vbox') ||
+      lower.includes('vmware') ||
+      lower.includes('vethernet') ||
+      lower.includes('wsl') ||
+      lower.includes('docker') ||
+      lower.includes('loopback') ||
+      lower.includes('pseudo') ||
+      lower.includes('teredo') ||
+      lower.includes('isatap') ||
+      lower.includes('tap') ||
+      lower.includes('tun') ||
+      lower.includes('tailscale') ||
+      lower.includes('zerotier') ||
+      lower.includes('hamachi') ||
+      lower.includes('npcap') ||
+      lower.includes('bridge')
+    );
+  };
+
+  const isVirtualIp = (ip = '') => {
+    return (
+      ip.startsWith('127.') ||
+      ip.startsWith('169.254.') || // APIPA auto-IP
+      ip.startsWith('192.168.56.') || // VirtualBox host-only
+      ip === '0.0.0.0'
+    );
+  };
+
+  for (const [name, list] of Object.entries(interfaces)) {
+    for (const iface of list || []) {
+      if (!iface || iface.family !== 'IPv4' || iface.internal) continue;
+      const ip = String(iface.address || '').trim();
+      if (!ip || isVirtualIp(ip)) continue;
+
+      let score = 0;
+      let isHotspot = false;
+      const lowerName = name.toLowerCase();
+
+      // Mobile Hotspot Subnets (Highest Priority for Phone Sharing)
+      if (ip.startsWith('192.168.43.')) {
+        score += 150; // Android Wi-Fi Hotspot
+        isHotspot = true;
+      } else if (ip.startsWith('172.20.10.')) {
+        score += 150; // iPhone / iOS Hotspot
+        isHotspot = true;
+      } else if (ip.startsWith('192.168.42.')) {
+        score += 130; // USB Tethering
+        isHotspot = true;
+      } else if (ip.startsWith('192.168.137.')) {
+        score += 130; // Windows Mobile Hotspot
+        isHotspot = true;
+      } else if (ip.startsWith('192.168.44.')) {
+        score += 120; // Bluetooth Tethering
+        isHotspot = true;
+      }
+
+      // Interface Name Clues
+      if (
+        lowerName.includes('wi-fi') ||
+        lowerName.includes('wifi') ||
+        lowerName.includes('wlan') ||
+        lowerName.includes('wireless') ||
+        lowerName.includes('wlp')
+      ) {
+        score += 90;
+      } else if (
+        lowerName.includes('rndis') ||
+        lowerName.includes('tether') ||
+        lowerName.includes('cellular') ||
+        lowerName.includes('mobile')
+      ) {
+        score += 100;
+        isHotspot = true;
+      } else if (
+        lowerName.includes('ethernet') ||
+        lowerName.includes('eth') ||
+        lowerName.includes('en0') ||
+        lowerName.includes('enp')
+      ) {
+        score += 60;
+      }
+
+      // Standard Private Subnets
+      if (ip.startsWith('192.168.')) score += 30;
+      else if (ip.startsWith('10.')) score += 20;
+      else if (ip.startsWith('172.')) score += 10;
+
+      // VPN overlays / CGNAT range 100.64.0.0/10 (Tailscale, Hamachi…):
+      // unreachable from a phone connected to the local router — heavy penalty.
+      if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip)) {
+        score -= 120;
+      }
+
+      // Heavy penalty for virtual adapter names
+      if (isVirtualOrIgnoredName(name)) {
+        score -= 150;
+      }
+
+      candidates.push({
+        name,
+        address: ip,
+        mac: iface.mac,
+        score,
+        isHotspot
+      });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+}
+
+export function getLocalNetworkAddress() {
+  const candidates = getAllNetworkAddresses();
+  if (candidates.length > 0 && candidates[0].score > 0) {
+    return candidates[0].address;
+  }
+  const interfaces = os.networkInterfaces() || {};
+  for (const list of Object.values(interfaces)) {
+    for (const iface of list || []) {
+      if (iface && iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('127.')) {
         return iface.address;
       }
     }
@@ -50,7 +223,24 @@ function getLocalNetworkAddress() {
 }
 
 function normalizePhone(phone = '') {
-  return String(phone || '').replace(/\D/g, '');
+  return String(phone).replace(/\D/g, '');
+}
+
+// Test réseau fait depuis le processus principal (sans contraintes CSP) :
+// vérifie que l'adresse LAN affichée dans le QR répond bien.
+function probeMobileUrl(url, timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    try {
+      const req = http.get(url, { timeout: timeoutMs }, (res) => {
+        res.resume();
+        resolve(res.statusCode >= 200 && res.statusCode < 500);
+      });
+      req.on('timeout', () => req.destroy(new Error('timeout')));
+      req.on('error', () => resolve(false));
+    } catch (_) {
+      resolve(false);
+    }
+  });
 }
 
 function parseFullName(fullName = '') {
@@ -162,14 +352,18 @@ async function getBookingSettings() {
   return settings;
 }
 
-async function buildShareData() {
+export async function buildShareData(preferredHost = '') {
   const settings = await getBookingSettings();
   const port = Number(settings?.publicBookingPort) || DEFAULT_PORT;
   const token = settings?.publicBookingToken || generateBookingToken();
-  const localAddress = getLocalNetworkAddress();
-  const localUrl = `http://${localAddress}:${port}/rdv/${token}`;
+  const candidates = getAllNetworkAddresses();
+  const bestAddress = getLocalNetworkAddress();
+  const rawHost = String(preferredHost || '').trim();
+  const localAddress = rawHost ? rawHost.split(':')[0] : bestAddress;
+  const effectiveHost = rawHost && rawHost.includes(':') ? rawHost : `${localAddress}:${port}`;
+  const localUrl = `http://${effectiveHost}/rdv/${token}`;
   const buildVersion = Date.now();
-  const mobileUrl = `http://${localAddress}:${port}/mobile/${token}?v=${buildVersion}`;
+  const mobileUrl = `http://${effectiveHost}/mobile/${token}?v=${buildVersion}`;
   const publicUrl = String(settings?.publicBookingPublicUrl || '').trim() || localUrl;
 
   let qrDataUrl = null;
@@ -204,6 +398,7 @@ async function buildShareData() {
     port,
     token,
     localAddress,
+    availableAddresses: candidates,
     localUrl,
     mobileUrl,
     publicUrl,
@@ -397,12 +592,20 @@ async function readJsonBody(req) {
   });
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control',
+  'Access-Control-Max-Age': '86400'
+};
+
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
     'Pragma': 'no-cache',
-    'Expires': '0'
+    'Expires': '0',
+    ...CORS_HEADERS
   });
   res.end(JSON.stringify(payload));
 }
@@ -412,7 +615,8 @@ function sendHtml(res, html) {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
     'Pragma': 'no-cache',
-    'Expires': '0'
+    'Expires': '0',
+    ...CORS_HEADERS
   });
   res.end(html);
 }
@@ -1597,11 +1801,33 @@ async function requestHandler(req, res) {
   try {
     const settings = await getBookingSettings();
     const token = settings?.publicBookingToken || '';
-    const url = new URL(req.url || '/', 'http://localhost');
+    const incomingHost = req.headers.host || '';
+    const url = new URL(req.url || '/', `http://${incomingHost || 'localhost'}`);
     const pathParts = url.pathname.split('/').filter(Boolean);
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, CORS_HEADERS);
+      res.end();
+      return;
+    }
 
     if (url.pathname === '/health') {
       sendJson(res, 200, { success: true, running: true });
+      return;
+    }
+
+    if (url.pathname === '/' || url.pathname === '') {
+      res.writeHead(302, {
+        Location: token ? `/mobile/${token}` : '/mobile',
+        ...CORS_HEADERS
+      });
+      res.end();
+      return;
+    }
+
+    if (url.pathname === '/favicon.ico') {
+      res.writeHead(204, CORS_HEADERS);
+      res.end();
       return;
     }
 
@@ -1611,27 +1837,16 @@ async function requestHandler(req, res) {
       return;
     }
 
-    if (url.pathname === '/' || url.pathname === '') {
-      res.writeHead(302, { Location: `/mobile/${token}` });
-      res.end();
-      return;
-    }
-
-    if (url.pathname === '/favicon.ico') {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
-
     if (pathParts[0] === 'rdv' && req.method === 'GET') {
-      const shareData = await buildShareData();
+      const shareData = await buildShareData(incomingHost);
       sendHtml(res, renderPortalHtml(shareData));
       return;
     }
 
     if (pathParts[0] === 'mobile' && req.method === 'GET') {
-      const shareData = await buildShareData();
-      sendHtml(res, renderMobileCabinetHtml(shareData));
+      const shareData = await buildShareData(incomingHost);
+      const urlToken = pathParts[1] || '';
+      sendHtml(res, renderMobileCabinetHtml(shareData, urlToken));
       return;
     }
 
@@ -1639,6 +1854,32 @@ async function requestHandler(req, res) {
       const hasTokenInPath = pathParts.length >= 4;
       const action = hasTokenInPath ? pathParts[3] : pathParts[2];
       const subAction = hasTokenInPath ? pathParts[4] : pathParts[3];
+
+      if ((action === 'events' || action === 'stream') && req.method === 'GET') {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          ...CORS_HEADERS
+        });
+        res.write(`data: ${JSON.stringify({ event: 'connected', time: Date.now() })}\n\n`);
+        mobileSseClients.add(res);
+
+        const pingTimer = setInterval(() => {
+          try {
+            res.write(':ping\n\n');
+          } catch (_) {
+            clearInterval(pingTimer);
+            mobileSseClients.delete(res);
+          }
+        }, 15000);
+
+        req.on('close', () => {
+          clearInterval(pingTimer);
+          mobileSseClients.delete(res);
+        });
+        return;
+      }
 
       if (action === 'config' && req.method === 'GET') {
         const [types, practitioners] = await Promise.all([
@@ -1904,6 +2145,86 @@ async function requestHandler(req, res) {
         sendJson(res, 200, { success: true });
         return;
       }
+
+      if (action === 'payments' && (!subAction || subAction === 'list') && req.method === 'GET') {
+        const today = moment().format('YYYY-MM-DD');
+        const startOfDay = moment().startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const endOfDay = moment().endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+        const pendingRows = await query(`
+          SELECT * FROM user_notifications
+          WHERE type = 'payment_request' AND isRead = 0
+          ORDER BY createdAt DESC
+        `);
+
+        const paymentsToday = await query(`
+          SELECT p.*,
+                 COALESCE(pat.firstName, '') as patientFirstName,
+                 COALESCE(pat.lastName, '') as patientLastName,
+                 COALESCE(pat.phone, '') as patientPhone
+          FROM payments p
+          LEFT JOIN patients pat ON p.patientId = pat.id
+          WHERE DATE(p.paymentDate) = ? OR p.createdAt BETWEEN ? AND ?
+          ORDER BY p.createdAt DESC
+        `, [today, startOfDay, endOfDay]);
+
+        const totalReceived = (paymentsToday || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+        sendJson(res, 200, {
+          success: true,
+          data: {
+            today,
+            totalReceived,
+            pendingRequests: pendingRows || [],
+            paymentsToday: paymentsToday || []
+          }
+        });
+        return;
+      }
+
+      if (action === 'payments' && subAction === 'collect' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const { requestId, patientId, amount, notes, service, method = 'Espèces' } = body;
+        const now = moment().format('YYYY-MM-DD HH:mm:ss');
+        const todayDate = moment().format('YYYY-MM-DD');
+        const newPaymentId = uuidv4();
+
+        if (requestId) {
+          const reqNotification = await queryOne('SELECT * FROM user_notifications WHERE id = ?', [requestId]);
+          let reqData = {};
+          if (reqNotification?.data) {
+            try { reqData = JSON.parse(reqNotification.data); } catch (_) {}
+          }
+
+          const finalAmount = Number(reqData.amount || amount || 0);
+          const finalPatientId = reqData.patientId || patientId;
+          const finalNotes = reqData.notes || notes || '';
+          const finalService = reqData.service || service || 'Consultation médicale';
+
+          await run(
+            `INSERT INTO payments (id, patientId, consultationId, amount, paymentDate, paymentMethod, description, notes, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [newPaymentId, finalPatientId, reqData.consultationId || null, finalAmount, todayDate, method, finalService, finalNotes, now, now]
+          );
+
+          await run('UPDATE user_notifications SET isRead = 1 WHERE id = ?', [requestId]);
+          broadcastRealtimeEvent({ type: 'payment-request:updated', id: requestId });
+          broadcastRealtimeEvent({
+            type: 'payment:new',
+            id: newPaymentId,
+            patientId: finalPatientId,
+            amount: finalAmount,
+            title: 'Paiement encaissé depuis le mobile',
+            message: `${finalAmount} DZD encaissé(s)`
+          });
+
+          sendJson(res, 200, { success: true, paymentId: newPaymentId });
+          return;
+        }
+
+        sendJson(res, 400, { success: false, error: 'Identifiant de demande manquant' });
+        return;
+      }
     }
 
     if (pathParts[0] === 'api' && pathParts[1] === 'rdv') {
@@ -2014,10 +2335,14 @@ export async function syncPublicBookingServerWithSettings() {
       bookingServer.listen(shareData.port, '0.0.0.0', resolve);
     });
 
+    // Open Windows Firewall for this port so phones on the same network can connect
+    const firewallOk = await ensureFirewallRule(shareData.port);
+
     bookingServerState = {
       ...shareData,
       running: true,
-      lastError: null
+      lastError: null,
+      firewallOk
     };
 
     return { success: true, data: bookingServerState };
@@ -2053,13 +2378,26 @@ export function handlePublicBookingEvents() {
     }
   });
 
-  ipcMain.handle('publicBooking:getShareData', async () => {
+  ipcMain.handle('publicBooking:getShareData', async (_event, preferredHost = '') => {
     try {
       if (!bookingServerState.running) {
         await syncPublicBookingServerWithSettings();
       }
-      const shareData = await buildShareData();
-      return { success: true, data: { ...shareData, running: bookingServerState.running } };
+      const shareData = await buildShareData(preferredHost);
+      let selfTestOk = null;
+      if (bookingServerState.running && shareData.mobileUrl) {
+        selfTestOk = await probeMobileUrl(shareData.mobileUrl);
+      }
+      return {
+        success: true,
+        data: {
+          ...shareData,
+          running: bookingServerState.running,
+          firewallOk: bookingServerState.firewallOk !== false,
+          lastError: bookingServerState.lastError || null,
+          selfTestOk
+        }
+      };
     } catch (error) {
       return { success: false, error: error.message };
     }
