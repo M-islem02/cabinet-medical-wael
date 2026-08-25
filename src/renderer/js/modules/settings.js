@@ -185,7 +185,100 @@ function updateDocumentStylePreview() {
     logo.style.backgroundRepeat = hasLogo ? 'no-repeat' : '';
     logo.style.backgroundSize = hasLogo ? 'contain' : '';
   });
+
+  updateHeaderLivePreview();
 }
+
+function updateHeaderLivePreview() {
+  const container = document.getElementById('settings-header-live-preview-box');
+  if (!container) return;
+
+  const doctorName = document.getElementById('cabinet-name')?.value?.trim() || cachedSettings?.cabinetName || 'DR. NADIR MALOUM';
+  const doctorSpecialty = document.getElementById('cabinet-specialty')?.value?.trim() || cachedSettings?.cabinetSpecialty || 'ORL ET CHIRURGIE CERVICO-FACIALE\nCHIRURGIE ENDOSCOPIQUE DU NEZ ET DES SINUS';
+  const doctorRPPS = document.getElementById('cabinet-rpps')?.value?.trim() || cachedSettings?.cabinetRPPS || '3149/23';
+  const primaryColor = normalizeHexColor(document.getElementById('document-primary-color')?.value, '#0284c7');
+  
+  const docNameScale = (Number(document.getElementById('document-doctor-name-scale')?.value) || 120) / 100;
+  const specialtyScale = (Number(document.getElementById('document-specialty-scale')?.value) || 100) / 100;
+  const metaScale = (Number(document.getElementById('document-meta-scale')?.value) || 100) / 100;
+  const logoScale = (Number(document.getElementById('document-logo-scale')?.value) || 100) / 100;
+
+  const docNameFont = (10.5 * docNameScale).toFixed(1) + 'pt';
+  const specialtyFont = (7.8 * specialtyScale).toFixed(1) + 'pt';
+  const metaFont = (7.5 * metaScale).toFixed(1) + 'pt';
+  const logoSize = Math.round(52 * logoScale) + 'px';
+
+  const logoDataUrl = document.getElementById('cabinet-logo-data')?.value || (typeof getCabinetLogoDataUrl === 'function' ? getCabinetLogoDataUrl() : '') || 'assets/logo.png';
+
+  const formatSpecialty = (text) => {
+    const raw = String(text || '').trim();
+    if (!raw) return ['', ''];
+    if (raw.includes('\n')) {
+      const parts = raw.split('\n').map(p => p.trim()).filter(Boolean);
+      return [parts[0] || '', parts.slice(1).join(' ')];
+    }
+    const medMatch = raw.match(/^(Médecin\s+spécialiste\s+en|Spécialiste\s+en)\s+(.*)$/i);
+    if (medMatch) return [medMatch[1].toUpperCase(), medMatch[2].toUpperCase()];
+    const orlMatch = raw.match(/^(ORL\s*(?:&|et)\s*Chirurgi[a-z]*\s*cervico[\s-]faciale)\s*(?:[-/&,]|\s)\s*(Chirurgi[a-z]*\s*endoscopique.*)$/i);
+    if (orlMatch) return [orlMatch[1].toUpperCase(), orlMatch[2].toUpperCase()];
+    let bestIdx = -1, bestDelta = Infinity;
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i] === ' ') {
+        const delta = Math.abs(i - raw.length / 2);
+        if (delta < bestDelta) { bestDelta = delta; bestIdx = i; }
+      }
+    }
+    if (bestIdx > 0) return [raw.substring(0, bestIdx).trim().toUpperCase(), raw.substring(bestIdx + 1).trim().toUpperCase()];
+    return [raw.toUpperCase(), ''];
+  };
+
+  const specParts = formatSpecialty(doctorSpecialty);
+  const dateStr = new Date().toLocaleDateString('fr-FR');
+  const safeDoctorName = typeof escapeHtml === 'function' ? escapeHtml(doctorName.toUpperCase()) : doctorName.toUpperCase();
+
+  container.innerHTML = `
+    <div style="width: 100%; max-width: 780px; margin: 0 auto; background: #ffffff; padding: 8px 12px; border-top: 2px solid ${primaryColor}; border-bottom: 2px solid ${primaryColor}; font-family: Segoe UI, sans-serif;">
+      <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(36px, 60px) minmax(0, 1fr); align-items: center; gap: 12px;">
+        <!-- Left: Doctor Info -->
+        <div style="text-align: left; min-width: 0;">
+          <div style="font-size: ${docNameFont}; font-weight: 800; color: ${primaryColor}; text-transform: uppercase; line-height: 1.2; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            DR. ${safeDoctorName}
+          </div>
+          <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${specParts[0]}
+          </div>
+          ${specParts[1] ? `
+            <div style="font-size: ${specialtyFont}; font-weight: 700; color: #000000; text-transform: uppercase; line-height: 1.25; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${specParts[1]}
+            </div>
+          ` : ''}
+          ${doctorRPPS ? `
+            <div style="font-size: ${metaFont}; font-weight: 700; color: #1e293b; margin-top: 2px;">
+              <span style="color: ${primaryColor}; font-weight: 800;">N° D'ORDRE :</span> ${doctorRPPS}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Center: Logo -->
+        <div style="display: flex; align-items: center; justify-content: center;">
+          <div style="width: ${logoSize}; height: ${logoSize}; max-width: 60px; max-height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden;">
+            <img src="${logoDataUrl}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+          </div>
+        </div>
+
+        <!-- Right: Patient Info -->
+        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 1.5px; font-size: ${metaFont}; min-width: 0;">
+          <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">NOM :</span> <span style="font-weight: 700; color: #000000;">BENALI</span></div>
+          <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">PRÉNOM :</span> <span style="font-weight: 700; color: #000000;">KARIM</span></div>
+          <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">ÂGE :</span> <span style="font-weight: 700; color: #000000;">34 ans</span></div>
+          <div style="white-space: nowrap;"><span style="font-weight: 800; color: ${primaryColor};">ÉMIS LE :</span> <span style="font-weight: 700; color: #000000;">${dateStr}</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.updateHeaderLivePreview = updateHeaderLivePreview;
 
 function parseDocumentTypeColors(rawValue) {
   if (!rawValue) return { ...DEFAULT_DOCUMENT_TYPE_COLORS };
@@ -1903,7 +1996,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 400);
   };
 
-  ['document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-doctor-name-scale', 'document-specialty-scale', 'document-meta-scale', 'document-logo-scale', 'document-font-family', 'default-document-page-size', 'document-bonpour-title'].forEach((id) => {
+  ['cabinet-name', 'cabinet-specialty', 'cabinet-rpps', 'document-style-variant', 'document-primary-color', 'document-color-mode', 'document-text-scale', 'document-doctor-name-scale', 'document-specialty-scale', 'document-meta-scale', 'document-logo-scale', 'document-font-family', 'default-document-page-size', 'document-bonpour-title'].forEach((id) => {
     const field = document.getElementById(id);
     if (field && !field.dataset.previewBound) {
       field.addEventListener('input', () => {
