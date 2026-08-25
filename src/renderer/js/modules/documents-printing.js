@@ -3703,7 +3703,7 @@ function buildNasofibroscopieBodyHtml(data = {}) {
       .naso-single-column {
         display: flex;
         flex-direction: column;
-        gap: 2mm;
+        gap: 2.4mm;
         margin-top: 1.5mm;
         background: transparent !important;
       }
@@ -3715,58 +3715,50 @@ function buildNasofibroscopieBodyHtml(data = {}) {
         page-break-inside: avoid;
       }
       .naso-item-title {
-        font-size: 8.8pt;
+        font-size: 9pt;
         font-weight: 850;
         text-transform: uppercase;
         color: #000000;
-        margin: 0 0 0.8mm 0;
+        margin: 0 0 1mm 0;
         letter-spacing: 0.02em;
         text-decoration: underline;
         text-underline-offset: 2px;
       }
       .naso-item-content {
-        font-size: 8.4pt;
+        font-size: 8.5pt;
         line-height: 1.35;
         color: #1e293b;
         white-space: pre-wrap;
-        padding-left: 2.5mm;
+        padding-left: 4mm;
         margin: 0;
       }
-      .naso-subfield-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8mm;
-        padding-left: 2.5mm;
-        margin: 0 0 0.6mm 0;
-      }
       .naso-subfield {
-        font-size: 8.4pt;
+        margin: 0 0 1mm 0;
+        font-size: 8.5pt;
         line-height: 1.35;
         color: #1e293b;
-        display: inline-flex;
-        align-items: baseline;
-        gap: 3px;
+        padding-left: 4mm;
       }
       .naso-subfield-label {
         font-weight: 750;
         color: #000000;
         text-transform: uppercase;
         font-size: 8.2pt;
+        margin-right: 2mm;
       }
       .naso-conclusion-section {
         margin-top: 2.5mm;
-        padding: 1.8mm 2.5mm;
-        border: 1px dashed var(--doc-primary, #0284c7) !important;
-        background: rgba(2, 132, 199, 0.03) !important;
-        border-radius: 4px;
+        padding: 0;
+        border: none !important;
+        background: transparent !important;
         page-break-inside: avoid;
       }
       .naso-conclusion-header {
-        font-size: 9.2pt;
+        font-size: 9.5pt;
         font-weight: 850;
         color: var(--doc-primary, var(--professional-blue, #0284c7)) !important;
         text-transform: uppercase;
-        margin-bottom: 0.8mm;
+        margin-bottom: 1mm;
         letter-spacing: 0.025em;
         text-decoration: underline;
         text-underline-offset: 2px;
@@ -3777,7 +3769,7 @@ function buildNasofibroscopieBodyHtml(data = {}) {
         line-height: 1.35;
         color: #0f172a;
         white-space: pre-wrap;
-        padding-left: 1.5mm;
+        padding-left: 4mm;
       }
     </style>
 
@@ -3785,15 +3777,13 @@ function buildNasofibroscopieBodyHtml(data = {}) {
       <!-- -FOSSES NASALES : -->
       <div class="naso-item">
         <div class="naso-item-title">-FOSSES NASALES :</div>
-        <div class="naso-subfield-row">
-          <div class="naso-subfield">
-            <span class="naso-subfield-label">DROITE :</span>
-            <span>${escapePrintingHtml(fossesDroite)}</span>
-          </div>
-          <div class="naso-subfield">
-            <span class="naso-subfield-label">GAUCHE :</span>
-            <span>${escapePrintingHtml(fossesGauche)}</span>
-          </div>
+        <div class="naso-subfield">
+          <span class="naso-subfield-label">DROITE :</span>
+          <span>${escapePrintingHtml(fossesDroite)}</span>
+        </div>
+        <div class="naso-subfield" style="margin-bottom: 0;">
+          <span class="naso-subfield-label">GAUCHE :</span>
+          <span>${escapePrintingHtml(fossesGauche)}</span>
         </div>
       </div>
 
@@ -3864,7 +3854,7 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
       .echo-single-column {
         display: flex;
         flex-direction: column;
-        gap: 1.8mm;
+        gap: 2.2mm;
         margin-top: 1mm;
         background: transparent !important;
       }
@@ -3885,58 +3875,50 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
         page-break-inside: avoid;
       }
       .echo-item-title {
-        font-size: 8.8pt;
+        font-size: 9pt;
         font-weight: 850;
         text-transform: uppercase;
         color: #000000;
-        margin: 0 0 0.8mm 0;
+        margin: 0 0 1mm 0;
         letter-spacing: 0.02em;
         text-decoration: underline;
         text-underline-offset: 2px;
       }
-      .echo-subfield-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6mm;
-        padding-left: 2.5mm;
-        margin: 0 0 0.6mm 0;
-      }
-      .echo-subfield {
-        font-size: 8.4pt;
+      .echo-item-content {
+        font-size: 8.5pt;
         line-height: 1.35;
         color: #1e293b;
-        display: inline-flex;
-        align-items: baseline;
-        gap: 3px;
+        white-space: pre-wrap;
+        padding-left: 4mm;
+        margin: 0;
+      }
+      .echo-subfield {
+        margin: 0 0 1mm 0;
+        font-size: 8.5pt;
+        line-height: 1.35;
+        color: #1e293b;
+        padding-left: 4mm;
       }
       .echo-subfield-label {
         font-weight: 750;
         color: #000000;
         text-transform: uppercase;
         font-size: 8.2pt;
-      }
-      .echo-item-content {
-        font-size: 8.4pt;
-        line-height: 1.35;
-        color: #1e293b;
-        white-space: pre-wrap;
-        padding-left: 2.5mm;
-        margin: 0;
+        margin-right: 2mm;
       }
       .echo-conclusion-section {
-        margin-top: 2.2mm;
-        padding: 1.8mm 2.5mm;
-        border: 1px dashed var(--doc-primary, #0284c7) !important;
-        background: rgba(2, 132, 199, 0.03) !important;
-        border-radius: 4px;
+        margin-top: 2.5mm;
+        padding: 0;
+        border: none !important;
+        background: transparent !important;
         page-break-inside: avoid;
       }
       .echo-conclusion-header {
-        font-size: 9.2pt;
+        font-size: 9.5pt;
         font-weight: 850;
         color: var(--doc-primary, var(--professional-blue, #0284c7)) !important;
         text-transform: uppercase;
-        margin-bottom: 0.8mm;
+        margin-bottom: 1mm;
         letter-spacing: 0.025em;
         text-decoration: underline;
         text-underline-offset: 2px;
@@ -3947,7 +3929,7 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
         line-height: 1.35;
         color: #0f172a;
         white-space: pre-wrap;
-        padding-left: 1.5mm;
+        padding-left: 4mm;
       }
     </style>
 
@@ -3961,19 +3943,17 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
       <!-- A. GLANDE THYROÏDE -->
       <div class="echo-item">
         <div class="echo-item-title">A. GLANDE THYROÏDE :</div>
-        <div class="echo-subfield-row">
-          <div class="echo-subfield">
-            <span class="echo-subfield-label">LOBE DROIT :</span>
-            <span>${escapePrintingHtml(lobeDroit)}</span>
-          </div>
-          <div class="echo-subfield">
-            <span class="echo-subfield-label">LOBE GAUCHE :</span>
-            <span>${escapePrintingHtml(lobeGauche)}</span>
-          </div>
-          <div class="echo-subfield">
-            <span class="echo-subfield-label">ISTHME :</span>
-            <span>${escapePrintingHtml(isthme)}</span>
-          </div>
+        <div class="echo-subfield">
+          <span class="echo-subfield-label">LOBE DROIT :</span>
+          <span>${escapePrintingHtml(lobeDroit)}</span>
+        </div>
+        <div class="echo-subfield">
+          <span class="echo-subfield-label">LOBE GAUCHE :</span>
+          <span>${escapePrintingHtml(lobeGauche)}</span>
+        </div>
+        <div class="echo-subfield" style="margin-bottom: 0;">
+          <span class="echo-subfield-label">ISTHME :</span>
+          <span>${escapePrintingHtml(isthme)}</span>
         </div>
       </div>
 
@@ -3986,15 +3966,13 @@ function buildEchographieCervicaleBodyHtml(data = {}) {
       <!-- C. LES GLANDES SALIVAIRES -->
       <div class="echo-item">
         <div class="echo-item-title">C. LES GLANDES SALIVAIRES :</div>
-        <div class="echo-subfield-row">
-          <div class="echo-subfield">
-            <span class="echo-subfield-label">GLANDES SOUS-MANDIBULAIRES :</span>
-            <span>${escapePrintingHtml(glandesSousMandibulaires)}</span>
-          </div>
-          <div class="echo-subfield">
-            <span class="echo-subfield-label">GLANDES PAROTIDES :</span>
-            <span>${escapePrintingHtml(glandesParotides)}</span>
-          </div>
+        <div class="echo-subfield">
+          <span class="echo-subfield-label">GLANDES SOUS-MANDIBULAIRES :</span>
+          <span>${escapePrintingHtml(glandesSousMandibulaires)}</span>
+        </div>
+        <div class="echo-subfield" style="margin-bottom: 0;">
+          <span class="echo-subfield-label">GLANDES PAROTIDES :</span>
+          <span>${escapePrintingHtml(glandesParotides)}</span>
         </div>
       </div>
 
