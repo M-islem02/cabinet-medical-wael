@@ -4361,10 +4361,10 @@ function buildAudiogrammeBodyHtml(data = {}) {
     </style>
 
     <div class="audio-single-column">
-      <!-- 2 Graphiques Côte à Côte -->
+      <!-- 2 Graphiques Côte à Côte (OD d'abord à gauche, OG à droite) -->
       <div class="audio-charts-row">
-        ${svgGauche}
         ${svgDroite}
+        ${svgGauche}
       </div>
 
       <!-- Section Observation -->

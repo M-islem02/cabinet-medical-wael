@@ -6758,74 +6758,12 @@
                                 </div>
                             </div>
 
-                            <!-- 1. Tableau Oreille Gauche (OG) -->
-                            <div style="border: 1.5px solid #0f172a; border-radius: 8px; padding: 12px 14px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                    <label style="font-weight: 800; font-size: 13px; color: #0f172a; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
-                                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2563eb;"></span>
-                                        <span>1. Oreille Gauche (OG)</span>
-                                    </label>
-                                    <span style="font-size: 12px; font-weight: 750; color: #0f172a; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 4px;">
-                                        PTA : <strong id="audio-pta-indicator-gauche" style="color: #2563eb;">-</strong>
-                                    </span>
-                                </div>
-
-                                <div style="overflow-x: auto; width: 100%;">
-                                    <table style="width: 100%; min-width: 660px; table-layout: fixed; border-collapse: collapse; text-align: center; font-size: 12px; border: 1.5px solid #0f172a;">
-                                        <colgroup>
-                                            <col style="width: 100px;">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                            <col style="width: calc((100% - 100px) / 7);">
-                                        </colgroup>
-                                        <thead>
-                                            <tr style="background: #0f172a; color: #ffffff; font-weight: 750;">
-                                                <th style="padding: 6px 4px; border: 1px solid #334155; text-align: center; color: #ffffff; font-size: 11px; white-space: nowrap;">Fréq (Hz)</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">125</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">250</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">500</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">1000</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">2000</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">4000</th>
-                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">8000</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr style="background: #ffffff;">
-                                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626; text-align: center; font-size: 11px; white-space: nowrap; background: #fff1f2;">CA (Trans.)</td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-125" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-250" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-500" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-1000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-2000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-4000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-8000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                            </tr>
-                                            <tr style="background: #ffffff;">
-                                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #2563eb; text-align: center; font-size: 11px; white-space: nowrap; background: #eff6ff;">CO (Percep.)</td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-125" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-250" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-500" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-1000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-2000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-4000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-8000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- 2. Tableau Oreille Droite (OD) -->
+                            <!-- 1. Tableau Oreille Droite (OD) -->
                             <div style="border: 1.5px solid #0f172a; border-radius: 8px; padding: 12px 14px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                     <label style="font-weight: 800; font-size: 13px; color: #0f172a; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
                                         <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #dc2626;"></span>
-                                        <span>2. Oreille Droite (OD)</span>
+                                        <span>1. Oreille Droite (OD)</span>
                                     </label>
                                     <span style="font-size: 12px; font-weight: 750; color: #0f172a; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 4px;">
                                         PTA : <strong id="audio-pta-indicator-droite" style="color: #dc2626;">-</strong>
@@ -6876,6 +6814,68 @@
                                                 <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cod-2000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
                                                 <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cod-4000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
                                                 <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cod-8000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- 2. Tableau Oreille Gauche (OG) -->
+                            <div style="border: 1.5px solid #0f172a; border-radius: 8px; padding: 12px 14px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <label style="font-weight: 800; font-size: 13px; color: #0f172a; text-transform: uppercase; margin: 0; display: flex; align-items: center; gap: 6px;">
+                                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2563eb;"></span>
+                                        <span>2. Oreille Gauche (OG)</span>
+                                    </label>
+                                    <span style="font-size: 12px; font-weight: 750; color: #0f172a; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 3px 10px; border-radius: 4px;">
+                                        PTA : <strong id="audio-pta-indicator-gauche" style="color: #2563eb;">-</strong>
+                                    </span>
+                                </div>
+
+                                <div style="overflow-x: auto; width: 100%;">
+                                    <table style="width: 100%; min-width: 660px; table-layout: fixed; border-collapse: collapse; text-align: center; font-size: 12px; border: 1.5px solid #0f172a;">
+                                        <colgroup>
+                                            <col style="width: 100px;">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                            <col style="width: calc((100% - 100px) / 7);">
+                                        </colgroup>
+                                        <thead>
+                                            <tr style="background: #0f172a; color: #ffffff; font-weight: 750;">
+                                                <th style="padding: 6px 4px; border: 1px solid #334155; text-align: center; color: #ffffff; font-size: 11px; white-space: nowrap;">Fréq (Hz)</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">125</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">250</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">500</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">1000</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">2000</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">4000</th>
+                                                <th style="padding: 6px 2px; border: 1px solid #334155; color: #ffffff; font-size: 12px;">8000</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626; text-align: center; font-size: 11px; white-space: nowrap; background: #fff1f2;">CA (Trans.)</td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-125" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-250" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-500" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-1000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-2000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-4000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cag-8000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                            </tr>
+                                            <tr style="background: #ffffff;">
+                                                <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #2563eb; text-align: center; font-size: 11px; white-space: nowrap; background: #eff6ff;">CO (Percep.)</td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-125" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-250" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-500" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-1000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-2000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-4000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
+                                                <td style="padding: 3px 2px; border: 1px solid #cbd5e1;"><input type="number" min="-10" max="130" step="any" id="audio-cog-8000" class="form-control" style="height: 32px; width: 100% !important; min-width: 44px; padding: 2px 2px !important; text-align: center; font-size: 13px; font-weight: 750; color: #0f172a; border: 1.5px solid #cbd5e1; background: #f8fafc; border-radius: 4px; box-sizing: border-box;"></td>
                                             </tr>
                                         </tbody>
                                     </table>
