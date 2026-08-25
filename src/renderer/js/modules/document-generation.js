@@ -642,44 +642,67 @@ async function saveInvoiceDocument(event, options = {}) {
     event.preventDefault();
   }
   const { silent = false } = options;
-  const state = documentModalState.invoice || {};
-  if (!state.patientId) {
-    showNotification('Aucun patient selectionne', 'error');
+  if (!documentModalState.invoice) {
+    documentModalState.invoice = {};
+  }
+  const state = documentModalState.invoice;
+  const patientId = state.patientId || window.currentPatientId || (typeof currentPatient !== 'undefined' ? currentPatient?.id : null);
+  if (!patientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Aucun patient sélectionné', 'error');
+    }
     return { success: false };
   }
+  state.patientId = patientId;
   const data = collectFactureFormData();
   state.data = data;
-  const response = await window.api.document.save({
-    id: state.documentId,
-    patientId: state.patientId,
-    consultationId: state.consultationId || null,
-    documentType: 'invoice',
-    title: 'Facture',
-    data
-  });
-  if (response.success) {
-    documentModalState.invoice.documentId = response.id;
-    if (!state.consultationId && currentPatientId === state.patientId) {
-      loadPatientFactures(currentPatientId);
+  
+  try {
+    const response = await window.api.document.save({
+      id: state.documentId || undefined,
+      patientId: state.patientId,
+      consultationId: state.consultationId || null,
+      documentType: 'invoice',
+      title: 'Facture',
+      data
+    });
+    if (response && response.success) {
+      documentModalState.invoice.documentId = response.id;
+      if (typeof loadPatientFactures === 'function' && currentPatientId === state.patientId) {
+        loadPatientFactures(currentPatientId);
+      }
+      if (!silent && typeof showNotification === 'function') {
+        showNotification('Facture enregistrée', 'success');
+      }
+    } else if (!silent && typeof showNotification === 'function') {
+      showNotification(response?.error || 'Erreur lors de la sauvegarde', 'error');
     }
-    if (!silent) {
-      showNotification('Facture enregistree', 'success');
+    return response;
+  } catch (error) {
+    console.error('Error saving invoice:', error);
+    if (!silent && typeof showNotification === 'function') {
+      showNotification('Erreur lors de l\'enregistrement de la facture', 'error');
     }
-  } else if (!silent) {
-    showNotification(response.error || 'Erreur lors de la sauvegarde', 'error');
+    return { success: false, error: error?.message };
   }
-  return response;
 }
 
 async function printInvoiceDocument() {
-  const state = documentModalState.invoice;
-  if (!state.patientId) {
-    showNotification('Selectionnez un patient avant impression', 'error');
+  const state = documentModalState.invoice || {};
+  const patientId = state.patientId || window.currentPatientId || (typeof currentPatient !== 'undefined' ? currentPatient?.id : null);
+  if (!patientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Sélectionnez un patient avant impression', 'error');
+    }
     return;
   }
+  state.patientId = patientId;
+
   const saveResult = await saveInvoiceDocument(null, { silent: true });
-  if (!saveResult.success) {
-    showNotification('Impossible d\'enregistrer la facture', 'error');
+  if (!saveResult || !saveResult.success) {
+    if (typeof showNotification === 'function') {
+      showNotification('Impossible d\'enregistrer la facture', 'error');
+    }
     return;
   }
   
@@ -687,13 +710,28 @@ async function printInvoiceDocument() {
     documentId: documentModalState.invoice.documentId,
     patientId: state.patientId,
     consultationId: state.consultationId || null,
-    data: { ...state.data }
+    data: { ...(state.data || collectFactureFormData()) }
   };
 
-  closeModal('modal-facture');
-  showNotification('Facture enregistree, impression en cours', 'success');
+  if (typeof closeModal === 'function') {
+    closeModal('modal-facture');
+  }
+  if (typeof showNotification === 'function') {
+    showNotification('Facture enregistrée, ouverture de l\'impression...', 'success');
+  }
   void runInvoicePrintPipeline(printState);
 }
+
+async function saveFactureDocument() {
+  return printInvoiceDocument();
+}
+
+async function printFactureDocument() {
+  return printInvoiceDocument();
+}
+
+window.saveFactureDocument = saveFactureDocument;
+window.printFactureDocument = printFactureDocument;
 
 function setRapportSummary({ patient, updatedAt }) {
   const nameEl = document.getElementById('rapport-patient-name');
