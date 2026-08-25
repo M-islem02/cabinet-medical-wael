@@ -2,13 +2,19 @@ const PATIENT_DOCUMENT_PAGE_SIZES = {
   factures: 5,
   rapports: 5,
   bonpour: 5,
-  orientations: 5
+  orientations: 5,
+  nasofibroscopies: 5,
+  echographies: 5,
+  audiogrammes: 5
 };
 const patientDocumentPagination = {
   factures: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.factures, total: 0, totalPages: 1 },
   rapports: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.rapports, total: 0, totalPages: 1 },
   bonpour: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.bonpour, total: 0, totalPages: 1 },
-  orientations: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.orientations, total: 0, totalPages: 1 }
+  orientations: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.orientations, total: 0, totalPages: 1 },
+  nasofibroscopies: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.nasofibroscopies, total: 0, totalPages: 1 },
+  echographies: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.echographies, total: 0, totalPages: 1 },
+  audiogrammes: { page: 1, pageSize: PATIENT_DOCUMENT_PAGE_SIZES.audiogrammes, total: 0, totalPages: 1 }
 };
 
 function resetPatientDocumentPagination(sectionKey = null) {
@@ -24,8 +30,10 @@ function resetPatientDocumentPagination(sectionKey = null) {
 }
 
 function updatePatientDocumentPagination(sectionKey, pagination = null) {
-  const currentState = patientDocumentPagination[sectionKey];
-  if (!currentState) return;
+  const currentState = patientDocumentPagination[sectionKey] || { page: 1, pageSize: 5, total: 0, totalPages: 1 };
+  if (!patientDocumentPagination[sectionKey]) {
+    patientDocumentPagination[sectionKey] = currentState;
+  }
 
   if (!pagination) {
     patientDocumentPagination[sectionKey] = {
@@ -80,13 +88,13 @@ function getPatientDocumentFilters() {
 }
 
 async function fetchPatientDocumentPage(patientId, sectionKey, documentType, page = null) {
-  const pagination = patientDocumentPagination[sectionKey];
+  const pagination = patientDocumentPagination[sectionKey] || { page: 1, pageSize: 5 };
   const filters = getPatientDocumentFilters();
   const result = await window.api.document.listByPatient({
     patientId,
     documentType,
     page: Number(page || pagination.page || 1),
-    pageSize: pagination.pageSize,
+    pageSize: pagination.pageSize || 5,
     startDate: filters.start,
     endDate: filters.end,
     paginated: true
@@ -107,6 +115,9 @@ async function changePatientDocumentPage(sectionKey, direction) {
   if (sectionKey === 'rapports') await loadPatientRapports(currentPatientId, { page: nextPage });
   if (sectionKey === 'bonpour') await loadPatientBonPour(currentPatientId, { page: nextPage });
   if (sectionKey === 'orientations') await loadPatientOrientations(currentPatientId, { page: nextPage });
+  if (sectionKey === 'nasofibroscopies') await loadPatientNasofibroscopies(currentPatientId, { page: nextPage });
+  if (sectionKey === 'echographies') await loadPatientEchographies(currentPatientId, { page: nextPage });
+  if (sectionKey === 'audiogrammes') await loadPatientAudiogrammes(currentPatientId, { page: nextPage });
 }
 
 if (typeof window !== 'undefined') {
