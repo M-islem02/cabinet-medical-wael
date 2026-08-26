@@ -2474,33 +2474,21 @@ async function loadConsultationEquipmentPicker(consultationId = '') {
       window.api.equipment.getAll({}),
       consultationId ? window.api.equipment.getForConsultation(consultationId) : Promise.resolve({ success: true, data: [] })
     ]);
-    const items = allResult?.success ? (allResult.data || []) : [];
-    const defaultOrlItems = [
-      { id: 'eq-orl-001', name: 'Fauteuil d’examen ORL motorisé ergonomique', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
-      { id: 'eq-orl-002', name: 'Microscope de consultation ORL à LED', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
-      { id: 'eq-orl-003', name: 'Nasofibroscope souple vidéo HD', assignedRoom: 'Salle d’Endoscopie ORL', status: 'available' },
-      { id: 'eq-orl-004', name: 'Audiomètre clinique diagnostique 2 canaux', assignedRoom: 'Cabine Audiométrique', status: 'available' },
-      { id: 'eq-orl-005', name: 'Tympanomètre & Impédancemètre automatique', assignedRoom: 'Cabine Audiométrique', status: 'available' },
-      { id: 'eq-orl-006', name: 'Caméra Vidéo-Otoscope HD avec écran', assignedRoom: 'Salle de Consultation ORL', status: 'available' },
-      { id: 'eq-orl-007', name: 'Système d’aspiration chirurgicale ORL', assignedRoom: 'Salle de Soins ORL', status: 'available' },
-      { id: 'eq-orl-008', name: 'Source de lumière froide LED & Câble optique', assignedRoom: 'Salle d’Endoscopie ORL', status: 'available' }
-    ];
+    const items = allResult?.success && Array.isArray(allResult.data) ? allResult.data : [];
 
-    // Filter out dental-specific items for ORL cabinet and merge with default ORL items
-    const validDbItems = items.filter(item => {
-      const n = (item.name || '').toLowerCase();
-      return !n.includes('dentaire') && !n.includes('intra-orale') && !n.includes('panoramique');
-    });
+    allConsultationEquipmentItems = items;
+    selectedConsultationEquipmentIds = new Set((selectedResult?.success && Array.isArray(selectedResult.data) ? selectedResult.data : []).map(item => String(item.equipmentId || item.id)));
 
-    const combinedItems = [...validDbItems];
-    defaultOrlItems.forEach(dItem => {
-      if (!combinedItems.some(item => item.id === dItem.id || item.name === dItem.name)) {
-        combinedItems.push(dItem);
-      }
-    });
+    if (allConsultationEquipmentItems.length === 0 && selectedConsultationEquipmentIds.size === 0) {
+      container.innerHTML = `
+        <div style="font-size: 13px; color: #64748b; padding: 10px 14px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; display: flex; align-items: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Aucun équipement enregistré dans le cabinet.</span>
+        </div>
+      `;
+      return;
+    }
 
-    allConsultationEquipmentItems = combinedItems;
-    selectedConsultationEquipmentIds = new Set((selectedResult?.success ? selectedResult.data : []).map(item => String(item.equipmentId)));
     renderConsultationEquipmentWidget();
   } catch (error) {
     container.innerHTML = '<span class="care-equipment-empty" style="font-size:13px; color:#ef4444;">Impossible de charger les équipements.</span>';
@@ -2512,12 +2500,12 @@ function renderConsultationEquipmentWidget() {
   if (!container) return;
 
   container.innerHTML = `
-    <div class="consultation-equipment-picker-box" style="position: relative; width: 100%;">
+    <div class="consultation-equipment-picker-box" style="position: relative; width: 100%; display: block;">
       <div style="position: relative; width: 100%;">
         <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; pointer-events: none; color: #64748b; z-index: 5;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </span>
-        <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Rechercher ou sélectionner un équipement ORL..." autocomplete="off" style="padding-left: 38px !important; padding-right: 32px; height: 38px; font-size: 13px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%; box-sizing: border-box;">
+        <input type="text" id="consultation-eq-search-input" class="form-control" placeholder="Rechercher ou sélectionner un équipement..." autocomplete="off" style="padding-left: 38px !important; padding-right: 32px; height: 38px; font-size: 13px; border-radius: 6px; border: 1px solid #d9d9d9; background: #ffffff; width: 100%; box-sizing: border-box;">
         <button type="button" id="consultation-eq-clear-btn" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; padding: 2px; line-height: 1; z-index: 5;" title="Effacer la recherche">&times;</button>
         <div id="consultation-eq-dropdown-list" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10080; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 14px 35px rgba(0,0,0,0.22); max-height: 320px; overflow-y: auto;"></div>
       </div>
