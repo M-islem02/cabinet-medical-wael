@@ -187,129 +187,134 @@ export function handleSettingsEvents() {
     }
   });
 
+  async function saveOrUpdateSettings(settingsData) {
+    await ensureSettingsColumns();
+    const now = moment().format('YYYY-MM-DD HH:mm:ss');
+    const ownerUserId = getCurrentSettingsOwnerUserId();
+    const existing = await getScopedSettings(ownerUserId);
+
+    const merged = {
+      cabinetName: settingsData.cabinetName !== undefined ? settingsData.cabinetName : (existing?.cabinetName || ''),
+      cabinetAddress: settingsData.cabinetAddress !== undefined ? settingsData.cabinetAddress : (existing?.cabinetAddress || ''),
+      cabinetPhone: settingsData.cabinetPhone !== undefined ? settingsData.cabinetPhone : (existing?.cabinetPhone || ''),
+      cabinetEmail: settingsData.cabinetEmail !== undefined ? settingsData.cabinetEmail : (existing?.cabinetEmail || ''),
+      doctorName: settingsData.doctorName !== undefined ? settingsData.doctorName : (existing?.doctorName || ''),
+      doctorRPPS: settingsData.doctorRPPS !== undefined ? settingsData.doctorRPPS : (existing?.doctorRPPS || ''),
+      doctorSpecialty: settingsData.doctorSpecialty !== undefined ? settingsData.doctorSpecialty : (existing?.doctorSpecialty || ''),
+      documentColorMode: (settingsData.documentColorMode || existing?.documentColorMode) === 'bw' ? 'bw' : 'color',
+      documentPrimaryColor: /^#[0-9a-fA-F]{6}$/.test(String(settingsData.documentPrimaryColor || '').trim())
+        ? String(settingsData.documentPrimaryColor).trim()
+        : (existing?.documentPrimaryColor || '#1a8c7e'),
+      documentTypeColors: settingsData.documentTypeColors
+        ? normalizeDocumentTypeColors(settingsData.documentTypeColors)
+        : (existing?.documentTypeColors || normalizeDocumentTypeColors(null)),
+      documentTextScale: Math.min(120, Math.max(90, Number(settingsData.documentTextScale || existing?.documentTextScale) || 100)),
+      documentLogoScale: Math.min(200, Math.max(80, Number(settingsData.documentLogoScale || existing?.documentLogoScale) || 90)),
+      documentStyleVariant: normalizeDocumentStyleVariant(settingsData.documentStyleVariant || existing?.documentStyleVariant),
+      documentWatermarkOpacity: Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity || existing?.documentWatermarkOpacity) || 5)),
+      documentHideSignature: settingsData.documentHideSignature !== undefined
+        ? (settingsData.documentHideSignature ? 1 : 0)
+        : (existing?.documentHideSignature ? 1 : 0),
+      documentShowBarcode: settingsData.documentShowBarcode !== undefined
+        ? (settingsData.documentShowBarcode === false ? 0 : 1)
+        : (existing?.documentShowBarcode === 0 || existing?.documentShowBarcode === false ? 0 : 1),
+      preferredPrinter: settingsData.preferredPrinter !== undefined ? settingsData.preferredPrinter : (existing?.preferredPrinter || null),
+      preferredScanner: settingsData.preferredScanner !== undefined ? settingsData.preferredScanner : (existing?.preferredScanner || null),
+      preferredThermalPrinter: settingsData.preferredThermalPrinter !== undefined ? settingsData.preferredThermalPrinter : (existing?.preferredThermalPrinter || null),
+      autoPrintAppointmentTicket: settingsData.autoPrintAppointmentTicket !== undefined
+        ? (settingsData.autoPrintAppointmentTicket ? 1 : 0)
+        : (existing?.autoPrintAppointmentTicket ? 1 : 0),
+      publicBookingEnabled: settingsData.publicBookingEnabled !== undefined
+        ? (settingsData.publicBookingEnabled ? 1 : 0)
+        : (existing?.publicBookingEnabled ? 1 : 0),
+      publicBookingPort: settingsData.publicBookingPort || existing?.publicBookingPort || 4580,
+      publicBookingPublicUrl: settingsData.publicBookingPublicUrl !== undefined ? settingsData.publicBookingPublicUrl : (existing?.publicBookingPublicUrl || null),
+      publicBookingQrEnabled: settingsData.publicBookingQrEnabled !== undefined
+        ? (settingsData.publicBookingQrEnabled === false ? 0 : 1)
+        : (existing?.publicBookingQrEnabled === 0 ? 0 : 1),
+      appLogoDataUrl: (settingsData.appLogoDataUrl && String(settingsData.appLogoDataUrl).trim())
+        ? String(settingsData.appLogoDataUrl).trim()
+        : (settingsData.clearAppLogo ? null : (existing?.appLogoDataUrl || null)),
+      cabinetLogoDataUrl: (settingsData.cabinetLogoDataUrl && String(settingsData.cabinetLogoDataUrl).trim())
+        ? String(settingsData.cabinetLogoDataUrl).trim()
+        : (settingsData.clearCabinetLogo ? null : (existing?.cabinetLogoDataUrl || null)),
+      cabinetWatermarkLogoDataUrl: (settingsData.cabinetWatermarkLogoDataUrl && String(settingsData.cabinetWatermarkLogoDataUrl).trim())
+        ? String(settingsData.cabinetWatermarkLogoDataUrl).trim()
+        : (settingsData.clearWatermarkLogo ? null : (existing?.cabinetWatermarkLogoDataUrl || null)),
+      customTreatmentTypes: settingsData.customTreatmentTypes !== undefined ? settingsData.customTreatmentTypes : (existing?.customTreatmentTypes || null),
+      documentFormats: settingsData.documentFormats !== undefined
+        ? normalizeDocumentTypeMap(settingsData.documentFormats)
+        : (existing?.documentFormats || null),
+      documentTextScales: settingsData.documentTextScales !== undefined
+        ? normalizeDocumentTypeMap(settingsData.documentTextScales)
+        : (existing?.documentTextScales || null),
+      defaultDocumentPageSize: String(settingsData.defaultDocumentPageSize || existing?.defaultDocumentPageSize || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5',
+      documentFontFamily: String(settingsData.documentFontFamily || existing?.documentFontFamily || 'segoe').trim(),
+      documentBonPourTitle: String(settingsData.documentBonPourTitle || existing?.documentBonPourTitle || 'Demande de Bilan').trim(),
+      documentDoctorNameScale: Math.min(160, Math.max(70, Number(settingsData.documentDoctorNameScale || existing?.documentDoctorNameScale) || 120)),
+      documentSpecialtyScale: Math.min(150, Math.max(70, Number(settingsData.documentSpecialtyScale || existing?.documentSpecialtyScale) || 100)),
+      documentMetaScale: Math.min(150, Math.max(70, Number(settingsData.documentMetaScale || existing?.documentMetaScale) || 100))
+    };
+
+    if (existing?.id) {
+      console.log('⚙️ Updating existing settings row:', existing.id);
+      await run(
+        `UPDATE settings 
+         SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
+             doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
+             publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, documentFormats = ?, documentTextScales = ?, defaultDocumentPageSize = ?, documentFontFamily = ?, documentBonPourTitle = ?, documentDoctorNameScale = ?, documentSpecialtyScale = ?, documentMetaScale = ?, updatedAt = ?
+           WHERE id = ?`,
+        [
+          merged.cabinetName, merged.cabinetAddress, merged.cabinetPhone, merged.cabinetEmail,
+          merged.doctorName, merged.doctorRPPS, merged.doctorSpecialty, merged.documentColorMode,
+          merged.documentPrimaryColor, merged.documentTypeColors, merged.documentTextScale,
+          merged.documentLogoScale, merged.documentStyleVariant, merged.documentWatermarkOpacity,
+          merged.documentHideSignature, merged.documentShowBarcode, merged.preferredPrinter,
+          merged.preferredScanner, merged.preferredThermalPrinter, merged.autoPrintAppointmentTicket,
+          merged.publicBookingEnabled, merged.publicBookingPort, merged.publicBookingPublicUrl,
+          merged.publicBookingQrEnabled, merged.appLogoDataUrl, merged.cabinetLogoDataUrl,
+          merged.cabinetWatermarkLogoDataUrl, merged.customTreatmentTypes, merged.documentFormats,
+          merged.documentTextScales, merged.defaultDocumentPageSize, merged.documentFontFamily,
+          merged.documentBonPourTitle, merged.documentDoctorNameScale, merged.documentSpecialtyScale,
+          merged.documentMetaScale, now, existing.id
+        ]
+      );
+    } else {
+      console.log('⚙️ Creating new settings row');
+      const id = uuidv4();
+      await run(
+        `INSERT INTO settings 
+         (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
+          preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
+          publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, documentFormats, documentTextScales, defaultDocumentPageSize, documentFontFamily, documentBonPourTitle, documentDoctorNameScale, documentSpecialtyScale, documentMetaScale, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id, ownerUserId, merged.cabinetName, merged.cabinetAddress, merged.cabinetPhone,
+          merged.cabinetEmail, merged.doctorName, merged.doctorRPPS, merged.doctorSpecialty,
+          merged.documentColorMode, merged.documentPrimaryColor, merged.documentTypeColors,
+          merged.documentTextScale, merged.documentLogoScale, merged.documentStyleVariant,
+          merged.documentWatermarkOpacity, merged.documentHideSignature, merged.documentShowBarcode,
+          merged.preferredPrinter, merged.preferredScanner, merged.preferredThermalPrinter,
+          merged.autoPrintAppointmentTicket, merged.publicBookingEnabled, merged.publicBookingPort,
+          merged.publicBookingPublicUrl, merged.publicBookingQrEnabled, merged.appLogoDataUrl,
+          merged.cabinetLogoDataUrl, merged.cabinetWatermarkLogoDataUrl, merged.customTreatmentTypes,
+          merged.documentFormats, merged.documentTextScales, merged.defaultDocumentPageSize,
+          merged.documentFontFamily, merged.documentBonPourTitle, merged.documentDoctorNameScale,
+          merged.documentSpecialtyScale, merged.documentMetaScale, now
+        ]
+      );
+    }
+
+    const bookingSyncResult = await syncPublicBookingServerWithSettings();
+    console.log('✅ Settings saved successfully');
+    return { success: true, warning: bookingSyncResult.success ? null : bookingSyncResult.error };
+  }
+
   // Mettre à jour les paramètres
   ipcMain.handle('settings:update', async (event, settingsData) => {
     console.log('⚙️ settings:update called', settingsData);
     try {
-      await ensureSettingsColumns();
-      const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      const ownerUserId = getCurrentSettingsOwnerUserId();
-      const existingSettings = await getScopedSettingsId(ownerUserId);
-
-      const defaultPageSize = String(settingsData.defaultDocumentPageSize || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
-      const docFontFamily = String(settingsData.documentFontFamily || 'segoe').trim();
-      const docBonPourTitle = String(settingsData.documentBonPourTitle || 'Demande de Bilan').trim();
-      const docNameScale = Math.min(160, Math.max(70, Number(settingsData.documentDoctorNameScale) || 120));
-      const specialtyScale = Math.min(150, Math.max(70, Number(settingsData.documentSpecialtyScale) || 100));
-      const metaScale = Math.min(150, Math.max(70, Number(settingsData.documentMetaScale) || 100));
-
-      if (existingSettings) {
-        // Mettre à jour
-        console.log('⚙️ Updating existing settings');
-        await run(
-          `UPDATE settings 
-           SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
-               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, documentFormats = ?, documentTextScales = ?, defaultDocumentPageSize = ?, documentFontFamily = ?, documentBonPourTitle = ?, documentDoctorNameScale = ?, documentSpecialtyScale = ?, documentMetaScale = ?, updatedAt = ?
-             WHERE id = ?`,
-          [
-            settingsData.cabinetName,
-            settingsData.cabinetAddress,
-            settingsData.cabinetPhone,
-            settingsData.cabinetEmail,
-            settingsData.doctorName,
-            settingsData.doctorRPPS,
-            settingsData.doctorSpecialty,
-            settingsData.documentColorMode === 'bw' ? 'bw' : 'color',
-            /^#[0-9a-fA-F]{6}$/.test(String(settingsData.documentPrimaryColor || '').trim()) ? String(settingsData.documentPrimaryColor).trim() : '#1a8c7e',
-            normalizeDocumentTypeColors(settingsData.documentTypeColors),
-            Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
-            Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
-            Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
-            settingsData.documentHideSignature ? 1 : 0,
-            settingsData.documentShowBarcode === false ? 0 : 1,
-            settingsData.preferredPrinter || null,
-            settingsData.preferredScanner || null,
-            settingsData.preferredThermalPrinter || null,
-            settingsData.autoPrintAppointmentTicket ? 1 : 0,
-            settingsData.publicBookingEnabled ? 1 : 0,
-            settingsData.publicBookingPort || 4580,
-            settingsData.publicBookingPublicUrl || null,
-            settingsData.publicBookingQrEnabled === false ? 0 : 1,
-            settingsData.appLogoDataUrl || null,
-            settingsData.cabinetLogoDataUrl || null,
-            settingsData.cabinetWatermarkLogoDataUrl || null,
-            settingsData.customTreatmentTypes || null,
-            normalizeDocumentTypeMap(settingsData.documentFormats),
-            normalizeDocumentTypeMap(settingsData.documentTextScales),
-            defaultPageSize,
-            docFontFamily,
-            docBonPourTitle,
-            docNameScale,
-            specialtyScale,
-            metaScale,
-            now,
-            existingSettings.id
-          ]
-        );
-      } else {
-        // Créer
-        console.log('⚙️ Creating new settings');
-        const id = uuidv4();
-        await run(
-          `INSERT INTO settings 
-           (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
-            preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, documentFormats, documentTextScales, defaultDocumentPageSize, documentFontFamily, documentBonPourTitle, documentDoctorNameScale, documentSpecialtyScale, documentMetaScale, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            ownerUserId,
-            settingsData.cabinetName,
-            settingsData.cabinetAddress,
-            settingsData.cabinetPhone,
-            settingsData.cabinetEmail,
-            settingsData.doctorName,
-            settingsData.doctorRPPS,
-            settingsData.doctorSpecialty,
-            settingsData.documentColorMode === 'bw' ? 'bw' : 'color',
-            /^#[0-9a-fA-F]{6}$/.test(String(settingsData.documentPrimaryColor || '').trim()) ? String(settingsData.documentPrimaryColor).trim() : '#1a8c7e',
-            normalizeDocumentTypeColors(settingsData.documentTypeColors),
-            Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
-            Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
-            Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
-            settingsData.documentHideSignature ? 1 : 0,
-            settingsData.documentShowBarcode === false ? 0 : 1,
-            settingsData.preferredPrinter || null,
-            settingsData.preferredScanner || null,
-            settingsData.preferredThermalPrinter || null,
-            settingsData.autoPrintAppointmentTicket ? 1 : 0,
-            settingsData.publicBookingEnabled ? 1 : 0,
-            settingsData.publicBookingPort || 4580,
-            settingsData.publicBookingPublicUrl || null,
-            settingsData.publicBookingQrEnabled === false ? 0 : 1,
-            settingsData.appLogoDataUrl || null,
-            settingsData.cabinetLogoDataUrl || null,
-            settingsData.cabinetWatermarkLogoDataUrl || null,
-            settingsData.customTreatmentTypes || null,
-            normalizeDocumentTypeMap(settingsData.documentFormats),
-            normalizeDocumentTypeMap(settingsData.documentTextScales),
-            defaultPageSize,
-            docFontFamily,
-            docBonPourTitle,
-            docNameScale,
-            specialtyScale,
-            metaScale,
-            now
-          ]
-        );
-      }
-
-      const bookingSyncResult = await syncPublicBookingServerWithSettings();
-      console.log('✅ Settings saved successfully');
-      return { success: true, warning: bookingSyncResult.success ? null : bookingSyncResult.error };
+      return await saveOrUpdateSettings(settingsData);
     } catch (error) {
       console.error('❌ Erreur lors de la mise à jour des paramètres:', error);
       return { success: false, error: error.message };
@@ -320,125 +325,7 @@ export function handleSettingsEvents() {
   ipcMain.handle('settings:save', async (event, settingsData) => {
     console.log('⚙️ settings:save called', settingsData);
     try {
-      await ensureSettingsColumns();
-      const now = moment().format('YYYY-MM-DD HH:mm:ss');
-      const ownerUserId = getCurrentSettingsOwnerUserId();
-      const existingSettings = await getScopedSettingsId(ownerUserId);
-
-      const defaultPageSize = String(settingsData.defaultDocumentPageSize || 'A5').toUpperCase() === 'A4' ? 'A4' : 'A5';
-      const docFontFamily = String(settingsData.documentFontFamily || 'segoe').trim();
-      const docBonPourTitle = String(settingsData.documentBonPourTitle || 'Demande de Bilan').trim();
-      const docNameScale = Math.min(160, Math.max(70, Number(settingsData.documentDoctorNameScale) || 120));
-      const specialtyScale = Math.min(150, Math.max(70, Number(settingsData.documentSpecialtyScale) || 100));
-      const metaScale = Math.min(150, Math.max(70, Number(settingsData.documentMetaScale) || 100));
-
-      if (existingSettings) {
-        // Mettre à jour
-        console.log('⚙️ Updating existing settings (save)');
-        await run(
-          `UPDATE settings 
-           SET cabinetName = ?, cabinetAddress = ?, cabinetPhone = ?, cabinetEmail = ?,
-               doctorName = ?, doctorRPPS = ?, doctorSpecialty = ?, documentColorMode = ?, documentPrimaryColor = ?, documentTypeColors = ?, documentTextScale = ?, documentLogoScale = ?, documentStyleVariant = ?, documentWatermarkOpacity = ?, documentHideSignature = ?, documentShowBarcode = ?, preferredPrinter = ?, preferredScanner = ?, preferredThermalPrinter = ?, autoPrintAppointmentTicket = ?,
-               publicBookingEnabled = ?, publicBookingPort = ?, publicBookingPublicUrl = ?, publicBookingQrEnabled = ?, appLogoDataUrl = ?, cabinetLogoDataUrl = ?, cabinetWatermarkLogoDataUrl = ?, customTreatmentTypes = ?, documentFormats = ?, documentTextScales = ?, defaultDocumentPageSize = ?, documentFontFamily = ?, documentBonPourTitle = ?, documentDoctorNameScale = ?, documentSpecialtyScale = ?, documentMetaScale = ?, updatedAt = ?
-             WHERE id = ?`,
-          [
-            settingsData.cabinetName,
-            settingsData.cabinetAddress,
-            settingsData.cabinetPhone,
-            settingsData.cabinetEmail,
-            settingsData.doctorName,
-            settingsData.doctorRPPS,
-            settingsData.doctorSpecialty,
-            settingsData.documentColorMode === 'bw' ? 'bw' : 'color',
-            /^#[0-9a-fA-F]{6}$/.test(String(settingsData.documentPrimaryColor || '').trim()) ? String(settingsData.documentPrimaryColor).trim() : '#1a8c7e',
-            normalizeDocumentTypeColors(settingsData.documentTypeColors),
-            Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
-            Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
-            Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
-            settingsData.documentHideSignature ? 1 : 0,
-            settingsData.documentShowBarcode === false ? 0 : 1,
-            settingsData.preferredPrinter || null,
-            settingsData.preferredScanner || null,
-            settingsData.preferredThermalPrinter || null,
-            settingsData.autoPrintAppointmentTicket ? 1 : 0,
-            settingsData.publicBookingEnabled ? 1 : 0,
-            settingsData.publicBookingPort || 4580,
-            settingsData.publicBookingPublicUrl || null,
-            settingsData.publicBookingQrEnabled === false ? 0 : 1,
-            settingsData.appLogoDataUrl || null,
-            settingsData.cabinetLogoDataUrl || null,
-            settingsData.cabinetWatermarkLogoDataUrl || null,
-            settingsData.customTreatmentTypes || null,
-            normalizeDocumentTypeMap(settingsData.documentFormats),
-            normalizeDocumentTypeMap(settingsData.documentTextScales),
-            defaultPageSize,
-            docFontFamily,
-            docBonPourTitle,
-            docNameScale,
-            specialtyScale,
-            metaScale,
-            now,
-            existingSettings.id
-          ]
-        );
-      } else {
-        // Créer
-        console.log('⚙️ Creating new settings (save)');
-        const id = uuidv4();
-        await run(
-          `INSERT INTO settings 
-           (id, ownerUserId, cabinetName, cabinetAddress, cabinetPhone, cabinetEmail, doctorName, doctorRPPS, doctorSpecialty, documentColorMode, documentPrimaryColor, documentTypeColors, documentTextScale, documentLogoScale, documentStyleVariant, documentWatermarkOpacity, documentHideSignature, documentShowBarcode,
-            preferredPrinter, preferredScanner, preferredThermalPrinter, autoPrintAppointmentTicket, publicBookingEnabled, publicBookingPort,
-            publicBookingPublicUrl, publicBookingQrEnabled, appLogoDataUrl, cabinetLogoDataUrl, cabinetWatermarkLogoDataUrl, customTreatmentTypes, documentFormats, documentTextScales, defaultDocumentPageSize, documentFontFamily, documentBonPourTitle, documentDoctorNameScale, documentSpecialtyScale, documentMetaScale, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            ownerUserId,
-            settingsData.cabinetName,
-            settingsData.cabinetAddress,
-            settingsData.cabinetPhone,
-            settingsData.cabinetEmail,
-            settingsData.doctorName,
-            settingsData.doctorRPPS,
-            settingsData.doctorSpecialty,
-            settingsData.documentColorMode === 'bw' ? 'bw' : 'color',
-            /^#[0-9a-fA-F]{6}$/.test(String(settingsData.documentPrimaryColor || '').trim()) ? String(settingsData.documentPrimaryColor).trim() : '#1a8c7e',
-            normalizeDocumentTypeColors(settingsData.documentTypeColors),
-            Math.min(120, Math.max(90, Number(settingsData.documentTextScale) || 100)),
-            Math.min(200, Math.max(80, Number(settingsData.documentLogoScale) || 90)),
-            normalizeDocumentStyleVariant(settingsData.documentStyleVariant),
-            Math.min(35, Math.max(2, Number(settingsData.documentWatermarkOpacity) || 5)),
-            settingsData.documentHideSignature ? 1 : 0,
-            settingsData.documentShowBarcode === false ? 0 : 1,
-            settingsData.preferredPrinter || null,
-            settingsData.preferredScanner || null,
-            settingsData.preferredThermalPrinter || null,
-            settingsData.autoPrintAppointmentTicket ? 1 : 0,
-            settingsData.publicBookingEnabled ? 1 : 0,
-            settingsData.publicBookingPort || 4580,
-            settingsData.publicBookingPublicUrl || null,
-            settingsData.publicBookingQrEnabled === false ? 0 : 1,
-            settingsData.appLogoDataUrl || null,
-            settingsData.cabinetLogoDataUrl || null,
-            settingsData.cabinetWatermarkLogoDataUrl || null,
-            settingsData.customTreatmentTypes || null,
-            normalizeDocumentTypeMap(settingsData.documentFormats),
-            normalizeDocumentTypeMap(settingsData.documentTextScales),
-            defaultPageSize,
-            docFontFamily,
-            docBonPourTitle,
-            docNameScale,
-            specialtyScale,
-            metaScale,
-            now
-          ]
-        );
-      }
-
-      const bookingSyncResult = await syncPublicBookingServerWithSettings();
-      console.log('✅ Settings saved successfully (save)');
-      return { success: true, warning: bookingSyncResult.success ? null : bookingSyncResult.error };
+      return await saveOrUpdateSettings(settingsData);
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde des paramètres:', error);
       return { success: false, error: error.message };

@@ -469,28 +469,30 @@
   outline-offset: 1px;
 }
 
-/* Full-Width Document Sub-Tabs in Patient Details (6 Tabs) */
+/* Document Sub-Tabs in Patient Details (2 Lines Layout) */
 #patient-docs-segmented.ant-segmented,
 #patient-docs-segmented {
   display: flex !important;
+  flex-wrap: wrap !important;
   width: 100% !important;
   box-sizing: border-box !important;
   background: #f8fafc !important;
   border: 1.5px solid #e2e8f0 !important;
   border-radius: 10px !important;
-  padding: 5px !important;
+  padding: 6px !important;
   gap: 6px !important;
   margin-bottom: 18px !important;
 }
 
 #patient-docs-segmented .ant-segmented-item {
-  flex: 1 1 0 !important;
+  flex: 1 1 calc(20% - 6px) !important;
+  min-width: 130px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
-  padding: 10px 8px !important;
-  font-size: 14.5px !important;
+  padding: 9px 10px !important;
+  font-size: 13.5px !important;
   font-weight: 650 !important;
   border-radius: 8px !important;
   white-space: nowrap !important;

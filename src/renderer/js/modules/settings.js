@@ -1023,9 +1023,28 @@ async function loadSettings() {
     if (autoPrintAppointmentTicketEl) {
       autoPrintAppointmentTicketEl.checked = s.autoPrintAppointmentTicket === 1 || s.autoPrintAppointmentTicket === true;
     }
-    updateCabinetLogoPreview(s.cabinetLogoDataUrl || '');
-    updateAppLogoPreview(s.appLogoDataUrl || '');
-    updateCabinetWatermarkLogoPreview(s.cabinetWatermarkLogoDataUrl || '');
+
+    const effectiveCabinetLogo = s.cabinetLogoDataUrl || localStorage.getItem('medcareso_cabinet_logo') || '';
+    const effectiveAppLogo = s.appLogoDataUrl || localStorage.getItem('medcareso_app_logo') || '';
+    const effectiveWatermarkLogo = s.cabinetWatermarkLogoDataUrl || localStorage.getItem('medcareso_watermark_logo') || '';
+
+    if (effectiveCabinetLogo && !s.cabinetLogoDataUrl) s.cabinetLogoDataUrl = effectiveCabinetLogo;
+    if (effectiveAppLogo && !s.appLogoDataUrl) s.appLogoDataUrl = effectiveAppLogo;
+    if (effectiveWatermarkLogo && !s.cabinetWatermarkLogoDataUrl) s.cabinetWatermarkLogoDataUrl = effectiveWatermarkLogo;
+
+    if (effectiveCabinetLogo) {
+      try { localStorage.setItem('medcareso_cabinet_logo', effectiveCabinetLogo); } catch {}
+    }
+    if (effectiveAppLogo) {
+      try { localStorage.setItem('medcareso_app_logo', effectiveAppLogo); } catch {}
+    }
+    if (effectiveWatermarkLogo) {
+      try { localStorage.setItem('medcareso_watermark_logo', effectiveWatermarkLogo); } catch {}
+    }
+
+    updateCabinetLogoPreview(effectiveCabinetLogo);
+    updateAppLogoPreview(effectiveAppLogo);
+    updateCabinetWatermarkLogoPreview(effectiveWatermarkLogo);
     updateDocumentStylePreview();
 
     const publicBookingEnabledEl = document.getElementById('public-booking-enabled');
@@ -1185,6 +1204,16 @@ function buildSettingsPayload({
 
 async function persistSettings(settingsData, successMessage = 'Parametres enregistres') {
   try {
+    if (settingsData.cabinetLogoDataUrl) {
+      try { localStorage.setItem('medcareso_cabinet_logo', settingsData.cabinetLogoDataUrl); } catch {}
+    }
+    if (settingsData.appLogoDataUrl) {
+      try { localStorage.setItem('medcareso_app_logo', settingsData.appLogoDataUrl); } catch {}
+    }
+    if (settingsData.cabinetWatermarkLogoDataUrl) {
+      try { localStorage.setItem('medcareso_watermark_logo', settingsData.cabinetWatermarkLogoDataUrl); } catch {}
+    }
+
     const result = await window.api.settings.save(settingsData);
     if (result.success) {
       cachedSettings = { ...(cachedSettings || {}), ...settingsData };
