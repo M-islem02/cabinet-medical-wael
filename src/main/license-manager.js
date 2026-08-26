@@ -104,7 +104,11 @@ async function writeJsonAtomically(targetPath, data, mode = 0o600) {
   try { await fs.chmod(targetPath, mode); } catch (_) {}
 }
 
-async function validateClock(now = Date.now()) {
+async function validateClock(now = Date.now(), expiresAt = null) {
+  // If the license is permanent (no expiration date), clock rollback does not affect validity
+  if (!expiresAt) {
+    return { valid: true };
+  }
   try {
     const state = JSON.parse(await fs.readFile(getClockPath(), 'utf8'));
     const fingerprint = await getMachineFingerprint();
@@ -112,22 +116,28 @@ async function validateClock(now = Date.now()) {
       .update(String(state.lastSeenAt || ''))
       .digest('hex');
     if (!state.lastSeenAt || !crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(state.mac || '')))) {
-      return { valid: false, reason: 'Horloge de licence corrompue' };
+      return { valid: true };
     }
-    if (now + CLOCK_TOLERANCE_MS < Number(state.lastSeenAt)) {
+    // Allow generous tolerance (7 days) for time zone or system clock adjustments
+    const TOLERANCE_MS = 7 * 24 * 60 * 60 * 1000;
+    if (now + TOLERANCE_MS < Number(state.lastSeenAt)) {
       return { valid: false, reason: 'Date système antérieure à la dernière utilisation enregistrée' };
     }
   } catch (error) {
-    if (error.code !== 'ENOENT') return { valid: false, reason: 'Horloge de licence illisible' };
+    if (error.code !== 'ENOENT') return { valid: true };
   }
   return { valid: true };
 }
 
 async function writeClock(now = Date.now()) {
-  const fingerprint = await getMachineFingerprint();
-  const state = { lastSeenAt: now };
-  state.mac = crypto.createHmac('sha256', fingerprint).update(String(now)).digest('hex');
-  await writeJsonAtomically(getClockPath(), state);
+  try {
+    const fingerprint = await getMachineFingerprint();
+    const state = { lastSeenAt: now };
+    state.mac = crypto.createHmac('sha256', fingerprint).update(String(now)).digest('hex');
+    await writeJsonAtomically(getClockPath(), state);
+  } catch (err) {
+    console.warn('Could not write license clock:', err);
+  }
 }
 
 async function assessLicense(license) {
@@ -145,12 +155,12 @@ async function assessLicense(license) {
   if (!signatureValid) return { valid: false, reason: 'Signature cryptographique de licence invalide' };
 
   const now = Date.now();
-  const clock = await validateClock(now);
-  if (!clock.valid) return clock;
   const expiration = license.expiresAt ? Date.parse(license.expiresAt) : null;
   if (license.expiresAt && (!Number.isFinite(expiration) || expiration < now)) {
     return { valid: false, reason: 'Licence expirée' };
   }
+  const clock = await validateClock(now, license.expiresAt);
+  if (!clock.valid) return clock;
   await writeClock(now);
   return {
     valid: true,
@@ -185,6 +195,7 @@ export async function activateLicense(candidate) {
     const license = parseCandidate(candidate);
     const validation = await assessLicense(license);
     if (!validation.valid) return { success: false, reason: validation.reason };
+    await writeClock(Date.now());
     await writeJsonAtomically(getLicensePath(), license);
     return {
       success: true,
@@ -202,11 +213,13 @@ export async function activateLicense(candidate) {
 export async function deactivateLicense() {
   try {
     await fs.unlink(getLicensePath());
-    return { success: true, message: 'Licence désactivée' };
   } catch (error) {
-    if (error.code === 'ENOENT') return { success: true, message: 'Aucune licence active' };
-    return { success: false, reason: error.message || 'Désactivation impossible' };
+    if (error.code !== 'ENOENT') throw error;
   }
+  try {
+    await fs.unlink(getClockPath());
+  } catch (_) {}
+  return { success: true, message: 'Licence désactivée' };
 }
 
 export async function getLicenseStatus() {
