@@ -14,7 +14,7 @@ let medicationAutocompleteRepositionBound = false;
 const medicationRemoteSearchCache = new Map();
 const MEDICATION_REMOTE_SEARCH_CACHE_LIMIT = 60;
 const MEDICATION_REMOTE_SEARCH_CACHE_TTL_MS = 2 * 60 * 1000;
-const MEDICATION_AUTOCOMPLETE_LIMIT = 10;
+const MEDICATION_AUTOCOMPLETE_LIMIT = 20;
 let prescriptionTemplateBuilderMode = false;
 let editingPrescriptionTemplateId = null;
 let prescriptionTemplatesCache = [];
@@ -375,7 +375,8 @@ async function searchMedicationSuggestions(query) {
   const localMatches = getMedicationHistoryCache()
     .filter((med) => {
       const lowerName = (med.name || '').toLowerCase();
-      return lowerName.startsWith(normalizedQuery);
+      const lowerGeneric = (med.genericName || '').toLowerCase();
+      return lowerName.includes(normalizedQuery) || lowerGeneric.includes(normalizedQuery);
     })
     .sort((a, b) => {
       const aStarts = (a.name || '').toLowerCase().startsWith(normalizedQuery) ? 0 : 1;
@@ -391,8 +392,7 @@ async function searchMedicationSuggestions(query) {
     .slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   const specialtyJsonMatches = await getSpecialtyMedicationMatches(normalizedQuery);
 
-  // Only hit the database after 2 chars to keep typing snappy on large datasets.
-  if (normalizedQuery.length < 2 || !window.api?.medication?.search) {
+  if (!window.api?.medication?.search) {
     return mergeMedicationSuggestions(specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   }
 
@@ -403,7 +403,7 @@ async function searchMedicationSuggestions(query) {
     }
 
     const result = await window.api.medication.search(normalizedQuery);
-    const fetchedRemoteMatches = result.success && Array.isArray(result.data)
+    const fetchedRemoteMatches = result && result.success && Array.isArray(result.data)
       ? result.data.map(mapMedicationSearchResult)
       : [];
 
@@ -411,7 +411,7 @@ async function searchMedicationSuggestions(query) {
     return mergeMedicationSuggestions(fetchedRemoteMatches, specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   } catch (error) {
     console.error('Impossible de rechercher les medicaments:', error);
-    return localMatches;
+    return mergeMedicationSuggestions(specialtyJsonMatches, localMatches).slice(0, MEDICATION_AUTOCOMPLETE_LIMIT);
   }
 }
 
@@ -807,11 +807,17 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
             return { ...med, suggestionScore: 0 };
           }
           const lowerName = (med.name || '').toLowerCase();
-          let score = 4;
+          const lowerGeneric = (med.genericName || '').toLowerCase();
+          let score = 6;
           if (lowerName.startsWith(query)) score = 0;
+          else if (lowerName.split(/[\s,+/()\-]+/).some(w => w.startsWith(query))) score = 1;
+          else if (lowerGeneric.startsWith(query)) score = 2;
+          else if (lowerGeneric.split(/[\s,+/()\-]+/).some(w => w.startsWith(query))) score = 3;
+          else if (lowerName.includes(query)) score = 4;
+          else if (lowerGeneric.includes(query)) score = 5;
           return { ...med, suggestionScore: score };
         })
-        .filter((med) => !query || med.suggestionScore < 4)
+        .filter((med) => !query || (query.length <= 2 ? med.suggestionScore <= 3 : med.suggestionScore <= 5))
         .sort((a, b) => {
           if (a.suggestionScore !== b.suggestionScore) {
             return a.suggestionScore - b.suggestionScore;
@@ -982,16 +988,42 @@ function setupMedicationAutocomplete(input, suggestionsDiv) {
 
 function saveMedicationToHistory(medication) {
   const sanitized = sanitizeMedicationForHistory(medication);
-  if (!sanitized) {
+  if (!sanitized || !sanitized.name) {
     return;
   }
 
   sanitized.lastUsed = new Date().toISOString();
-  sanitized.usageCount = sanitized.usageCount || 1;
+  sanitized.usageCount = (sanitized.usageCount || 0) + 1;
 
   const history = getMedicationHistoryCache();
   const merged = mergeMedicationHistories(history, [sanitized]);
-  updateMedicationHistoryCache(merged.slice(0, 200));
+  updateMedicationHistoryCache(merged.slice(0, 300));
+
+  // Automatically save to database so it is permanently available and suggested next time
+  if (sanitized.name && window.api?.medication?.create) {
+    const specialtyKey = typeof resolveActivePracticeSpecialty === 'function'
+      ? resolveActivePracticeSpecialty(window._packageConfig)
+      : (currentUserSpecialty || 'orl');
+
+    window.api.medication.create({
+      name: sanitized.name,
+      genericName: sanitized.genericName || '',
+      category: sanitized.category || 'ORL',
+      dosageForm: sanitized.dosageForm || '',
+      defaultDosage: sanitized.dosage || '',
+      defaultIntake: sanitized.intake || '',
+      defaultDuration: sanitized.duration || '',
+      defaultBoxes: sanitized.boxes || '',
+      instructions: sanitized.instructions || '',
+      contraindications: sanitized.contraindications || '',
+      specialty: specialtyKey,
+      specialtyKey: specialtyKey
+    }).then(() => {
+      medicationRemoteSearchCache.clear();
+    }).catch((err) => {
+      console.warn('Auto-save medication to DB notice:', err);
+    });
+  }
 }
 
 function mergeMedicationHistories(existingHistory = [], incomingHistory = []) {
@@ -1134,14 +1166,14 @@ function getMedicationsFromForm() {
     const boxesValue = repairPrescriptionMojibakeText(box.querySelector('.medication-boxes')?.value.trim());
     const notes = repairPrescriptionMojibakeText(box.querySelector('.medication-notes')?.value.trim());
     
-    if (name && dosage) {
+    if (name) {
       medications.push({
         name,
-        dosage,
-        intake,
-        duration,
-        boxes: boxesValue,
-        instructions: notes
+        dosage: dosage || '',
+        intake: intake || '',
+        duration: duration || '',
+        boxes: boxesValue || '',
+        instructions: notes || ''
       });
     }
   });
@@ -1586,6 +1618,8 @@ async function saveSickLeave(e) {
   const startDate = document.getElementById('sickleave-start-date')?.value;
   const endDate = document.getElementById('sickleave-end-date')?.value;
   const templateFields = getSickLeaveTemplateFieldsFromInputs();
+  const daysDisplayVal = document.getElementById('sickleave-days-display')?.value || templateFields.restDays || '1';
+  const numberOfDays = parseInt(daysDisplayVal, 10) || 1;
   const patientId = document.getElementById('sickleave-patient-id')?.value || currentPatientId;
   const storedConsultationId = form?.dataset.consultationId;
   const consultationId = storedConsultationId || currentConsultationId || null;
@@ -1613,9 +1647,25 @@ async function saveSickLeave(e) {
   }
   
   try {
-    const numberOfDays = Math.max(1, Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1);
     const customPreviewText = document.getElementById('sickleave-preview-text')?.value;
     const diagnosis = customPreviewText?.trim() || buildSickLeaveDiagnosisText(templateFields);
+
+    if (sickLeavePreviewManualEdited && customPreviewText && typeof saveDocumentCustomTemplate === 'function') {
+      const patient = currentPatientData;
+      const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : '';
+      const rawDoctorName = typeof normalizeDoctorDisplayName === 'function'
+        ? normalizeDoctorDisplayName(cachedSettings?.doctorName || '')
+        : String(cachedSettings?.doctorName || '').trim();
+      const effectiveDays = String(templateFields.restDays || numberOfDays || '').trim();
+      const daysLabel = typeof formatRestDaysWithWords === 'function' ? formatRestDaysWithWords(effectiveDays) : `${effectiveDays} jour(s)`;
+
+      saveDocumentCustomTemplate(documentKind, customPreviewText, {
+        doctorName: rawDoctorName || 'Docteur',
+        patientName,
+        careText: templateFields.careText,
+        daysLabel
+      });
+    }
 
     const sickLeaveData = {
       patientId,

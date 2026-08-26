@@ -33,29 +33,27 @@ function normalizeMedicationSearchText(value) {
 
 function specialtyMedicationMatches(entry, normalizedTerm) {
   if (!entry || !normalizedTerm) return false;
-  const searchableFields = [
-    entry.nom_medicament,
-    entry.name,
-    entry.nom_commercial,
-    entry.dci,
-    entry.genericName,
-    entry.dosage_posologie,
-    entry.dosage
-  ];
+  const name = normalizeMedicationSearchText(entry.nom_medicament || entry.name || entry.nom_commercial || '');
+  const dci = normalizeMedicationSearchText(entry.dci || entry.genericName || '');
 
-  return searchableFields.some((field) => {
-    if (!field) return false;
-    const normalizedField = normalizeMedicationSearchText(field);
-    if (!normalizedField) return false;
-    if (normalizedField.startsWith(normalizedTerm)) return true;
-    if (normalizedField.includes(normalizedTerm)) return true;
-    const words = normalizedField.split(/[\s,+/()\-]+/);
-    return words.some((w) => w.startsWith(normalizedTerm));
-  });
+  if (name.startsWith(normalizedTerm)) return true;
+  if (dci.startsWith(normalizedTerm)) return true;
+
+  const words = `${name} ${dci}`.split(/[\s,+/()\-]+/);
+  if (words.some((w) => w.startsWith(normalizedTerm))) return true;
+
+  if (normalizedTerm.length >= 3) {
+    if (name.includes(normalizedTerm)) return true;
+    if (dci.includes(normalizedTerm)) return true;
+    const dosage = normalizeMedicationSearchText(entry.dosage_posologie || entry.dosage || '');
+    if (dosage.includes(normalizedTerm)) return true;
+  }
+
+  return false;
 }
 
 function getSpecialtyMedicationScore(entry, normalizedTerm) {
-  const name = normalizeMedicationSearchText(entry.nom_medicament || entry.name || '');
+  const name = normalizeMedicationSearchText(entry.nom_medicament || entry.name || entry.nom_commercial || '');
   const dci = normalizeMedicationSearchText(entry.dci || entry.genericName || '');
   if (name.startsWith(normalizedTerm)) return 0;
   if (name.split(/[\s,+/()\-]+/).some((w) => w.startsWith(normalizedTerm))) return 1;
@@ -309,18 +307,19 @@ export function handleMedicationEvents() {
         ? [{ items: generalMedications, key: 'general' }]
         : [{ items: specialtyMedications, key: specialty }, { items: generalMedications, key: 'general' }];
 
-      const maxPoolSize = limit * 4;
+      const maxPerSource = Math.max(60, limit * 3);
       for (const { items, key } of sources) {
         if (!Array.isArray(items)) continue;
+        let sourceMatches = 0;
         for (const entry of items) {
           if (!specialtyMedicationMatches(entry, normalizedTerm)) continue;
-          const identity = `${normalizeMedicationSearchText(entry.nom_medicament)}|${normalizeMedicationSearchText(entry.dosage_posologie)}`;
+          const identity = `${normalizeMedicationSearchText(entry.nom_medicament || entry.name)}|${normalizeMedicationSearchText(entry.dosage_posologie || entry.dosage)}`;
           if (seen.has(identity)) continue;
           seen.add(identity);
           matches.push({ ...entry, specialtyKey: key, source: 'specialty-json' });
-          if (matches.length >= maxPoolSize) break;
+          sourceMatches++;
+          if (sourceMatches >= maxPerSource) break;
         }
-        if (matches.length >= maxPoolSize) break;
       }
 
       matches.sort((left, right) => {
@@ -343,7 +342,7 @@ export function handleMedicationEvents() {
   ipcMain.handle('medication:getAll', async () => {
     try {
       const medications = await query(
-        'SELECT * FROM medications WHERE (isActive IS TRUE OR isActive = TRUE) ORDER BY usageCount DESC, name'
+        'SELECT * FROM medications WHERE (isActive = 1 OR isActive IS TRUE OR isActive = TRUE OR isActive IS NULL) ORDER BY usageCount DESC, name'
       );
       return { success: true, data: medications };
     } catch (error) {
@@ -361,7 +360,7 @@ export function handleMedicationEvents() {
       }
 
       const prefixPattern = `${normalizedTerm.toLowerCase()}%`;
-      const containsPattern = `%${normalizedTerm.toLowerCase()}%`;
+      const containsPattern = normalizedTerm.length <= 2 ? prefixPattern : `%${normalizedTerm.toLowerCase()}%`;
       const medications = await query(
         `SELECT id,
                 name,
@@ -379,7 +378,7 @@ export function handleMedicationEvents() {
                   ELSE 2
                 END AS searchRank
          FROM medications 
-         WHERE (isActive IS TRUE OR isActive = TRUE)
+         WHERE (isActive = 1 OR isActive IS TRUE OR isActive = TRUE OR isActive IS NULL)
            AND (
              LOWER(name) LIKE ?
              OR LOWER(genericName) LIKE ?
