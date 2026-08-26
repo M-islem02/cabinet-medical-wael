@@ -806,6 +806,11 @@ function resetSickLeaveFormFields({ prefillDates = false, documentKind = 'certif
     updateSickLeavePreview();
   }
 
+  const datesRow = document.getElementById('sickleave-dates-row');
+  const daysRow = document.getElementById('sickleave-days-row');
+  if (datesRow) datesRow.style.display = documentKind === 'workstop' ? 'grid' : 'none';
+  if (daysRow) daysRow.style.display = documentKind === 'workstop' ? 'block' : 'none';
+
   const modalTitle = document.querySelector('#modal-add-sickleave .modal-header h2');
   if (modalTitle) {
     modalTitle.textContent = documentKind === 'workstop' ? 'Arrêt de travail' : 'Certificat médical';
@@ -821,8 +826,7 @@ function resetSickLeaveFormFields({ prefillDates = false, documentKind = 'certif
       `;
     } else {
       quickChips.innerHTML = `
-        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('certif_soins')" style="font-size: 11px; height: 26px; padding: 0 8px;">Soins ORL</button>
-        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('arret_maladie')" style="font-size: 11px; height: 26px; padding: 0 8px;">Arrêt 3J</button>
+        <button type="button" class="btn btn-secondary btn-small" onclick="applySickLeavePreset('certif_soins')" style="font-size: 11px; height: 26px; padding: 0 8px;">Soins et surveillance</button>
       `;
     }
   }

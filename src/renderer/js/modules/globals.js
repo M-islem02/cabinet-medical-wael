@@ -1409,26 +1409,27 @@ function saveDocumentCustomTemplate(docType, rawText, context = {}) {
 
 function hydrateDocumentTemplate(templatePattern, { doctorName = '', patientName = '', careText = '', daysLabel = '', allowedOutings = false, ippEstimate = '', startDate = '', endDate = '' } = {}) {
   let text = String(templatePattern || '');
-  const placeholder = '______________________________________________________________';
-  const cleanCare = careText || placeholder;
+  const cleanCare = careText ? `${careText}` : '';
   const outingsLine = allowedOutings ? '- Sorties autorisees.' : '';
   const outingsState = allowedOutings ? 'Sorties autorisées : OUI.' : 'Sorties autorisées : NON.';
   const periodLabel = typeof buildSickLeavePeriodLabel === 'function' ? buildSickLeavePeriodLabel(startDate, endDate) : '';
   const startLabel = typeof formatDateFrShort === 'function' ? formatDateFrShort(startDate) : '';
   const endLabel = typeof formatDateFrShort === 'function' ? formatDateFrShort(endDate) : '';
-  const ippLabel = typeof formatIppEstimateWithWords === 'function' ? formatIppEstimateWithWords(ippEstimate) : (ippEstimate ? `${ippEstimate}%` : '');
-  const ippLine = ippLabel ? `- IPP estimee a ${ippLabel}.` : '';
+
+  if (!text.includes('{CARE_TEXT}') && /prise en charge de/i.test(text)) {
+    text = text.replace(/prise en charge de(\s*|\.*)$/i, 'prise en charge de {CARE_TEXT}.');
+  }
 
   text = text.replace(/\{DOCTOR_NAME\}/g, doctorName || 'Docteur');
   text = text.replace(/\{PATIENT_NAME\}/g, patientName || 'le/la patient(e)');
   text = text.replace(/\{CARE_TEXT\}/g, cleanCare);
-  text = text.replace(/\{DAYS_LABEL\}/g, daysLabel || placeholder);
+  text = text.replace(/\{DAYS_LABEL\}/g, daysLabel || '');
   text = text.replace(/\{OUTINGS_LINE\}/g, outingsLine);
   text = text.replace(/\{OUTINGS_STATE\}/g, outingsState);
-  text = text.replace(/\{PERIOD\}/g, periodLabel || placeholder);
-  text = text.replace(/\{START_DATE\}/g, startLabel || placeholder);
-  text = text.replace(/\{END_DATE\}/g, endLabel || placeholder);
-  text = text.replace(/\{IPP_LINE\}/g, ippLine);
+  text = text.replace(/\{PERIOD\}/g, periodLabel || '');
+  text = text.replace(/\{START_DATE\}/g, startLabel || '');
+  text = text.replace(/\{END_DATE\}/g, endLabel || '');
+  text = text.replace(/\{IPP_LINE\}/g, '');
 
   return text.trim();
 }
@@ -1439,11 +1440,9 @@ window.hydrateDocumentTemplate = hydrateDocumentTemplate;
 window.extractDocumentTemplatePattern = extractDocumentTemplatePattern;
 
 function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate = '', numberOfDays = '', allowedOutings = false, documentKind = 'certificate', startDate = '', endDate = '' } = {}) {
-  const placeholder = '______________________________________________________________';
-  const cleanCare = careText || placeholder;
+  const cleanCare = String(careText || '').trim();
   const effectiveDays = String(restDays || numberOfDays || '').trim();
-  const daysLabel = formatRestDaysWithWords(effectiveDays) || (effectiveDays ? `${effectiveDays} jour(s)` : placeholder);
-  const ippLabel = formatIppEstimateWithWords(ippEstimate) || ippEstimate || '';
+  const daysLabel = formatRestDaysWithWords(effectiveDays) || (effectiveDays ? `${effectiveDays} jour(s)` : '');
   const rawDoctorName = typeof normalizeDoctorDisplayName === 'function'
     ? normalizeDoctorDisplayName(cachedSettings?.doctorName || '')
     : String(cachedSettings?.doctorName || '').trim();
@@ -1459,7 +1458,6 @@ function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate
       careText: cleanCare,
       daysLabel,
       allowedOutings,
-      ippEstimate,
       startDate,
       endDate
     });
@@ -1473,29 +1471,22 @@ function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate
 
     const sections = [
       `Je soussigné(e) Dr ${doctorName}, certifie avoir examiné ce jour le/la patient(e) ${patientName}.`,
-      `Son état de santé nécessite un arrêt de travail d'une durée de ${daysLabel}${periodStr ? ' ' + periodStr : ''}.`
+      `Son état de santé nécessite un arrêt de travail d'une durée de ${daysLabel || '... jour(s)'}${periodStr ? ' ' + periodStr : ''}.`
     ];
 
-    if (cleanCare && cleanCare !== placeholder) {
+    if (cleanCare) {
       sections.push(`Motif médical : ${cleanCare}.`);
-    }
-
-    if (ippLabel) {
-      sections.push(`IPP estimée : ${ippLabel}.`);
     }
 
     return sections.join('\n\n');
   }
 
   // Certificat médical épuré
+  const careSuffix = cleanCare ? ` ${cleanCare}.` : '';
   const sections = [
     `Je soussignee Dr ${doctorName} certifie avoir vu et examine`,
-    `le/la patient(e) suivi(e) a notre niveau pour la prise en charge de ${cleanCare}.`
+    `le/la patient(e) suivi(e) a notre niveau pour la prise en charge de${careSuffix}`
   ];
-
-  if (ippLabel) {
-    sections.push(`IPP estimée : ${ippLabel}.`);
-  }
 
   return sections.join('\n');
 }

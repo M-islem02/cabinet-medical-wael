@@ -6425,7 +6425,7 @@
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div id="sickleave-dates-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div class="form-group" style="margin: 0;">
                                     <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Date de début *</label>
                                     <input type="date" id="sickleave-start-date" class="form-control" required style="height: 36px; font-size: 13px;">
@@ -6436,16 +6436,11 @@
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px;">
-                                <div class="form-group" style="margin: 0;">
-                                    <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Nombre de jours</label>
-                                    <input type="number" id="sickleave-days-display" class="form-control" min="1" placeholder="Ex: 3" style="height: 36px; font-size: 13px;">
-                                </div>
-                                <div class="form-group" style="margin: 0;">
-                                    <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">IPP estimée</label>
-                                    <input type="text" id="sickleave-ipp-estimate" class="form-control" placeholder="Ex: 15%" style="height: 36px; font-size: 13px;">
-                                </div>
+                            <div id="sickleave-days-row" class="form-group" style="margin: 0;">
+                                <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Nombre de jours</label>
+                                <input type="number" id="sickleave-days-display" class="form-control" min="1" placeholder="Ex: 3" style="height: 36px; font-size: 13px;">
                             </div>
+                            <input type="hidden" id="sickleave-ipp-estimate">
 
                             <div class="form-group" style="margin: 0;">
                                 <label style="font-weight: 650; font-size: 12.5px; color: #334155; margin-bottom: 3px; display: block;">Contexte médical / Pathologie / Prise en charge *</label>
