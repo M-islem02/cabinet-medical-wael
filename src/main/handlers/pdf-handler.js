@@ -402,8 +402,7 @@ export function setupPDFHandlers() {
       drawInfoGrid(doc, layout, [
         { label: 'Début', value: startMoment.format('DD/MM/YYYY') },
         { label: 'Fin', value: endMoment.format('DD/MM/YYYY') },
-        { label: 'Durée', value: `${daysCount} jour${daysCount > 1 ? 's' : ''}` },
-        { label: 'Sorties', value: allowedOutings ? 'Autorisées' : 'Interdites' }
+        { label: 'Durée', value: `${daysCount} jour${daysCount > 1 ? 's' : ''}` }
       ]);
 
       const isSingleDay = !startMoment.isSame(endMoment, 'day') ? false : true;
@@ -414,7 +413,6 @@ export function setupPDFHandlers() {
       const additional = [];
       if (diagnosis) additional.push(`Motif médical : ${diagnosis}`);
       if (cim10Code) additional.push(`Code CIM-10 : ${cim10Code}`);
-      additional.push(`Sorties ${allowedOutings ? 'autorisées' : 'interdites'}.`);
 
       drawTextPanel(doc, layout, {
         label: 'Texte du certificat',

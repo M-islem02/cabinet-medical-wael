@@ -6452,11 +6452,8 @@
                                 <textarea id="sickleave-care-text" class="form-control" rows="4" placeholder="Décrivez la pathologie, la prise en charge ou les soins pratiqués..." required style="font-size: 13px; line-height: 1.4; resize: vertical; min-height: 80px;"></textarea>
                             </div>
 
-                            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin: 0;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" id="sickleave-allowed-outings" style="width: 16px; height: 16px; accent-color: #059669; cursor: pointer;">
-                                    <label for="sickleave-allowed-outings" style="margin: 0; cursor: pointer; font-weight: 650; font-size: 13px; color: #334155;">Autoriser les sorties</label>
-                                </div>
+                            <input type="checkbox" id="sickleave-allowed-outings" style="display: none;">
+                            <div class="form-group" style="display: flex; align-items: center; justify-content: flex-end; margin: 0;">
                                 <button type="button" class="btn btn-outline btn-small" onclick="toggleSickLeaveRawTextEdit()" style="font-size: 11px; height: 24px; padding: 0 8px;">✏️ Modifier le texte brut</button>
                             </div>
 

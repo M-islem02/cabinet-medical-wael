@@ -1480,8 +1480,6 @@ function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate
       sections.push(`Motif médical : ${cleanCare}.`);
     }
 
-    sections.push(allowedOutings ? `Sorties autorisées : OUI.` : `Sorties autorisées : NON.`);
-
     if (ippLabel) {
       sections.push(`IPP estimée : ${ippLabel}.`);
     }
@@ -1489,20 +1487,14 @@ function buildSickLeaveDiagnosisText({ careText = '', restDays = '', ippEstimate
     return sections.join('\n\n');
   }
 
-  // Certificat médical (intact)
+  // Certificat médical épuré
   const sections = [
     `Je soussignee Dr ${doctorName} certifie avoir vu et examine`,
-    `le/la patient(e) suivi(e) a notre niveau pour la prise en charge de ${cleanCare}.`,
-    `Le present certificat mentionne :`,
-    `- Nombre de jours : ${daysLabel}.`
+    `le/la patient(e) suivi(e) a notre niveau pour la prise en charge de ${cleanCare}.`
   ];
 
-  if (allowedOutings) {
-    sections.push(`- Sorties autorisees.`);
-  }
-
   if (ippLabel) {
-    sections.push(`- IPP estimee a ${ippLabel}.`);
+    sections.push(`IPP estimée : ${ippLabel}.`);
   }
 
   return sections.join('\n');
@@ -1876,7 +1868,6 @@ function renderSickLeaveDocumentPreview() {
             <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
             <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
             <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${escapePrintingHtml(String(daysFormatted))}</span></div>
-            <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
           </div>
         </div>
         <div class="content-box content-box-flat">
@@ -1886,19 +1877,10 @@ function renderSickLeaveDocumentPreview() {
       `;
     }
   } else {
-    // Certificat médical : cadrage conservé uniquement pour la période, texte libre sans titre
+    // Certificat médical : texte libre sans tableau de période
     pageContent = `
-      <div class="content-box">
-        <h3>Période</h3>
-        <div class="period-grid">
-          <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
-          <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
-          <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${escapePrintingHtml(String(daysFormatted))}</span></div>
-          <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
-        </div>
-      </div>
       <div class="document-free-text">
-        <div class="content-text">${diagnosis}</div>
+        <div class="content-text" style="font-size: 14.5px; line-height: 1.8; white-space: pre-wrap;">${diagnosis}</div>
       </div>
     `;
   }
@@ -2196,25 +2178,26 @@ async function previewSickLeaveDocumentModal() {
     ? formatPrintingRichTextHtml(previewText || 'Repos médical prescrit.')
     : (previewText || 'Repos médical prescrit.').replace(/\n/g, '<br>');
 
-  const pageContent = `
-    <div class="content-box${documentKind === 'workstop' ? ' content-box-flat' : ''}">
-      <h3>Période</h3>
-      <div class="period-grid">
-        <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
-        <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
-        <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${daysLabel}</span></div>
-        <div class="period-item"><span class="period-label">Sorties :</span> <span class="period-value">${outingsLabel}</span></div>
+  const pageContent = documentKind === 'workstop'
+    ? `
+      <div class="content-box content-box-flat">
+        <h3>Période</h3>
+        <div class="period-grid">
+          <div class="period-item"><span class="period-label">Début :</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
+          <div class="period-item"><span class="period-label">Fin :</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
+          <div class="period-item"><span class="period-label">Durée :</span> <span class="period-value">${daysLabel}</span></div>
+        </div>
       </div>
-    </div>
-    ${documentKind === 'workstop'
-      ? `<div class="content-box content-box-flat">
-          <h3>Motif de l'arrêt</h3>
-          <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
-        </div>`
-      : `<div class="document-free-text">
-          <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
-        </div>`}
-  `;
+      <div class="content-box content-box-flat">
+        <h3>Motif de l'arrêt</h3>
+        <div class="content-text" style="font-size: 13.5px; line-height: 1.7; white-space: pre-wrap;">${diagnosisHtml}</div>
+      </div>
+    `
+    : `
+      <div class="document-free-text">
+        <div class="content-text" style="font-size: 14.5px; line-height: 1.8; white-space: pre-wrap;">${diagnosisHtml}</div>
+      </div>
+    `;
 
   if (typeof openA5PrintDocument === 'function') {
     await openA5PrintDocument({

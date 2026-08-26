@@ -2654,29 +2654,43 @@ function renderSickLeaveModal(sickLeave, patient) {
 
   const container = document.getElementById('sickleave-details-content')
   if (container) {
-    container.innerHTML = `
-      <div class="info-box">
-        <h3 style="color: var(--primary-color); margin-bottom: 8px;">${documentLabel}</h3>
-        <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
-      </div>
-      <div class="consultation-section">
-        <h4>Période</h4>
-        <p>Du ${startDateObj ?startDateObj.toLocaleDateString('fr-FR') : '-'} au ${endDateObj ?endDateObj.toLocaleDateString('fr-FR') : '-'} (${escapePrintingHtml(String(daysLabel))})</p>
-      </div>
-      <div class="consultation-section">
-        <h4>Sorties</h4>
-        <p>${outingsLabel}</p>
-      </div>
-      <div class="consultation-section">
-        <h4>Texte du certificat</h4>
-        <p>${formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos médical prescrit.', '')}</p>
-      </div>
-      ${sickLeave.notes ?`<div class="consultation-section"><h4>Notes complémentaires</h4><p>${formatPrintingRichTextHtml(sickLeave.notes, '')}</p></div>` : ''}
-      <div class="consultation-section">
-        <h4>Créé le</h4>
-        <p>${createdDateObj.toLocaleDateString('fr-FR')}</p>
-      </div>
-    `
+    if (isWorkstop) {
+      container.innerHTML = `
+        <div class="info-box">
+          <h3 style="color: var(--primary-color); margin-bottom: 8px;">${documentLabel}</h3>
+          <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
+        </div>
+        <div class="consultation-section">
+          <h4>Période</h4>
+          <p>Du ${startDateObj ? startDateObj.toLocaleDateString('fr-FR') : '-'} au ${endDateObj ? endDateObj.toLocaleDateString('fr-FR') : '-'} (${escapePrintingHtml(String(daysLabel))})</p>
+        </div>
+        <div class="consultation-section">
+          <h4>Motif de l'arrêt</h4>
+          <p>${formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos médical prescrit.', '')}</p>
+        </div>
+        ${sickLeave.notes ? `<div class="consultation-section"><h4>Notes complémentaires</h4><p>${formatPrintingRichTextHtml(sickLeave.notes, '')}</p></div>` : ''}
+        <div class="consultation-section">
+          <h4>Créé le</h4>
+          <p>${createdDateObj.toLocaleDateString('fr-FR')}</p>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="info-box">
+          <h3 style="color: var(--primary-color); margin-bottom: 8px;">${documentLabel}</h3>
+          <p style="margin:0; color: var(--text-light);">${escapePrintingHtml(`${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Patient')}</p>
+        </div>
+        <div class="consultation-section">
+          <h4>Texte du certificat</h4>
+          <p>${formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || '', '')}</p>
+        </div>
+        ${sickLeave.notes ? `<div class="consultation-section"><h4>Notes complémentaires</h4><p>${formatPrintingRichTextHtml(sickLeave.notes, '')}</p></div>` : ''}
+        <div class="consultation-section">
+          <h4>Créé le</h4>
+          <p>${createdDateObj.toLocaleDateString('fr-FR')}</p>
+        </div>
+      `;
+    }
   }
 
   const modalTitle = document.querySelector('#modal-view-sickleave .modal-header h2')
@@ -2774,33 +2788,38 @@ async function printSickLeaveDetails(sickLeaveId) {
       : `${daysCount} jour${daysCount > 1 ?'s' : ''}`
     const diagnosis = formatPrintingRichTextHtml((sickLeave.diagnosis || '').trim() || 'Repos medical prescrit.')
     const notesText = formatPrintingRichTextHtml((sickLeave.notes || '').trim(), '')
-    const outingsLabel = sickLeave.allowedOutings ?'Autorisees' : 'Non autorisees'
 
-    const pageContent = `
-      <div class="content-box${isWorkstop ? ' content-box-flat' : ''}">
-        <h3>Periode</h3>
-        <div class="period-grid">
-          <div class="period-item"><span class="period-label">Debut:</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
-          <div class="period-item"><span class="period-label">Fin:</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
-          <div class="period-item"><span class="period-label">Duree:</span> <span class="period-value">${escapePrintingHtml(String(daysLabel))}</span></div>
-          <div class="period-item"><span class="period-label">Sorties:</span> <span class="period-value">${outingsLabel}</span></div>
+    const pageContent = isWorkstop
+      ? `
+        <div class="content-box content-box-flat">
+          <h3>Periode</h3>
+          <div class="period-grid">
+            <div class="period-item"><span class="period-label">Debut:</span> <span class="period-value">${startDateObj.toLocaleDateString('fr-FR')}</span></div>
+            <div class="period-item"><span class="period-label">Fin:</span> <span class="period-value">${endDateObj.toLocaleDateString('fr-FR')}</span></div>
+            <div class="period-item"><span class="period-label">Duree:</span> <span class="period-value">${escapePrintingHtml(String(daysLabel))}</span></div>
+          </div>
         </div>
-      </div>
-      ${isWorkstop
-        ? `<div class="content-box content-box-flat">
-            <h3>Motif de l'arret</h3>
-            <div class="content-text">${diagnosis}</div>
-          </div>`
-        : `<div class="document-free-text">
-            <div class="content-text">${diagnosis}</div>
-          </div>`}
-      ${notesText ?`
-        <div class="${isWorkstop ? 'content-box content-box-flat' : 'document-free-text'}">
-          ${isWorkstop ? '<h3>Notes complementaires</h3>' : ''}
-          <div class="content-text">${notesText}</div>
+        <div class="content-box content-box-flat">
+          <h3>Motif de l'arret</h3>
+          <div class="content-text">${diagnosis}</div>
         </div>
-      ` : ''}
-    `
+        ${notesText ? `
+          <div class="content-box content-box-flat">
+            <h3>Notes complementaires</h3>
+            <div class="content-text">${notesText}</div>
+          </div>
+        ` : ''}
+      `
+      : `
+        <div class="document-free-text">
+          <div class="content-text" style="font-size: 14.5px; line-height: 1.8; white-space: pre-wrap;">${diagnosis}</div>
+        </div>
+        ${notesText ? `
+          <div class="document-free-text" style="margin-top: 15px;">
+            <div class="content-text">${notesText}</div>
+          </div>
+        ` : ''}
+      `;
 
     await openA5PrintDocument({
       title: docTitle,
