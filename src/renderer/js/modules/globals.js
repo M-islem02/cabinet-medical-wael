@@ -750,14 +750,16 @@ async function ensureSettingsLoaded() {
 }
 
 function getCabinetLogoDataUrl() {
-  const logo = (cachedSettings && (cachedSettings.cabinetLogoDataUrl || cachedSettings.cabinetWatermarkLogoDataUrl || cachedSettings.appLogoDataUrl)) || '';
+  const localLogo = (typeof localStorage !== 'undefined' && localStorage.getItem('medcareso_cabinet_logo')) || '';
+  const logo = (cachedSettings && (cachedSettings.cabinetLogoDataUrl || cachedSettings.cabinetWatermarkLogoDataUrl || cachedSettings.appLogoDataUrl)) || localLogo || '';
   if (typeof logo !== 'string') return '';
   if (!logo.startsWith('data:image/')) return '';
   return logo;
 }
 
 function getCabinetWatermarkLogoDataUrl() {
-  const logo = (cachedSettings && cachedSettings.cabinetWatermarkLogoDataUrl) || '';
+  const localWatermark = (typeof localStorage !== 'undefined' && localStorage.getItem('medcareso_watermark_logo')) || '';
+  const logo = (cachedSettings && cachedSettings.cabinetWatermarkLogoDataUrl) || localWatermark || '';
   if (typeof logo !== 'string') return '';
   if (!logo.startsWith('data:image/')) return '';
   return logo;

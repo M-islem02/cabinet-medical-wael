@@ -410,13 +410,21 @@ function updateCabinetWatermarkLogoPreview(logoDataUrl = '') {
   }
 }
 
+let explicitClearCabinetLogo = false;
+let explicitClearAppLogo = false;
+let explicitClearWatermarkLogo = false;
+
 function clearCabinetLogo() {
+  explicitClearCabinetLogo = true;
+  try { localStorage.removeItem('medcareso_cabinet_logo'); } catch {}
   updateCabinetLogoPreview('');
   const fileInput = document.getElementById('cabinet-logo-file');
   if (fileInput) fileInput.value = '';
 }
 
 function clearAppLogo() {
+  explicitClearAppLogo = true;
+  try { localStorage.removeItem('medcareso_app_logo'); } catch {}
   updateAppLogoPreview('');
   updateAppLogoSelectionStatus('');
   const fileInput = document.getElementById('app-logo-file');
@@ -433,6 +441,8 @@ function updateAppLogoSelectionStatus(fileName = '') {
 }
 
 function clearCabinetWatermarkLogo() {
+  explicitClearWatermarkLogo = true;
+  try { localStorage.removeItem('medcareso_watermark_logo'); } catch {}
   updateCabinetWatermarkLogoPreview('');
   const fileInput = document.getElementById('cabinet-watermark-logo-file');
   if (fileInput) fileInput.value = '';
@@ -463,7 +473,9 @@ async function handleCabinetLogoChange(event) {
   }
 
   try {
+    explicitClearCabinetLogo = false;
     const logoDataUrl = await readFileAsBase64(file);
+    try { localStorage.setItem('medcareso_cabinet_logo', logoDataUrl); } catch {}
     updateCabinetLogoPreview(logoDataUrl);
   } catch (error) {
     console.error('Error reading logo file:', error);
@@ -485,7 +497,10 @@ async function handleAppLogoChange(event) {
     return;
   }
   try {
-    updateAppLogoPreview(await readFileAsBase64(file));
+    explicitClearAppLogo = false;
+    const logoDataUrl = await readFileAsBase64(file);
+    try { localStorage.setItem('medcareso_app_logo', logoDataUrl); } catch {}
+    updateAppLogoPreview(logoDataUrl);
     updateAppLogoSelectionStatus(file.name);
   } catch (error) {
     console.error('Error reading application logo:', error);
@@ -1177,9 +1192,18 @@ function buildSettingsPayload({
     documentShowBarcode: includePractice
       ? document.getElementById('document-show-barcode')?.checked !== false
       : (existing.documentShowBarcode !== 0 && existing.documentShowBarcode !== false),
-    cabinetLogoDataUrl: includePractice ? document.getElementById('cabinet-logo-data')?.value || '' : (existing.cabinetLogoDataUrl || ''),
-    appLogoDataUrl: includePractice ? document.getElementById('app-logo-data')?.value || '' : (existing.appLogoDataUrl || ''),
-    cabinetWatermarkLogoDataUrl: includePractice ? document.getElementById('cabinet-watermark-logo-data')?.value || '' : (existing.cabinetWatermarkLogoDataUrl || ''),
+    cabinetLogoDataUrl: explicitClearCabinetLogo
+      ? ''
+      : ((includePractice ? document.getElementById('cabinet-logo-data')?.value : '') || existing.cabinetLogoDataUrl || localStorage.getItem('medcareso_cabinet_logo') || ''),
+    clearCabinetLogo: explicitClearCabinetLogo,
+    appLogoDataUrl: explicitClearAppLogo
+      ? ''
+      : ((includePractice ? document.getElementById('app-logo-data')?.value : '') || existing.appLogoDataUrl || localStorage.getItem('medcareso_app_logo') || ''),
+    clearAppLogo: explicitClearAppLogo,
+    cabinetWatermarkLogoDataUrl: explicitClearWatermarkLogo
+      ? ''
+      : ((includePractice ? document.getElementById('cabinet-watermark-logo-data')?.value : '') || existing.cabinetWatermarkLogoDataUrl || localStorage.getItem('medcareso_watermark_logo') || ''),
+    clearWatermarkLogo: explicitClearWatermarkLogo,
     preferredPrinter: includeDevices ? document.getElementById('preferred-printer')?.value || '' : (existing.preferredPrinter || ''),
     preferredScanner: includeDevices ? document.getElementById('preferred-scanner')?.value || '' : (existing.preferredScanner || ''),
     radioExportFolderPath: includeDevices ? document.getElementById('radio-export-folder-path')?.value || '' : (existing.radioExportFolderPath || ''),
@@ -1249,63 +1273,57 @@ async function saveSettings() {
     return;
   }
   const settingsData = {
-    cabinetName: document.getElementById('cabinet-name').value,
-    cabinetAddress: document.getElementById('cabinet-address').value,
-    cabinetPhone: document.getElementById('cabinet-phone').value,
-    cabinetEmail: document.getElementById('cabinet-email').value,
-    doctorName: document.getElementById('doctor-name-input')?.value || document.getElementById('cabinet-name')?.value || '',
-    doctorRPPS: document.getElementById('doctor-rpps')?.value || '',
-    doctorSpecialty: getComposedDoctorSpecialty(),
-    customTreatmentTypes: document.getElementById('custom-treatment-types')?.value || '',
-    documentColorMode: document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : 'color',
-    documentPrimaryColor: normalizeHexColor(String(document.getElementById('document-primary-color')?.value || '').trim(), '#1a8c7e'),
+    cabinetName: document.getElementById('cabinet-name')?.value || cachedSettings?.cabinetName || '',
+    cabinetAddress: document.getElementById('cabinet-address')?.value || cachedSettings?.cabinetAddress || '',
+    cabinetPhone: document.getElementById('cabinet-phone')?.value || cachedSettings?.cabinetPhone || '',
+    cabinetEmail: document.getElementById('cabinet-email')?.value || cachedSettings?.cabinetEmail || '',
+    doctorName: document.getElementById('doctor-name-input')?.value || document.getElementById('cabinet-name')?.value || cachedSettings?.doctorName || '',
+    doctorRPPS: document.getElementById('doctor-rpps')?.value || cachedSettings?.doctorRPPS || '',
+    doctorSpecialty: getComposedDoctorSpecialty() || cachedSettings?.doctorSpecialty || '',
+    customTreatmentTypes: document.getElementById('custom-treatment-types')?.value || cachedSettings?.customTreatmentTypes || '',
+    documentColorMode: document.getElementById('document-color-mode')?.value === 'bw' ? 'bw' : (cachedSettings?.documentColorMode || 'color'),
+    documentPrimaryColor: normalizeHexColor(String(document.getElementById('document-primary-color')?.value || cachedSettings?.documentPrimaryColor || '').trim(), '#1a8c7e'),
     documentTypeColors: JSON.stringify(collectDocumentTypeColorsFromInputs()),
-    defaultDocumentPageSize: document.getElementById('default-document-page-size')?.value === 'A4' ? 'A4' : 'A5',
+    defaultDocumentPageSize: document.getElementById('default-document-page-size')?.value === 'A4' ? 'A4' : (cachedSettings?.defaultDocumentPageSize || 'A5'),
     documentFormats: JSON.stringify(collectDocumentFormatsFromInputs()),
     documentTextScales: JSON.stringify(collectDocumentTextScalesFromInputs()),
-    documentFontFamily: document.getElementById('document-font-family')?.value || 'segoe',
-    documentBonPourTitle: document.getElementById('document-bonpour-title')?.value?.trim() || 'Demande de Bilan',
-    documentTextScale: Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value) || 100)),
-    documentDoctorNameScale: Math.min(160, Math.max(70, Number(document.getElementById('document-doctor-name-scale')?.value) || 120)),
-    documentSpecialtyScale: Math.min(150, Math.max(70, Number(document.getElementById('document-specialty-scale')?.value) || 100)),
-    documentMetaScale: Math.min(150, Math.max(70, Number(document.getElementById('document-meta-scale')?.value) || 100)),
-    documentLogoScale: Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value) || 90)),
-    documentStyleVariant: normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value),
-    documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value) || 5)),
+    documentFontFamily: document.getElementById('document-font-family')?.value || cachedSettings?.documentFontFamily || 'segoe',
+    documentBonPourTitle: document.getElementById('document-bonpour-title')?.value?.trim() || cachedSettings?.documentBonPourTitle || 'Demande de Bilan',
+    documentTextScale: Math.min(120, Math.max(90, Number(document.getElementById('document-text-scale')?.value || cachedSettings?.documentTextScale) || 100)),
+    documentDoctorNameScale: Math.min(160, Math.max(70, Number(document.getElementById('document-doctor-name-scale')?.value || cachedSettings?.documentDoctorNameScale) || 120)),
+    documentSpecialtyScale: Math.min(150, Math.max(70, Number(document.getElementById('document-specialty-scale')?.value || cachedSettings?.documentSpecialtyScale) || 100)),
+    documentMetaScale: Math.min(150, Math.max(70, Number(document.getElementById('document-meta-scale')?.value || cachedSettings?.documentMetaScale) || 100)),
+    documentLogoScale: Math.min(200, Math.max(80, Number(document.getElementById('document-logo-scale')?.value || cachedSettings?.documentLogoScale) || 90)),
+    documentStyleVariant: normalizeDocumentStyleVariant(document.getElementById('document-style-variant')?.value || cachedSettings?.documentStyleVariant),
+    documentWatermarkOpacity: Math.min(35, Math.max(2, Number(document.getElementById('document-watermark-opacity')?.value || cachedSettings?.documentWatermarkOpacity) || 5)),
     documentHideSignature: Boolean(document.getElementById('document-hide-signature')?.checked),
     documentShowBarcode: document.getElementById('document-show-barcode')?.checked !== false,
-    cabinetLogoDataUrl: document.getElementById('cabinet-logo-data')?.value || '',
-    appLogoDataUrl: document.getElementById('app-logo-data')?.value || '',
-    cabinetWatermarkLogoDataUrl: document.getElementById('cabinet-watermark-logo-data')?.value || '',
-    preferredPrinter: document.getElementById('preferred-printer')?.value || '',
-    preferredScanner: document.getElementById('preferred-scanner')?.value || '',
-    radioExportFolderPath: document.getElementById('radio-export-folder-path')?.value || '',
-    preferredThermalPrinter: document.getElementById('preferred-thermal-printer')?.value || '',
+    cabinetLogoDataUrl: explicitClearCabinetLogo
+      ? ''
+      : (document.getElementById('cabinet-logo-data')?.value || cachedSettings?.cabinetLogoDataUrl || localStorage.getItem('medcareso_cabinet_logo') || ''),
+    clearCabinetLogo: explicitClearCabinetLogo,
+    appLogoDataUrl: explicitClearAppLogo
+      ? ''
+      : (document.getElementById('app-logo-data')?.value || cachedSettings?.appLogoDataUrl || localStorage.getItem('medcareso_app_logo') || ''),
+    clearAppLogo: explicitClearAppLogo,
+    cabinetWatermarkLogoDataUrl: explicitClearWatermarkLogo
+      ? ''
+      : (document.getElementById('cabinet-watermark-logo-data')?.value || cachedSettings?.cabinetWatermarkLogoDataUrl || localStorage.getItem('medcareso_watermark_logo') || ''),
+    clearWatermarkLogo: explicitClearWatermarkLogo,
+    preferredPrinter: document.getElementById('preferred-printer')?.value || cachedSettings?.preferredPrinter || '',
+    preferredScanner: document.getElementById('preferred-scanner')?.value || cachedSettings?.preferredScanner || '',
+    radioExportFolderPath: document.getElementById('radio-export-folder-path')?.value || cachedSettings?.radioExportFolderPath || '',
+    preferredThermalPrinter: document.getElementById('preferred-thermal-printer')?.value || cachedSettings?.preferredThermalPrinter || '',
     autoPrintAppointmentTicket: Boolean(document.getElementById('auto-print-appointment-ticket')?.checked),
     publicBookingEnabled: document.getElementById('public-booking-enabled')?.checked || false,
     publicBookingPort: parseInt(document.getElementById('public-booking-port')?.value, 10) || 4580,
-    publicBookingPublicUrl: document.getElementById('public-booking-public-url')?.value?.trim() || '',
+    publicBookingPublicUrl: document.getElementById('public-booking-public-url')?.value?.trim() || cachedSettings?.publicBookingPublicUrl || '',
     publicBookingQrEnabled: document.getElementById('public-booking-qr-enabled')
       ? document.getElementById('public-booking-qr-enabled').checked
       : false
   };
 
-  try {
-    const result = await window.api.settings.save(settingsData);
-    if (result.success) {
-      cachedSettings = { ...(cachedSettings || {}), ...settingsData };
-      if (typeof refreshDocumentEditorLogos === 'function') {
-        refreshDocumentEditorLogos();
-      }
-      await loadPublicBookingShareData();
-      showNotification(result.warning ? `✅ Paramètres enregistrés • Portail RDV: ${result.warning}` : '✅ Paramètres enregistrés', result.warning ? 'warning' : 'success');
-    } else {
-      showNotification('❌ Erreur: ' + result.error, 'error');
-    }
-  } catch (error) {
-    console.error('Error saving settings:', error);
-    showNotification('Erreur lors de l\'enregistrement', 'error');
-  }
+  return persistSettings(settingsData, 'Paramètres enregistrés');
 }
 
 async function savePracticeSettings() {
