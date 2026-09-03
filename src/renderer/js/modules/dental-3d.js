@@ -506,11 +506,14 @@ function setupInteraction(container) {
     if (hitTooth) {
       canvas.style.cursor = 'pointer';
       if (hoveredToothNumber !== hitTooth) {
-        if (hoveredToothNumber !== null) {
-          unhighlightHoveredTooth(hoveredToothNumber);
-        }
+        const prevTooth = hoveredToothNumber;
         hoveredToothNumber = hitTooth;
-        highlightHoveredTooth(hitTooth);
+        if (prevTooth !== null && toothMeshMap.has(prevTooth)) {
+          applyToothVisualState(toothMeshMap.get(prevTooth), prevTooth);
+        }
+        if (toothMeshMap.has(hitTooth)) {
+          applyToothVisualState(toothMeshMap.get(hitTooth), hitTooth);
+        }
         requestRender();
       }
       const name = ADULT_TEETH_NAMES[hitTooth] || ('Dent ' + hitTooth);
@@ -526,8 +529,11 @@ function setupInteraction(container) {
     } else {
       canvas.style.cursor = 'grab';
       if (hoveredToothNumber !== null) {
-        unhighlightHoveredTooth(hoveredToothNumber);
+        const prevTooth = hoveredToothNumber;
         hoveredToothNumber = null;
+        if (toothMeshMap.has(prevTooth)) {
+          applyToothVisualState(toothMeshMap.get(prevTooth), prevTooth);
+        }
         requestRender();
       }
       if (tooltip) tooltip.style.display = 'none';
@@ -536,8 +542,11 @@ function setupInteraction(container) {
 
   canvas.addEventListener('mouseleave', () => {
     if (hoveredToothNumber !== null) {
-      unhighlightHoveredTooth(hoveredToothNumber);
+      const prevTooth = hoveredToothNumber;
       hoveredToothNumber = null;
+      if (toothMeshMap.has(prevTooth)) {
+        applyToothVisualState(toothMeshMap.get(prevTooth), prevTooth);
+      }
       requestRender();
     }
     if (tooltip) tooltip.style.display = 'none';
@@ -581,70 +590,78 @@ function setupInteraction(container) {
   }, { passive: false });
 }
 
-// Professional Clinical Visual Mapping - Preserves authentic enamel texture while clearly signaling clinical condition
+// Professional Clinical Visual Mapping - Highly distinct, vivid dental conditions
 const CLINICAL_STATUS_STYLES = {
+  // Saine: Pure clean natural enamel
   healthy: {
-    roughness: 0.22,
-    metalness: 0.02,
     color: 0xffffff,
     emissive: 0x000000,
-    emissiveIntensity: 0.0
+    emissiveIntensity: 0.0,
+    roughness: 0.22,
+    metalness: 0.02
   },
+  // Carie: Distinct Vivid Red (High clinical visibility, never orange!)
   cavity: {
+    color: 0xffb4b4, // Soft red diffuse tint
+    emissive: 0xdc2626, // Vivid red emissive
+    emissiveIntensity: 0.52,
     roughness: 0.35,
-    metalness: 0.02,
-    color: 0xfff7ed, // Natural ivory with delicate warm undertone (never muddy brown)
-    emissive: 0xd97706, // Amber clinical alert
-    emissiveIntensity: 0.25
+    metalness: 0.02
   },
+  // Obturée / Soignée: Distinct Vivid Medical Blue
   filled: {
-    roughness: 0.16, // Polished composite restoration
-    metalness: 0.03,
-    color: 0xffffff,
-    emissive: 0x0284c7, // Medical blue accent
-    emissiveIntensity: 0.20
+    color: 0xbae6fd, // Soft medical cyan-blue diffuse tint
+    emissive: 0x0284c7, // Vivid blue emissive
+    emissiveIntensity: 0.46,
+    roughness: 0.16,
+    metalness: 0.04
   },
+  // Couronne prothétique: Distinct Shiny Gold / Metallic Porcelain
   crown: {
-    roughness: 0.06, // High-gloss pristine porcelain / zirconia crown
-    metalness: 0.12,
-    color: 0xffffff,
-    emissive: 0xeab308, // Golden-pearl luster
-    emissiveIntensity: 0.20
+    color: 0xfef08a, // Rich gold diffuse tint
+    emissive: 0xeab308, // Warm gold emissive
+    emissiveIntensity: 0.48,
+    roughness: 0.08,
+    metalness: 0.65 // Genuine metallic gold luster!
   },
-  bridge: {
-    roughness: 0.10,
-    metalness: 0.10,
-    color: 0xffffff,
-    emissive: 0x6366f1, // Clinical indigo accent
-    emissiveIntensity: 0.20
-  },
+  // Dévitalisée (Endo): Distinct Vivid Purple / Fuchsia
   rootCanal: {
-    roughness: 0.24,
-    metalness: 0.02,
-    color: 0xffffff,
-    emissive: 0xa855f7, // Endodontic purple accent
-    emissiveIntensity: 0.20
+    color: 0xf5d0fe, // Soft purple diffuse tint
+    emissive: 0xa855f7, // Vivid purple emissive
+    emissiveIntensity: 0.48,
+    roughness: 0.20,
+    metalness: 0.04
   },
+  // Implant: Distinct Vibrant Cyan / Teal with titanium sheen
   implant: {
+    color: 0xa5f3fc, // Soft teal diffuse tint
+    emissive: 0x0891b2, // Vibrant cyan emissive
+    emissiveIntensity: 0.48,
     roughness: 0.14,
-    metalness: 0.20,
-    color: 0xffffff,
-    emissive: 0x06b6d4, // Titanium-zirconia teal accent
-    emissiveIntensity: 0.20
+    metalness: 0.50 // Titanium sheen
   },
+  // Bridge: Distinct Deep Indigo
+  bridge: {
+    color: 0xc7d2fe,
+    emissive: 0x4338ca,
+    emissiveIntensity: 0.46,
+    roughness: 0.12,
+    metalness: 0.15
+  },
+  // Fractured / Abscess: Deep Alert Crimson
   fractured: {
+    color: 0xfca5a5,
+    emissive: 0xb91c1c,
+    emissiveIntensity: 0.55,
     roughness: 0.35,
-    metalness: 0.02,
-    color: 0xffffff,
-    emissive: 0xef4444, // Crimson warning accent
-    emissiveIntensity: 0.25
+    metalness: 0.02
   },
   abscess: {
+    color: 0xfca5a5,
+    emissive: 0x991b1b,
+    emissiveIntensity: 0.55,
     roughness: 0.35,
-    metalness: 0.02,
-    color: 0xffffff,
-    emissive: 0xdc2626, // Crimson warning accent
-    emissiveIntensity: 0.25
+    metalness: 0.02
   }
 };
 
@@ -666,11 +683,13 @@ function applyToothVisualState(mesh, toothNumber) {
   mesh.material.metalness = style.metalness;
 
   if (toothNumber === currentSelectedTooth) {
-    mesh.material.emissive.setHex(0xf59e0b); // Radiant gold amber for active selection
-    mesh.material.emissiveIntensity = 0.65;
+    // Active selection: Brilliant Emerald Green glow (never clashes with statuses)
+    mesh.material.emissive.setHex(0x10b981);
+    mesh.material.emissiveIntensity = 0.72;
   } else if (toothNumber === hoveredToothNumber) {
-    mesh.material.emissive.setHex(0x0284c7); // Vivid sky-blue for hover
-    mesh.material.emissiveIntensity = 0.55;
+    // Hover: Electric Sky Blue glow
+    mesh.material.emissive.setHex(0x00b4d8);
+    mesh.material.emissiveIntensity = 0.65;
   } else {
     mesh.material.emissive.setHex(style.emissive);
     mesh.material.emissiveIntensity = style.emissiveIntensity;
