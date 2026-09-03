@@ -1,6 +1,8 @@
 export function setSectionAvailability(sectionId, available) {
-  const isTestAccount = String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = typeof window.isDemoOrTestAccount === 'function'
+    ? window.isDemoOrTestAccount()
+    : (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
+        || localStorage.getItem('currentUserRole') === 'test');
 
   if (isTestAccount) {
     available = true;

@@ -292,7 +292,8 @@ function showSection(sectionId) {
     'appointments-calendar': 'featureCalendar'
   };
 
-  const isTestAccount = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
+  const isTestAccount = (typeof isDemoOrTestAccount === 'function' && isDemoOrTestAccount())
+    || (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
     || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
     || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test')
     || (localStorage.getItem('currentUserRole') === 'test');

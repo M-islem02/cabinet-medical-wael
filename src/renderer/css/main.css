@@ -2004,6 +2004,15 @@ html.superadmin-session .nav-item.admin-allowed-nav {
   display: flex !important;
 }
 
+/* Compte test/démo : afficher tous les modules dans la barre latérale,
+   y compris les modules d'administration */
+html.demo-account body.demo-account .nav-item.admin-only,
+html.demo-account body.demo-account .nav-item[data-section="package-config"],
+html.demo-account body.demo-account .nav-item[data-section="sms-config"],
+html.demo-account body.demo-account .nav-item[data-section="cloud-sync"] {
+  display: flex !important;
+}
+
 html.superadmin-session body.admin-mode .section.admin-only.active,
 html.superadmin-session body.admin-mode #package-config.active,
 html.superadmin-session body.admin-mode #sms-config.active,
@@ -2013,6 +2022,14 @@ body.admin-mode #package-config.active,
 body.admin-mode #sms-config.active,
 body.admin-mode #cloud-sync.active,
 #settings.active {
+  display: block !important;
+}
+
+/* Compte test/démo : afficher aussi les sections d'administration */
+html.demo-account body.demo-account .section.admin-only.active,
+html.demo-account body.demo-account #package-config.active,
+html.demo-account body.demo-account #sms-config.active,
+html.demo-account body.demo-account #cloud-sync.active {
   display: block !important;
 }
 

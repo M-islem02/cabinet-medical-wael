@@ -1168,7 +1168,9 @@ async function loadSyncConfig() {
     }
     return syncConfig;
   } catch (e) {
-    console.error('Error loading sync config:', e);
+    if (!e?.message?.includes('non initialisee')) {
+      console.error('Error loading sync config:', e);
+    }
     return defaultSyncConfig();
   }
 }

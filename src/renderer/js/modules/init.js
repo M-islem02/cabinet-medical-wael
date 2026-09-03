@@ -425,7 +425,7 @@ async function applyPackageRestrictions() {
     const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(config)
       : 'orl';
-    const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test';
+    const isTestAccount = isDemoOrTestAccount();
     
     document.querySelectorAll('.btn-ai-report, .btn-ai-chat, [onclick*="openAIReportGenerator"], [onclick*="openAIChatbot"]').forEach(btn => {
       btn.style.display = 'none';
@@ -500,9 +500,7 @@ function isFeatureEnabled(config, key, defaultValue = true) {
 }
 
 function setSectionFeatureVisibility(sectionId, enabled) {
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || currentUserRole === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = isDemoOrTestAccount();
 
   if (isTestAccount) {
     enabled = true;
@@ -538,9 +536,7 @@ function setSectionFeatureVisibility(sectionId, enabled) {
 }
 
 function applyMprDependencyRestrictions(config = window._packageConfig || null) {
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || currentUserRole === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = isDemoOrTestAccount();
 
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(config)
@@ -621,9 +617,7 @@ function applyPackageRestrictionsFromCache(config = window._packageConfig || nul
     return;
   }
 
-  const isTestAccount = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
-    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
-    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test');
+  const isTestAccount = isDemoOrTestAccount();
 
   const featureToSection = {
     featureWaitingRoom: 'waiting-room',
@@ -645,9 +639,7 @@ function applyPackageRestrictionsFromCache(config = window._packageConfig || nul
 
 function enforceDoctorPackageNav() {
   const config = window._packageConfig || null;
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || currentUserRole === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = isDemoOrTestAccount();
 
   if (isTestAccount) {
     document.querySelectorAll('.nav-item').forEach((item) => {
@@ -756,9 +748,7 @@ function updateUserDisplay() {
 function updateAdminUI() {
   const isSuperAdminUser = currentUserIsSuperAdmin === true || localStorage.getItem('currentUserIsSuperAdmin') === 'true';
   const isAdminUser = currentUserIsAdmin === true || localStorage.getItem('currentUserIsAdmin') === 'true';
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || currentUserRole === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = isDemoOrTestAccount();
   const isDirectorUser = false;
   const userManagementCard = document.getElementById('user-management-card');
   const addUserBtn = document.getElementById('btn-add-user');
@@ -786,6 +776,8 @@ function updateAdminUI() {
   };
 
   if (isTestAccount) {
+    document.documentElement.classList.add('demo-account');
+    document.body.classList.add('demo-account');
     document.querySelectorAll('.nav-item').forEach(item => {
       item.style.display = 'flex';
       item.classList.remove('hidden', 'role-hidden', 'feature-disabled');
@@ -925,6 +917,21 @@ function updateAdminUI() {
     }
   }
 
+  // Les modules réservés au compte test/démo restent masqués pour tous les autres comptes.
+  if (!isTestAccount) {
+    document.documentElement.classList.remove('demo-account');
+    document.body.classList.remove('demo-account');
+    document.querySelectorAll('.nav-item.demo-only').forEach((item) => {
+      item.style.display = 'none';
+      item.classList.add('hidden', 'role-hidden', 'feature-disabled');
+      item.dataset.featureDisabled = '1';
+    });
+    document.querySelectorAll('.section.demo-only').forEach((section) => {
+      section.style.display = 'none';
+      section.classList.add('role-hidden', 'feature-disabled');
+    });
+  }
+
   if (typeof switchSettingsPage === 'function' && document.getElementById('settings')?.classList.contains('active')) {
     switchSettingsPage(typeof activeSettingsPage !== 'undefined' ? activeSettingsPage : 'general');
   }
@@ -983,9 +990,7 @@ function enforceAdminMode() {
  * Assistants cannot: view consultations, prescriptions, medical records, statistics
  */
 function enforceAssistantMode() {
-  const isTestAccount = String(currentUsername || localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test'
-    || currentUserRole === 'test'
-    || localStorage.getItem('currentUserRole') === 'test';
+  const isTestAccount = isDemoOrTestAccount();
   if (isTestAccount) return;
 
   console.log('🔒 Enforcing assistant mode configuration');

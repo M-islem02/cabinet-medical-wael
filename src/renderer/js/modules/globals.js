@@ -20,6 +20,23 @@ let sickLeaveRestDaysDirty = false;
 let cachedSettings = null;
 let factureTotalEditedManually = false;
 
+// Détection centralisée du compte test/démo (tous les modules actifs).
+// Coïncide avec les vérifications backend (username.includes('test')).
+function isDemoOrTestAccount() {
+  const uname = String(
+    (typeof currentUsername !== 'undefined' ? currentUsername : '') ||
+    localStorage.getItem('currentUsername') || ''
+  ).trim().toLowerCase();
+  const role = ((typeof currentUserRole !== 'undefined' ? currentUserRole : '') ||
+    localStorage.getItem('currentUserRole') || '').toString().toLowerCase();
+  return role === 'test'
+    || uname === 'test'
+    || uname === 'demo'
+    || uname === 'démo'
+    || uname.includes('test');
+}
+window.isDemoOrTestAccount = isDemoOrTestAccount;
+
 async function setSelectedPatient(patientId, { patient = null, source = 'unknown' } = {}) {
   const normalizedPatientId = String(patientId || '').trim();
   if (!normalizedPatientId) return currentPatientData;
@@ -530,10 +547,7 @@ function getActivePracticeSpecialtyMeta(config = window._packageConfig || null) 
 
 function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
   const currentSpecialty = explicitSpecialty || resolveActivePracticeSpecialty();
-  const isTest = (typeof currentUserRole !== 'undefined' && currentUserRole === 'test')
-    || (typeof currentUsername !== 'undefined' && String(currentUsername).trim().toLowerCase() === 'test')
-    || (String(localStorage.getItem('currentUsername') || '').trim().toLowerCase() === 'test')
-    || (localStorage.getItem('currentUserRole') === 'test');
+  const isTest = isDemoOrTestAccount();
 
   const specialtySectionMap = {
     'orl': ['orl', 'treatment-plans'],
