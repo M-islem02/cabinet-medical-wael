@@ -522,7 +522,7 @@ function renderDentalChart() {
 
     '</svg>' +
 
-    '<div id="dental-3d-viewport" style="' + (is3D ? 'display:block;' : 'display:none;') + ' width:100%; height:500px; position:relative; border-radius:8px; overflow:hidden; background:radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);"></div>' +
+    '<div id="dental-3d-viewport" style="' + (is3D ? 'display:block;' : 'display:none;') + ' width:100%; height:520px; position:relative; border-radius:14px; overflow:hidden; background:radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%); border:1px solid #cbd5e1; box-shadow:inset 0 2px 10px rgba(0,0,0,0.05), 0 4px 20px rgba(15,23,42,0.06);"></div>' +
 
     '<div id="dental-chart-notes-container">' + getDentalNotesEmptyHTML() + '</div>' +
     '</div>' +

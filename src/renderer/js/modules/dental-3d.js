@@ -1,9 +1,10 @@
 /**
- * Dental 3D Odontogram Module - Realistic Oral Anatomy
+ * Dental 3D Odontogram Module - Realistic Oral Anatomy & Modern Clinical 3D UI
  * Renders an anatomically authentic 3D human mouth (Maxilla, Mandible,
  * realistic sculpted teeth with cusps and grooves, scalloped gingiva,
  * vaulted hard palate, and contoured tongue) using Three.js.
- * Fully synchronized with 2D dental chart and patient medical records.
+ * Includes sleek glassmorphic camera dock, smooth camera gliding,
+ * floating tooth HUD, and full 2D bidirectional sync.
  */
 
 import * as THREE from '../libs/three.module.js';
@@ -31,13 +32,18 @@ let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
 let currentViewPreset = 'default';
 
-// Camera target and spherical coordinates for orbit
+// Camera target and smooth spherical coordinates
 const cameraTarget = new THREE.Vector3(0, 0, -0.2);
 let cameraRadius = 14.5;
-let cameraTheta = 0.28;  // Azimuthal angle
-let cameraPhi = 1.35;    // Polar angle
+let cameraTheta = 0.28;
+let cameraPhi = 1.35;
 
-// Tooth names for tooltip (French anatomical dental nomenclature)
+// Target angles for smooth camera gliding / interpolation
+let targetRadius = 14.5;
+let targetTheta = 0.28;
+let targetPhi = 1.35;
+
+// French anatomical tooth names
 const ADULT_TEETH_NAMES = {
   18: 'Dent de sagesse sup. droite', 17: '2e molaire sup. droite', 16: '1re molaire sup. droite',
   15: '2e prémolaire sup. droite', 14: '1re prémolaire sup. droite', 13: 'Canine sup. droite',
@@ -54,19 +60,19 @@ const ADULT_TEETH_NAMES = {
 };
 
 const STATUS_COLOR_HEX = {
-  healthy:    0xfcfaf2, // Natural ivory enamel
-  cavity:     0x9a3412, // Decayed amber-brown
-  filled:     0x2563eb, // Aesthetic composite blue
-  crown:      0xd97706, // Gold / ceramic crown
-  bridge:     0x6366f1, // Bridge pontic
-  rootCanal:  0xdb2777, // Endodontic pink
-  extraction: 0x94a3b8, // Extracted ghost
-  implant:    0x0891b2, // Titanium implant
-  missing:    0x94a3b8, // Missing
-  fractured:  0xeab308, // Fractured yellow
-  abscess:    0xdc2626, // Abscess red
-  impacted:   0x71717a, // Impacted grey
-  prosthesis: 0x0284c7  // Prosthetic sky blue
+  healthy:    0xfcfaf2,
+  cavity:     0x9a3412,
+  filled:     0x2563eb,
+  crown:      0xd97706,
+  bridge:     0x6366f1,
+  rootCanal:  0xdb2777,
+  extraction: 0x94a3b8,
+  implant:    0x0891b2,
+  missing:    0x94a3b8,
+  fractured:  0xeab308,
+  abscess:    0xdc2626,
+  impacted:   0x71717a,
+  prosthesis: 0x0284c7
 };
 
 const STATUS_LABELS_FR = {
@@ -85,40 +91,33 @@ const STATUS_LABELS_FR = {
   prosthesis: 'Prothèse'
 };
 
-// Natural Catinary Dental Arch calculation
 function calculateTooth3DPosition(toothNumber) {
   const isUpper = toothNumber >= 11 && toothNumber <= 28;
   const isRight = (toothNumber >= 11 && toothNumber <= 18) || (toothNumber >= 41 && toothNumber <= 48);
-  const toothIndex = (toothNumber % 10); // 1 = central incisor, 8 = wisdom tooth
+  const toothIndex = (toothNumber % 10);
 
-  // Maxillary arch is slightly broader than mandibular (natural overjet / overbite)
   const archWidth = isUpper ? 4.25 : 3.92;
   const archDepth = isUpper ? 4.05 : 3.75;
   const yBase = isUpper ? 1.05 : -1.05;
 
-  // Normalized position along the parabolic dental arch (0 to 1)
   const t = (toothIndex - 0.95) / 7.15;
-  const angle = t * 1.36; // Radians around arch
+  const angle = t * 1.36;
 
   const signX = isRight ? 1 : -1;
   const x = signX * Math.sin(angle) * archWidth;
-  // Upper arch is slightly forward to create natural maxillary overjet
   const z = -Math.cos(angle) * archDepth + (archDepth * 0.72) + (isUpper ? 0.22 : 0);
   const y = yBase;
 
-  // Natural axial tilt tangent to the arch
   const rotY = signX * (angle + (toothIndex <= 2 ? 0.05 : 0.22));
 
   return { x, y, z, rotY, isUpper, toothIndex };
 }
 
-// ========== ANATOMICAL PROCEDURAL TOOTH GEOMETRIES ==========
-
+// Procedural Anatomical Tooth Geometries
 function createIncisorGeometry(w, h, d, isUpper, isCentral) {
   const geom = new THREE.BufferGeometry();
   const rows = 12, cols = 16;
-  const positions = [];
-  const indices = [];
+  const positions = [], indices = [];
 
   for (let j = 0; j <= rows; j++) {
     const v = j / rows;
@@ -134,13 +133,8 @@ function createIncisorGeometry(w, h, d, isUpper, isCentral) {
       if (Math.cos(theta) > 0) {
         z += 0.09 * (1.0 - v * 0.5) * (1.0 - Math.min(1.0, (2 * x / curWidth) ** 2));
       } else {
-        if (v < 0.35) {
-          z -= 0.06 * (1.0 - v / 0.35);
-        } else {
-          z += 0.04 * Math.sin(v * Math.PI);
-        }
+        z += (v < 0.35 ? -0.06 * (1.0 - v / 0.35) : 0.04 * Math.sin(v * Math.PI));
       }
-
       positions.push(x, y, z);
     }
   }
@@ -178,8 +172,7 @@ function createIncisorGeometry(w, h, d, isUpper, isCentral) {
 function createCanineGeometry(w, h, d, isUpper) {
   const geom = new THREE.BufferGeometry();
   const rows = 12, cols = 16;
-  const positions = [];
-  const indices = [];
+  const positions = [], indices = [];
 
   for (let j = 0; j <= rows; j++) {
     const v = j / rows;
@@ -197,7 +190,6 @@ function createCanineGeometry(w, h, d, isUpper) {
       } else {
         z -= (v < 0.35 ? 0.08 : 0.02);
       }
-
       positions.push(x, y, z);
     }
   }
@@ -235,8 +227,7 @@ function createCanineGeometry(w, h, d, isUpper) {
 function createPremolarGeometry(w, h, d, isUpper) {
   const geom = new THREE.BufferGeometry();
   const rows = 12, cols = 16;
-  const positions = [];
-  const indices = [];
+  const positions = [], indices = [];
 
   for (let j = 0; j <= rows; j++) {
     const v = j / rows;
@@ -258,7 +249,6 @@ function createPremolarGeometry(w, h, d, isUpper) {
         const cuspHeight = (cosT > 0 ? 0.14 : 0.10) * Math.abs(cosT);
         curY += (isUpper ? -1 : 1) * cuspHeight * cuspFactor;
       }
-
       positions.push(x, curY, z);
     }
   }
@@ -296,8 +286,7 @@ function createPremolarGeometry(w, h, d, isUpper) {
 function createMolarGeometry(w, h, d, isUpper, isWisdom) {
   const geom = new THREE.BufferGeometry();
   const rows = 12, cols = 18;
-  const positions = [];
-  const indices = [];
+  const positions = [], indices = [];
 
   for (let j = 0; j <= rows; j++) {
     const v = j / rows;
@@ -319,7 +308,6 @@ function createMolarGeometry(w, h, d, isUpper, isWisdom) {
         const cuspHeight = 0.18 * Math.sin(theta * 2 - Math.PI / 4) + 0.05 * Math.sin(theta * 4);
         curY += (isUpper ? -1 : 1) * Math.max(0, cuspHeight) * cuspFactor;
       }
-
       positions.push(x, curY, z);
     }
   }
@@ -644,6 +632,108 @@ function updateCameraPosition() {
   camera.lookAt(cameraTarget);
 }
 
+// ========== FLOATING MODERN 3D UI OVERLAY ==========
+
+function build3DUIOverlay(container) {
+  // 1. Bottom Dock (Camera View Angles)
+  const dock = document.createElement('div');
+  dock.id = 'dental-3d-floating-dock';
+  dock.style.cssText = 'position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 30px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08); border: 1px solid rgba(255, 255, 255, 0.9); z-index: 10; user-select: none;';
+
+  const views = [
+    { id: 'face', label: 'Face' },
+    { id: 'upper', label: 'Maxillaire' },
+    { id: 'lower', label: 'Mandibule' },
+    { id: 'right', label: 'Droit' },
+    { id: 'left', label: 'Gauche' }
+  ];
+
+  views.forEach(v => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dental-3d-dock-btn' + (currentViewPreset === v.id ? ' is-active' : '');
+    btn.dataset.view = v.id;
+    btn.textContent = v.label;
+    btn.style.cssText = 'border: none; background: ' + (currentViewPreset === v.id ? '#0284c7' : 'transparent') + '; color: ' + (currentViewPreset === v.id ? '#ffffff' : '#334155') + '; padding: 5px 14px; font-size: 12px; font-weight: 600; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; outline: none; box-shadow: ' + (currentViewPreset === v.id ? '0 2px 6px rgba(2,132,199,0.35)' : 'none') + ';';
+    btn.onclick = () => setDental3DView(v.id);
+    dock.appendChild(btn);
+  });
+  container.appendChild(dock);
+
+  // 2. Top-Right Floating Toolset (Zoom In, Zoom Out, Center)
+  const toolset = document.createElement('div');
+  toolset.id = 'dental-3d-floating-tools';
+  toolset.style.cssText = 'position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 6px; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 5px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); border: 1px solid rgba(255, 255, 255, 0.8); z-index: 10;';
+
+  const makeToolBtn = (text, title, onClick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = text;
+    b.title = title;
+    b.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; color: #334155; font-size: 14px; font-weight: 700; border-radius: 8px; cursor: pointer; transition: background 0.15s ease;';
+    b.onmouseenter = () => { b.style.background = '#f1f5f9'; };
+    b.onmouseleave = () => { b.style.background = 'transparent'; };
+    b.onclick = onClick;
+    return b;
+  };
+
+  toolset.appendChild(makeToolBtn('+', 'Zoom avant', () => zoomDental3D(-1.8)));
+  toolset.appendChild(makeToolBtn('−', 'Zoom arrière', () => zoomDental3D(1.8)));
+  toolset.appendChild(makeToolBtn('⟲', 'Recentrer la vue', () => resetDental3DCamera()));
+  container.appendChild(toolset);
+
+  // 3. Bottom-Left Navigation Pill
+  const hint = document.createElement('div');
+  hint.id = 'dental-3d-hint';
+  hint.style.cssText = 'position: absolute; bottom: 16px; left: 16px; font-size: 11px; font-weight: 500; color: #64748b; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(10px); padding: 5px 10px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.8); pointer-events: none; z-index: 9;';
+  hint.textContent = 'Pivoter : Glisser · Zoomer : Molette · Dent : Cliquer';
+  container.appendChild(hint);
+
+  // 4. Top-Left Active Tooth HUD Card
+  const hud = document.createElement('div');
+  hud.id = 'dental-3d-active-hud';
+  hud.style.cssText = 'position: absolute; top: 16px; left: 16px; display: none; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 8px 14px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); border: 1px solid rgba(255, 255, 255, 0.9); z-index: 10;';
+  container.appendChild(hud);
+}
+
+function updateActiveToothHUD(toothNumber) {
+  const hud = document.getElementById('dental-3d-active-hud');
+  if (!hud) return;
+  if (!toothNumber) {
+    hud.style.display = 'none';
+    return;
+  }
+  const name = ADULT_TEETH_NAMES[toothNumber] || ('Dent ' + toothNumber);
+  const data = currentTeethData[toothNumber];
+  const status = data ? data.status : 'healthy';
+  const statusLabel = STATUS_LABELS_FR[status] || status;
+
+  hud.innerHTML = `
+    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #0284c7;">Dent sélectionnée</div>
+    <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin: 1px 0 3px 0;">Dent ${toothNumber} : ${name}</div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 11.5px; color: #64748b;">Statut :</span>
+      <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e0f2fe; color: #0369a1;">${statusLabel}</span>
+    </div>
+  `;
+  hud.style.display = 'block';
+}
+
+function updateDockActiveState() {
+  const btns = document.querySelectorAll('.dental-3d-dock-btn');
+  btns.forEach(b => {
+    const isAct = b.dataset.view === currentViewPreset;
+    b.style.background = isAct ? '#0284c7' : 'transparent';
+    b.style.color = isAct ? '#ffffff' : '#334155';
+    b.style.boxShadow = isAct ? '0 2px 6px rgba(2,132,199,0.35)' : 'none';
+  });
+}
+
+export function zoomDental3D(delta) {
+  targetRadius = Math.max(7.0, Math.min(24.0, targetRadius + delta));
+}
+
+// Initialize Three.js scene
 export function initDental3D(container, options = {}) {
   containerEl = container;
   onToothSelectCallback = options.onSelect || null;
@@ -651,14 +741,24 @@ export function initDental3D(container, options = {}) {
   containerEl.innerHTML = '';
   toothGroups.clear();
 
+  // Modern Medical Studio Viewport Styling
+  containerEl.style.background = 'radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%)';
+  containerEl.style.borderRadius = '12px';
+  containerEl.style.overflow = 'hidden';
+  containerEl.style.boxShadow = 'inset 0 2px 10px rgba(0, 0, 0, 0.05)';
+  containerEl.style.border = '1px solid #cbd5e1';
+
   scene = new THREE.Scene();
 
   const width = containerEl.clientWidth || 700;
   const height = containerEl.clientHeight || 500;
   camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
   cameraRadius = 14.2;
+  targetRadius = 14.2;
   cameraTheta = 0.28;
+  targetTheta = 0.28;
   cameraPhi = 1.35;
+  targetPhi = 1.35;
   updateCameraPosition();
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -667,6 +767,7 @@ export function initDental3D(container, options = {}) {
   renderer.setClearColor(0x000000, 0);
   containerEl.appendChild(renderer.domElement);
 
+  // Dental Operatory Studio Lighting
   const ambientLight = new THREE.AmbientLight(0xfff7ed, 0.95);
   scene.add(ambientLight);
 
@@ -686,8 +787,10 @@ export function initDental3D(container, options = {}) {
   rimLight.position.set(0, 5, -8);
   scene.add(rimLight);
 
+  // Complete Anatomical Mouth Structures
   scene.add(createMouthStructures());
 
+  // Add All 32 FDI Adult Teeth
   const allTeeth = [
     18, 17, 16, 15, 14, 13, 12, 11,
     21, 22, 23, 24, 25, 26, 27, 28,
@@ -704,10 +807,14 @@ export function initDental3D(container, options = {}) {
     toothGroups.set(toothNumber, toothGroup);
   });
 
+  // Floating Interactive Tooltip
   const tooltip = document.createElement('div');
   tooltip.id = 'dental-3d-tooltip';
-  tooltip.style.cssText = 'position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.90); color: #ffffff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 10; box-shadow: 0 4px 14px rgba(0,0,0,0.22); backdrop-filter: blur(6px); transition: opacity 0.15s ease; border: 1px solid rgba(255,255,255,0.12);';
+  tooltip.style.cssText = 'position: absolute; display: none; pointer-events: none; background: rgba(15, 23, 42, 0.90); color: #ffffff; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; z-index: 20; box-shadow: 0 4px 14px rgba(0,0,0,0.22); backdrop-filter: blur(6px); transition: opacity 0.15s ease; border: 1px solid rgba(255,255,255,0.12);';
   containerEl.appendChild(tooltip);
+
+  // Modern Floating UI Overlay
+  build3DUIOverlay(containerEl);
 
   setupEventListeners(containerEl, tooltip);
 
@@ -748,9 +855,10 @@ function setupEventListeners(container, tooltip) {
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
 
-      cameraTheta -= deltaX * 0.008;
-      cameraPhi = Math.max(0.15, Math.min(Math.PI - 0.15, cameraPhi - deltaY * 0.008));
-      updateCameraPosition();
+      targetTheta -= deltaX * 0.008;
+      targetPhi = Math.max(0.15, Math.min(Math.PI - 0.15, targetPhi - deltaY * 0.008));
+      currentViewPreset = 'custom';
+      updateDockActiveState();
 
       previousMousePosition = { x: e.clientX, y: e.clientY };
       tooltip.style.display = 'none';
@@ -823,8 +931,7 @@ function setupEventListeners(container, tooltip) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    cameraRadius = Math.max(6.5, Math.min(26.0, cameraRadius + e.deltaY * 0.015));
-    updateCameraPosition();
+    targetRadius = Math.max(6.5, Math.min(26.0, targetRadius + e.deltaY * 0.015));
   }, { passive: false });
 }
 
@@ -869,6 +976,8 @@ export function selectToothIn3D(toothNumber) {
       group.userData.crownMesh.material.emissiveIntensity = 0.45;
     }
   }
+
+  updateActiveToothHUD(toothNumber);
 }
 
 export function isDental3DInitialized() {
@@ -967,51 +1076,62 @@ export function updateDental3DData(teethData = {}, treatmentsCache = {}, selecte
       crown.material.emissiveIntensity = 0;
     }
   });
+
+  updateActiveToothHUD(selectedTooth);
 }
 
+// Preset Camera Views with Smooth Gliding
 export function setDental3DView(preset) {
   currentViewPreset = preset;
   switch (preset) {
     case 'face':
-      cameraTheta = 0;
-      cameraPhi = Math.PI / 2;
-      cameraRadius = 13.2;
+      targetTheta = 0;
+      targetPhi = Math.PI / 2;
+      targetRadius = 13.2;
       break;
     case 'upper':
-      cameraTheta = 0;
-      cameraPhi = Math.PI - 0.22;
-      cameraRadius = 12.2;
+      targetTheta = 0;
+      targetPhi = Math.PI - 0.22;
+      targetRadius = 12.2;
       break;
     case 'lower':
-      cameraTheta = 0;
-      cameraPhi = 0.22;
-      cameraRadius = 12.2;
+      targetTheta = 0;
+      targetPhi = 0.22;
+      targetRadius = 12.2;
       break;
     case 'right':
-      cameraTheta = Math.PI / 2;
-      cameraPhi = Math.PI / 2.2;
-      cameraRadius = 13.5;
+      targetTheta = Math.PI / 2;
+      targetPhi = Math.PI / 2.2;
+      targetRadius = 13.5;
       break;
     case 'left':
-      cameraTheta = -Math.PI / 2;
-      cameraPhi = Math.PI / 2.2;
-      cameraRadius = 13.5;
+      targetTheta = -Math.PI / 2;
+      targetPhi = Math.PI / 2.2;
+      targetRadius = 13.5;
       break;
     default:
-      cameraTheta = 0.28;
-      cameraPhi = 1.35;
-      cameraRadius = 14.2;
+      targetTheta = 0.28;
+      targetPhi = 1.35;
+      targetRadius = 14.2;
       break;
   }
-  updateCameraPosition();
+  updateDockActiveState();
 }
 
 export function resetDental3DCamera() {
   setDental3DView('default');
 }
 
+// Animation Render Loop with Smooth Camera Damping / Gliding
 function animate() {
   animationFrameId = requestAnimationFrame(animate);
+
+  // Smooth camera interpolation
+  cameraTheta += (targetTheta - cameraTheta) * 0.12;
+  cameraPhi += (targetPhi - cameraPhi) * 0.12;
+  cameraRadius += (targetRadius - cameraRadius) * 0.12;
+  updateCameraPosition();
+
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
   }
@@ -1039,4 +1159,5 @@ export function destroyDental3D() {
 if (typeof window !== 'undefined') {
   window.setDental3DView = setDental3DView;
   window.resetDental3DCamera = resetDental3DCamera;
+  window.zoomDental3D = zoomDental3D;
 }
