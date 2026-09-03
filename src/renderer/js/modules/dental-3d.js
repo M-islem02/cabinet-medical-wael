@@ -265,9 +265,10 @@ function loadRealisticMouthModel() {
   const mouthMaterial = new THREE.MeshStandardMaterial({
     map: mouthMap,
     normalMap: mouthNormal,
+    normalScale: new THREE.Vector2(0.45, 0.45),
     roughnessMap: mouthRoughness,
-    roughness: 0.45,
-    metalness: 0.02,
+    roughness: 0.42,
+    metalness: 0.01,
     side: THREE.DoubleSide
   });
 
@@ -285,9 +286,10 @@ function loadRealisticMouthModel() {
   const baseTeethMaterial = new THREE.MeshStandardMaterial({
     map: teethMap,
     normalMap: teethNormal,
+    normalScale: new THREE.Vector2(0.35, 0.35),
     roughnessMap: teethRoughness,
-    roughness: 0.28,
-    metalness: 0.03,
+    roughness: 0.22,
+    metalness: 0.02,
     side: THREE.DoubleSide
   });
 
@@ -383,31 +385,33 @@ export function initDental3D(container, options = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.05;
   renderer.domElement.style.display = 'block';
   renderer.domElement.style.width = '100%';
   renderer.domElement.style.height = '100%';
   containerEl.appendChild(renderer.domElement);
 
-  // Natural Dental Operatory Lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.90);
+  // Natural Dental Operatory Lighting with Camera Headlamp & Omnidirectional Cavity Fill
+  // 1. Examination Headlamp mounted directly on the camera (illuminates view axis without blind shadows)
+  const headlight = new THREE.DirectionalLight(0xffffff, 1.45);
+  headlight.position.set(0, 0, 1);
+  camera.add(headlight);
+  scene.add(camera);
+
+  // 2. Soft Omnidirectional Hemisphere Light (illuminates both arches evenly with warm oral tissue bounce)
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xfce7f3, 1.05);
+  hemiLight.position.set(0, 20, 0);
+  scene.add(hemiLight);
+
+  // 3. Gentle Ambient Base Fill
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
   scene.add(ambientLight);
 
-  const operatoryLight = new THREE.DirectionalLight(0xffffff, 1.25);
-  operatoryLight.position.set(1, 6, 8);
-  scene.add(operatoryLight);
-
-  const leftFillLight = new THREE.DirectionalLight(0xf8fafc, 0.50);
-  leftFillLight.position.set(-6, 2, 5);
-  scene.add(leftFillLight);
-
-  const rightFillLight = new THREE.DirectionalLight(0xf8fafc, 0.50);
-  rightFillLight.position.set(6, 2, 5);
-  scene.add(rightFillLight);
-
-  const lowerFillLight = new THREE.DirectionalLight(0xffedd5, 0.35);
-  lowerFillLight.position.set(0, -4, 4);
-  scene.add(lowerFillLight);
+  // 4. Subtle Lateral Key Fill
+  const operatoryKeyLight = new THREE.DirectionalLight(0xffffff, 0.45);
+  operatoryKeyLight.position.set(2, 6, 5);
+  scene.add(operatoryKeyLight);
 
   // Load realistic 3D mouth GLB model with separated teeth
   loadRealisticMouthModel();
@@ -577,50 +581,122 @@ function setupInteraction(container) {
   }, { passive: false });
 }
 
+// Professional Clinical Visual Mapping - Preserves authentic enamel texture while clearly signaling clinical condition
+const CLINICAL_STATUS_STYLES = {
+  healthy: {
+    roughness: 0.22,
+    metalness: 0.02,
+    color: 0xffffff,
+    emissive: 0x000000,
+    emissiveIntensity: 0.0
+  },
+  cavity: {
+    roughness: 0.35,
+    metalness: 0.02,
+    color: 0xfff7ed, // Natural ivory with delicate warm undertone (never muddy brown)
+    emissive: 0xd97706, // Amber clinical alert
+    emissiveIntensity: 0.25
+  },
+  filled: {
+    roughness: 0.16, // Polished composite restoration
+    metalness: 0.03,
+    color: 0xffffff,
+    emissive: 0x0284c7, // Medical blue accent
+    emissiveIntensity: 0.20
+  },
+  crown: {
+    roughness: 0.06, // High-gloss pristine porcelain / zirconia crown
+    metalness: 0.12,
+    color: 0xffffff,
+    emissive: 0xeab308, // Golden-pearl luster
+    emissiveIntensity: 0.20
+  },
+  bridge: {
+    roughness: 0.10,
+    metalness: 0.10,
+    color: 0xffffff,
+    emissive: 0x6366f1, // Clinical indigo accent
+    emissiveIntensity: 0.20
+  },
+  rootCanal: {
+    roughness: 0.24,
+    metalness: 0.02,
+    color: 0xffffff,
+    emissive: 0xa855f7, // Endodontic purple accent
+    emissiveIntensity: 0.20
+  },
+  implant: {
+    roughness: 0.14,
+    metalness: 0.20,
+    color: 0xffffff,
+    emissive: 0x06b6d4, // Titanium-zirconia teal accent
+    emissiveIntensity: 0.20
+  },
+  fractured: {
+    roughness: 0.35,
+    metalness: 0.02,
+    color: 0xffffff,
+    emissive: 0xef4444, // Crimson warning accent
+    emissiveIntensity: 0.25
+  },
+  abscess: {
+    roughness: 0.35,
+    metalness: 0.02,
+    color: 0xffffff,
+    emissive: 0xdc2626, // Crimson warning accent
+    emissiveIntensity: 0.25
+  }
+};
+
+function applyToothVisualState(mesh, toothNumber) {
+  if (!mesh || !mesh.material) return;
+  const data = currentTeethData[toothNumber];
+  const status = data ? data.status : 'healthy';
+
+  // 1. Missing or Extracted: Tooth physically vanishes from the dental arch!
+  if (status === 'missing' || status === 'extraction') {
+    mesh.visible = false;
+    return;
+  }
+  mesh.visible = true;
+
+  const style = CLINICAL_STATUS_STYLES[status] || CLINICAL_STATUS_STYLES.healthy;
+  mesh.material.color.setHex(style.color);
+  mesh.material.roughness = style.roughness;
+  mesh.material.metalness = style.metalness;
+
+  if (toothNumber === currentSelectedTooth) {
+    mesh.material.emissive.setHex(0xf59e0b); // Radiant gold amber for active selection
+    mesh.material.emissiveIntensity = 0.65;
+  } else if (toothNumber === hoveredToothNumber) {
+    mesh.material.emissive.setHex(0x0284c7); // Vivid sky-blue for hover
+    mesh.material.emissiveIntensity = 0.55;
+  } else {
+    mesh.material.emissive.setHex(style.emissive);
+    mesh.material.emissiveIntensity = style.emissiveIntensity;
+  }
+}
+
 function highlightHoveredTooth(num) {
   const mesh = toothMeshMap.get(num);
-  if (mesh && mesh.material) {
-    mesh.material.emissive.setHex(0x0284c7); // Vivid sky-blue emissive glow on the REAL tooth!
-    mesh.material.emissiveIntensity = 0.55;
-  }
+  if (mesh) applyToothVisualState(mesh, num);
 }
 
 function unhighlightHoveredTooth(num) {
   const mesh = toothMeshMap.get(num);
-  if (mesh && mesh.material) {
-    if (num === currentSelectedTooth) {
-      mesh.material.emissive.setHex(0xf59e0b); // Keep selection gold!
-      mesh.material.emissiveIntensity = 0.65;
-    } else {
-      mesh.material.emissive.setHex(0x000000);
-      mesh.material.emissiveIntensity = 0.0;
-    }
-  }
+  if (mesh) applyToothVisualState(mesh, num);
 }
 
 export function selectToothIn3D(toothNumber) {
-  if (currentSelectedTooth && toothMeshMap.has(currentSelectedTooth)) {
-    const prevMesh = toothMeshMap.get(currentSelectedTooth);
-    if (prevMesh && prevMesh.material) {
-      // If the previously selected tooth is also currently hovered, revert to hover cyan, else 0
-      if (currentSelectedTooth === hoveredToothNumber) {
-        prevMesh.material.emissive.setHex(0x0284c7);
-        prevMesh.material.emissiveIntensity = 0.55;
-      } else {
-        prevMesh.material.emissive.setHex(0x000000);
-        prevMesh.material.emissiveIntensity = 0.0;
-      }
-    }
-  }
-
+  const prevSelected = currentSelectedTooth;
   currentSelectedTooth = toothNumber;
 
+  if (prevSelected && toothMeshMap.has(prevSelected)) {
+    applyToothVisualState(toothMeshMap.get(prevSelected), prevSelected);
+  }
+
   if (toothNumber && toothMeshMap.has(toothNumber)) {
-    const newMesh = toothMeshMap.get(toothNumber);
-    if (newMesh && newMesh.material) {
-      newMesh.material.emissive.setHex(0xf59e0b); // Radiant gold amber glow on the REAL tooth!
-      newMesh.material.emissiveIntensity = 0.65;
-    }
+    applyToothVisualState(toothMeshMap.get(toothNumber), toothNumber);
   }
 
   updateActiveToothHUD(toothNumber);
@@ -633,52 +709,7 @@ export function updateDental3DData(teethData = {}, treatmentsCache = {}, selecte
   currentSelectedTooth = selectedTooth;
 
   toothMeshMap.forEach((mesh, num) => {
-    const data = currentTeethData[num];
-    const status = data ? data.status : 'healthy';
-
-    // 1. Missing or Extracted: Tooth PHYSICALLY VANISHES from the dental arch!
-    if (status === 'missing' || status === 'extraction') {
-      mesh.visible = false;
-      return;
-    } else {
-      mesh.visible = true;
-    }
-
-    // 2. Clinical condition appearances
-    if (status === 'cavity') {
-      mesh.material.color.setHex(0x92400e); // Darkened decayed tooth
-      mesh.material.metalness = 0.0;
-      mesh.material.roughness = 0.55;
-    } else if (status === 'filled') {
-      mesh.material.color.setHex(0xdbeafe); // Treated composite
-      mesh.material.metalness = 0.05;
-      mesh.material.roughness = 0.30;
-    } else if (status === 'crown') {
-      mesh.material.color.setHex(0xf59e0b); // Gold / porcelain crown
-      mesh.material.metalness = 0.75;
-      mesh.material.roughness = 0.20;
-    } else if (status === 'implant') {
-      mesh.material.color.setHex(0x94a3b8); // Titanium implant
-      mesh.material.metalness = 0.88;
-      mesh.material.roughness = 0.22;
-    } else {
-      // Healthy tooth enamel
-      mesh.material.color.setHex(0xffffff);
-      mesh.material.metalness = 0.03;
-      mesh.material.roughness = 0.28;
-    }
-
-    // Selection emissive
-    if (selectedTooth === num) {
-      mesh.material.emissive.setHex(0xf59e0b);
-      mesh.material.emissiveIntensity = 0.65;
-    } else if (hoveredToothNumber === num) {
-      mesh.material.emissive.setHex(0x0284c7);
-      mesh.material.emissiveIntensity = 0.55;
-    } else {
-      mesh.material.emissive.setHex(0x000000);
-      mesh.material.emissiveIntensity = 0.0;
-    }
+    applyToothVisualState(mesh, num);
   });
 
   updateActiveToothHUD(selectedTooth);
