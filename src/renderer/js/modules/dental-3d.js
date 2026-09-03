@@ -26,8 +26,8 @@ let needsRender = true;
 let isRenderLoopActive = false;
 
 // Orbit Camera State - Centered on oral cavity with comfortable wide framing
-let cameraRadius = 22.0;
-let targetRadius = 22.0;
+let cameraRadius = 30.0;
+let targetRadius = 30.0;
 let cameraTheta = 0.0;
 let targetTheta = 0.0;
 let cameraPhi = Math.PI / 2;
@@ -191,19 +191,12 @@ function build3DUIOverlay(container) {
     return b;
   };
 
-  toolset.appendChild(makeToolBtn('+', 'Zoom avant', () => zoomDental3D(-2.0)));
-  toolset.appendChild(makeToolBtn('−', 'Zoom arrière', () => zoomDental3D(2.0)));
+  toolset.appendChild(makeToolBtn('+', 'Zoom avant', () => zoomDental3D(-2.5)));
+  toolset.appendChild(makeToolBtn('−', 'Zoom arrière', () => zoomDental3D(2.5)));
   toolset.appendChild(makeToolBtn('⟲', 'Recentrer la vue', () => resetDental3DCamera()));
   container.appendChild(toolset);
 
-  // 3. Bottom-Left Navigation Pill
-  const hint = document.createElement('div');
-  hint.id = 'dental-3d-hint';
-  hint.style.cssText = 'position: absolute; bottom: 16px; left: 16px; font-size: 11px; font-weight: 500; color: #64748b; background: rgba(255, 255, 255, 0.80); backdrop-filter: blur(10px); padding: 5px 10px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.8); pointer-events: none; z-index: 9;';
-  hint.textContent = 'Pivoter : Glisser · Zoomer : Molette · Dent : Cliquer';
-  container.appendChild(hint);
-
-  // 4. Top-Left Active Tooth HUD Card
+  // 3. Top-Left Active Tooth HUD Card
   const hud = document.createElement('div');
   hud.id = 'dental-3d-active-hud';
   hud.style.cssText = 'position: absolute; top: 16px; left: 16px; display: none; background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 8px 14px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10); border: 1px solid rgba(255, 255, 255, 0.9); z-index: 10;';
@@ -244,7 +237,7 @@ function updateDockActiveState() {
 }
 
 export function zoomDental3D(delta) {
-  targetRadius = Math.max(9.0, Math.min(36.0, targetRadius + delta));
+  targetRadius = Math.max(10.0, Math.min(50.0, targetRadius + delta));
   requestRender();
 }
 
@@ -370,8 +363,8 @@ export function initDental3D(container, options = {}) {
   const width = containerEl.clientWidth || 700;
   const height = containerEl.clientHeight || 500;
   camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-  cameraRadius = 22.0;
-  targetRadius = 22.0;
+  cameraRadius = 30.0;
+  targetRadius = 30.0;
   cameraTheta = 0.0;
   targetTheta = 0.0;
   cameraPhi = Math.PI / 2;
@@ -579,7 +572,7 @@ function setupInteraction(container) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    targetRadius = Math.max(9.0, Math.min(36.0, targetRadius + e.deltaY * 0.015));
+    targetRadius = Math.max(10.0, Math.min(50.0, targetRadius + e.deltaY * 0.018));
     requestRender();
   }, { passive: false });
 }
@@ -699,32 +692,32 @@ export function setDental3DView(preset) {
     case 'face':
       targetTheta = 0;
       targetPhi = Math.PI / 2;
-      targetRadius = 22.0;
+      targetRadius = 30.0;
       break;
     case 'upper':
       targetTheta = 0;
       targetPhi = Math.PI - 0.35;
-      targetRadius = 20.0;
+      targetRadius = 27.0;
       break;
     case 'lower':
       targetTheta = 0;
       targetPhi = 0.35;
-      targetRadius = 20.0;
+      targetRadius = 27.0;
       break;
     case 'right':
       targetTheta = Math.PI / 2.1;
       targetPhi = Math.PI / 2.1;
-      targetRadius = 21.0;
+      targetRadius = 28.5;
       break;
     case 'left':
       targetTheta = -Math.PI / 2.1;
       targetPhi = Math.PI / 2.1;
-      targetRadius = 21.0;
+      targetRadius = 28.5;
       break;
     default:
       targetTheta = 0.0;
       targetPhi = Math.PI / 2;
-      targetRadius = 22.0;
+      targetRadius = 30.0;
       break;
   }
   updateDockActiveState();
@@ -805,12 +798,10 @@ export function destroyDental3D() {
   if (containerEl) {
     const dock = containerEl.querySelector('#dental-3d-floating-dock');
     const tools = containerEl.querySelector('#dental-3d-floating-tools');
-    const hint = containerEl.querySelector('#dental-3d-hint');
     const hud = containerEl.querySelector('#dental-3d-active-hud');
     const tooltip = containerEl.querySelector('#dental-3d-tooltip');
     if (dock) dock.remove();
     if (tools) tools.remove();
-    if (hint) hint.remove();
     if (hud) hud.remove();
     if (tooltip) tooltip.remove();
   }
