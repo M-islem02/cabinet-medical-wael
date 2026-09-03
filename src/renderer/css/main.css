@@ -10202,8 +10202,20 @@ body.assistant-mode #payment-requests-section {
   white-space: nowrap;
 }
 
-.dental-panel-card {
+.dental-panel-card,
+.dental-chart-card,
+.dental-patient-picker-card,
+.dental-detail-panel {
   overflow: hidden;
+  transform: none !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.dental-panel-card:hover,
+.dental-chart-card:hover,
+.dental-patient-picker-card:hover,
+.dental-detail-panel:hover {
+  transform: none !important;
 }
 
 .dental-panel-header {

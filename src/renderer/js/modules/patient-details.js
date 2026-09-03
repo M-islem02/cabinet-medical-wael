@@ -5275,9 +5275,9 @@ async function printPatientPaymentTicket(paymentId) {
   patient = patient || {};
 
   const settings = window.currentPracticeSettings || (typeof cachedSettings !== 'undefined' ? cachedSettings : {}) || {};
-  const cabinetName = settings.cabinetName || 'Cabinet Médical';
+  const cabinetName = settings.cabinetName || 'Cabinet Dentaire';
   const doctorName = settings.doctorName || 'Dr.';
-  const doctorSpecialty = settings.doctorSpecialty || 'Médecin Spécialiste ORL';
+  const doctorSpecialty = settings.doctorSpecialty || 'Chirurgien-Dentiste';
   const cabinetPhone = settings.cabinetPhone || '';
   const cabinetAddress = settings.cabinetAddress || '';
 

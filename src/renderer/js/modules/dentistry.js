@@ -17,7 +17,7 @@ let dentalSelectedPatientId = null;
 let dentalSelectedTooth = null;
 let dentalTeethData = {};
 let dentalCurrentTab = 'chart';
-let currentDentalSchemaMode = '2d';
+let currentDentalSchemaMode = '3d';
 const DENTAL_LANGUAGE_KEY = 'medcareso_dental_language';
 let currentDentalLanguage = 'fr';
 
@@ -309,12 +309,13 @@ function toggleDentalFdiGuide() {
 function renderDentalPatientSelectorOptions(patients) {
   const select = document.getElementById('dental-patient-selector');
   if (!select) return;
-  select.innerHTML = '<option value="">-- Sélectionner un patient --</option>';
-  patients.forEach(p => {
+  const list = Array.isArray(patients) ? patients : [];
+  select.innerHTML = '<option value="">-- Sélectionner un patient (' + list.length + ') --</option>';
+  list.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
     const phoneInfo = p.phone ? ' (' + p.phone + ')' : '';
-    opt.textContent = p.lastName + ' ' + p.firstName + phoneInfo;
+    opt.textContent = (p.lastName || '') + ' ' + (p.firstName || '') + phoneInfo;
     if (p.id === dentalSelectedPatientId) opt.selected = true;
     select.appendChild(opt);
   });
@@ -341,8 +342,23 @@ function filterDentalPatientList(query) {
 async function loadDentalPatientList() {
   try {
     const result = await window.api.patient.getAll();
-    allDentalPatients = (result.success && Array.isArray(result.data)) ? result.data : [];
+    allDentalPatients = Array.isArray(result)
+      ? result
+      : ((result && result.success && Array.isArray(result.data))
+          ? result.data
+          : (Array.isArray(result?.data) ? result.data : []));
     renderDentalPatientSelectorOptions(allDentalPatients);
+
+    // Auto-select if a patient is active or if none selected pick the latest patient
+    const candidateId = (typeof currentPatientId !== 'undefined' && currentPatientId && allDentalPatients.some(p => p.id === currentPatientId))
+      ? currentPatientId
+      : (!dentalSelectedPatientId && allDentalPatients.length > 0 ? allDentalPatients[0].id : dentalSelectedPatientId);
+
+    if (candidateId) {
+      const select = document.getElementById('dental-patient-selector');
+      if (select) select.value = candidateId;
+      await selectDentalPatient(candidateId);
+    }
   } catch (e) { console.error('Error loading dental patients:', e); }
 }
 
@@ -626,6 +642,10 @@ function renderOneTooth(num, pos) {
 
 // ========== TOOTH SELECTION ==========
 function selectDentalTooth(toothNumber) {
+  if (toothNumber === null || toothNumber === undefined) {
+    closeDentalDetail();
+    return;
+  }
   if (!dentalSelectedPatientId) {
     showNotification('Sélectionnez d\'abord un patient', 'warning');
     return;
@@ -1703,38 +1723,6 @@ async function payDentalTreatmentFromChart(treatmentId, cost, alreadyPaid) {
 showModal('modal-add-payment');
 }
 
-// ========== LAZY PATIENT SEARCH OVERRIDES ==========
-
-const originalLoadDentalPatientList = loadDentalPatientList;
-loadDentalPatientList = async function() {
-  const select = document.getElementById('dental-patient-selector');
-  if (!select) return;
-
-  if (typeof window.attachLazyPatientSearchToSelect === 'function') {
-    window.attachLazyPatientSearchToSelect('dental-patient-selector', {
-      selectedPatientId: dentalSelectedPatientId || '',
-      placeholder: 'Rechercher par nom...',
-      emptyMessage: '',
-      loadingMessage: 'Recherche des patients...',
-      noResultsMessage: 'Aucun patient commence par cette recherche',
-      minChars: 1,
-      debounceMs: 220,
-      hideWhenEmpty: true,
-      restoreCommittedOnBlur: true
-    });
-    return;
-  }
-
-  return originalLoadDentalPatientList();
-};
-
-const originalSelectDentalPatient = selectDentalPatient;
-selectDentalPatient = async function(patientId) {
-  if (typeof window.setLazyPatientFieldValue === 'function') {
-    window.setLazyPatientFieldValue('dental-patient-selector', patientId || '');
-  }
-  return originalSelectDentalPatient(patientId);
-};
 
 registerLegacyGlobals('dentistry', {
   applyDentalLanguageToUI,
@@ -1785,11 +1773,28 @@ registerLegacyGlobals('dentistry', {
   filterDentalPatientList
 });
 
+window.initDentistry = initDentistry;
+window.loadDentalPatientList = loadDentalPatientList;
+window.selectDentalPatient = selectDentalPatient;
+window.refreshDentalPatientList = refreshDentalPatientList;
 window.setDentalSchemaMode = setDentalSchemaMode;
 window.setDental3DView = setDental3DView;
 window.resetDental3DCamera = resetDental3DCamera;
 window.toggleDentalFdiGuide = toggleDentalFdiGuide;
 window.filterDentalPatientList = filterDentalPatientList;
+
+// Auto-populate patient list as soon as DOM and API are ready
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDentalPatientList().catch(() => {});
+    });
+  } else {
+    setTimeout(() => {
+      loadDentalPatientList().catch(() => {});
+    }, 100);
+  }
+}
 
 export function destroyDentistryLegacy() {
   destroyDental3D();

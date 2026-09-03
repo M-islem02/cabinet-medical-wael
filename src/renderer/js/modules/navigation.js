@@ -382,34 +382,34 @@ function showSection(sectionId) {
   if (pageTitle) {
     const titles = {
       'dashboard': 'Tableau de Bord',
-      'package-config': 'Configuration Client & Spécialités',
+      'package-config': 'Configuration Cabinet & Options',
       'waiting-room': 'Salle d\'Attente',
       'daily-summary': 'Résumé du Jour',
       'appointments-calendar': 'Agenda RDV',
       'patients': 'Gestion des Patients',
-      'medical-imaging': 'Imagerie Médicale',
-      'orl': 'Module ORL & Explorations',
-      'operations': 'Gestion des Opérations & Interventions',
-      'patient-details': 'Détails du Patient',
+      'medical-imaging': 'Radios & Imagerie Dentaire',
+      'orl': 'Module Médical',
+      'operations': 'Chirurgie & Actes Dentaires',
+      'patient-details': 'Dossier Patient',
       'consultations': 'Consultations',
       'prescriptions': 'Ordonnances',
       'sick-leaves': 'Certificats médicaux',
-      'payments': 'Gestion des Paiements',
+      'payments': 'Gestion des Paiements & Règlements',
       'statistics': 'Statistiques',
       'settings': 'Paramètres',
       'expenses': 'Gestion des Dépenses',
-      'inventory': 'Gestion du Stock',
-      'equipment': 'Équipement du Cabinet',
+      'inventory': 'Gestion du Stock & Consommables',
+      'equipment': 'Équipements Dentaires & Stérilisation',
       'debts': 'Gestion des Impayés',
-      'kine-staff': 'Kinésithérapeutes (Staff)',
+      'kine-staff': 'Staff',
       'rehabilitation': 'Rééducation',
-      'dentistry': 'Dentisterie',
-      'treatment-plans': 'Plans de Traitement',
+      'dentistry': 'Dentisterie & Odontogramme 3D',
+      'treatment-plans': 'Plans de Traitement Dentaire',
       'cardiology': 'Cardiologie',
       'sms-config': 'SMS Rappels',
       'cloud-sync': 'Cloud Sync'
     };
-    pageTitle.textContent = titles[sectionId] || 'MedCareSO';
+    pageTitle.textContent = titles[sectionId] || 'Cabinet Dentaire';
 
     const breadcrumbMap = {
       'dashboard': null,

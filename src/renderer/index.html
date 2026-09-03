@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.qrserver.com; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; base-uri 'self'">
-    <title>MedCareSO v1.0.9</title>
+    <title>MedCareSO - Cabinet Dentaire</title>
     <script>
         // Prevent sidebar/layout flicker before JS modules load.
         try {
@@ -15,7 +15,7 @@
             if (localStorage.getItem('currentUserIsSuperAdmin') === 'true') {
                 document.documentElement.classList.add('superadmin-session');
             }
-        } catch (e) { }
+        } catch (_) {}
     </script>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/design-tokens.css">
@@ -29,7 +29,8 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-brand-wrapper logo">
-                    <img src="assets/ORL.png" alt="Cabinet Médical ORL" class="app-brand-logo">
+                    <img src="assets/Dentiste.png" alt="Cabinet Dentaire" class="app-brand-logo" onerror="this.src='assets/logo.png'">
+                    <h2>Cabinet Dentaire</h2>
                 </div>
                 <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()"
                     title="Réduire la navigation" aria-label="Réduire la navigation">
@@ -44,7 +45,7 @@
             <nav class="nav-menu">
                 <a href="#" class="nav-item active" data-section="dashboard" onclick="event.preventDefault(); showSection('dashboard')" title="Tableau de Bord">
                     <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                     </span>
                     <span class="label">Tableau de Bord</span>
                 </a>
@@ -55,7 +56,7 @@
                     <span class="label">Salle d'Attente</span>
                     <span class="badge waiting-badge" id="waiting-count-badge" style="display: none;">0</span>
                 </a>
-                <a href="#" class="nav-item doctor-only" data-section="daily-summary" onclick="event.preventDefault(); showSection('daily-summary')" title="Résumé du Jour">
+                <a href="#" class="nav-item doctor-only hidden role-hidden feature-disabled" data-section="daily-summary" onclick="event.preventDefault(); showSection('daily-summary')" title="Résumé du Jour" style="display: none;">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                     </span>
@@ -73,11 +74,23 @@
                     </span>
                     <span class="label">Patients</span>
                 </a>
-                <a href="#" class="nav-item doctor-only" data-section="medical-imaging" onclick="event.preventDefault(); showSection('medical-imaging')" title="Imagerie Médicale">
+                <a href="#" class="nav-item doctor-only" data-section="dentistry" onclick="event.preventDefault(); showSection('dentistry')" title="Dentisterie & Odontogramme 3D">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3c-2.5 0-4.5 2-4.5 4.6 0 2 .6 3.5 1.1 5.4.3 1.2.5 2.5.8 3.8.3 1.8.8 4.2 2.1 4.2 1 0 1.3-1.2 1.6-2.5.3-1.2.7-2.7 1-4 .3 1.3.7 2.8 1 4 .3 1.3.6 2.5 1.6 2.5 1.3 0 1.8-2.4 2.1-4.2.3-1.3.5-2.6.8-3.8.5-1.9 1.1-3.4 1.1-5.4 0-2.6-2-4.6-4.5-4.6-1.5 0-2.8.8-3.5 1.9-.7-1.1-2-1.9-3.5-1.9Z"/></svg>
+                    </span>
+                    <span class="label">Dentisterie & 3D</span>
+                </a>
+                <a href="#" class="nav-item doctor-only" data-section="treatment-plans" onclick="event.preventDefault(); showSection('treatment-plans')" title="Plans de Traitement Dentaire">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                    </span>
+                    <span class="label">Plans Traitement</span>
+                </a>
+                <a href="#" class="nav-item doctor-only" data-section="medical-imaging" onclick="event.preventDefault(); showSection('medical-imaging')" title="Imagerie Médicale & Radios">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     </span>
-                    <span class="label">Imagerie</span>
+                    <span class="label">Radios & Imagerie</span>
                 </a>
                 <a href="#" class="nav-item hidden role-hidden feature-disabled" data-section="orl" onclick="event.preventDefault(); showSection('orl')" title="Module ORL & Explorations" style="display: none;">
                     <span class="icon">
@@ -85,13 +98,7 @@
                     </span>
                     <span class="label">Module ORL</span>
                 </a>
-                <a href="#" class="nav-item demo-only hidden role-hidden feature-disabled" data-section="dentistry" onclick="event.preventDefault(); showSection('dentistry')" title="Dentisterie & Odontogramme" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3c-2.5 0-4.5 2-4.5 4.6 0 2 .6 3.5 1.1 5.4.3 1.2.5 2.5.8 3.8.3 1.8.8 4.2 2.1 4.2 1 0 1.3-1.2 1.6-2.5.3-1.2.7-2.7 1-4 .3 1.3.7 2.8 1 4 .3 1.3.6 2.5 1.6 2.5 1.3 0 1.8-2.4 2.1-4.2.3-1.3.5-2.6.8-3.8.5-1.9 1.1-3.4 1.1-5.4 0-2.6-2-4.6-4.5-4.6-1.5 0-2.8.8-3.5 1.9-.7-1.1-2-1.9-3.5-1.9Z"/></svg>
-                    </span>
-                    <span class="label">Dentisterie</span>
-                </a>
-                <a href="#" class="nav-item" data-section="operations" onclick="event.preventDefault(); showSection('operations')" title="Opérations & Interventions">
+                <a href="#" class="nav-item" data-section="operations" onclick="event.preventDefault(); showSection('operations')" title="Chirurgie & Actes">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                     </span>
@@ -537,7 +544,7 @@
                 </section>
 
                 <!-- ===================== ORL SECTION ===================== -->
-                <section id="orl" class="section doctor-only">
+                <section id="orl" class="section hidden role-hidden feature-disabled" style="display: none !important;">
   <!-- A. Top Action Bar with Patient Search Selector -->
   <div class="orl-top-action-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 14px;">
     <!-- Title -->
@@ -2026,6 +2033,10 @@
                                     <span>RDV & Pièces</span>
                                     <span class="ant-badge-count ant-badge-count-sm" id="patient-rdv-badge" style="display:none; margin-left: auto;">0</span>
                                 </button>
+                                <button type="button" class="ant-vertical-tabs-item patient-category-btn" data-category="dental" onclick="goToFullDentalChart()" style="color: #0284c7; font-weight: 600;">
+                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3c-2.5 0-4.5 2-4.5 4.6 0 2 .6 3.5 1.1 5.4.3 1.2.5 2.5.8 3.8.3 1.8.8 4.2 2.1 4.2 1 0 1.3-1.2 1.6-2.5.3-1.2.7-2.7 1-4 .3 1.3.7 2.8 1 4 .3 1.3.6 2.5 1.6 2.5 1.3 0 1.8-2.4 2.1-4.2.3-1.3.5-2.6.8-3.8.5-1.9 1.1-3.4 1.1-5.4 0-2.6-2-4.6-4.5-4.6-1.5 0-2.8.8-3.5 1.9-.7-1.1-2-1.9-3.5-1.9Z"/></svg>
+                                    <span>Odontogramme 3D</span>
+                                </button>
                             </div>
                         </aside>
 
@@ -2419,14 +2430,6 @@
                         </div>
                     </div><!-- /#patient-cat-rdv -->
 
-                    <div id="tab-orl" class="tab-content doctor-only" style="display: none;">
-                        <div class="patient-dental-shortcut" style="background: #f0fdfa; border: 1px solid #ccfbf1; padding: 24px; border-radius: 12px; text-align: center; margin-top: 16px;">
-                            <h3 style="color: #0f766e; margin-bottom: 8px;">👂 Dossier Médical ORL</h3>
-                            <p style="color: #475569; margin-bottom: 16px;">Ouvrir les examens cliniques, l'otoscopie, l'audiométrie et les fibroscopies pour ce patient.</p>
-                            <button class="btn btn-primary" onclick="goToORLFromPatientDetails()" style="background: #0d7377;">Ouvrir le Module ORL</button>
-                        </div>
-                    </div>
-
                     <div id="tab-dental" class="tab-content doctor-only" style="display: none;">
                         <div class="patient-dental-shortcut" style="background: #eff6ff; border: 1px solid #dbeafe; padding: 24px; border-radius: 12px; text-align: center; margin-top: 16px;">
                             <h3 style="color: #1d4ed8; margin-bottom: 8px;">🦷 Odontogramme & Dossier Dentaire</h3>
@@ -2449,10 +2452,10 @@
                                     <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
                                         <h3 style="margin: 0;">Odontogramme Clinique</h3>
                                         <div class="dental-mode-switcher" style="display: inline-flex; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                            <button type="button" id="btn-dental-mode-2d" class="btn btn-small active" onclick="setDentalSchemaMode('2d')" style="border-radius: 6px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; background: #ffffff; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
+                                            <button type="button" id="btn-dental-mode-2d" class="btn btn-small" onclick="setDentalSchemaMode('2d')" style="border-radius: 6px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">
                                                 2D Schéma
                                             </button>
-                                            <button type="button" id="btn-dental-mode-3d" class="btn btn-small" onclick="setDentalSchemaMode('3d')" style="border-radius: 6px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: #64748b;">
+                                            <button type="button" id="btn-dental-mode-3d" class="btn btn-small active" onclick="setDentalSchemaMode('3d')" style="border-radius: 6px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; background: #ffffff; color: #0284c7; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">
                                                 3D Schéma
                                             </button>
                                         </div>
@@ -2461,7 +2464,7 @@
                                         </button>
                                     </div>
                                     <!-- 3D Camera Presets Toolbar -->
-                                    <div id="dental-3d-toolbar" style="display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <div id="dental-3d-toolbar" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                         <span style="font-size: 12px; color: #64748b; font-weight: 500; margin-right: 2px;">Vues 3D :</span>
                                         <button type="button" class="btn btn-secondary btn-small" onclick="setDental3DView('face')" style="font-size: 11.5px; padding: 3px 8px;">Face</button>
                                         <button type="button" class="btn btn-secondary btn-small" onclick="setDental3DView('upper')" style="font-size: 11.5px; padding: 3px 8px;">Maxillaire (Haut)</button>
@@ -8863,7 +8866,6 @@
     <script src="js/modules/treatment-plans.js"></script>
     <script src="js/modules/analysis.js"></script>
     <script src="js/modules/medical-imaging.js"></script>
-    <script type="module" src="js/modules/orl.js"></script>
     <script type="module" src="js/modules/dentistry.js"></script>
     <script src="js/modules/sms-config.js"></script>
     <script src="js/modules/cloud-sync.js"></script>

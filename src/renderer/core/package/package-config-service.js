@@ -43,8 +43,8 @@ function parseSpecialties(raw) {
 export function normalizePackageConfig(rawConfig) {
   const raw = rawConfig && typeof rawConfig === 'object' ? rawConfig : null;
   const specialties = parseSpecialties(raw);
-  const requestedActive = normalizeSpecialty(raw?.activeSpecialty) || 'orl';
-  const activeSpecialty = specialties.includes(requestedActive) ? requestedActive : (specialties[0] || null);
+  const requestedActive = normalizeSpecialty(raw?.activeSpecialty) || 'dentistry';
+  const activeSpecialty = specialties.includes(requestedActive) ? requestedActive : (specialties.includes('dentistry') ? 'dentistry' : (specialties[0] || null));
   const specialtyFlags = Object.fromEntries(ALL_SPECIALTIES.map((id) => [id, specialties.includes(id)]));
 
   return Object.freeze({
@@ -64,7 +64,7 @@ export function normalizePackageConfig(rawConfig) {
 }
 
 async function fetchPackageConfig() {
-  const raw = await invokeApi('package.getConfig', () => window.api?.package?.getConfig?.() || { activeSpecialty: 'orl' });
+  const raw = await invokeApi('package.getConfig', () => window.api?.package?.getConfig?.() || { activeSpecialty: 'dentistry' });
   return normalizePackageConfig(raw || null);
 }
 

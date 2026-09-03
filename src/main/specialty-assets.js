@@ -6,7 +6,7 @@ import { query, queryOne, run } from './database-unified.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.resolve(__dirname, '../../assets');
 const SHARED_CONFIG_PATH = path.resolve(__dirname, '../shared/specialty-config.json');
-const SPECIALTY_KEYS = ['orl', 'dentistry', 'general'];
+const SPECIALTY_KEYS = ['dentistry', 'general', 'orl'];
 
 function readJsonFile(filePath, fallback) {
   try {
@@ -16,12 +16,12 @@ function readJsonFile(filePath, fallback) {
   }
 }
 
-export function normalizeSpecialtyKey(value = 'orl') {
+export function normalizeSpecialtyKey(value = 'dentistry') {
   const raw = String(value || '').trim().toLowerCase();
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
   if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist', 'chirurgien-dentiste', 'médecin dentiste', 'medecin dentiste'].includes(raw)) return 'dentistry';
-  return 'orl';
+  return 'dentistry';
 }
 
 export function getSpecialtyConfig() {
@@ -35,7 +35,7 @@ export function getSpecialtyConfig() {
 export function parseEnabledSpecialties(value, fallbackConfig = null) {
   if (Array.isArray(value)) {
     const keys = value.map(normalizeSpecialtyKey);
-    return [...new Set(keys.length ? keys : ['orl', 'dentistry'])];
+    return [...new Set(keys.length ? keys : ['dentistry'])];
   }
 
   if (typeof value === 'string' && value.trim()) {
@@ -43,16 +43,16 @@ export function parseEnabledSpecialties(value, fallbackConfig = null) {
       return parseEnabledSpecialties(JSON.parse(value), fallbackConfig);
     } catch (_) {
       const keys = value.split(',').map(normalizeSpecialtyKey);
-      return [...new Set(keys.length ? keys : ['orl', 'dentistry'])];
+      return [...new Set(keys.length ? keys : ['dentistry'])];
     }
   }
 
   const config = fallbackConfig || {};
   const enabledKeys = [];
-  if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
   if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1' || config.activeSpecialty === 'dentistry') enabledKeys.push('dentistry');
+  if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
   if (config.activeSpecialty === 'general') enabledKeys.push('general');
-  return enabledKeys.length ? [...new Set(enabledKeys)] : ['orl', 'dentistry'];
+  return enabledKeys.length ? [...new Set(enabledKeys)] : ['dentistry'];
 }
 
 function medicationArrayFromPayload(payload) {
@@ -80,8 +80,8 @@ function resolveAssetDirectory() {
 
 function getMedicationJsonPath(specialtyKey) {
   const config = getSpecialtyConfig();
-  const meta = config[normalizeSpecialtyKey(specialtyKey)] || config.general;
-  const fileName = meta?.medicationsJson || 'medicaments_generaux.json';
+  const meta = config[normalizeSpecialtyKey(specialtyKey)] || config.dentistry || config.general;
+  const fileName = meta?.medicationsJson || 'medicaments_dentaire.json';
   const candidates = [
     path.join(resolveAssetDirectory(), fileName),
     path.resolve(__dirname, '../../assets', fileName),

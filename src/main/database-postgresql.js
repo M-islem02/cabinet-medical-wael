@@ -499,8 +499,13 @@ export async function initializeDatabase() {
   dbConfig = normalizePostgresConfig(loadConfig());
 
   if (dbConfig.mode === 'local') {
-    await startLocalPostgres(dbConfig);
-    await waitForPostgres(dbConfig);
+    try {
+      await startLocalPostgres(dbConfig);
+      await waitForPostgres(dbConfig);
+    } catch (localError) {
+      console.warn('Local PostgreSQL binaries unavailable, falling back to network mode:', localError.message);
+      dbConfig.mode = 'network';
+    }
   }
 
   // The database and application role are provisioned manually before the
@@ -592,12 +597,14 @@ export async function closeDatabase() {
 }
 
 export async function query(sql, params = []) {
+  if (!pool) await initializeDatabase();
   const prepared = prepareSql(sql, params);
   const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return normalizeResultRows(result.rows);
 }
 
 export async function run(sql, params = []) {
+  if (!pool) await initializeDatabase();
   const prepared = prepareSql(sql, params);
   const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return {
@@ -609,6 +616,7 @@ export async function run(sql, params = []) {
 }
 
 export async function queryOne(sql, params = []) {
+  if (!pool) await initializeDatabase();
   const prepared = prepareSql(sql, params);
   const result = await transactionManager.getQueryTarget().query(prepared.sql, prepared.params);
   return result.rows[0] ? normalizeResultRow(result.rows[0]) : null;
