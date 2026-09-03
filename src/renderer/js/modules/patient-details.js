@@ -4807,18 +4807,18 @@ function renderPatientDentalTreatments(treatments, patientId) {
   }
 
   const TYPES = {
-    checkup: '🔍 Contrôle', cleaning: '🪥 Détartrage', filling: '🔧 Obturation',
-    extraction: '🦷 Extraction', rootCanal: '💉 Canal', crown: '👑 Couronne',
-    bridge: '🌉 Bridge', implant: '🔩 Implant', veneer: '✨ Facette',
-    whitening: '⚪ Blanchiment', orthodontics: '📐 Orthodontie', surgery: '🔪 Chirurgie',
-    prosthesis: '🦿 Prothèse', xray: '📷 Radio', other: '📋 Autre'
+    checkup: 'Contrôle', cleaning: 'Détartrage', filling: 'Obturation',
+    extraction: 'Extraction', rootCanal: 'Canal', crown: 'Couronne',
+    bridge: 'Bridge', implant: 'Implant', veneer: 'Facette',
+    whitening: 'Blanchiment', orthodontics: 'Orthodontie', surgery: 'Chirurgie',
+    prosthesis: 'Prothèse', xray: 'Radio', other: 'Autre'
   };
 
   // Show last 10 treatments
   const recent = treatments.slice(0, 10);
   let rows = '';
   for (const t of recent) {
-    const typeLabel = TYPES[t.treatmentType] || ('📋 ' + (t.treatmentType || ''));
+    const typeLabel = TYPES[t.treatmentType] || (t.treatmentType || 'Acte');
     const isPaid = (t.paid || 0) >= (t.cost || 0);
     const remaining = Math.max((t.cost || 0) - (t.paid || 0), 0);
     const dateStr = t.treatmentDate ? new Date(t.treatmentDate).toLocaleDateString('fr-FR') : '—';

@@ -438,7 +438,8 @@ function setupEventListeners(container, tooltip) {
       const name = ADULT_TEETH_NAMES[hitTooth] || ('Dent ' + hitTooth);
       const data = currentTeethData[hitTooth];
       const status = data?.status || 'healthy';
-      tooltip.innerHTML = `<strong>Dent ${hitTooth}</strong> : ${name} <span style="display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;font-size:11px;background:#0284c7;">${status}</span>`;
+      const statusFr = STATUS_LABELS_FR[status] || status;
+      tooltip.innerHTML = `<strong>Dent ${hitTooth}</strong> : ${name} <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#0284c7;color:#ffffff;">${statusFr}</span>`;
       tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
       tooltip.style.top = (e.clientY - rect.top + 14) + 'px';
       tooltip.style.display = 'block';
@@ -529,6 +530,26 @@ export function selectToothIn3D(toothNumber) {
   }
 }
 
+const STATUS_LABELS_FR = {
+  healthy: 'Saine',
+  cavity: 'Carie',
+  filled: 'Obturée',
+  crown: 'Couronne',
+  bridge: 'Bridge',
+  rootCanal: 'Dévitalisée',
+  extraction: 'Extraite',
+  implant: 'Implant',
+  missing: 'Absente',
+  fractured: 'Fracturée',
+  abscess: 'Abcès',
+  impacted: 'Incluse',
+  prosthesis: 'Prothèse'
+};
+
+export function isDental3DInitialized() {
+  return Boolean(scene && renderer && renderer.domElement && containerEl);
+}
+
 // Update all 3D teeth colors and statuses
 export function updateDental3DData(teethData = {}, treatmentsCache = {}, selectedTooth = null) {
   currentTeethData = teethData || {};
@@ -545,11 +566,13 @@ export function updateDental3DData(teethData = {}, treatmentsCache = {}, selecte
 
     if (!crown) return;
 
-    // Reset visibility
+    // Reset base properties
     marker.material.visible = false;
     implant.material.visible = false;
     crown.material.transparent = false;
     crown.material.opacity = 1.0;
+    crown.material.metalness = 0.06;
+    crown.material.roughness = 0.25;
 
     // Base color from status
     const hexColor = STATUS_COLOR_HEX[status] || STATUS_COLOR_HEX.healthy;
@@ -564,16 +587,44 @@ export function updateDental3DData(teethData = {}, treatmentsCache = {}, selecte
     } else if (status === 'implant') {
       implant.material.visible = true;
       crown.material.color.setHex(0xe2e8f0);
+      crown.material.metalness = 0.8;
+      crown.material.roughness = 0.2;
     } else if (status === 'crown') {
       crown.material.color.setHex(0xd97706);
-      crown.material.metalness = 0.55;
-      crown.material.roughness = 0.2;
+      crown.material.metalness = 0.65;
+      crown.material.roughness = 0.18;
+    } else if (status === 'bridge') {
+      crown.material.color.setHex(0x6366f1);
+      crown.material.metalness = 0.4;
+      crown.material.roughness = 0.25;
+    } else if (status === 'rootCanal') {
+      crown.material.color.setHex(0xec4899);
+    } else if (status === 'fractured') {
+      marker.material.visible = true;
+      marker.material.color.setHex(0xeab308);
+      crown.material.color.setHex(0xfef08a);
+    } else if (status === 'abscess') {
+      marker.material.visible = true;
+      marker.material.color.setHex(0xef4444);
+      crown.material.color.setHex(0xfecaca);
+    } else if (status === 'prosthesis') {
+      crown.material.color.setHex(0x0ea5e9);
+      crown.material.metalness = 0.3;
+    } else if (status === 'impacted') {
+      crown.material.color.setHex(0x78716c);
     } else if (status === 'extraction' || status === 'missing') {
       crown.material.transparent = true;
-      crown.material.opacity = 0.22;
+      crown.material.opacity = 0.16;
       group.userData.rootMeshes.forEach(r => {
         r.material.transparent = true;
-        r.material.opacity = 0.15;
+        r.material.opacity = 0.12;
+      });
+    }
+
+    if (status !== 'extraction' && status !== 'missing') {
+      group.userData.rootMeshes.forEach(r => {
+        r.material.transparent = false;
+        r.material.opacity = 1.0;
       });
     }
 

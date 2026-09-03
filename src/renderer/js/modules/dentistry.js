@@ -5,7 +5,8 @@ import {
   selectToothIn3D,
   setDental3DView,
   resetDental3DCamera,
-  destroyDental3D
+  destroyDental3D,
+  isDental3DInitialized
 } from './dental-3d.js';
 
 // ========== DENTISTRY MODULE ==========
@@ -65,10 +66,15 @@ function setDentalSchemaMode(mode) {
   if (viewport3d) {
     viewport3d.style.display = targetMode === '3d' ? 'block' : 'none';
     if (targetMode === '3d') {
-      initDental3D(viewport3d, {
-        onSelect: (num) => dentalOnToothClick(num)
-      });
+      if (!isDental3DInitialized()) {
+        initDental3D(viewport3d, {
+          onSelect: (num) => selectDentalTooth(num)
+        });
+      }
       updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      if (dentalSelectedTooth) {
+        selectToothIn3D(dentalSelectedTooth);
+      }
     }
   }
 }
@@ -123,19 +129,19 @@ const ADULT_TEETH = {
 };
 
 const TOOTH_STATUSES = {
-  healthy:    { label: 'Saine',       color: '#e8f5e9', border: '#4caf50', icon: '✓', tc: '#2e7d32' },
-  cavity:     { label: 'Carie',       color: '#fff3e0', border: '#ff9800', icon: '●', tc: '#e65100' },
-  filled:     { label: 'Obturée',     color: '#e3f2fd', border: '#2196f3', icon: '■', tc: '#1565c0' },
-  crown:      { label: 'Couronne',    color: '#f3e5f5', border: '#9c27b0', icon: '♛', tc: '#6a1b9a' },
-  bridge:     { label: 'Bridge',      color: '#e8eaf6', border: '#3f51b5', icon: '⌒', tc: '#283593' },
-  rootCanal:  { label: 'Dévitalisée', color: '#fce4ec', border: '#e91e63', icon: '✕', tc: '#c62828' },
-  extraction: { label: 'Extraite',    color: '#ffebee', border: '#f44336', icon: '∅', tc: '#b71c1c' },
-  implant:    { label: 'Implant',     color: '#e0f7fa', border: '#00bcd4', icon: '⬡', tc: '#00838f' },
-  missing:    { label: 'Absente',     color: '#f5f5f5', border: '#9e9e9e', icon: '—', tc: '#616161' },
-  fractured:  { label: 'Fracturée',   color: '#fff8e1', border: '#ffc107', icon: '⚡', tc: '#f57f17' },
-  abscess:    { label: 'Abcès',       color: '#fbe9e7', border: '#ff5722', icon: '!', tc: '#bf360c' },
-  impacted:   { label: 'Incluse',     color: '#efebe9', border: '#795548', icon: '↓', tc: '#4e342e' },
-  prosthesis: { label: 'Prothèse',    color: '#e1f5fe', border: '#03a9f4', icon: '◊', tc: '#01579b' }
+  healthy:    { label: 'Saine',       color: '#e8f5e9', border: '#4caf50', tc: '#2e7d32' },
+  cavity:     { label: 'Carie',       color: '#fff3e0', border: '#ff9800', tc: '#e65100' },
+  filled:     { label: 'Obturée',     color: '#e3f2fd', border: '#2196f3', tc: '#1565c0' },
+  crown:      { label: 'Couronne',    color: '#f3e5f5', border: '#9c27b0', tc: '#6a1b9a' },
+  bridge:     { label: 'Bridge',      color: '#e8eaf6', border: '#3f51b5', tc: '#283593' },
+  rootCanal:  { label: 'Dévitalisée', color: '#fce4ec', border: '#e91e63', tc: '#c62828' },
+  extraction: { label: 'Extraite',    color: '#ffebee', border: '#f44336', tc: '#b71c1c' },
+  implant:    { label: 'Implant',     color: '#e0f7fa', border: '#00bcd4', tc: '#00838f' },
+  missing:    { label: 'Absente',     color: '#f5f5f5', border: '#9e9e9e', tc: '#616161' },
+  fractured:  { label: 'Fracturée',   color: '#fff8e1', border: '#ffc107', tc: '#f57f17' },
+  abscess:    { label: 'Abcès',       color: '#fbe9e7', border: '#ff5722', tc: '#bf360c' },
+  impacted:   { label: 'Incluse',     color: '#efebe9', border: '#795548', tc: '#4e342e' },
+  prosthesis: { label: 'Prothèse',    color: '#e1f5fe', border: '#03a9f4', tc: '#01579b' }
 };
 
 const TOOTH_STATUS_LABELS = {
@@ -169,22 +175,22 @@ function setDentalLanguage(language) {
 }
 
 const TREATMENT_TYPES = [
-  { value: 'checkup', label: 'Examen / Contrôle', icon: '🔍' },
-  { value: 'cleaning', label: 'Détartrage', icon: '🪥' },
-  { value: 'filling', label: 'Obturation (Plombage)', icon: '🔧' },
-  { value: 'extraction', label: 'Extraction', icon: '🦷' },
-  { value: 'rootCanal', label: 'Traitement de canal', icon: '💉' },
-  { value: 'crown', label: 'Couronne', icon: '👑' },
-  { value: 'bridge', label: 'Bridge', icon: '🌉' },
-  { value: 'implant', label: 'Implant dentaire', icon: '🔩' },
-  { value: 'veneer', label: 'Facette', icon: '✨' },
-  { value: 'whitening', label: 'Blanchiment', icon: '⚪' },
-  { value: 'orthodontics', label: 'Orthodontie', icon: '📐' },
-  { value: 'surgery', label: 'Chirurgie', icon: '🔪' },
-  { value: 'prosthesis', label: 'Prothèse', icon: '🦿' },
-  { value: 'xray', label: 'Radiographie', icon: '📷' },
-  { value: 'note', label: 'Note clinique', icon: '📝' },
-  { value: 'other', label: 'Autre', icon: '📋' }
+  { value: 'checkup', label: 'Examen / Contrôle' },
+  { value: 'cleaning', label: 'Détartrage' },
+  { value: 'filling', label: 'Obturation (Plombage)' },
+  { value: 'extraction', label: 'Extraction' },
+  { value: 'rootCanal', label: 'Traitement de canal' },
+  { value: 'crown', label: 'Couronne' },
+  { value: 'bridge', label: 'Bridge' },
+  { value: 'implant', label: 'Implant dentaire' },
+  { value: 'veneer', label: 'Facette' },
+  { value: 'whitening', label: 'Blanchiment' },
+  { value: 'orthodontics', label: 'Orthodontie' },
+  { value: 'surgery', label: 'Chirurgie' },
+  { value: 'prosthesis', label: 'Prothèse' },
+  { value: 'xray', label: 'Radiographie' },
+  { value: 'note', label: 'Note clinique' },
+  { value: 'other', label: 'Autre' }
 ];
 
 // ========== REALISTIC CURVED TOOTH POSITIONS ==========
@@ -376,9 +382,9 @@ function getDentalStatusGridHTML(toothNumber, status, disabled) {
       var k = e[0], s = e[1];
       var isActive = !disabled && k === status;
       var clickAttr = disabled ? '' : ' onclick="changeToothStatus(' + toothNumber + ',\'' + k + '\')"';
-      return '<button' + clickAttr + (disabled ? ' disabled' : '') + ' style="border-color:' + s.border + ';background:' + (isActive ? s.border : s.color) + ';color:' + (isActive ? '#fff' : s.tc) + ';">' +
-             '<span class="dental-status-icon">' + s.icon + '</span>' +
-             '<span class="dental-status-label">' + getToothStatusLabel(k) + '</span>' +
+      return '<button' + clickAttr + (disabled ? ' disabled' : '') + ' style="border-color:' + s.border + ';background:' + (isActive ? s.border : s.color) + ';color:' + (isActive ? '#fff' : s.tc) + ';display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;font-size:12px;">' +
+             '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + (isActive ? '#ffffff' : s.border) + ';flex-shrink:0;"></span>' +
+             '<span class="dental-status-label" style="font-weight:600;">' + getToothStatusLabel(k) + '</span>' +
              '</button>';
     }).join('') +
     '</div>';
@@ -402,6 +408,33 @@ function renderDentalChart() {
 
   const positions = getToothPositions();
   const is3D = currentDentalSchemaMode === '3d';
+
+  const svgEl = document.getElementById('dental-svg');
+  const viewport3d = document.getElementById('dental-3d-viewport');
+  const teethLayer = document.getElementById('dental-teeth-layer');
+
+  // If workspace already exists in DOM, update in-place to avoid tearing down WebGL canvas
+  if (svgEl && viewport3d && teethLayer) {
+    svgEl.style.display = is3D ? 'none' : 'block';
+    viewport3d.style.display = is3D ? 'block' : 'none';
+
+    // Update 2D SVG layer in-place
+    teethLayer.innerHTML = renderAllTeeth(positions);
+
+    // Update 3D viewport in-place (preserves camera orbit angle and zoom)
+    if (isDental3DInitialized()) {
+      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      if (dentalSelectedTooth) {
+        selectToothIn3D(dentalSelectedTooth);
+      }
+    } else if (is3D) {
+      initDental3D(viewport3d, {
+        onSelect: (num) => selectDentalTooth(num)
+      });
+      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+    }
+    return;
+  }
 
   container.innerHTML =
     '<div class="dental-workspace">' +
@@ -431,8 +464,10 @@ function renderDentalChart() {
     '<path d="M 90,195 Q 250,210 400,214 Q 550,210 710,195" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
     '<path d="M 120,305 Q 260,292 400,288 Q 540,292 680,305" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
 
-    // Teeth
+    // Teeth layer
+    '<g id="dental-teeth-layer">' +
     renderAllTeeth(positions) +
+    '</g>' +
 
     '</svg>' +
 
@@ -516,10 +551,15 @@ function renderOneTooth(num, pos) {
            '<line x1="0" y1="' + (-hh) + '" x2="0" y2="' + hh + '" stroke="' + si.border + '" stroke-width="0.4" opacity="0.2"/>';
   }
 
-  // Status icon
-  var icon = status !== 'healthy'
-    ? '<text x="0" y="5" text-anchor="middle" font-size="' + (isMolar ? 16 : 14) + '" fill="' + si.tc + '" font-weight="bold"' + opa + '>' + si.icon + '</text>'
-    : '';
+  // Status indicator (clean geometrical SVG marker, no emojis)
+  var icon = '';
+  if (status !== 'healthy') {
+    if (gone) {
+      icon = '<line x1="-5" y1="-5" x2="5" y2="5" stroke="' + si.tc + '" stroke-width="1.8"/><line x1="5" y1="-5" x2="-5" y2="5" stroke="' + si.tc + '" stroke-width="1.8"/>';
+    } else {
+      icon = '<circle cx="0" cy="0" r="3.2" fill="' + si.tc + '"/>';
+    }
+  }
 
   // Number label
   var ny = pos.jaw === 'upper' ? (hh + 14) : (-hh - 6);
@@ -544,7 +584,9 @@ function selectDentalTooth(toothNumber) {
     return;
   }
   dentalSelectedTooth = toothNumber;
-  selectToothIn3D(toothNumber);
+  if (isDental3DInitialized()) {
+    selectToothIn3D(toothNumber);
+  }
   renderDentalChart();
   showToothDetail(toothNumber);
 }
@@ -554,7 +596,7 @@ function showToothDetail(toothNumber) {
   if (!panel) return;
   var data = dentalTeethData[toothNumber];
   var status = data ? data.status : 'healthy';
-  var si = TOOTH_STATUSES[status];
+  var si = TOOTH_STATUSES[status] || TOOTH_STATUSES.healthy;
   var name = ADULT_TEETH[toothNumber] || ('Dent ' + toothNumber);
 
   // 1. Render status options on the right sidebar
@@ -562,13 +604,13 @@ function showToothDetail(toothNumber) {
     '<div class="dental-detail-head">' +
     '<div><span>Fiche clinique</span><h3>Dent N° ' + toothNumber + '</h3><p>' + name + '</p></div>' +
     '<button onclick="closeDentalDetail()" class="dental-detail-close">×</button></div>' +
-    '<div class="dental-current-status" style="background:' + si.color + ';border-color:' + si.border + ';color:' + si.tc + '">' +
-    '<strong>État actuel</strong><span>' + si.icon + ' ' + getToothStatusLabel(status) + '</span></div>' +
+    '<div class="dental-current-status" style="background:' + si.color + ';border-color:' + si.border + ';color:' + si.tc + ';display:flex;align-items:center;gap:8px;">' +
+    '<strong>État actuel</strong><span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + si.border + ';"></span>' + getToothStatusLabel(status) + '</span></div>' +
     '<div class="dental-field-block"><label>Changer l\'état</label>' +
     getDentalStatusGridHTML(toothNumber, status, false) +
     '</div>';
 
-  // 2. Render notes textarea directly under the SVG schema
+  // 2. Render notes textarea directly under the schema
   var notesContainer = document.getElementById('dental-chart-notes-container');
   if (notesContainer) {
     notesContainer.innerHTML =
@@ -597,6 +639,9 @@ function closeDentalDetail() {
     notesContainer.innerHTML = getDentalNotesEmptyHTML();
   }
   dentalSelectedTooth = null;
+  if (isDental3DInitialized()) {
+    selectToothIn3D(null);
+  }
   renderDentalChart();
 }
 
@@ -620,15 +665,17 @@ async function changeToothStatus(toothNumber, newStatus) {
     });
     if (!dentalTeethData[toothNumber]) dentalTeethData[toothNumber] = {};
     dentalTeethData[toothNumber].status = newStatus;
-    // Keep notes in local cache so showToothDetail pre-fills the textarea
     dentalTeethData[toothNumber].notes = notesVal;
 
-    // dentalSelectedTooth is still set → renderDentalChart keeps the tooth highlighted in the SVG
+    // Instantly update both 2D SVG and 3D WebGL scenes
     renderDentalChart();
+    if (isDental3DInitialized()) {
+      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      selectToothIn3D(dentalSelectedTooth);
+    }
     // Repopulate the right-side panel for the same tooth (status badge + buttons)
     showToothDetail(toothNumber);
-    // Restore the note text the user was typing (showToothDetail uses dentalTeethData which we set above,
-    // but we set it to notesVal already, so the textarea should already have it — this is belt-and-suspenders)
+
     var restoredEl = document.getElementById('dental-tooth-notes');
     if (restoredEl && notesVal) restoredEl.value = notesVal;
     renderDentalPatientHistoryCards();
@@ -829,12 +876,12 @@ async function loadDentalTreatments(patientId) {
     var rows = '';
     for (var i = 0; i < result.data.length; i++) {
       var t = result.data[i];
-      var ti = TREATMENT_TYPES.find(function(tt) { return tt.value === t.treatmentType; }) || { label: t.treatmentType, icon: '📋' };
+      var ti = TREATMENT_TYPES.find(function(tt) { return tt.value === t.treatmentType; }) || { label: t.treatmentType || 'Acte', icon: '' };
       var isPaid = (t.paid || 0) >= (t.cost || 0);
       rows += '<tr class="dental-treatment-row">' +
         '<td>' + formatDate(t.treatmentDate) + '</td>' +
         '<td class="dental-treatment-tooth">' + (t.toothNumber || '—') + '</td>' +
-        '<td>' + ti.icon + ' ' + ti.label + '</td>' +
+        '<td>' + ti.label + '</td>' +
         '<td class="dental-treatment-description">' + (t.description || '—') + '</td>' +
         '<td class="dental-treatment-cost">' + (t.cost || 0).toLocaleString() + ' DA</td>' +
         '<td class="dental-treatment-status-cell"><span class="dental-payment-badge ' + (isPaid ? 'paid' : 'pending') + '">' + (isPaid ? '✓ Payé' : 'Non réglé: ' + (t.paid || 0).toLocaleString() + ' DA') + '</span></td>' +
