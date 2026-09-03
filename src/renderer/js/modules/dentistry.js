@@ -193,6 +193,22 @@ const TREATMENT_TYPES = [
   { value: 'other', label: 'Autre' }
 ];
 
+const STATUS_TO_TREATMENT_TYPE = {
+  healthy:    'checkup',
+  cavity:     'checkup',
+  filled:     'filling',
+  crown:      'crown',
+  bridge:     'bridge',
+  rootCanal:  'rootCanal',
+  extraction: 'extraction',
+  implant:    'implant',
+  missing:    'extraction',
+  fractured:  'surgery',
+  abscess:    'surgery',
+  impacted:   'surgery',
+  prosthesis: 'prosthesis'
+};
+
 // ========== REALISTIC CURVED TOOTH POSITIONS ==========
 // Each tooth on a U-shaped parabolic arch like a real mouth
 
@@ -655,10 +671,11 @@ async function changeToothStatus(toothNumber, newStatus) {
   var notesVal = notesEl ? notesEl.value
     : (dentalTeethData[toothNumber] ? (dentalTeethData[toothNumber].notes || '') : '');
   try {
+    var toothName = ADULT_TEETH[toothNumber] || ('Dent ' + toothNumber);
     await window.api.dental.saveTooth({
       patientId: dentalSelectedPatientId,
       toothNumber: toothNumber,
-      toothName: ADULT_TEETH[toothNumber] || ('Dent ' + toothNumber),
+      toothName: toothName,
       status: newStatus,
       surfaces: dentalTeethData[toothNumber] ? (dentalTeethData[toothNumber].surfaces || '') : '',
       notes: notesVal
@@ -666,6 +683,25 @@ async function changeToothStatus(toothNumber, newStatus) {
     if (!dentalTeethData[toothNumber]) dentalTeethData[toothNumber] = {};
     dentalTeethData[toothNumber].status = newStatus;
     dentalTeethData[toothNumber].notes = notesVal;
+
+    // Automatically record edit in patient daily history
+    var statusLabel = getToothStatusLabel(newStatus);
+    var tType = STATUS_TO_TREATMENT_TYPE[newStatus] || 'other';
+    try {
+      await window.api.dental.createTreatment({
+        patientId: dentalSelectedPatientId,
+        toothNumber: toothNumber,
+        treatmentDate: new Date().toISOString(),
+        treatmentType: tType,
+        description: toothName + ' : ' + statusLabel,
+        surfaces: dentalTeethData[toothNumber] ? (dentalTeethData[toothNumber].surfaces || '') : '',
+        cost: 0,
+        status: 'completed',
+        notes: notesVal || ''
+      });
+    } catch (histErr) {
+      console.warn('Auto treatment history log notice:', histErr);
+    }
 
     // Instantly update both 2D SVG and 3D WebGL scenes
     renderDentalChart();
@@ -678,9 +714,11 @@ async function changeToothStatus(toothNumber, newStatus) {
 
     var restoredEl = document.getElementById('dental-tooth-notes');
     if (restoredEl && notesVal) restoredEl.value = notesVal;
-    renderDentalPatientHistoryCards();
+    
+    // Automatically refresh history cards so the day's record appears immediately
+    await loadDentalPatientHistoryCards(dentalSelectedPatientId);
 
-    showNotification('Dent ' + toothNumber + ' : ' + getToothStatusLabel(newStatus), 'success');
+    showNotification('Dent ' + toothNumber + ' : ' + statusLabel, 'success');
   } catch (e) {
     console.error('Error changing tooth status:', e);
     showNotification('Erreur lors de la mise à jour', 'error');
