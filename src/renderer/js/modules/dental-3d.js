@@ -103,6 +103,22 @@ const STATUS_LABELS_FR = {
   missing: 'Absente / Édentement'
 };
 
+const STATUS_CARD_COLORS = {
+  healthy:    { bg: '#e8f5e9', border: '#4caf50', tc: '#2e7d32', label: 'Saine' },
+  cavity:     { bg: '#fff3e0', border: '#ff9800', tc: '#e65100', label: 'Carie' },
+  filled:     { bg: '#e3f2fd', border: '#2196f3', tc: '#1565c0', label: 'Obturée' },
+  crown:      { bg: '#f3e5f5', border: '#9c27b0', tc: '#6a1b9a', label: 'Couronne' },
+  bridge:     { bg: '#e8eaf6', border: '#3f51b5', tc: '#283593', label: 'Bridge' },
+  rootCanal:  { bg: '#fce4ec', border: '#e91e63', tc: '#c62828', label: 'Dévitalisée' },
+  extraction: { bg: '#ffebee', border: '#f44336', tc: '#b71c1c', label: 'Extraite' },
+  implant:    { bg: '#e0f7fa', border: '#00bcd4', tc: '#00838f', label: 'Implant' },
+  missing:    { bg: '#f5f5f5', border: '#9e9e9e', tc: '#616161', label: 'Absente' },
+  fractured:  { bg: '#fff8e1', border: '#ffc107', tc: '#f57f17', label: 'Fracturée' },
+  abscess:    { bg: '#fbe9e7', border: '#ff5722', tc: '#bf360c', label: 'Abcès' },
+  impacted:   { bg: '#efebe9', border: '#795548', tc: '#4e342e', label: 'Incluse' },
+  prosthesis: { bg: '#e1f5fe', border: '#03a9f4', tc: '#01579b', label: 'Prothèse' }
+};
+
 // Blender Mesh Name -> FDI Number Mapping (front view: left to right)
 const TOOTH_NAME_TO_FDI = {
   // Maxillaire (Upper jaw) - from patient right to patient left
@@ -213,14 +229,14 @@ function updateActiveToothHUD(toothNumber) {
   const name = ADULT_TEETH_NAMES[toothNumber] || ('Dent ' + toothNumber);
   const data = currentTeethData[toothNumber];
   const status = data ? data.status : 'healthy';
-  const statusLabel = STATUS_LABELS_FR[status] || status;
+  const sc = STATUS_CARD_COLORS[status] || STATUS_CARD_COLORS.healthy;
 
   hud.innerHTML = `
     <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #0284c7;">Dent sélectionnée</div>
     <div style="font-size: 13.5px; font-weight: 700; color: #0f172a; margin: 1px 0 3px 0;">Dent ${toothNumber} : ${name}</div>
     <div style="display: flex; align-items: center; gap: 6px;">
       <span style="font-size: 11.5px; color: #64748b;">Statut :</span>
-      <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #e0f2fe; color: #0369a1;">${statusLabel}</span>
+      <span style="display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; background: ${sc.bg}; color: ${sc.tc}; border: 1px solid ${sc.border};">${sc.label}</span>
     </div>
   `;
   hud.style.display = 'block';
@@ -519,9 +535,9 @@ function setupInteraction(container) {
       const name = ADULT_TEETH_NAMES[hitTooth] || ('Dent ' + hitTooth);
       const data = currentTeethData[hitTooth];
       const status = data?.status || 'healthy';
-      const statusFr = STATUS_LABELS_FR[status] || status;
+      const sc = STATUS_CARD_COLORS[status] || STATUS_CARD_COLORS.healthy;
       if (tooltip) {
-        tooltip.innerHTML = `<strong>Dent ${hitTooth}</strong> : ${name} <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#0284c7;color:#ffffff;">${statusFr}</span>`;
+        tooltip.innerHTML = `<strong>Dent ${hitTooth}</strong> : ${name} <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${sc.bg};color:${sc.tc};border:1px solid ${sc.border};">${sc.label}</span>`;
         tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
         tooltip.style.top = (e.clientY - rect.top + 14) + 'px';
         tooltip.style.display = 'block';
@@ -590,9 +606,9 @@ function setupInteraction(container) {
   }, { passive: false });
 }
 
-// Professional Clinical Visual Mapping - Highly distinct, vivid dental conditions
+// Professional Clinical Visual Mapping - Exact 1:1 match with clinical drawer cards
 const CLINICAL_STATUS_STYLES = {
-  // Saine: Pure clean natural enamel
+  // Saine: Green Card (#e8f5e9, border #4caf50) -> Natural white enamel
   healthy: {
     color: 0xffffff,
     emissive: 0x000000,
@@ -600,68 +616,85 @@ const CLINICAL_STATUS_STYLES = {
     roughness: 0.22,
     metalness: 0.02
   },
-  // Carie: Distinct Vivid Red (High clinical visibility, never orange!)
+  // Carie: Orange Card (#fff3e0, border #ff9800)
   cavity: {
-    color: 0xffb4b4, // Soft red diffuse tint
-    emissive: 0xdc2626, // Vivid red emissive
-    emissiveIntensity: 0.52,
+    color: 0xffedd5, // Soft warm orange diffuse tint
+    emissive: 0xff9800, // Exact card border orange
+    emissiveIntensity: 0.55,
     roughness: 0.35,
     metalness: 0.02
   },
-  // Obturée / Soignée: Distinct Vivid Medical Blue
+  // Obturée / Soignée: Blue Card (#e3f2fd, border #2196f3)
   filled: {
-    color: 0xbae6fd, // Soft medical cyan-blue diffuse tint
-    emissive: 0x0284c7, // Vivid blue emissive
-    emissiveIntensity: 0.46,
-    roughness: 0.16,
+    color: 0xdbeafe, // Soft blue diffuse tint
+    emissive: 0x2196f3, // Exact card border blue
+    emissiveIntensity: 0.52,
+    roughness: 0.18,
     metalness: 0.04
   },
-  // Couronne prothétique: Distinct Shiny Gold / Metallic Porcelain
+  // Couronne prothétique: Purple Card (#f3e5f5, border #9c27b0)
   crown: {
-    color: 0xfef08a, // Rich gold diffuse tint
-    emissive: 0xeab308, // Warm gold emissive
-    emissiveIntensity: 0.48,
-    roughness: 0.08,
-    metalness: 0.65 // Genuine metallic gold luster!
-  },
-  // Dévitalisée (Endo): Distinct Vivid Purple / Fuchsia
-  rootCanal: {
-    color: 0xf5d0fe, // Soft purple diffuse tint
-    emissive: 0xa855f7, // Vivid purple emissive
-    emissiveIntensity: 0.48,
-    roughness: 0.20,
-    metalness: 0.04
-  },
-  // Implant: Distinct Vibrant Cyan / Teal with titanium sheen
-  implant: {
-    color: 0xa5f3fc, // Soft teal diffuse tint
-    emissive: 0x0891b2, // Vibrant cyan emissive
-    emissiveIntensity: 0.48,
-    roughness: 0.14,
-    metalness: 0.50 // Titanium sheen
-  },
-  // Bridge: Distinct Deep Indigo
-  bridge: {
-    color: 0xc7d2fe,
-    emissive: 0x4338ca,
-    emissiveIntensity: 0.46,
+    color: 0xf3e8ff, // Soft purple diffuse tint
+    emissive: 0x9c27b0, // Exact card border purple
+    emissiveIntensity: 0.55,
     roughness: 0.12,
+    metalness: 0.25
+  },
+  // Bridge: Indigo Card (#e8eaf6, border #3f51b5)
+  bridge: {
+    color: 0xe0e7ff, // Soft indigo diffuse tint
+    emissive: 0x3f51b5, // Exact card border indigo
+    emissiveIntensity: 0.52,
+    roughness: 0.14,
     metalness: 0.15
   },
-  // Fractured / Abscess: Deep Alert Crimson
+  // Dévitalisée: Pink Card (#fce4ec, border #e91e63)
+  rootCanal: {
+    color: 0xfce7f3, // Soft pink diffuse tint
+    emissive: 0xe91e63, // Exact card border pink
+    emissiveIntensity: 0.55,
+    roughness: 0.22,
+    metalness: 0.04
+  },
+  // Implant: Cyan Card (#e0f7fa, border #00bcd4)
+  implant: {
+    color: 0xcffafe, // Soft cyan diffuse tint
+    emissive: 0x00bcd4, // Exact card border cyan
+    emissiveIntensity: 0.52,
+    roughness: 0.16,
+    metalness: 0.35
+  },
+  // Fracturée: Yellow Card (#fff8e1, border #ffc107)
   fractured: {
-    color: 0xfca5a5,
-    emissive: 0xb91c1c,
+    color: 0xfef9c3, // Soft yellow diffuse tint
+    emissive: 0xffc107, // Exact card border yellow
     emissiveIntensity: 0.55,
     roughness: 0.35,
     metalness: 0.02
   },
+  // Abcès: Coral Card (#fbe9e7, border #ff5722)
   abscess: {
-    color: 0xfca5a5,
-    emissive: 0x991b1b,
+    color: 0xffedd5, // Soft coral diffuse tint
+    emissive: 0xff5722, // Exact card border coral
     emissiveIntensity: 0.55,
     roughness: 0.35,
     metalness: 0.02
+  },
+  // Incluse: Brown Card (#efebe9, border #795548)
+  impacted: {
+    color: 0xf5f5f4, // Soft brown-grey diffuse tint
+    emissive: 0x795548, // Exact card border brown
+    emissiveIntensity: 0.45,
+    roughness: 0.30,
+    metalness: 0.05
+  },
+  // Prothèse: Light Blue Card (#e1f5fe, border #03a9f4)
+  prosthesis: {
+    color: 0xe0f2fe, // Soft sky blue diffuse tint
+    emissive: 0x03a9f4, // Exact card border light blue
+    emissiveIntensity: 0.52,
+    roughness: 0.18,
+    metalness: 0.05
   }
 };
 
