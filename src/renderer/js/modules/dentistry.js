@@ -1,4 +1,12 @@
 import { registerLegacyGlobals, unregisterLegacyGlobals } from '../../core/legacy/legacy-bridge.js';
+import {
+  initDental3D,
+  updateDental3DData,
+  selectToothIn3D,
+  setDental3DView,
+  resetDental3DCamera,
+  destroyDental3D
+} from './dental-3d.js';
 
 // ========== DENTISTRY MODULE ==========
 // Professional dental chart with realistic curved mouth diagram
@@ -8,8 +16,62 @@ let dentalSelectedPatientId = null;
 let dentalSelectedTooth = null;
 let dentalTeethData = {};
 let dentalCurrentTab = 'chart';
+let currentDentalSchemaMode = '2d';
 const DENTAL_LANGUAGE_KEY = 'medcareso_dental_language';
 let currentDentalLanguage = 'fr';
+
+function setDentalSchemaMode(mode) {
+  const targetMode = mode === '3d' ? '3d' : '2d';
+  currentDentalSchemaMode = targetMode;
+
+  const btn2d = document.getElementById('btn-dental-mode-2d');
+  const btn3d = document.getElementById('btn-dental-mode-3d');
+  const toolbar3d = document.getElementById('dental-3d-toolbar');
+  const svgEl = document.getElementById('dental-svg');
+  const viewport3d = document.getElementById('dental-3d-viewport');
+
+  if (btn2d && btn3d) {
+    if (targetMode === '3d') {
+      btn2d.style.background = 'transparent';
+      btn2d.style.color = '#64748b';
+      btn2d.style.boxShadow = 'none';
+      btn2d.classList.remove('active');
+
+      btn3d.style.background = '#ffffff';
+      btn3d.style.color = '#0284c7';
+      btn3d.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+      btn3d.classList.add('active');
+    } else {
+      btn2d.style.background = '#ffffff';
+      btn2d.style.color = '#1e293b';
+      btn2d.style.boxShadow = '0 1px 2px rgba(0,0,0,0.06)';
+      btn2d.classList.add('active');
+
+      btn3d.style.background = 'transparent';
+      btn3d.style.color = '#64748b';
+      btn3d.style.boxShadow = 'none';
+      btn3d.classList.remove('active');
+    }
+  }
+
+  if (toolbar3d) {
+    toolbar3d.style.display = targetMode === '3d' ? 'flex' : 'none';
+  }
+
+  if (svgEl) {
+    svgEl.style.display = targetMode === '3d' ? 'none' : 'block';
+  }
+
+  if (viewport3d) {
+    viewport3d.style.display = targetMode === '3d' ? 'block' : 'none';
+    if (targetMode === '3d') {
+      initDental3D(viewport3d, {
+        onSelect: (num) => dentalOnToothClick(num)
+      });
+      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+    }
+  }
+}
 // Cache: toothNumber -> most recent treatment (for color overlay)
 let dentalTreatmentsCache = {};
 let dentalRealtimeWs = null;
@@ -339,12 +401,13 @@ function renderDentalChart() {
   if (!container) return;
 
   const positions = getToothPositions();
+  const is3D = currentDentalSchemaMode === '3d';
 
   container.innerHTML =
     '<div class="dental-workspace">' +
     '<div class="dental-chart-main">' +
 
-    '<svg id="dental-svg" class="dental-svg" viewBox="0 0 800 500">' +
+    '<svg id="dental-svg" class="dental-svg" viewBox="0 0 800 500" style="' + (is3D ? 'display:none;' : '') + '">' +
     '<defs>' +
     '<filter id="tSh" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="rgba(15,23,42,0.18)"/></filter>' +
     '<linearGradient id="gU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffdce4"/><stop offset="52%" stop-color="#f8b7c4"/><stop offset="100%" stop-color="#f09cac"/></linearGradient>' +
@@ -373,12 +436,24 @@ function renderDentalChart() {
 
     '</svg>' +
 
+    '<div id="dental-3d-viewport" style="' + (is3D ? 'display:block;' : 'display:none;') + ' width:100%; height:500px; position:relative; border-radius:8px; overflow:hidden; background:radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);"></div>' +
+
     '<div id="dental-chart-notes-container">' + getDentalNotesEmptyHTML() + '</div>' +
     '</div>' +
     '<aside id="dental-tooth-detail" class="dental-detail-panel">' +
       getDentalDetailEmptyHTML() +
     '</aside>' +
     '</div>';
+
+  if (is3D) {
+    const viewport3d = document.getElementById('dental-3d-viewport');
+    if (viewport3d) {
+      initDental3D(viewport3d, {
+        onSelect: (num) => selectDentalTooth(num)
+      });
+      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+    }
+  }
 }
 
 function renderAllTeeth(positions) {
@@ -469,6 +544,7 @@ function selectDentalTooth(toothNumber) {
     return;
   }
   dentalSelectedTooth = toothNumber;
+  selectToothIn3D(toothNumber);
   renderDentalChart();
   showToothDetail(toothNumber);
 }
@@ -1572,8 +1648,10 @@ registerLegacyGlobals('dentistry', {
   saveToothNotes,
   selectDentalPatient,
   selectDentalTooth,
+  setDental3DView,
   setDentalHistoryDateFilter,
   setDentalLanguage,
+  setDentalSchemaMode,
   showDentalHistoricalSchema,
   showCurrentDentalSchema,
   showToothDetail,
@@ -1581,10 +1659,16 @@ registerLegacyGlobals('dentistry', {
   updateDentalStats,
   updatePatientDentalStats,
   viewDentalGallery,
-  viewToothHistory
+  viewToothHistory,
+  resetDental3DCamera
 });
 
+window.setDentalSchemaMode = setDentalSchemaMode;
+window.setDental3DView = setDental3DView;
+window.resetDental3DCamera = resetDental3DCamera;
+
 export function destroyDentistryLegacy() {
+  destroyDental3D();
   dentalRealtimeWs?.close?.();
   dentalRealtimeWs = null;
   unregisterLegacyGlobals('dentistry');

@@ -478,7 +478,7 @@ export function handleWaitingRoomEvents() {
         FROM kine_sessions ks
         JOIN kine_staff k ON ks.kineId = k.id
         WHERE DATE(ks.sessionDate) = DATE(?)
-        GROUP BY ks.kineId
+        GROUP BY ks.kineId, k.firstName, k.lastName
       `, [date]);
 
       // Ensure numeric values are properly parsed (MariaDB may return strings)
