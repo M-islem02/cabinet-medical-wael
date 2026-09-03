@@ -2456,6 +2456,9 @@
                                                 3D Schéma
                                             </button>
                                         </div>
+                                        <button type="button" class="btn btn-secondary btn-small" id="btn-dental-fdi-guide" onclick="toggleDentalFdiGuide()" style="border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600;">
+                                            Guide Numérotation FDI
+                                        </button>
                                     </div>
                                     <!-- 3D Camera Presets Toolbar -->
                                     <div id="dental-3d-toolbar" style="display: none; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -2469,11 +2472,48 @@
                                     </div>
                                 </div>
                                 <div class="dental-panel-body">
+                                    <!-- FDI Numbering Guide Card -->
+                                    <div id="dental-fdi-guide-card" style="display: none; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; color: #334155; box-shadow: 0 4px 12px rgba(15,23,42,0.04);">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+                                            <div>
+                                                <strong style="color: #0f172a; font-size: 14.5px;">Comprendre la numérotation dentaire internationale (Norme FDI / ISO 3950)</strong>
+                                                <p style="margin: 3px 0 0 0; color: #64748b; font-size: 12.5px;">Le numéro de chaque dent comporte 2 chiffres : le <strong>1er chiffre = le cadran</strong> et le <strong>2e chiffre = le type de dent (1 à 8)</strong>.</p>
+                                            </div>
+                                            <button type="button" onclick="toggleDentalFdiGuide()" style="background: #e2e8f0; border: none; border-radius: 6px; font-size: 16px; color: #475569; cursor: pointer; padding: 2px 8px; line-height: 1;" title="Fermer le guide">×</button>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin: 10px 0;">
+                                            <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                <div style="font-weight: 700; color: #0284c7; font-size: 12.5px; margin-bottom: 2px;">Cadran 1 : Maxillaire Droit (Haut Droit)</div>
+                                                <div style="font-size: 12px; color: #475569;">Dents <strong>11 à 18</strong> (Incisive 11 ➔ Sagesse 18)</div>
+                                            </div>
+                                            <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                <div style="font-weight: 700; color: #0284c7; font-size: 12.5px; margin-bottom: 2px;">Cadran 2 : Maxillaire Gauche (Haut Gauche)</div>
+                                                <div style="font-size: 12px; color: #475569;">Dents <strong>21 à 28</strong> (Incisive 21 ➔ Sagesse 28)</div>
+                                            </div>
+                                            <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                <div style="font-weight: 700; color: #0284c7; font-size: 12.5px; margin-bottom: 2px;">Cadran 4 : Mandibule Droite (Bas Droit)</div>
+                                                <div style="font-size: 12px; color: #475569;">Dents <strong>41 à 48</strong> (Incisive 41 ➔ Sagesse 48)</div>
+                                            </div>
+                                            <div style="background: #ffffff; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                <div style="font-weight: 700; color: #0284c7; font-size: 12.5px; margin-bottom: 2px;">Cadran 3 : Mandibule Gauche (Bas Gauche)</div>
+                                                <div style="font-size: 12px; color: #475569;">Dents <strong>31 à 38</strong> (Incisive 31 ➔ Sagesse 38)</div>
+                                            </div>
+                                        </div>
+                                        <div style="font-size: 12px; color: #334155; background: #ffffff; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                            <strong>Position de 1 à 8 (du centre vers le fond) :</strong> 1 = Incisive centrale · 2 = Incisive latérale · 3 = Canine · 4 = 1re prémolaire · 5 = 2e prémolaire · 6 = 1re molaire · 7 = 2e molaire · 8 = Dent de sagesse. <em>Exemple : la dent 16 est la 1re molaire en haut à droite.</em>
+                                        </div>
+                                    </div>
                                     <div class="dental-chart-layout">
                                         <aside class="dental-patient-picker-card">
                                             <span class="dental-panel-kicker">Patient</span>
                                             <h4>Dossier</h4>
                                             <span id="dental-current-patient-display" class="dental-current-patient-chip">Aucun patient sélectionné</span>
+                                            <div style="margin: 8px 0 6px 0;">
+                                                <input type="text" id="dental-patient-search-input" class="form-control"
+                                                    placeholder="Rechercher (nom, prénom, tél)..."
+                                                    oninput="filterDentalPatientList(this.value)"
+                                                    style="width: 100%; height: 34px; padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; background: #ffffff;">
+                                            </div>
                                             <select id="dental-patient-selector"
                                                 class="feature-patient-selector dental-patient-select"
                                                 onchange="selectDentalPatient(this.value)">

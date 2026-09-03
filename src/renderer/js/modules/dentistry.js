@@ -293,21 +293,56 @@ async function connectDentalRealtimeWs() {
   } catch (e) { console.warn('Dental WS not available:', e.message); }
 }
 
+let allDentalPatients = [];
+
+function toggleDentalFdiGuide() {
+  const card = document.getElementById('dental-fdi-guide-card');
+  const btn = document.getElementById('btn-dental-fdi-guide');
+  if (!card) return;
+  const isShown = card.style.display !== 'none';
+  card.style.display = isShown ? 'none' : 'block';
+  if (btn) {
+    btn.style.background = isShown ? '' : '#e2e8f0';
+  }
+}
+
+function renderDentalPatientSelectorOptions(patients) {
+  const select = document.getElementById('dental-patient-selector');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- Sélectionner un patient --</option>';
+  patients.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    const phoneInfo = p.phone ? ' (' + p.phone + ')' : '';
+    opt.textContent = p.lastName + ' ' + p.firstName + phoneInfo;
+    if (p.id === dentalSelectedPatientId) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+function filterDentalPatientList(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) {
+    renderDentalPatientSelectorOptions(allDentalPatients);
+    return;
+  }
+  const filtered = allDentalPatients.filter(p => {
+    const name1 = ((p.lastName || '') + ' ' + (p.firstName || '')).toLowerCase();
+    const name2 = ((p.firstName || '') + ' ' + (p.lastName || '')).toLowerCase();
+    const phone = String(p.phone || '').toLowerCase();
+    return name1.includes(q) || name2.includes(q) || phone.includes(q);
+  });
+  renderDentalPatientSelectorOptions(filtered);
+  if (filtered.length === 1 && filtered[0].id !== dentalSelectedPatientId) {
+    selectDentalPatient(filtered[0].id);
+  }
+}
+
 async function loadDentalPatientList() {
   try {
     const result = await window.api.patient.getAll();
-    const select = document.getElementById('dental-patient-selector');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Sélectionner un patient --</option>';
-    if (result.success && result.data) {
-      result.data.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.lastName + ' ' + p.firstName;
-        if (p.id === dentalSelectedPatientId) opt.selected = true;
-        select.appendChild(opt);
-      });
-    }
+    allDentalPatients = (result.success && Array.isArray(result.data)) ? result.data : [];
+    renderDentalPatientSelectorOptions(allDentalPatients);
   } catch (e) { console.error('Error loading dental patients:', e); }
 }
 
@@ -1745,12 +1780,16 @@ registerLegacyGlobals('dentistry', {
   updatePatientDentalStats,
   viewDentalGallery,
   viewToothHistory,
-  resetDental3DCamera
+  resetDental3DCamera,
+  toggleDentalFdiGuide,
+  filterDentalPatientList
 });
 
 window.setDentalSchemaMode = setDentalSchemaMode;
 window.setDental3DView = setDental3DView;
 window.resetDental3DCamera = resetDental3DCamera;
+window.toggleDentalFdiGuide = toggleDentalFdiGuide;
+window.filterDentalPatientList = filterDentalPatientList;
 
 export function destroyDentistryLegacy() {
   destroyDental3D();

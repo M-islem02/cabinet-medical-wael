@@ -92,9 +92,27 @@ function accentInsensitiveSql(expr) {
 }
 
 function buildPatientSearchClause(fields, searchTerm) {
-  const pattern = `%${searchTerm}%`;
+  const cleanTerm = String(searchTerm || '').trim();
+  const tokens = cleanTerm.split(/\s+/).filter(Boolean);
+
+  if (tokens.length > 1) {
+    const tokenClauses = [];
+    const params = [];
+    tokens.forEach((token) => {
+      const pattern = `%${token}%`;
+      const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ${accentInsensitiveSql('?')}`);
+      tokenClauses.push(`(${comparisons.join(' OR ')})`);
+      for (let i = 0; i < fields.length; i += 1) {
+        params.push(pattern);
+      }
+    });
+    return { clause: `(${tokenClauses.join(' AND ')})`, pattern: params[0] || `%${cleanTerm}%`, params };
+  }
+
+  const pattern = `%${cleanTerm}%`;
   const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ${accentInsensitiveSql('?')}`);
-  return { clause: `(${comparisons.join(' OR ')})`, pattern };
+  const params = fields.map(() => pattern);
+  return { clause: `(${comparisons.join(' OR ')})`, pattern, params };
 }
 
 function normalizePatientListRequest(payload = null) {
@@ -492,12 +510,20 @@ export function handlePatientEvents() {
       }
 
       if (request.searchTerm) {
-        const { clause, pattern } = buildPatientSearchClause(
-          ['p.firstName', 'p.lastName', 'p.email', 'p.phone', 'p.socialSecurityNumber'],
+        const { clause, params: searchParams } = buildPatientSearchClause(
+          [
+            'p.firstName',
+            'p.lastName',
+            `(COALESCE(p.lastName, '') || ' ' || COALESCE(p.firstName, ''))`,
+            `(COALESCE(p.firstName, '') || ' ' || COALESCE(p.lastName, ''))`,
+            'p.email',
+            'p.phone',
+            'p.socialSecurityNumber'
+          ],
           request.searchTerm
         );
         whereParts.push(clause);
-        params.push(pattern, pattern, pattern, pattern, pattern);
+        params.push(...searchParams);
       }
 
       if (scope.cabinetMode && request.medecinId) {
@@ -639,12 +665,20 @@ export function handlePatientEvents() {
       const params = [];
       const whereParts = [];
       if (request.searchTerm) {
-        const { clause, pattern } = buildPatientSearchClause(
-          ['p.firstName', 'p.lastName', 'p.phone', 'p.email'],
+        const { clause, params: searchParams } = buildPatientSearchClause(
+          [
+            'p.firstName',
+            'p.lastName',
+            `(COALESCE(p.lastName, '') || ' ' || COALESCE(p.firstName, ''))`,
+            `(COALESCE(p.firstName, '') || ' ' || COALESCE(p.lastName, ''))`,
+            'p.phone',
+            'p.email',
+            'p.socialSecurityNumber'
+          ],
           request.searchTerm
         );
         whereParts.push(clause);
-        params.push(pattern, pattern, pattern, pattern);
+        params.push(...searchParams);
       }
 
       if (request.filterDoctorId) {
@@ -762,7 +796,7 @@ export function handlePatientEvents() {
         return { success: true, data: [] };
       }
 
-      const { clause: searchClause, pattern: searchPattern } = buildPatientSearchClause(
+      const { clause: searchClause, params: searchParams } = buildPatientSearchClause(
         [
           'firstName',
           'lastName',
@@ -781,7 +815,7 @@ export function handlePatientEvents() {
       }
 
       const whereParts = [searchClause];
-      const params = Array.from({ length: 7 }, () => searchPattern);
+      const params = [...searchParams];
       const scope = await resolvePatientScope(userContext, request.doctorId);
       if (userContext.isPractitioner && scope.doctorId && request.doctorId) {
         whereParts.push('EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?)');
