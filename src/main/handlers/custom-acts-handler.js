@@ -18,9 +18,29 @@ function sanitizePrice(value) {
   return Math.round(price * 100) / 100;
 }
 
+let customActsTableEnsured = false;
+async function ensureCustomActsTable() {
+  if (customActsTableEnsured) return;
+  try {
+    await run(`
+      CREATE TABLE IF NOT EXISTS custom_acts (
+        id VARCHAR(100) PRIMARY KEY,
+        label VARCHAR(255) NOT NULL,
+        price NUMERIC DEFAULT 0,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    customActsTableEnsured = true;
+  } catch (err) {
+    console.warn('Could not ensure custom_acts table:', err.message);
+  }
+}
+
 export function handleCustomActsEvents() {
   ipcMain.handle('customacts:list', async () => {
     try {
+      await ensureCustomActsTable();
       const rows = await query(
         'SELECT id, label, price, createdAt, updatedAt FROM custom_acts ORDER BY createdAt ASC'
       );

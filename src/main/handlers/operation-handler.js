@@ -612,7 +612,8 @@ export function handleOperationEvents() {
       const now = new Date();
       const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const startOfMonth = `${currentMonth}-01`;
-      const endOfMonth = `${currentMonth}-31`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const endOfMonth = `${currentMonth}-${String(lastDay).padStart(2, '0')}`;
       const thisMonthRow = await queryOne(`SELECT COUNT(*) AS thisMonth, COALESCE(SUM(CASE WHEN paymentStatus = 'paid' THEN cost ELSE 0 END), 0) AS thisMonthCost FROM operations ${whereSql} AND operationDate >= ? AND operationDate <= ?`, [...params, startOfMonth, endOfMonth]);
 
       const topTypes = await query(
