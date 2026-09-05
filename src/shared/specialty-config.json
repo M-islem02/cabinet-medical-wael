@@ -43,40 +43,6 @@
       "IRM"
     ],
     "equipmentCategories": []
-  },
-  "orl": {
-    "key": "orl",
-    "label": "ORL",
-    "doctorLabel": "Médecin ORL",
-    "logo": "ORL.png",
-    "fallbackLogo": "logo.png",
-    "icon": "icon.png",
-    "medicationsJson": "medicaments_orl.json",
-    "exams": [
-      "Audiométrie tonale et vocale",
-      "Tympanométrie / Impédancemétrie",
-      "Fibroscopie naso-pharyngo-laryngée",
-      "Otoscopie sous microscope",
-      "Épreuve vestibulaire / Dix-Hallpike",
-      "Endoscopie sinusienne",
-      "Bilan d'acouphènes et de vertiges"
-    ],
-    "imagingFamilies": [
-      "Scanner des sinus",
-      "Scanner des rochers et mastoïdes",
-      "IRM angle ponto-cérébelleux (APC)",
-      "Radiographie du cavum et des sinus",
-      "Échographie cervicale et salivaire"
-    ],
-    "equipmentCategories": [
-      "Audiomètre",
-      "Tympanomètre / Impédancemètre",
-      "Nasofibroscope",
-      "Microscope de consultation ORL",
-      "Fauteuil d'examen ORL",
-      "Aspirateur chirurgical ORL",
-      "Source de lumière froide",
-      "Instrumentation ORL / Miroirs"
-    ]
   }
 }
+

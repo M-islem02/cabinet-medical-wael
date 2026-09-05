@@ -259,6 +259,9 @@ async function initializeLegacyApplication() {
     
     updateUserDisplay();
     updateAdminUI();
+    if (typeof refreshAppBrandLogo === 'function') {
+      refreshAppBrandLogo();
+    }
     if (typeof applySpecialtyAccent === 'function') {
       applySpecialtyAccent();
     }
@@ -345,10 +348,6 @@ async function initializeLegacyApplication() {
     if (typeof loadPatients === 'function' && currentPage === 'patients') {
       await loadPatients();
     }
-
-    if (typeof window.initORL === 'function') {
-      void window.initORL();
-    }
     
     // Initialize EHR alert state observer
     setupAlertStateObserver();
@@ -424,62 +423,12 @@ async function applyPackageRestrictions() {
     applyPackageRestrictionsFromCache(config);
     const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(config)
-      : 'orl';
+      : 'dentistry';
     const isTestAccount = isDemoOrTestAccount();
     
     document.querySelectorAll('.btn-ai-report, .btn-ai-chat, [onclick*="openAIReportGenerator"], [onclick*="openAIChatbot"]').forEach(btn => {
       btn.style.display = 'none';
     });
-    
-    // Hide dentistry tab in patient-details when feature is disabled
-    if (config.featureDentistry === 0 || (activeSpecialty !== 'dentistry' && !isTestAccount)) {
-      // Hide the dental tab button in patient details
-      const dentalTabBtn = document.querySelector('.tab-btn[onclick*="tab-dental"]');
-      if (dentalTabBtn) {
-        dentalTabBtn.style.display = 'none';
-        dentalTabBtn.classList.add('feature-disabled');
-      }
-      // Hide dental tab content
-      const dentalTabContent = document.getElementById('tab-dental');
-      if (dentalTabContent) {
-        dentalTabContent.style.display = 'none';
-      }
-      // Hide 🦷 buttons in consultation actions
-      document.querySelectorAll('[onclick*="goToPatientDentalFromConsultation"], [onclick*="goToFullDentalChart"]').forEach(btn => {
-        btn.style.display = 'none';
-      });
-      console.log('📦 Dentistry feature inactive: dental tab & buttons hidden');
-    } else {
-      const dentalTabBtn = document.querySelector('.tab-btn[onclick*="tab-dental"]');
-      if (dentalTabBtn) {
-        dentalTabBtn.style.display = '';
-        dentalTabBtn.classList.remove('feature-disabled');
-      }
-      const dentalTabContent = document.getElementById('tab-dental');
-      if (dentalTabContent) {
-        dentalTabContent.style.display = '';
-      }
-    }
-    
-    // Hide rehabilitation tab/section elements when feature is disabled
-    if (config.featureRehabilitation === 0 || (activeSpecialty !== 'mpr' && !isTestAccount)) {
-      // Hide rehab-related buttons in patient details
-      document.querySelectorAll('[onclick*="rehabilitation"], [onclick*="rehab"]').forEach(btn => {
-        if (!btn.classList.contains('nav-item')) {
-          btn.style.display = 'none';
-        }
-      });
-      console.log('📦 Rehabilitation feature inactive: related buttons hidden');
-    }
-    
-    // Hide kiné staff elements when feature is disabled
-    if (config.featureKineStaff === 0 || (activeSpecialty !== 'mpr' && !isTestAccount)) {
-      // Hide kiné-related buttons and elements
-      document.querySelectorAll('[onclick*="kine"], [data-section="kine-staff"]').forEach(el => {
-        el.style.display = 'none';
-      });
-      console.log('📦 Kiné staff feature inactive: related elements hidden');
-    }
     
     // Store package config globally for runtime checks
     window._packageConfig = config;
@@ -540,21 +489,13 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
 
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(config)
-    : (currentUserSpecialty || 'orl');
+    : (currentUserSpecialty || 'dentistry');
 
-  const orlEnabled = isTestAccount || (activeSpecialty === 'orl');
-  const mprEnabled = isTestAccount || (activeSpecialty === 'mpr' || activeSpecialty === 'rehabilitation');
   const dentistryEnabled = isTestAccount || (activeSpecialty === 'dentistry');
-  const cardiologyEnabled = isTestAccount || (activeSpecialty === 'cardiology');
-  window._mprFeatureEnabled = mprEnabled;
+  window._mprFeatureEnabled = false;
   window._activeSpecialtyKey = activeSpecialty;
 
-  setSectionFeatureVisibility('orl', orlEnabled);
-  setSectionFeatureVisibility('rehabilitation', mprEnabled);
-  setSectionFeatureVisibility('kine-staff', isTestAccount || (mprEnabled && isFeatureEnabled(config, 'featureKineStaff', true)));
-  setSectionFeatureVisibility('daily-summary', isTestAccount || isFeatureEnabled(config, 'featureDailySummary', true));
   setSectionFeatureVisibility('dentistry', dentistryEnabled);
-  setSectionFeatureVisibility('cardiology', cardiologyEnabled);
 
   if (typeof enforceSpecialtySidebarVisibility === 'function') {
     enforceSpecialtySidebarVisibility(activeSpecialty);
@@ -999,7 +940,7 @@ function enforceAssistantMode() {
   document.body.classList.add('assistant-mode');
   
   // Hide administrative and practitioner-only sections that assistants shouldn't access
-  const doctorOnlySections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'medical-imaging', 'treatment-plans', 'rehabilitation', 'kine-staff', 'daily-summary', 'package-config', 'sms-config', 'cloud-sync'];
+  const doctorOnlySections = ['operations', 'settings', 'statistics', 'equipment', 'medical-imaging', 'treatment-plans', 'package-config', 'sms-config', 'cloud-sync'];
   
   document.querySelectorAll('.nav-item').forEach(item => {
     const section = item.dataset.section;

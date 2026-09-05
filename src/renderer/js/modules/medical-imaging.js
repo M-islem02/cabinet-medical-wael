@@ -1,12 +1,10 @@
 const IMAGING_FAMILIES = [
-  'Scanner CT / TDM (Rochers, Sinus, Cou)',
-  'IRM ORL (CPA, Glandes salivaires, Sinus)',
-  'Radiographie ORL (Blondeau, Cavum, OPN)',
-  'Échographie Cervicale & Salivaire',
-  'Endoscopie & Fibroscopie ORL',
-  'Audiométrie & Tympanométrie',
-  'Cone Beam / CBCT (Massif facial & Rochers)',
-  'Vidéonystagmographie / VNG & Équilibre'
+  'Panoramique dentaire (OPG)',
+  'Cone Beam / CBCT 3D (Maxillaire & Mandibule)',
+  'Rétro-alvéolaire / Bitewing',
+  'Téléradiographie de profil (Céphalométrie)',
+  'Radiographie des ATM',
+  'Photographie intra-orale & extra-orale'
 ];
 
 const medicalImagingState = {
@@ -15,7 +13,7 @@ const medicalImagingState = {
   records: [],
   devices: [],
   selectedPatientId: '',
-  selectedFamily: 'Scanner CT / TDM (Rochers, Sinus, Cou)',
+  selectedFamily: 'Panoramique dentaire (OPG)',
   filterFamily: 'all',
   selectedRecordId: null,
   recordsPage: 1
@@ -932,7 +930,7 @@ async function submitRadioFilesImport() {
     return;
   }
 
-  const examFamily = document.getElementById('radio-modal-exam-family')?.value || 'Radiographie ORL (Blondeau, Cavum, OPN)';
+  const examFamily = document.getElementById('radio-modal-exam-family')?.value || 'Panoramique dentaire (OPG)';
   const importBtn = document.getElementById('radio-modal-import-btn');
   if (importBtn) {
     importBtn.disabled = true;

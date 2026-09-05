@@ -65,16 +65,16 @@ function setDentalSchemaMode(mode) {
 
   if (viewport3d) {
     viewport3d.style.display = targetMode === '3d' ? 'block' : 'none';
-    if (targetMode === '3d') {
-      if (!isDental3DInitialized()) {
-        initDental3D(viewport3d, {
-          onSelect: (num) => selectDentalTooth(num)
-        });
-      }
-      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
-      if (dentalSelectedTooth) {
-        selectToothIn3D(dentalSelectedTooth);
-      }
+    if (!isDental3DInitialized()) {
+      initDental3D(viewport3d, {
+        onSelect: (num) => selectDentalTooth(num)
+      });
+    }
+    const isHistory = Boolean(dentalSelectedHistoryDayKey);
+    const activeData = isHistory ? dentalHistoricalTeethData : dentalTeethData;
+    updateDental3DData(activeData, isHistory ? {} : dentalTreatmentsCache, dentalSelectedTooth);
+    if (dentalSelectedTooth) {
+      selectToothIn3D(dentalSelectedTooth);
     }
   }
 }
@@ -299,10 +299,22 @@ function toggleDentalFdiGuide() {
   const card = document.getElementById('dental-fdi-guide-card');
   const btn = document.getElementById('btn-dental-fdi-guide');
   if (!card) return;
-  const isShown = card.style.display !== 'none';
-  card.style.display = isShown ? 'none' : 'block';
-  if (btn) {
-    btn.style.background = isShown ? '' : '#e2e8f0';
+  const isHidden = card.style.display === 'none' || (!card.style.display && window.getComputedStyle && getComputedStyle(card).display === 'none');
+  if (isHidden) {
+    card.style.display = 'block';
+    if (btn) {
+      btn.style.background = '#0284c7';
+      btn.style.color = '#ffffff';
+    }
+    try {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (_) {}
+  } else {
+    card.style.display = 'none';
+    if (btn) {
+      btn.style.background = '';
+      btn.style.color = '';
+    }
   }
 }
 
@@ -321,32 +333,232 @@ function renderDentalPatientSelectorOptions(patients) {
   });
 }
 
-function filterDentalPatientList(query) {
-  const q = String(query || '').trim().toLowerCase();
+let dentalSearchDebounceTimer = null;
+
+function handleDentalPatientSearchInput(query) {
+  const clearBtn = document.getElementById('dental-patient-search-clear');
+  if (clearBtn) clearBtn.style.display = query && query.trim() ? 'block' : 'none';
+
+  clearTimeout(dentalSearchDebounceTimer);
+  dentalSearchDebounceTimer = setTimeout(async () => {
+    await performDentalPatientSearch(query);
+  }, 60);
+}
+
+function handleDentalPatientSearchFocus() {
+  const searchInput = document.getElementById('dental-patient-search-bar');
+  const query = searchInput ? searchInput.value.trim() : '';
+  performDentalPatientSearch(query);
+}
+
+function clearDentalPatientSearch() {
+  const searchInput = document.getElementById('dental-patient-search-bar');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.focus();
+  }
+  const clearBtn = document.getElementById('dental-patient-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  performDentalPatientSearch('');
+}
+
+function stripDentalSearchAccents(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function safeDentalEscapeHTML(str) {
+  if (typeof escapeHTML === 'function') return escapeHTML(str);
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function performDentalPatientSearch(query) {
+  const rawQ = String(query || '').trim();
+  const q = stripDentalSearchAccents(rawQ);
+  let matches = [];
+
+  // If query is empty, show the first 10 patients from allDentalPatients
   if (!q) {
-    renderDentalPatientSelectorOptions(allDentalPatients);
+    matches = (allDentalPatients || []).slice(0, 10);
+    renderDentalPatientSearchResults(matches);
     return;
   }
-  const filtered = allDentalPatients.filter(p => {
-    const name1 = ((p.lastName || '') + ' ' + (p.firstName || '')).toLowerCase();
-    const name2 = ((p.firstName || '') + ' ' + (p.lastName || '')).toLowerCase();
+
+  const patientMatches = (p) => {
+    if (!p) return false;
+    const name1 = stripDentalSearchAccents((p.lastName || '') + ' ' + (p.firstName || ''));
+    const name2 = stripDentalSearchAccents((p.firstName || '') + ' ' + (p.lastName || ''));
     const phone = String(p.phone || '').toLowerCase();
-    return name1.includes(q) || name2.includes(q) || phone.includes(q);
-  });
-  renderDentalPatientSelectorOptions(filtered);
-  if (filtered.length === 1 && filtered[0].id !== dentalSelectedPatientId) {
-    selectDentalPatient(filtered[0].id);
+    const ssn = String(p.socialSecurityNumber || p.cin || '').toLowerCase();
+    return name1.includes(q) || name2.includes(q) || phone.includes(q) || ssn.includes(q);
+  };
+
+  // 1. Filter local in-memory patient list
+  if (Array.isArray(allDentalPatients) && allDentalPatients.length > 0) {
+    matches = allDentalPatients.filter(patientMatches);
   }
+
+  // 2. If fewer than 10 matches, query backend search
+  if (matches.length < 10 && window.api?.patient?.search) {
+    try {
+      const searchRes = await window.api.patient.search({ searchTerm: rawQ, limit: 10 });
+      const apiList = Array.isArray(searchRes)
+        ? searchRes
+        : (searchRes?.success && Array.isArray(searchRes.data) ? searchRes.data : []);
+
+      const seenIds = new Set(matches.map(m => m.id));
+      apiList.forEach(p => {
+        if (!seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          matches.push(p);
+        }
+      });
+    } catch (_) {}
+  }
+
+  // 3. If still fewer than 10 matches, query backend directory
+  if (matches.length < 10 && window.api?.patient?.getDirectory) {
+    try {
+      const dirRes = await window.api.patient.getDirectory({ searchTerm: rawQ, pageSize: 10, paginated: true });
+      const dirList = dirRes?.success && Array.isArray(dirRes.data)
+        ? dirRes.data
+        : (Array.isArray(dirRes) ? dirRes : []);
+
+      const seenIds = new Set(matches.map(m => m.id));
+      dirList.forEach(p => {
+        if (!seenIds.has(p.id)) {
+          seenIds.add(p.id);
+          matches.push(p);
+        }
+      });
+    } catch (_) {}
+  }
+
+  // 4. Fallback to global window.patients if available
+  if (matches.length < 10 && Array.isArray(window.patients) && window.patients.length > 0) {
+    const seenIds = new Set(matches.map(m => m.id));
+    window.patients.forEach(p => {
+      if (!seenIds.has(p.id) && patientMatches(p)) {
+        seenIds.add(p.id);
+        matches.push(p);
+      }
+    });
+  }
+
+  // Exact 10 results per search as requested
+  const top10 = matches.slice(0, 10);
+  renderDentalPatientSearchResults(top10);
+}
+
+function renderDentalPatientSearchResults(patients) {
+  const dropdown = document.getElementById('dental-patient-search-dropdown');
+  if (!dropdown) return;
+
+  if (!patients || patients.length === 0) {
+    dropdown.innerHTML = '<div style="padding: 12px; font-size: 12.5px; color: #64748b; text-align: center;">Aucun patient trouvé</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+  patients.slice(0, 10).forEach(p => {
+    const isSelected = p.id === dentalSelectedPatientId;
+    const fullName = `${p.lastName || ''} ${p.firstName || ''}`.trim() || 'Patient sans nom';
+    const phone = p.phone ? `📞 ${p.phone}` : '';
+    const age = p.dateOfBirth ? ` · ${getPatientAgeShort(p.dateOfBirth)}` : '';
+    const info = [phone, age].filter(Boolean).join('');
+
+    html += `
+      <div class="dental-search-item"
+           data-patient-id="${safeDentalEscapeHTML(p.id)}"
+           onclick="selectDentalPatientFromSearch('${safeDentalEscapeHTML(p.id)}')"
+           style="padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background 0.15s; ${isSelected ? 'background: #eff6ff;' : ''}">
+        <div>
+          <div style="font-size: 13px; color: #1e293b; font-weight: 600;">${safeDentalEscapeHTML(fullName)}</div>
+          <div style="font-size: 11.5px; color: #64748b; margin-top: 1px;">${safeDentalEscapeHTML(info || 'Dossier clinique')}</div>
+        </div>
+        ${isSelected ? '<span style="color: #2563eb; font-weight: 700; font-size: 14px;">✓</span>' : ''}
+      </div>
+    `;
+  });
+
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+}
+
+function selectDentalPatientFromSearch(patientId) {
+  const dropdown = document.getElementById('dental-patient-search-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+
+  const select = document.getElementById('dental-patient-selector');
+  if (select) select.value = patientId;
+
+  selectDentalPatient(patientId);
+}
+
+function getPatientAgeShort(dob) {
+  if (!dob) return '';
+  try {
+    const diff = Date.now() - new Date(dob).getTime();
+    const age = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+    return (age >= 0 && age < 130) ? `${age} ans` : '';
+  } catch (_) { return ''; }
+}
+
+function filterDentalPatientList(query) {
+  handleDentalPatientSearchInput(query);
 }
 
 async function loadDentalPatientList() {
   try {
-    const result = await window.api.patient.getAll();
-    allDentalPatients = Array.isArray(result)
-      ? result
-      : ((result && result.success && Array.isArray(result.data))
-          ? result.data
-          : (Array.isArray(result?.data) ? result.data : []));
+    let patients = [];
+    // 1. Try patient.getAll()
+    if (window.api?.patient?.getAll) {
+      try {
+        const result = await window.api.patient.getAll();
+        if (Array.isArray(result)) {
+          patients = result;
+        } else if (result && result.success && Array.isArray(result.data)) {
+          patients = result.data;
+        }
+      } catch (_) {}
+    }
+
+    // 2. Also fetch directory so all cabinet patients are loaded into memory
+    if (window.api?.patient?.getDirectory) {
+      try {
+        const dirResult = await window.api.patient.getDirectory({ pageSize: 500, paginated: true });
+        if (dirResult?.success && Array.isArray(dirResult.data)) {
+          const seen = new Set(patients.map(p => p.id));
+          dirResult.data.forEach(p => {
+            if (!seen.has(p.id)) {
+              seen.add(p.id);
+              patients.push(p);
+            }
+          });
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback to global window.patients if available
+    if (Array.isArray(window.patients) && window.patients.length > 0) {
+      const seen = new Set(patients.map(p => p.id));
+      window.patients.forEach(p => {
+        if (!seen.has(p.id)) {
+          seen.add(p.id);
+          patients.push(p);
+        }
+      });
+    }
+
+    allDentalPatients = patients;
     renderDentalPatientSelectorOptions(allDentalPatients);
 
     // Auto-select if a patient is active or if none selected pick the latest patient
@@ -366,9 +578,16 @@ async function selectDentalPatient(patientId) {
   dentalSelectedPatientId = patientId;
   dentalSelectedTooth = null;
   const display = document.getElementById('dental-current-patient-display');
+  const searchInput = document.getElementById('dental-patient-search-bar');
+  const clearBtn = document.getElementById('dental-patient-search-clear');
+  const select = document.getElementById('dental-patient-selector');
+  if (select) select.value = patientId || '';
+
   updateDentalPatientActionState();
   if (!patientId) {
     if (display) display.textContent = 'Aucun patient sélectionné';
+    if (searchInput) searchInput.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
     dentalTeethData = {};
     dentalTreatmentsCache = {};
     loadDentalPatientHistoryCards(null);
@@ -376,13 +595,29 @@ async function selectDentalPatient(patientId) {
     return;
   }
   try {
-    const res = await window.api.patient.getById(patientId);
-    if (res.success && res.data) {
-      if (display) display.textContent = res.data.lastName + ' ' + res.data.firstName;
+    let pName = '';
+    const localPatient = (allDentalPatients || []).find(p => p.id === patientId);
+    if (localPatient) {
+      pName = `${localPatient.lastName || ''} ${localPatient.firstName || ''}`.trim();
+    }
+    let res = null;
+    if (window.api?.patient?.getById) {
+      try {
+        res = await window.api.patient.getById(patientId);
+      } catch (_) {}
+    }
+    if (res?.success && res?.data) {
+      pName = `${res.data.lastName || ''} ${res.data.firstName || ''}`.trim();
       if (typeof window.setSelectedPatient === 'function') {
         await window.setSelectedPatient(patientId, { patient: res.data, source: 'dentistry' });
       }
+    } else if (localPatient && typeof window.setSelectedPatient === 'function') {
+      await window.setSelectedPatient(patientId, { patient: localPatient, source: 'dentistry' });
     }
+    if (display) display.textContent = pName || 'Patient';
+    if (searchInput) searchInput.value = pName;
+    if (clearBtn) clearBtn.style.display = 'block';
+
     updateDentalPatientActionState();
     await loadDentalTeeth(patientId);
     await loadDentalTreatmentColors(patientId);
@@ -469,28 +704,133 @@ function getDentalDetailEmptyHTML() {
     '</div>';
 }
 
+function renderHistoricalBannerHTML() {
+  var group = getDentalHistoryDayGroups().find(function(item) { return item.key === dentalSelectedHistoryDayKey; });
+  var title = group ? group.dayLabel : (dentalSelectedHistoryDayKey || 'Date sélectionnée');
+  var count = group ? group.items.length : 0;
+  return '<div class="dental-historical-banner">' +
+    '<div class="dental-historical-banner-info">' +
+      '<span class="dental-historical-badge">Mode Historique 3D & 2D</span>' +
+      '<div>' +
+        '<strong class="dental-historical-title">Consultation du ' + dentalEscapeHtml(title) + '</strong>' +
+        '<span class="dental-historical-subtitle">' + count + ' acte(s) enregistré(s) · Consultation clinique en lecture seule</span>' +
+      '</div>' +
+    '</div>' +
+    '<button type="button" class="dental-historical-return-btn" onclick="showCurrentDentalSchema()">' +
+      '✕ Revenir au schéma actuel' +
+    '</button>' +
+  '</div>';
+}
+
+function renderUpperToothQuickSelectorHTML() {
+  const isHistory = Boolean(dentalSelectedHistoryDayKey);
+  const activeTeethData = isHistory ? dentalHistoricalTeethData : dentalTeethData;
+
+  const upperRight = [18, 17, 16, 15, 14, 13, 12, 11];
+  const upperLeft  = [21, 22, 23, 24, 25, 26, 27, 28];
+  const lowerRight = [48, 47, 46, 45, 44, 43, 42, 41];
+  const lowerLeft  = [31, 32, 33, 34, 35, 36, 37, 38];
+
+  function renderQuickToothBtn(num) {
+    const data = activeTeethData[num];
+    const status = data ? data.status : 'healthy';
+    const si = TOOTH_STATUSES[status] || TOOTH_STATUSES.healthy;
+    const name = ADULT_TEETH[num] || ('Dent ' + num);
+    const isSel = (dentalSelectedTooth === num);
+    const isAbsent = (status === 'missing' || status === 'extraction');
+
+    const statusLabel = getToothStatusLabel(status);
+    const title = 'Dent ' + num + ' : ' + name + ' (' + statusLabel + ') — Cliquer pour sélectionner';
+
+    let btnClasses = 'dental-quick-tooth-btn';
+    if (isSel) btnClasses += ' is-selected';
+    if (isAbsent) {
+      btnClasses += ' is-absent';
+      if (status === 'extraction') btnClasses += ' is-extraction';
+    }
+
+    let badge = '';
+    if (isAbsent) {
+      badge = '<span class="dental-quick-badge-absent">' + (status === 'extraction' ? '✕' : '∅') + '</span>';
+    } else if (status !== 'healthy') {
+      badge = '<span class="dental-quick-badge-dot" style="background-color:' + (si.border || '#0284c7') + ';"></span>';
+    }
+
+    return '<button type="button" class="' + btnClasses + '" data-tooth="' + num + '" title="' + title + '" onclick="selectDentalTooth(' + num + ')">' +
+      '<span class="dental-quick-tooth-num">' + num + '</span>' +
+      badge +
+      '</button>';
+  }
+
+  return '<div class="dental-upper-tooth-bar-inner">' +
+    '<div class="dental-quick-bar-topline">' +
+      '<div class="dental-quick-bar-title">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#0284c7; flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>' +
+        '<span>Sélection rapide des dents</span>' +
+      '</div>' +
+      '<div class="dental-quick-bar-legend">' +
+        '<span class="dental-quick-legend-item"><span class="dental-quick-legend-sample is-healthy"></span>Saine</span>' +
+        '<span class="dental-quick-legend-item"><span class="dental-quick-legend-sample is-absent"></span>Absente / Extraite</span>' +
+        '<span class="dental-quick-legend-item"><span class="dental-quick-legend-sample is-treated"></span>Traitée / Soin</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="dental-quick-bar-arches">' +
+      // Maxillaire (Upper)
+      '<div class="dental-quick-arch-row arch-upper">' +
+        '<span class="dental-quick-arch-pill" title="Arcade Maxillaire (Haut)">Maxillaire (Haut)</span>' +
+        '<div class="dental-quick-quadrant q1" title="Cadran 1 : Haut Droit">' + upperRight.map(renderQuickToothBtn).join('') + '</div>' +
+        '<div class="dental-quick-midline" title="Ligne médiane"></div>' +
+        '<div class="dental-quick-quadrant q2" title="Cadran 2 : Haut Gauche">' + upperLeft.map(renderQuickToothBtn).join('') + '</div>' +
+      '</div>' +
+      // Mandibule (Lower)
+      '<div class="dental-quick-arch-row arch-lower">' +
+        '<span class="dental-quick-arch-pill" title="Arcade Mandibulaire (Bas)">Mandibule (Bas)</span>' +
+        '<div class="dental-quick-quadrant q4" title="Cadran 4 : Bas Droit">' + lowerRight.map(renderQuickToothBtn).join('') + '</div>' +
+        '<div class="dental-quick-midline" title="Ligne médiane"></div>' +
+        '<div class="dental-quick-quadrant q3" title="Cadran 3 : Bas Gauche">' + lowerLeft.map(renderQuickToothBtn).join('') + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 function renderDentalChart() {
   const container = document.getElementById('dental-chart-container');
   if (!container) return;
 
   const positions = getToothPositions();
   const is3D = currentDentalSchemaMode === '3d';
+  const isHistory = Boolean(dentalSelectedHistoryDayKey);
+  const activeTeethData = isHistory ? dentalHistoricalTeethData : dentalTeethData;
 
   const svgEl = document.getElementById('dental-svg');
   const viewport3d = document.getElementById('dental-3d-viewport');
   const teethLayer = document.getElementById('dental-teeth-layer');
+  const quickBarEl = document.getElementById('dental-upper-tooth-bar');
+  const bannerContainer = document.getElementById('dental-historical-banner-container');
+  const notesContainer = document.getElementById('dental-chart-notes-container');
 
   // If workspace already exists in DOM, update in-place to avoid tearing down WebGL canvas
   if (svgEl && viewport3d && teethLayer) {
     svgEl.style.display = is3D ? 'none' : 'block';
     viewport3d.style.display = is3D ? 'block' : 'none';
 
+    // Update banner in-place
+    if (bannerContainer) {
+      bannerContainer.innerHTML = isHistory ? renderHistoricalBannerHTML() : '';
+      bannerContainer.style.display = isHistory ? 'block' : 'none';
+    }
+
+    // Update Upper Quick Tooth Bar in-place
+    if (quickBarEl) {
+      quickBarEl.innerHTML = renderUpperToothQuickSelectorHTML();
+    }
+
     // Update 2D SVG layer in-place
     teethLayer.innerHTML = renderAllTeeth(positions);
 
     // Update 3D viewport in-place (preserves camera orbit angle and zoom)
     if (isDental3DInitialized()) {
-      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      updateDental3DData(activeTeethData, isHistory ? {} : dentalTreatmentsCache, dentalSelectedTooth);
       if (dentalSelectedTooth) {
         selectToothIn3D(dentalSelectedTooth);
       }
@@ -498,14 +838,27 @@ function renderDentalChart() {
       initDental3D(viewport3d, {
         onSelect: (num) => selectDentalTooth(num)
       });
-      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      updateDental3DData(activeTeethData, isHistory ? {} : dentalTreatmentsCache, dentalSelectedTooth);
     }
+
+    // Update notes container if in history mode
+    if (isHistory && notesContainer) {
+      var group = getDentalHistoryDayGroups().find(function(item) { return item.key === dentalSelectedHistoryDayKey; });
+      if (group) renderDentalDayHistoryPanel(group);
+    }
+
     return;
   }
 
   container.innerHTML =
     '<div class="dental-workspace">' +
     '<div class="dental-chart-main">' +
+    '<div id="dental-historical-banner-container" style="' + (isHistory ? 'display:block;' : 'display:none;') + '">' +
+    (isHistory ? renderHistoricalBannerHTML() : '') +
+    '</div>' +
+    '<div id="dental-upper-tooth-bar" class="dental-upper-tooth-bar">' +
+    renderUpperToothQuickSelectorHTML() +
+    '</div>' +
 
     '<svg id="dental-svg" class="dental-svg" viewBox="0 0 800 500" style="' + (is3D ? 'display:none;' : '') + '">' +
     '<defs>' +
@@ -540,7 +893,7 @@ function renderDentalChart() {
 
     '<div id="dental-3d-viewport" style="' + (is3D ? 'display:block;' : 'display:none;') + ' width:100%; height:520px; position:relative; border-radius:14px; overflow:hidden; background:radial-gradient(circle at 50% 45%, #f8fafc 0%, #e2e8f0 70%, #cbd5e1 100%); border:1px solid #cbd5e1; box-shadow:inset 0 2px 10px rgba(0,0,0,0.05), 0 4px 20px rgba(15,23,42,0.06);"></div>' +
 
-    '<div id="dental-chart-notes-container">' + getDentalNotesEmptyHTML() + '</div>' +
+    '<div id="dental-chart-notes-container">' + (isHistory ? '' : getDentalNotesEmptyHTML()) + '</div>' +
     '</div>' +
     '<aside id="dental-tooth-detail" class="dental-detail-panel">' +
       getDentalDetailEmptyHTML() +
@@ -553,8 +906,13 @@ function renderDentalChart() {
       initDental3D(viewport3d, {
         onSelect: (num) => selectDentalTooth(num)
       });
-      updateDental3DData(dentalTeethData, dentalTreatmentsCache, dentalSelectedTooth);
+      updateDental3DData(activeTeethData, isHistory ? {} : dentalTreatmentsCache, dentalSelectedTooth);
     }
+  }
+
+  if (isHistory && notesContainer) {
+    var group = getDentalHistoryDayGroups().find(function(item) { return item.key === dentalSelectedHistoryDayKey; });
+    if (group) renderDentalDayHistoryPanel(group);
   }
 }
 
@@ -573,11 +931,13 @@ function renderAllTeeth(positions) {
 }
 
 function renderOneTooth(num, pos) {
-  var data = dentalTeethData[num];
+  var isHistory = Boolean(dentalSelectedHistoryDayKey);
+  var activeData = isHistory ? dentalHistoricalTeethData : dentalTeethData;
+  var data = activeData[num];
   var status = data ? data.status : 'healthy';
   var si = TOOTH_STATUSES[status] || TOOTH_STATUSES.healthy;
   // Apply treatment color overlay (C3)
-  var colorOverride = getToothColorOverride(num);
+  var colorOverride = isHistory ? null : getToothColorOverride(num);
   if (colorOverride) si = Object.assign({}, si, colorOverride);
   var sel = dentalSelectedTooth === num;
   var gone = (status === 'extraction' || status === 'missing');
@@ -631,7 +991,11 @@ function renderOneTooth(num, pos) {
   // Number label
   var ny = pos.jaw === 'upper' ? (hh + 14) : (-hh - 6);
 
-  return '<g class="tooth-g' + (sel ? ' sel' : '') + '" transform="translate(' + pos.x + ',' + pos.y + ') rotate(' + pos.angle + ')" onclick="selectDentalTooth(' + num + ')" filter="url(#tSh)">' +
+  var hitY = pos.jaw === 'upper' ? (-hh - 24) : (-hh - 8);
+  var hitH = pos.h + 34;
+
+  return '<g class="tooth-g' + (sel ? ' sel' : '') + (gone ? ' tooth-gone' : '') + '" transform="translate(' + pos.x + ',' + pos.y + ') rotate(' + pos.angle + ')" onclick="selectDentalTooth(' + num + ')" filter="url(#tSh)">' +
+     '<rect x="' + (-hw - 6) + '" y="' + hitY + '" width="' + (pos.w + 12) + '" height="' + hitH + '" fill="transparent" pointer-events="all" style="cursor:pointer;"/>' +
      roots +
      '<rect class="tb" x="' + (-hw) + '" y="' + (-hh) + '" width="' + pos.w + '" height="' + pos.h + '" rx="' + rx + '" ry="' + rx + '" fill="' + si.color + '" stroke="' + (sel ? '#1d4ed8' : si.border) + '" stroke-width="' + (sel ? 2.5 : 1.5) + '"' + dash + opa + '/>' +
      '<rect x="' + (-hw + 3) + '" y="' + (-hh + 3) + '" width="' + Math.max(4, pos.w - 6) + '" height="' + Math.max(4, pos.h * 0.34) + '" rx="' + Math.max(2, rx - 1) + '" ry="' + Math.max(2, rx - 1) + '" fill="#ffffff" opacity="' + (gone ? 0.12 : 0.38) + '"/>' +
@@ -650,10 +1014,6 @@ function selectDentalTooth(toothNumber) {
     showNotification('Sélectionnez d\'abord un patient', 'warning');
     return;
   }
-  if (dentalSelectedHistoryDayKey) {
-    openDentalPatientHistoryDayWindow(dentalSelectedHistoryDayKey, toothNumber);
-    return;
-  }
   dentalSelectedTooth = toothNumber;
   if (isDental3DInitialized()) {
     selectToothIn3D(toothNumber);
@@ -665,10 +1025,38 @@ function selectDentalTooth(toothNumber) {
 function showToothDetail(toothNumber) {
   var panel = document.getElementById('dental-tooth-detail');
   if (!panel) return;
-  var data = dentalTeethData[toothNumber];
+  var isHistory = Boolean(dentalSelectedHistoryDayKey);
+  var activeData = isHistory ? dentalHistoricalTeethData : dentalTeethData;
+  var data = activeData[toothNumber];
   var status = data ? data.status : 'healthy';
   var si = TOOTH_STATUSES[status] || TOOTH_STATUSES.healthy;
   var name = ADULT_TEETH[toothNumber] || ('Dent ' + toothNumber);
+
+  if (isHistory) {
+    var group = getDentalHistoryDayGroups().find(function(item) { return item.key === dentalSelectedHistoryDayKey; });
+    var dayActions = (group?.items || []).filter(function(item) { return Number(item.toothNumber) === Number(toothNumber); });
+
+    panel.innerHTML =
+      '<div class="dental-detail-head">' +
+      '<div><span style="color:#2563eb;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Mode Historique 3D/2D</span><h3>Dent N° ' + toothNumber + '</h3><p>' + name + '</p></div>' +
+      '<button onclick="closeDentalDetail()" class="dental-detail-close">×</button></div>' +
+      '<div class="dental-current-status" style="background:' + si.color + ';border-color:' + si.border + ';color:' + si.tc + ';display:flex;align-items:center;gap:8px;">' +
+      '<strong>État au ' + dentalEscapeHtml(group ? group.dayLabel : dentalSelectedHistoryDayKey) + '</strong><span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + si.border + ';"></span>' + getToothStatusLabel(status) + '</span></div>' +
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin:12px 0;">' +
+      '<span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Actes réalisés ce jour</span>' +
+      (dayActions.length > 0
+        ? dayActions.map(function(act) {
+            var tInfo = TREATMENT_TYPES.find(function(t) { return t.value === act.treatmentType; }) || { label: act.treatmentType };
+            return '<div style="margin-top:6px;padding:6px 8px;background:#fff;border-radius:6px;border:1px solid #cbd5e1;font-size:12.5px;"><strong>' + dentalEscapeHtml(tInfo.label) + '</strong>' + (act.description ? '<div style="color:#475569;font-size:11.5px;margin-top:2px;">' + dentalEscapeHtml(act.description) + '</div>' : '') + '</div>';
+          }).join('')
+        : '<div style="color:#94a3b8;font-size:12px;margin-top:4px;">Aucun acte spécifique pour cette dent ce jour-là.</div>') +
+      '</div>' +
+      (data && data.notes ? '<div style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#334155;"><strong>Notes historiques :</strong><p style="margin:4px 0 0;color:#475569;">' + dentalEscapeHtml(data.notes) + '</p></div>' : '') +
+      '<div style="margin-top:14px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11.5px;color:#1d4ed8;">' +
+      'ℹ️ Consultation en lecture seule. Cliquez sur "Revenir au schéma actuel" pour modifier l\'état.' +
+      '</div>';
+    return;
+  }
 
   // 1. Render status options on the right sidebar
   panel.innerHTML =
@@ -1033,8 +1421,8 @@ function formatDentalDayLabel(dayKey) {
     var parts = dayKey.split('-');
     var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
     var todayKey = getDentalDayKey(new Date().toISOString());
-    var label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    return dayKey === todayKey ? 'Aujourd’hui - ' + label : label;
+    var label = d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    return dayKey === todayKey ? 'Aujourd’hui (' + label + ')' : label;
   } catch (e) {
     return dayKey;
   }
@@ -1115,9 +1503,22 @@ function renderDentalPatientHistoryCards() {
   var start = dentalPatientHistoryPage * pageSize;
   var pageItems = groups.slice(start, start + pageSize);
   var cards = pageItems.map(function(group) {
-    return '<button type="button" class="dental-history-card' + (dentalSelectedHistoryDayKey === group.key ? ' is-active' : '') + '" onclick="showDentalHistoricalSchema(\'' + dentalEscapeHtml(group.key) + '\')">' +
-      '<strong>' + dentalEscapeHtml(group.dayLabel) + '</strong>' +
-      '</button>';
+    var actCount = group.items.length;
+    var actText = actCount + ' acte' + (actCount > 1 ? 's' : '');
+    var teethNumbers = (group.teeth || []).filter(Boolean).map(Number).sort(function(a, b) { return a - b; });
+    var teethText = teethNumbers.length ? 'Dent' + (teethNumbers.length > 1 ? 's' : '') + ' : ' + teethNumbers.join(', ') : 'Examen global';
+    var isActive = dentalSelectedHistoryDayKey === group.key;
+
+    return '<button type="button" class="dental-history-card' + (isActive ? ' is-active' : '') + '" onclick="showDentalHistoricalSchema(\'' + dentalEscapeHtml(group.key) + '\')">' +
+      '<div class="dental-history-card-top">' +
+        '<strong>' + dentalEscapeHtml(group.dayLabel) + '</strong>' +
+        (isActive ? '<span class="dental-history-active-badge">Actif</span>' : '') +
+      '</div>' +
+      '<div class="dental-history-card-details">' +
+        '<span class="dental-history-act-badge">' + dentalEscapeHtml(actText) + '</span>' +
+        '<span class="dental-history-teeth-info">' + dentalEscapeHtml(teethText) + '</span>' +
+      '</div>' +
+    '</button>';
   }).join('');
 
   container.className = 'dental-history-cards-panel';
@@ -1191,94 +1592,100 @@ async function showDentalHistoricalSchema(dayKey) {
     return;
   }
 
+  // Toggle back to current schema if clicked again on the active day
+  if (dentalSelectedHistoryDayKey === dayKey) {
+    showCurrentDentalSchema();
+    return;
+  }
+
   dentalSelectedHistoryDayKey = dayKey;
-  dentalSelectedTooth = null;
-  dentalHistoricalTeethData = buildDentalHistoricalTeethData(group);
+  closeDentalHistoricalModal();
+
+  // Initialize all 32 adult teeth as healthy
+  dentalHistoricalTeethData = {};
+  var adultTeethNums = [
+    18,17,16,15,14,13,12,11, 21,22,23,24,25,26,27,28,
+    48,47,46,45,44,43,42,41, 31,32,33,34,35,36,37,38
+  ];
+  for (var i = 0; i < adultTeethNums.length; i++) {
+    dentalHistoricalTeethData[adultTeethNums[i]] = { status: 'healthy', surfaces: '', notes: '' };
+  }
+
   try {
     var schemaResult = await window.api.dental.getSchemaAtDate(dentalSelectedPatientId, dayKey);
     if (schemaResult?.success && schemaResult.data) {
-      (schemaResult.data.treatments || []).forEach(function(treatment) {
-        dentalHistoricalTeethData[treatment.toothNumber] = {
-          status: mapDentalTreatmentToToothStatus(treatment.treatmentType),
-          surfaces: '',
-          notes: treatment.description || treatment.notes || ''
-        };
-      });
       (schemaResult.data.teeth || []).forEach(function(tooth) {
-        dentalHistoricalTeethData[tooth.toothNumber] = {
-          status: tooth.status || dentalHistoricalTeethData[tooth.toothNumber]?.status || 'healthy',
-          surfaces: tooth.surfaces || '',
-          notes: tooth.notes || dentalHistoricalTeethData[tooth.toothNumber]?.notes || ''
-        };
+        if (tooth.toothNumber) {
+          dentalHistoricalTeethData[tooth.toothNumber] = {
+            status: tooth.status || 'healthy',
+            surfaces: tooth.surfaces || '',
+            notes: tooth.notes || ''
+          };
+        }
       });
       (schemaResult.data.history || []).forEach(function(tooth) {
-        dentalHistoricalTeethData[tooth.toothNumber] = {
-          status: tooth.status || 'healthy',
-          surfaces: tooth.surfaces || '',
-          notes: tooth.notes || ''
-        };
+        if (tooth.toothNumber) {
+          dentalHistoricalTeethData[tooth.toothNumber] = {
+            status: tooth.status || 'healthy',
+            surfaces: tooth.surfaces || '',
+            notes: tooth.notes || ''
+          };
+        }
+      });
+      (schemaResult.data.treatments || []).forEach(function(treatment) {
+        if (treatment.toothNumber) {
+          dentalHistoricalTeethData[treatment.toothNumber] = {
+            status: mapDentalTreatmentToToothStatus(treatment.treatmentType),
+            surfaces: '',
+            notes: treatment.description || treatment.notes || ''
+          };
+        }
       });
     }
   } catch (error) {
     console.error('Unable to reconstruct complete historical schema:', error);
   }
 
-  // Build modal with historical chart
-  var currentTeethData = dentalTeethData;
-  dentalTeethData = dentalHistoricalTeethData;
-  var positions = getToothPositions();
-  var teethSvg = renderAllTeeth(positions);
-  dentalTeethData = currentTeethData;
+  // Overlay the actions of the selected day group itself
+  (group.items || []).forEach(function(item) {
+    if (item.toothNumber) {
+      dentalHistoricalTeethData[item.toothNumber] = {
+        status: mapDentalTreatmentToToothStatus(item.treatmentType),
+        surfaces: '',
+        notes: item.description || item.notes || ''
+      };
+    }
+  });
 
-  var existing = document.getElementById('dental-historical-modal');
-  if (existing) existing.remove();
+  // Automatically select the latest treated tooth of that day if available
+  var latestWithTooth = group.items.find(function(item) { return item.toothNumber; });
+  dentalSelectedTooth = latestWithTooth ? Number(latestWithTooth.toothNumber) : null;
 
-  var html =
-    '<div id="dental-historical-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10001;display:flex;align-items:center;justify-content:center">' +
-      '<div style="background:#fff;border-radius:18px;padding:24px;width:min(920px,94vw);max-height:92vh;overflow-y:auto;box-shadow:0 18px 60px rgba(0,0,0,.26)">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-          '<div>' +
-            '<span style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6366f1">Schéma historique</span>' +
-            '<h3 style="margin:4px 0 0;font-size:24px;color:#1e293b;font-weight:900">' + dentalEscapeHtml(group.dayLabel) + '</h3>' +
-            '<p style="margin:2px 0 0;color:#64748b;font-size:15px">' + group.items.length + ' acte(s) · ' + (group.teeth.length || 0) + ' dent(s) · Consultation en lecture seule</p>' +
-          '</div>' +
-          '<button onclick="closeDentalHistoricalModal()" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;width:42px;height:42px;font-size:24px;cursor:pointer;color:#64748b;line-height:1">×</button>' +
-        '</div>' +
-        '<svg class="dental-svg" viewBox="0 0 800 500" style="width:100%;height:auto;max-height:420px;margin:10px 0">' +
-          '<defs>' +
-            '<filter id="tSh" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="rgba(15,23,42,0.18)"/></filter>' +
-            '<linearGradient id="gU" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffdce4"/><stop offset="52%" stop-color="#f8b7c4"/><stop offset="100%" stop-color="#f09cac"/></linearGradient>' +
-            '<linearGradient id="gL" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#ffdce4"/><stop offset="52%" stop-color="#f8b7c4"/><stop offset="100%" stop-color="#f09cac"/></linearGradient>' +
-          '</defs>' +
-          '<text x="55" y="252" font-size="18" font-weight="700" fill="#d1d5db" text-anchor="middle">D</text>' +
-          '<text x="745" y="252" font-size="18" font-weight="700" fill="#d1d5db" text-anchor="middle">G</text>' +
-          '<line x1="400" y1="28" x2="400" y2="480" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="5,4" opacity="0.4"/>' +
-          '<path d="M 90,165 Q 110,28 400,18 Q 690,28 710,165" fill="url(#gU)" stroke="#d4818f" stroke-width="1.2" opacity="0.22"/>' +
-          '<path d="M 120,335 Q 140,468 400,478 Q 660,468 680,335" fill="url(#gL)" stroke="#d4818f" stroke-width="1.2" opacity="0.22"/>' +
-          '<path d="M 90,195 Q 250,210 400,214 Q 550,210 710,195" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
-          '<path d="M 120,305 Q 260,292 400,288 Q 540,292 680,305" fill="none" stroke="#e88da0" stroke-width="1.5" opacity="0.35"/>' +
-          teethSvg +
-        '</svg>' +
-        '<div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px">' +
-          '<button type="button" class="btn btn-primary" onclick="closeDentalHistoricalModal()">Revenir au schéma actuel</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  document.body.insertAdjacentHTML('beforeend', html);
+  // Render main chart in historical mode (updates 3D WebGL scene and 2D SVG directly!)
+  renderDentalChart();
+  if (dentalSelectedTooth) {
+    showToothDetail(dentalSelectedTooth);
+  }
   renderDentalPatientHistoryCards();
 }
 
 function closeDentalHistoricalModal() {
-  dentalSelectedHistoryDayKey = null;
   var modal = document.getElementById('dental-historical-modal');
   if (modal) modal.remove();
+  var dayModal = document.getElementById('dental-day-history-modal');
+  if (dayModal) dayModal.remove();
 }
 
 function showCurrentDentalSchema() {
   dentalSelectedHistoryDayKey = null;
   dentalHistoricalTeethData = {};
   dentalSelectedTooth = null;
+  closeDentalHistoricalModal();
   renderDentalChart();
+  if (isDental3DInitialized()) {
+    updateDental3DData(dentalTeethData, dentalTreatmentsCache, null);
+    selectToothIn3D(null);
+  }
   var notesContainer = document.getElementById('dental-chart-notes-container');
   if (notesContainer) notesContainer.innerHTML = getDentalNotesEmptyHTML();
   var panel = document.getElementById('dental-tooth-detail');
@@ -1353,51 +1760,12 @@ function renderDentalHistoryDaySvg(group, selectedTooth) {
 }
 
 function openDentalPatientHistoryDayWindow(dayKey, selectedTooth) {
-  var groups = getDentalHistoryDayGroups();
-  var group = groups.find(function(g) { return g.key === dayKey; });
-  if (!group) return;
-  dentalSelectedHistoryDayKey = dayKey;
-  var latestWithTooth = group.items.find(function(item) { return item.toothNumber; });
-  var modalSelectedTooth = selectedTooth || (latestWithTooth ? latestWithTooth.toothNumber : null);
-  var modal = document.getElementById('dental-day-history-modal');
-  if (modal) modal.remove();
-  var selectedToothData = modalSelectedTooth ? dentalTeethData[modalSelectedTooth] : null;
-  var selectedStatus = selectedToothData && selectedToothData.status ? selectedToothData.status : 'healthy';
-  var selectedStatusInfo = TOOTH_STATUSES[selectedStatus] || TOOTH_STATUSES.healthy;
-  var selectedActions = modalSelectedTooth ? group.items.filter(function(item) { return Number(item.toothNumber) === Number(modalSelectedTooth); }) : [];
-  var rows = group.items.map(function(item) {
-    var typeInfo = TREATMENT_TYPES.find(function(t) { return t.value === item.treatmentType; }) || { icon: '', label: item.treatmentType || 'Acte' };
-    var toothNumber = item.toothNumber || '—';
-    var toothData = item.toothNumber ? dentalTeethData[item.toothNumber] : null;
-    var status = toothData && toothData.status ? getToothStatusLabel(toothData.status) : 'État non défini';
-    var desc = item.description || item.notes || '';
-    return '<div class="dental-day-action-row">' +
-      '<div><strong>' + dentalEscapeHtml(typeInfo.icon + ' ' + typeInfo.label) + '</strong><span>Dent ' + dentalEscapeHtml(toothNumber) + ' · ' + dentalEscapeHtml(status) + '</span></div>' +
-      '<time>' + dentalEscapeHtml(formatDentalDateTime(item.treatmentDate)) + '</time>' +
-      (desc ? '<p>' + dentalEscapeHtml(desc) + '</p>' : '') +
-      '</div>';
-  }).join('');
-  var html = '<div id="dental-day-history-modal" class="dental-day-history-modal">' +
-    '<div class="dental-day-history-window">' +
-      '<div class="dental-day-history-window-head">' +
-        '<div><span>Historique consultation / journée</span><h3>' + dentalEscapeHtml(group.dayLabel) + '</h3><p>' + group.items.length + ' acte(s) · Dent(s) ' + dentalEscapeHtml(group.teeth.join(', ') || '—') + '</p></div>' +
-        '<button onclick="document.getElementById(\'dental-day-history-modal\').remove()">×</button>' +
-      '</div>' +
-      '<div class="dental-history-modal-layout">' +
-        renderDentalHistoryDaySvg(group, modalSelectedTooth) +
-        '<aside class="dental-history-modal-tooth">' +
-          '<span>Dent sélectionnée</span>' +
-          '<h4>' + (modalSelectedTooth ? 'Dent N° ' + dentalEscapeHtml(modalSelectedTooth) : 'Aucune dent') + '</h4>' +
-          '<p>' + dentalEscapeHtml(modalSelectedTooth ? (ADULT_TEETH[modalSelectedTooth] || '') : 'Cliquez sur une dent du schéma.') + '</p>' +
-          (modalSelectedTooth ? '<div style="background:' + selectedStatusInfo.color + ';border-color:' + selectedStatusInfo.border + ';color:' + selectedStatusInfo.tc + ';" class="dental-history-modal-status">' + selectedStatusInfo.icon + ' ' + getToothStatusLabel(selectedStatus) + '</div>' : '') +
-          '<small>' + selectedActions.length + ' acte(s) ce jour pour cette dent</small>' +
-        '</aside>' +
-      '</div>' +
-      '<div class="dental-day-action-list">' + rows + '</div>' +
-    '</div>' +
-    '</div>';
-  document.body.insertAdjacentHTML('beforeend', html);
-  renderDentalPatientHistoryCards();
+  closeDentalHistoricalModal();
+  showDentalHistoricalSchema(dayKey).then(function() {
+    if (selectedTooth) {
+      selectDentalTooth(selectedTooth);
+    }
+  });
 }
 
 function openDentalHistoryModalTooth(dayKey, toothNumber) {
@@ -1770,7 +2138,12 @@ registerLegacyGlobals('dentistry', {
   viewToothHistory,
   resetDental3DCamera,
   toggleDentalFdiGuide,
-  filterDentalPatientList
+  filterDentalPatientList,
+  handleDentalPatientSearchInput,
+  handleDentalPatientSearchFocus,
+  clearDentalPatientSearch,
+  selectDentalPatientFromSearch,
+  performDentalPatientSearch
 });
 
 window.initDentistry = initDentistry;
@@ -1782,6 +2155,22 @@ window.setDental3DView = setDental3DView;
 window.resetDental3DCamera = resetDental3DCamera;
 window.toggleDentalFdiGuide = toggleDentalFdiGuide;
 window.filterDentalPatientList = filterDentalPatientList;
+window.handleDentalPatientSearchInput = handleDentalPatientSearchInput;
+window.handleDentalPatientSearchFocus = handleDentalPatientSearchFocus;
+window.clearDentalPatientSearch = clearDentalPatientSearch;
+window.selectDentalPatientFromSearch = selectDentalPatientFromSearch;
+window.performDentalPatientSearch = performDentalPatientSearch;
+
+// Close dropdown on click outside
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const wrapper = document.querySelector('.dental-patient-search-wrapper');
+    const dropdown = document.getElementById('dental-patient-search-dropdown');
+    if (dropdown && wrapper && !wrapper.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
 
 // Auto-populate patient list as soon as DOM and API are ready
 if (typeof document !== 'undefined') {

@@ -1982,9 +1982,6 @@ function switchTab(tabId) {
             { label: 'Factures', value: 'tab-factures' },
             { label: typeof resolveBonPourDocumentTitle === 'function' ? resolveBonPourDocumentTitle() : 'Demande de Bilan', value: 'tab-bonpour' },
             { label: 'Orientations', value: 'tab-orientations' },
-            { label: 'Nasofibroscopies', value: 'tab-nasofibroscopies' },
-            { label: 'Échographies', value: 'tab-echographies' },
-            { label: 'Audiogrammes', value: 'tab-audiogrammes' },
           ],
           defaultValue: tabId || 'tab-prescriptions',
           onChange: (value) => switchTab(value),
@@ -2123,7 +2120,6 @@ function renderPatientConsultations() {
   const prescriptions = Array.isArray(patientRecordsCache.prescriptions) ? patientRecordsCache.prescriptions : [];
   const certificates = Array.isArray(patientRecordsCache.certificates) ? patientRecordsCache.certificates : [];
   const workLeaves = Array.isArray(patientRecordsCache.workLeaves) ? patientRecordsCache.workLeaves : [];
-  const orlHistory = typeof getORLHistory === 'function' ? getORLHistory(currentPatientId) : [];
 
   // Build unified chronological timeline
   const unifiedItems = [
@@ -2271,9 +2267,6 @@ function renderPatientConsultations() {
             ? `<span class="ant-tag ant-tag-warning" style="background: #fffbe6; color: #d46b08; border-color: #ffd591; font-weight: 600;">Impayé • ${(pendingPayment.amount || 0).toLocaleString('fr-DZ')} DZD</span>`
             : '<span class="ant-tag ant-tag-success" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-weight: 600;">Réglé</span>';
 
-          // Match ORL Report
-          const matchedORLReport = orlHistory.find(r => (r.data && String(r.data.consultationId) === String(c.id)) || (r.date && r.date.slice(0, 10) === dateStr));
-
           // Match generated documents
           const matchingPrescriptions = prescriptions.filter(p => (p.consultationId && String(p.consultationId) === String(c.id)) || (p.prescriptionDate && String(p.prescriptionDate).slice(0, 10) === dateStr));
           const matchingCerts = certificates.filter(cert => (cert.consultationId && String(cert.consultationId) === String(c.id)) || (cert.certificateDate && String(cert.certificateDate).slice(0, 10) === dateStr));
@@ -2290,12 +2283,6 @@ function renderPatientConsultations() {
                       <span style="font-weight: 700; font-size: 14px; color: #0f172a;">${escapeHTML(dateLabel)}</span>
                       ${timeLabel ? `<span style="font-size: 12px; color: #64748b;">à ${escapeHTML(timeLabel)}</span>` : ''}
                       <span class="ant-tag ant-tag-processing" style="background: #e6f0ff; color: #1677ff; border-color: #91caff; font-size: 12px; font-weight: 600;">${escapeHTML(c.type || 'Consultation')}</span>
-                      ${matchedORLReport ? `
-                        <span class="ant-tag" style="background: #e6fffb; color: #08979c; border-color: #87e8de; font-weight: 700; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(8, 151, 156, 0.1);" onclick="openORLReportFromTimeline('${matchedORLReport.id}', '${currentPatientId}')" title="Cliquer pour ouvrir le compte-rendu ORL lié">
-                          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                          Consultation avec Compte-Rendu ORL
-                        </span>
-                      ` : ''}
                     </div>
                     <div>${paymentStatus}</div>
                   </div>

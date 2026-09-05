@@ -91,6 +91,13 @@ function accentInsensitiveSql(expr) {
   return `translate(lower(${expr}), '${SEARCH_ACCENTED_CHARS}', '${SEARCH_PLAIN_CHARS}')`;
 }
 
+function stripSearchAccents(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 function buildPatientSearchClause(fields, searchTerm) {
   const cleanTerm = String(searchTerm || '').trim();
   const tokens = cleanTerm.split(/\s+/).filter(Boolean);
@@ -99,18 +106,18 @@ function buildPatientSearchClause(fields, searchTerm) {
     const tokenClauses = [];
     const params = [];
     tokens.forEach((token) => {
-      const pattern = `%${token}%`;
-      const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ${accentInsensitiveSql('?')}`);
+      const pattern = `%${stripSearchAccents(token)}%`;
+      const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ?`);
       tokenClauses.push(`(${comparisons.join(' OR ')})`);
       for (let i = 0; i < fields.length; i += 1) {
         params.push(pattern);
       }
     });
-    return { clause: `(${tokenClauses.join(' AND ')})`, pattern: params[0] || `%${cleanTerm}%`, params };
+    return { clause: `(${tokenClauses.join(' AND ')})`, pattern: params[0] || `%${stripSearchAccents(cleanTerm)}%`, params };
   }
 
-  const pattern = `%${cleanTerm}%`;
-  const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ${accentInsensitiveSql('?')}`);
+  const pattern = `%${stripSearchAccents(cleanTerm)}%`;
+  const comparisons = fields.map((field) => `${accentInsensitiveSql(field)} LIKE ?`);
   const params = fields.map(() => pattern);
   return { clause: `(${comparisons.join(' OR ')})`, pattern, params };
 }

@@ -10252,8 +10252,16 @@ body.assistant-mode #payment-requests-section {
   overflow: visible;
 }
 
-.dental-patient-picker-card .lazy-patient-select-wrapper {
+.dental-patient-picker-card .lazy-patient-select-wrapper,
+.dental-patient-picker-card .dental-patient-search-wrapper {
   z-index: 120;
+}
+
+.dental-search-item:hover {
+  background: #f1f5f9 !important;
+}
+.dental-search-item:active {
+  background: #e2e8f0 !important;
 }
 
 .dental-patient-picker-card h4 {
@@ -10364,20 +10372,20 @@ body.assistant-mode #payment-requests-section {
 
 .dental-history-cards-empty {
   margin-top: 6px;
-  padding: 14px;
+  padding: 12px;
   border: 1px dashed #cbd5e1;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f8fbff;
   color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.4;
 }
 
 .dental-history-cards-panel {
   margin-top: 6px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dental-history-cards-head {
@@ -10386,46 +10394,52 @@ body.assistant-mode #payment-requests-section {
   justify-content: space-between;
   gap: 10px;
   color: #334155;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .dental-history-cards-head span {
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 11px;
   color: #64748b;
+  font-weight: 700;
 }
 
 .dental-history-card-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dental-history-card {
   width: 100%;
-  min-height: 76px;
-  padding: 16px;
-  border: 1px solid #d8e3ef;
-  border-radius: 12px;
+  min-height: auto;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   background: #ffffff;
-  color: #172033;
+  color: #1e293b;
   cursor: pointer;
   text-align: left;
-  display: grid;
-  gap: 0;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
 .dental-history-card:hover {
-  border-color: #145da0;
-  box-shadow: 0 12px 24px rgba(20, 93, 160, 0.12);
+  border-color: #0284c7;
+  background: #f8fafc;
+  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.08);
   transform: translateY(-1px);
 }
 
 .dental-history-card.is-active {
-  border-color: #145da0;
-  box-shadow: 0 0 0 3px rgba(20, 93, 160, 0.12), 0 12px 24px rgba(20, 93, 160, 0.12);
+  border-color: #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.18), 0 3px 8px rgba(2, 132, 199, 0.08);
 }
 
 .dental-history-card:disabled {
@@ -10433,33 +10447,53 @@ body.assistant-mode #payment-requests-section {
   opacity: 0.6;
 }
 
-.dental-history-card-date {
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 800;
+.dental-history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .dental-history-card strong {
-  color: #172033;
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
-.dental-history-card span:not(.dental-history-card-date) {
-  color: #145da0;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.dental-history-card small {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  color: #64748b;
-  font-size: 14px;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 700;
   line-height: 1.35;
+}
+
+.dental-history-active-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dental-history-card-details {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dental-history-act-badge {
+  font-weight: 600;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10.5px;
+}
+
+.dental-history-teeth-info {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .dental-history-cards-pager {
@@ -10469,9 +10503,9 @@ body.assistant-mode #payment-requests-section {
 }
 
 .dental-history-cards-pager button {
-  height: 40px;
+  height: 32px;
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fafc;
   color: #334155;
   font-size: 14px;
@@ -10758,7 +10792,276 @@ body.assistant-mode #payment-requests-section {
 .dental-chart-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+}
+
+/* ==================== HISTORICAL MODE BANNER ==================== */
+.dental-historical-banner {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1.5px solid #3b82f6;
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.10);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.dental-historical-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dental-historical-badge {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.dental-historical-title {
+  color: #1e3a8a;
+  font-size: 14px;
+  display: block;
+}
+
+.dental-historical-subtitle {
+  color: #475569;
+  font-size: 12px;
+  display: block;
+}
+
+.dental-historical-return-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.dental-historical-return-btn:hover {
+  background: #1d4ed8 !important;
+  transform: translateY(-1px);
+}
+
+/* ==================== UPPER QUICK TOOTH SELECTOR BAR ==================== */
+.dental-upper-tooth-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.dental-upper-tooth-bar-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dental-quick-bar-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dental-quick-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dental-quick-bar-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.dental-quick-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dental-quick-legend-sample {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dental-quick-legend-sample.is-healthy {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+.dental-quick-legend-sample.is-absent {
+  background: #f1f5f9;
+  border: 1.5px dashed #94a3b8;
+}
+
+.dental-quick-legend-sample.is-treated {
+  background: #dbeafe;
+  border: 1px solid #2563eb;
+}
+
+.dental-quick-bar-arches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dental-quick-arch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 1px 0;
+  scrollbar-width: thin;
+}
+
+.dental-quick-arch-pill {
+  flex-shrink: 0;
+  width: 105px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+  user-select: none;
+}
+
+.dental-quick-quadrant {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.dental-quick-midline {
+  width: 2px;
+  height: 26px;
+  background: #cbd5e1;
+  border-radius: 1px;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.dental-quick-tooth-btn {
+  position: relative;
+  width: 32px;
+  height: 29px;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: #1e293b;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.dental-quick-tooth-btn:hover {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(2, 132, 199, 0.18);
+  z-index: 1;
+}
+
+.dental-quick-tooth-btn.is-selected {
+  border-color: #10b981 !important;
+  background: #ecfdf5 !important;
+  color: #065f46 !important;
+  box-shadow: 0 0 0 2.5px rgba(16, 185, 129, 0.35), 0 3px 8px rgba(16, 185, 129, 0.2) !important;
+  transform: translateY(-1px) scale(1.06);
+  font-weight: 800 !important;
+  z-index: 2;
+}
+
+.dental-quick-tooth-btn.is-absent {
+  border: 1.5px dashed #94a3b8;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.dental-quick-tooth-btn.is-absent.is-extraction {
+  border: 1.5px dashed #f87171;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.dental-quick-tooth-btn.is-absent:hover {
+  border-color: #0284c7;
+  border-style: solid;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.dental-quick-tooth-num {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dental-quick-badge-absent {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  color: #64748b;
+}
+
+.dental-quick-badge-dot {
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.tooth-g.tooth-gone {
+  cursor: pointer;
 }
 
 .dental-svg {

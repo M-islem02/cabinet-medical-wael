@@ -453,7 +453,7 @@ export function handleFileEvents() {
     }
   });
 
-  ipcMain.handle('file:importRadioFiles', async (event, { patientId, filePaths, examFamily = 'Radiographie ORL (Blondeau, Cavum, OPN)', notes = '' } = {}) => {
+  ipcMain.handle('file:importRadioFiles', async (event, { patientId, filePaths, examFamily = 'Panoramique dentaire', notes = '' } = {}) => {
     try {
       if (!patientId) {
         return { success: false, error: 'Patient non spécifié' };

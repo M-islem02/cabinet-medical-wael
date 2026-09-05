@@ -2,12 +2,9 @@ import { invokeApi } from '../api/api-client.js';
 
 const SPECIALTY_ALIASES = Object.freeze({
   general: 'general', generalist: 'general',
-  orl: 'orl', ent: 'orl', otorhino: 'orl', oto_rhino: 'orl',
-  dentistry: 'dentistry', dentist: 'dentistry', dentiste: 'dentistry',
-  rehabilitation: 'rehabilitation', mpr: 'rehabilitation',
-  cardiology: 'cardiology', cardio: 'cardiology'
+  dentistry: 'dentistry', dentist: 'dentistry', dentiste: 'dentistry'
 });
-const ALL_SPECIALTIES = Object.freeze(['general', 'orl', 'dentistry', 'rehabilitation', 'cardiology']);
+const ALL_SPECIALTIES = Object.freeze(['general', 'dentistry']);
 let cachedConfig = null;
 let loadPromise = null;
 
@@ -28,15 +25,12 @@ function parseSpecialties(raw) {
     return [...new Set(values.map(normalizeSpecialty).filter(Boolean))];
   }
 
-  const hasLegacyFlags = ['featureORL', 'featureDentistry', 'featureRehabilitation', 'featureCardiology']
+  const hasLegacyFlags = ['featureDentistry']
     .some((key) => raw && raw[key] !== undefined && raw[key] !== null);
   if (!hasLegacyFlags) return [...ALL_SPECIALTIES];
 
   const result = ['general'];
-  if (enabled(raw.featureORL, false)) result.push('orl');
   if (enabled(raw.featureDentistry, false)) result.push('dentistry');
-  if (enabled(raw.featureRehabilitation, false)) result.push('rehabilitation');
-  if (enabled(raw.featureCardiology, false)) result.push('cardiology');
   return result;
 }
 

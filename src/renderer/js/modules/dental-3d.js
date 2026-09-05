@@ -695,6 +695,26 @@ const CLINICAL_STATUS_STYLES = {
     emissiveIntensity: 0.52,
     roughness: 0.18,
     metalness: 0.05
+  },
+  // Absente: Translucent ghost phantom tooth (#f5f5f5, border #9e9e9e)
+  missing: {
+    color: 0x94a3b8,
+    emissive: 0x64748b,
+    emissiveIntensity: 0.20,
+    roughness: 0.85,
+    metalness: 0.0,
+    opacity: 0.22,
+    transparent: true
+  },
+  // Extraite: Translucent socket highlight (#ffebee, border #f44336)
+  extraction: {
+    color: 0xfca5a5,
+    emissive: 0xef4444,
+    emissiveIntensity: 0.25,
+    roughness: 0.85,
+    metalness: 0.0,
+    opacity: 0.24,
+    transparent: true
   }
 };
 
@@ -703,11 +723,7 @@ function applyToothVisualState(mesh, toothNumber) {
   const data = currentTeethData[toothNumber];
   const status = data ? data.status : 'healthy';
 
-  // 1. Missing or Extracted: Tooth physically vanishes from the dental arch!
-  if (status === 'missing' || status === 'extraction') {
-    mesh.visible = false;
-    return;
-  }
+  const isAbsent = (status === 'missing' || status === 'extraction');
   mesh.visible = true;
 
   const style = CLINICAL_STATUS_STYLES[status] || CLINICAL_STATUS_STYLES.healthy;
@@ -715,15 +731,28 @@ function applyToothVisualState(mesh, toothNumber) {
   mesh.material.roughness = style.roughness;
   mesh.material.metalness = style.metalness;
 
+  const prevTransparent = mesh.material.transparent;
+  mesh.material.transparent = isAbsent;
+  if (prevTransparent !== isAbsent) {
+    mesh.material.needsUpdate = true;
+  }
+
   if (toothNumber === currentSelectedTooth) {
     // Active selection: Brilliant Emerald Green glow (never clashes with statuses)
+    mesh.material.opacity = isAbsent ? 0.72 : 1.0;
+    mesh.material.depthWrite = true;
     mesh.material.emissive.setHex(0x10b981);
-    mesh.material.emissiveIntensity = 0.72;
+    mesh.material.emissiveIntensity = 0.78;
   } else if (toothNumber === hoveredToothNumber) {
     // Hover: Electric Sky Blue glow
+    mesh.material.opacity = isAbsent ? 0.50 : 1.0;
+    mesh.material.depthWrite = !isAbsent;
     mesh.material.emissive.setHex(0x00b4d8);
     mesh.material.emissiveIntensity = 0.65;
   } else {
+    // Idle state
+    mesh.material.opacity = isAbsent ? (style.opacity || 0.22) : 1.0;
+    mesh.material.depthWrite = !isAbsent;
     mesh.material.emissive.setHex(style.emissive);
     mesh.material.emissiveIntensity = style.emissiveIntensity;
   }

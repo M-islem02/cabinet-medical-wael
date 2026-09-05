@@ -382,35 +382,10 @@ contextBridge.exposeInMainWorld('api', {
     getTodayAppointments: () => ipcRenderer.invoke('notification:getTodayAppointments')
   },
 
-  // ========== API RÉÉDUCATION MPR ==========
-  
-  // API Bilans Fonctionnels
-  functionalEvaluation: {
-    create: (data) => ipcRenderer.invoke('functionalEvaluation:create', data),
-    getByPatient: (patientId) => ipcRenderer.invoke('functionalEvaluation:getByPatient', patientId),
-    getById: (id) => ipcRenderer.invoke('functionalEvaluation:getById', id),
-    update: (id, data) => ipcRenderer.invoke('functionalEvaluation:update', id, data),
-    delete: (id) => ipcRenderer.invoke('functionalEvaluation:delete', id),
-    getLatest: (patientId) => ipcRenderer.invoke('functionalEvaluation:getLatest', patientId)
-  },
-
   // API Examens Cliniques
   clinicalExam: contractApi.clinicalExam,
 
-  // API Échelles Médicales
-  medicalScale: {
-    getAll: () => ipcRenderer.invoke('medicalScale:getAll'),
-    getByCategory: (category) => ipcRenderer.invoke('medicalScale:getByCategory', category),
-    saveScore: (data) => ipcRenderer.invoke('medicalScale:saveScore', data),
-    getPatientScores: (patientId) => ipcRenderer.invoke('medicalScale:getPatientScores', patientId),
-    getScoreHistory: (patientId, scaleType) => ipcRenderer.invoke('medicalScale:getScoreHistory', patientId, scaleType)
-  },
 
-  // API Plans de Rééducation
-  rehabilitationPlan: contractApi.rehabilitationPlan,
-
-  // API Séances de Rééducation
-  rehabilitationSession: contractApi.rehabilitationSession,
 
   // API Progression Patient
   patientProgress: contractApi.patientProgress,
@@ -491,22 +466,7 @@ contextBridge.exposeInMainWorld('api', {
     delete: (id) => ipcRenderer.invoke('waiting-room:delete', id)
   },
 
-  // ========== API KINÉ STAFF ==========
-  kineStaff: {
-    getAll: () => ipcRenderer.invoke('kine-staff:get-all'),
-    create: (data) => ipcRenderer.invoke('kine-staff:create', data),
-    update: (id, data) => ipcRenderer.invoke('kine-staff:update', id, data),
-    delete: (id) => ipcRenderer.invoke('kine-staff:delete', id),
-    getSessions: (kineId) => ipcRenderer.invoke('kine-staff:get-sessions', kineId),
-    getStats: () => ipcRenderer.invoke('kine-staff:get-stats'),
-    getDailySummary: (date) => ipcRenderer.invoke('kine-staff:get-daily-summary', date)
-  },
 
-  // ========== API KINÉ SESSIONS ==========
-  kineSession: {
-    create: (data) => ipcRenderer.invoke('kine-session:create', data),
-    updatePayment: (sessionId, status) => ipcRenderer.invoke('kine-session:update-payment', sessionId, status)
-  },
 
   // ========== API RÉSUMÉ JOURNALIER ==========
   dailySummary: {

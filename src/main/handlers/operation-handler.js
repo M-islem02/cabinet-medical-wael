@@ -38,7 +38,7 @@ async function ensureOperationsTables() {
         operationTime VARCHAR(10),
         operationType VARCHAR(150) NOT NULL,
         operationCode VARCHAR(50),
-        category VARCHAR(50) NOT NULL DEFAULT 'orl',
+        category VARCHAR(50) NOT NULL DEFAULT 'dentistry',
         practitionerId VARCHAR(36),
         practitionerName VARCHAR(100),
         room VARCHAR(50),
@@ -60,7 +60,7 @@ async function ensureOperationsTables() {
     await run(`
       CREATE TABLE IF NOT EXISTS operation_types_catalog (
         id VARCHAR(36) PRIMARY KEY,
-        specialty VARCHAR(50) NOT NULL DEFAULT 'orl',
+        specialty VARCHAR(50) NOT NULL DEFAULT 'dentistry',
         name VARCHAR(150) NOT NULL,
         code VARCHAR(50),
         category VARCHAR(50) DEFAULT 'Chirurgie',
@@ -125,7 +125,7 @@ export function handleOperationEvents() {
       const ctx = getOperationContext();
       if (!ctx.canManage) return { success: false, error: 'Accès non autorisé' };
       const id = data.id || `op_custom_${Date.now()}`;
-      const specialty = data.specialty || 'orl';
+      const specialty = data.specialty || 'dentistry';
       const name = (data.name || '').trim();
       if (!name) return { success: false, error: 'Le nom de l\'acte est requis' };
       const code = toNull(data.code);
@@ -222,7 +222,7 @@ export function handleOperationEvents() {
       const operationTime = data.operationTime || moment().format('HH:mm');
       const operationType = data.operationType.trim();
       const operationCode = toNull(data.operationCode);
-      const category = data.category || 'orl';
+      const category = data.category || 'dentistry';
       const practitionerId = toNull(data.practitionerId || ctx.userId);
       const practitionerName = toNull(data.practitionerName || ctx.userName);
       const room = toNull(data.room || 'Salle d\'intervention');
@@ -246,7 +246,7 @@ export function handleOperationEvents() {
           await run(
             `INSERT INTO operation_types_catalog (id, specialty, name, code, category, defaultCost, defaultDuration, description, isActive, isCustom)
              VALUES (?, ?, ?, ?, 'Chirurgie', ?, ?, NULL, TRUE, TRUE)`,
-            [newTypeId, category || 'orl', operationType, operationCode || null, cost || 0, durationMinutes || 30]
+            [newTypeId, category || 'dentistry', operationType, operationCode || null, cost || 0, durationMinutes || 30]
           );
         }
       } catch (catErr) {

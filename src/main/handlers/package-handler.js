@@ -29,7 +29,6 @@ const PACKAGE_DEFINITIONS = {
       statistics: true,
       inventory: true,
       dentistry: true,
-      orl: false,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -53,7 +52,6 @@ const PACKAGE_DEFINITIONS = {
       statistics: true,
       inventory: true,
       dentistry: true,
-      orl: false,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -77,7 +75,6 @@ const PACKAGE_DEFINITIONS = {
       statistics: true,
       inventory: true,
       dentistry: true,
-      orl: false,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -95,8 +92,7 @@ const PACKAGE_DEFINITIONS = {
     maxDoctors: 1,
     maxAssistants: 0,
     features: {
-      dentistry: true,
-      orl: false
+      dentistry: true
     },
     basePrice: 0
   }
@@ -107,8 +103,6 @@ const OPTION_PRICES = {
   dentist: 60000,
   assistant: 15000,
   dentistry: 0,
-  rehabilitation: 0,
-  orl: 0,
   aiReports: 10000,
   aiChatbot: 8000,
   afterSalesSupport: 0,
@@ -147,8 +141,7 @@ function sanitizePackageConfig(rawConfig = {}) {
     enabledSpecialties: safeEnabledSpecialties,
     activeSpecialty,
     cabinetType,
-    featureDentistry: safeEnabledSpecialties.includes('dentistry'),
-    featureORL: safeEnabledSpecialties.includes('orl')
+    featureDentistry: safeEnabledSpecialties.includes('dentistry')
   };
 }
 
@@ -193,12 +186,6 @@ function calculateTotalFromConfig(config) {
   const doctors = parseInt(config.maxDoctors || 1, 10) || 1;
   const assistants = parseInt(config.maxAssistants || 0, 10) || 0;
   let total = doctors * OPTION_PRICES.doctor + assistants * OPTION_PRICES.assistant;
-  if (config.featureRehabilitation || config.featureKineStaff) {
-    total += OPTION_PRICES.rehabilitation;
-  }
-  if (config.featureORL && OPTION_PRICES.orl) {
-    total += OPTION_PRICES.orl;
-  }
   if (config.featureAiReports) {
     total += OPTION_PRICES.aiReports;
   }

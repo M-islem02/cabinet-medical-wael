@@ -30,7 +30,6 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand-wrapper logo">
                     <img src="assets/Dentiste.png" alt="Cabinet Dentaire" class="app-brand-logo" onerror="this.src='assets/logo.png'">
-                    <h2>Cabinet Dentaire</h2>
                 </div>
                 <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()"
                     title="Réduire la navigation" aria-label="Réduire la navigation">
@@ -92,53 +91,18 @@
                     </span>
                     <span class="label">Radios & Imagerie</span>
                 </a>
-                <a href="#" class="nav-item hidden role-hidden feature-disabled" data-section="orl" onclick="event.preventDefault(); showSection('orl')" title="Module ORL & Explorations" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                    </span>
-                    <span class="label">Module ORL</span>
-                </a>
+
                 <a href="#" class="nav-item" data-section="operations" onclick="event.preventDefault(); showSection('operations')" title="Chirurgie & Actes">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                     </span>
                     <span class="label">Opérations</span>
                 </a>
-                <a href="#" class="nav-item doctor-only" data-section="treatment-plans" onclick="event.preventDefault(); showSection('treatment-plans')" title="Plans de Traitement">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-                    </span>
-                    <span class="label">Plans Traitement</span>
-                </a>
-                <a href="#" class="nav-item demo-only hidden role-hidden feature-disabled" data-section="consultations" onclick="event.preventDefault(); showSection('consultations')" title="Consultations des patients" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
-                    </span>
-                    <span class="label">Consultations</span>
-                </a>
-                <a href="#" class="nav-item demo-only hidden role-hidden feature-disabled" data-section="prescriptions" onclick="event.preventDefault(); showSection('prescriptions')" title="Ordonnances des patients" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-                    </span>
-                    <span class="label">Ordonnances</span>
-                </a>
-                <a href="#" class="nav-item demo-only hidden role-hidden feature-disabled" data-section="sick-leaves" onclick="event.preventDefault(); showSection('sick-leaves')" title="Certificats médicaux & Arrêts de travail" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M12 10v6"/></svg>
-                    </span>
-                    <span class="label">Certificats</span>
-                </a>
                 <a href="#" class="nav-item" data-section="payments" onclick="event.preventDefault(); showSection('payments')" title="Gestion des Paiements">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                     </span>
                     <span class="label">Paiements</span>
-                </a>
-                <a href="#" class="nav-item demo-only hidden role-hidden feature-disabled" data-section="expenses" onclick="event.preventDefault(); showSection('expenses')" title="Gestion des Dépenses" style="display: none;">
-                    <span class="icon">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-                    </span>
-                    <span class="label">Dépenses</span>
                 </a>
                 <a href="#" class="nav-item" data-section="inventory" onclick="event.preventDefault(); showSection('inventory')" title="Gestion du Stock">
                     <span class="icon">
@@ -306,11 +270,11 @@
 
                     <div class="welcome-box ant-alert ant-alert-info">
                         <div>
-                            <h2>Espace ORL &amp; Chirurgie</h2>
-                            <p>Accès direct aux consultations ORL, audiométrie, fibroscopie, actes chirurgicaux et dossiers patients.</p>
+                            <h2>Cabinet Dentaire</h2>
+                            <p>Accès direct aux dossiers patients, à l'odontogramme, aux soins dentaires et à la gestion du cabinet.</p>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button type="button" class="btn btn-primary" onclick="showSection('orl')">Consulter Module ORL</button>
+                            <button type="button" class="btn btn-primary" onclick="showSection('dentistry')">Espace Dentaire</button>
                             <button type="button" class="btn btn-secondary" onclick="showSection('patients')">Répertoire Patients</button>
                         </div>
                     </div>
@@ -437,14 +401,7 @@
                             <div class="ant-kpi-value" id="summary-echo">0</div>
                             <div style="font-size: 12px; color: rgba(0,0,0,0.45);">Examens réalisés</div>
                         </div>
-                        <div class="ant-kpi-card" id="summary-kine-card">
-                            <div class="ant-kpi-title">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
-                                Séances Kiné / MPR
-                            </div>
-                            <div class="ant-kpi-value" id="summary-kine">0</div>
-                            <div style="font-size: 12px; color: rgba(0,0,0,0.45);">Séances effectuées</div>
-                        </div>
+
                         <div class="ant-kpi-card">
                             <div class="ant-kpi-title">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
@@ -498,26 +455,7 @@
                         </table>
                     </div>
 
-                    <!-- Summary by Kiné -->
-                    <div class="card doctor-only" id="summary-kine-table-card">
-                        <div class="card-header">
-                            <h3>Résumé par Praticien</h3>
-                        </div>
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Praticien</th>
-                                    <th>Séances / Actes</th>
-                                    <th>Montant</th>
-                                </tr>
-                            </thead>
-                            <tbody id="summary-kine-tbody">
-                                <tr class="empty-row">
-                                    <td colspan="3" class="text-center">Aucune donnée</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+
 
                     <!-- Today's Consultations List -->
                     <div class="card" style="margin-top: 20px;">
@@ -542,1071 +480,6 @@
                         </table>
                     </div>
                 </section>
-
-                <!-- ===================== ORL SECTION ===================== -->
-                <section id="orl" class="section hidden role-hidden feature-disabled" style="display: none !important;">
-  <!-- A. Top Action Bar with Patient Search Selector -->
-  <div class="orl-top-action-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 14px;">
-    <!-- Title -->
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <div style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #1677ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #bfdbfe; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
-      </div>
-      <h2 style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.2px;">Comptes-Rendus & Explorations ORL</h2>
-    </div>
-
-    <!-- Upper Patient Search Bar -->
-    <div class="orl-top-patient-search" style="flex: 1; max-width: 380px; min-width: 260px; position: relative; z-index: 100;">
-      <select id="orl-patient-selector" class="form-control feature-patient-selector" onchange="selectORLPatient(this.value)" style="width: 100%;">
-        <option value="">Rechercher un patient...</option>
-      </select>
-    </div>
-
-    <!-- Action Buttons -->
-    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-      <button class="btn btn-secondary" id="orl-btn-refresh" onclick="refreshORLPatientList()" title="Rafraîchir les patients" style="height: 40px; min-width: 40px; padding: 0 12px; border-radius: 8px;">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      </button>
-      <button class="btn" id="orl-btn-history" onclick="showORLHistoryView()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des comptes-rendus">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Historique</span>
-      </button>
-      <button class="btn" id="orl-btn-editor" onclick="switchORLTab('report'); showORLWizardView();" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span>Éditeur</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- B0. Empty State View (When no patient is selected) -->
-  <div id="orl-empty-view" class="orl-view-hidden" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 70px 24px; text-align: center;">
-    <div class="ant-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-      <div class="ant-empty-image" style="margin-bottom: 20px;">
-        <svg viewBox="0 0 64 64" width="68" height="68" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 18h48v36a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4V18z" fill="#f8fafc"/>
-          <path d="M8 18l6-10h36l6 10H8z" fill="#f1f5f9"/>
-          <line x1="26" y1="34" x2="38" y2="34"/>
-        </svg>
-      </div>
-      <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun patient sélectionné</div>
-      <div style="font-size: 15px; color: #64748b; max-width: 480px; line-height: 1.6; margin-bottom: 20px;">Veuillez rechercher et sélectionner un patient dans la barre supérieure pour accéder à ses examens, son historique et ses comptes-rendus ORL.</div>
-    </div>
-  </div>
-
-  <!-- B1. History List View (Default State when patient selected) -->
-  <div id="orl-history-view" class="orl-view-hidden">
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 24px 28px;">
-      <div style="margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">Historique des Comptes-Rendus & Consultations ORL</h3>
-          <p style="margin: 6px 0 0 0; font-size: 14.5px; color: #475569;" id="orl-history-view-patient-subtitle">Patient : <em>Aucun patient sélectionné</em></p>
-        </div>
-        <div id="orl-history-header-actions" style="display: none;">
-          <button type="button" id="orl-history-header-new-report" class="btn btn-primary" onclick="createNewORLReport()" style="height: 38px; padding: 0 16px; font-size: 14px; font-weight: 650; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; background: #1677ff; border-color: #1677ff;">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>Nouveau rapport</span>
-          </button>
-        </div>
-      </div>
-      <div id="orl-history-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
-    </div>
-  </div>
-
-  <!-- B. 2-Column Workspace Layout -->
-  <div id="orl-wizard-view" class="orl-workspace-layout">
-    <!-- Colonne Gauche : Sider Navigation (320px) -->
-    <aside class="orl-sider">
-      <!-- Active Patient Summary Card -->
-      <div class="orl-patient-card" style="margin-bottom: 16px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="avatar" id="orl-patient-avatar" style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: #1677ff; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; box-shadow: 0 2px 8px rgba(22,119,255,0.25);">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
-          <div style="overflow: hidden; flex: 1; min-width: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PATIENT EN COURS</div>
-              <button type="button" id="orl-sider-deselect-btn" onclick="deselectORLPatient(event)" title="Désélectionner ce patient" style="display: none; width: 20px; height: 20px; border-radius: 6px; background: #ffffff; border: 1px solid #f87171; color: #dc2626; cursor: pointer; font-size: 11px; font-weight: 800; align-items: center; justify-content: center; padding: 0;">✕</button>
-            </div>
-            <div id="orl-current-patient-display" style="font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Aucun patient sélectionné</div>
-            <div id="orl-current-patient-sub" style="font-size: 12.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Sélectionnez un patient en haut</div>
-          </div>
-        </div>
-        
-        <!-- Sider Quick History Box -->
-        <div id="orl-sider-history-box" style="display: none; margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">Historique rapports</span>
-            <button type="button" onclick="showORLHistoryView()" style="border: none; background: transparent; font-size: 12px; color: #1677ff; font-weight: 600; cursor: pointer; padding: 0;">Voir tout</button>
-          </div>
-          <div id="orl-sider-history-items" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;">
-          </div>
-        </div>
-      </div>
-
-      <div class="ant-divider" style="margin: 12px 0 16px 0; border-top: 1px solid #f1f5f9;"></div>
-
-      <!-- SectionSteps Navigation Verticale (9 Sections Redesigned with Clean Line Icons) -->
-      <div class="orl-section-steps" id="orl-section-steps">
-        <div class="orl-section-step-item active" data-tab="anamnese" onclick="switchORLTab('anamnese')">
-          <span class="ant-step-circle">1</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-          <span class="ant-step-label">1. Anamnèse & Motif</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="clinical" onclick="switchORLTab('clinical')">
-          <span class="ant-step-circle">2</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg></span>
-          <span class="ant-step-label">2. Oreilles & Otoscopie</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="audio" onclick="switchORLTab('audio')">
-          <span class="ant-step-circle">3</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5v14M7 9v6M22 10v4M2 11v2"/></svg></span>
-          <span class="ant-step-label">3. Audiométrie & Impédance</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="rhino" onclick="switchORLTab('rhino')">
-          <span class="ant-step-circle">4</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3L6 18h12L12 3z"/><line x1="12" y1="9" x2="12" y2="15"/></svg></span>
-          <span class="ant-step-label">4. Nez & Sinus</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="pharynx" onclick="switchORLTab('pharynx')">
-          <span class="ant-step-circle">5</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg></span>
-          <span class="ant-step-label">5. Bouche & Pharynx</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="larynx" onclick="switchORLTab('larynx')">
-          <span class="ant-step-circle">6</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <span class="ant-step-label">6. Larynx & Fibroscopie</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="vestibular" onclick="switchORLTab('vestibular')">
-          <span class="ant-step-circle">7</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg></span>
-          <span class="ant-step-label">7. Vestibulaire & Cou</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="conclusion" onclick="switchORLTab('conclusion')">
-          <span class="ant-step-circle">8</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
-          <span class="ant-step-label">8. Diagnostic & Soins</span>
-        </div>
-        <div class="orl-section-step-item" data-tab="report" onclick="switchORLTab('report')">
-          <span class="ant-step-circle">9</span>
-          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
-          <span class="ant-step-label">9. Compte-Rendu & Impression</span>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Colonne Droite : Contenu de la Section Active -->
-    <section class="orl-content-area">
-      <!-- C. Grille KPI 2x2 (Spec 14 §2) -->
-      <div class="orl-kpi-grid-2x2">
-        <div class="orl-kpi-card-2x2">
-          <div class="orl-kpi-icon-badge" style="background: #e6f0ff;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1677ff" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          </div>
-          <div>
-            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Dernier Examen</div>
-            <div id="orl-stat-last-visit" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">--</div>
-            <div style="font-size: 12px; color: #64748b;">Historique consultation</div>
-          </div>
-        </div>
-        <div class="orl-kpi-card-2x2">
-          <div class="orl-kpi-icon-badge" style="background: #e6fbf5;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0d9488" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-          </div>
-          <div>
-            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Profil Auditif</div>
-            <div id="orl-stat-audiogram" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">--</div>
-            <div style="font-size: 12px; color: #64748b;">Audiométrie tonale</div>
-          </div>
-        </div>
-        <div class="orl-kpi-card-2x2">
-          <div class="orl-kpi-icon-badge" style="background: #fff1e6;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </div>
-          <div>
-            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Endoscopies</div>
-            <div id="orl-stat-fibro-count" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
-            <div style="font-size: 12px; color: #64748b;">Fibroscopies enregistrées</div>
-          </div>
-        </div>
-        <div class="orl-kpi-card-2x2">
-          <div class="orl-kpi-icon-badge" style="background: #f3e8ff;">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9333ea" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          </div>
-          <div>
-            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Dossier Enregistré</div>
-            <div id="orl-stat-total-reports" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
-            <div style="font-size: 12px; color: #64748b;">Comptes-rendus stockés</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- D. Tab Content Panes -->
-      <!-- Tab 1 -->
-      <!-- Tab 1 : Anamnèse & Motif -->
-      <div id="orl-tab-anamnese" class="ant-tabs-pane active">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="motif" onclick="switchORLSubTab('anamnese', 'motif')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Motif de Consultation
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="risks" onclick="switchORLSubTab('anamnese', 'risks')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Facteurs de Risque
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="antecedents" onclick="switchORLSubTab('anamnese', 'antecedents')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Antécédents
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn is-included" data-subject="motif" onclick="event.stopPropagation(); toggleORLSubject('motif')">
-              <span class="plus-icon">✓</span> <span class="btn-text">Inclus au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="motif">
-              <div style="margin-bottom:12px;">
-                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Motifs fréquents</label>
-                <div id="orl-motif-tags" class="orl-chip-group"></div>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-motif" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Description du motif</label>
-                <textarea id="orl-motif" class="form-control" rows="3" placeholder="Ex: Otalgie droite aiguë..." oninput="toggleORLSubject('motif', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-date" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Date de consultation</label>
-                <input type="date" id="orl-date" class="form-control" onchange="renderORLWysiwygReport()">
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="risks">
-              <div id="orl-risk-tags" class="orl-chip-group" style="margin-bottom:12px;"></div>
-              <label for="orl-risk-factors" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Facteurs de risque complémentaires</label>
-              <textarea id="orl-risk-factors" class="form-control" rows="3" placeholder="Ex: Tabagisme, exposition au bruit..." oninput="toggleORLSubject('risks', true)"></textarea>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="antecedents">
-              <div class="orl-form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                <div>
-                  <label for="orl-antecedents" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Antécédents médicaux</label>
-                  <textarea id="orl-antecedents" class="form-control" rows="3" placeholder="Antécédents médicaux..." oninput="toggleORLSubject('antecedents', true)"></textarea>
-                </div>
-                <div>
-                  <label for="orl-antecedents-chirurgicaux" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Antécédents chirurgicaux</label>
-                  <textarea id="orl-antecedents-chirurgicaux" class="form-control" rows="3" placeholder="Antécédents chirurgicaux..." oninput="toggleORLSubject('antecedents', true)"></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 1 -->
-        <div class="orl-pagination-footer">
-          <div style="font-size: 12px; font-weight: 600; color: rgba(0,0,0,0.65);">
-            Étape 1 sur 9 : Anamnèse & Motif
-          </div>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot active" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('anamnese')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Otoscopie
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 2 : Oreilles & Otoscopie -->
-      <div id="orl-tab-clinical" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="otoscopy-od" onclick="switchORLSubTab('clinical', 'otoscopy-od')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Otoscopie OD
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="otoscopy-og" onclick="switchORLSubTab('clinical', 'otoscopy-og')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Otoscopie OG
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="acouphenes" onclick="switchORLSubTab('clinical', 'acouphenes')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                Acouphènes & Diapasons
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="otoscopy-od" onclick="event.stopPropagation(); toggleORLSubject('otoscopy-od')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="otoscopy-od">
-              <label for="orl-otoscopy-od" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Examen Otoscopique Oreille Droite (OD)</label>
-              <textarea id="orl-otoscopy-od" class="form-control" rows="4" placeholder="Ex: Tympan gris perle, triangle lumineux présent, intègre, CAE libre..." oninput="toggleORLSubject('otoscopy-od', true)"></textarea>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="otoscopy-og">
-              <label for="orl-otoscopy-og" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Examen Otoscopique Oreille Gauche (OG)</label>
-              <textarea id="orl-otoscopy-og" class="form-control" rows="4" placeholder="Ex: Tympan gris perle, triangle lumineux présent, intègre, CAE libre..." oninput="toggleORLSubject('otoscopy-og', true)"></textarea>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="acouphenes">
-              <div style="margin-bottom:12px;">
-                <label for="orl-acouphenes" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Acouphènes</label>
-                <input type="text" id="orl-acouphenes" class="form-control" placeholder="Acouphènes..." oninput="toggleORLSubject('acouphenes', true)">
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-rinne" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Test de Rinne</label>
-                <input type="text" id="orl-rinne" class="form-control" placeholder="Rinne positif / négatif..." oninput="toggleORLSubject('acouphenes', true)">
-              </div>
-              <div>
-                <label for="orl-weber" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Test de Weber</label>
-                <input type="text" id="orl-weber" class="form-control" placeholder="Weber centré / latéralisé..." oninput="toggleORLSubject('acouphenes', true)">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 2 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot active" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('clinical')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Audiométrie
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 3 : Audiométrie & Impédance -->
-      <div id="orl-tab-audio" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="audio-type" onclick="switchORLSubTab('audio', 'audio-type')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Type & Degré
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="audio-freq" onclick="switchORLSubTab('audio', 'audio-freq')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                Seuils Tonaux (dB)
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="audio-tympanometry" onclick="switchORLSubTab('audio', 'audio-tympanometry')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                Tympanométrie & Vocale
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="audio-type" onclick="event.stopPropagation(); toggleORLSubject('audio-type')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="audio-type">
-              <div style="display:flex; gap:16px;">
-                <div style="flex:1;">
-                  <label for="orl-hearing-type" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Type de Surdité</label>
-                  <select id="orl-hearing-type" class="form-control" onchange="toggleORLSubject('audio-type', true)">
-                    <option value="Normale">Normale</option>
-                    <option value="Transmission">Transmission</option>
-                    <option value="Perception">Perception</option>
-                    <option value="Mixte">Mixte</option>
-                  </select>
-                </div>
-                <div style="flex:1;">
-                  <label for="orl-hearing-degree" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Degré</label>
-                  <select id="orl-hearing-degree" class="form-control" onchange="toggleORLSubject('audio-type', true)">
-                    <option value="Aucune">Aucune</option>
-                    <option value="Legere">Légère</option>
-                    <option value="Moyenne">Moyenne</option>
-                    <option value="Severe">Sévère</option>
-                    <option value="Profonde">Profonde</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="audio-freq">
-              <table class="audio-freq-table" style="width:100%; border-collapse:collapse;">
-                <thead>
-                  <tr>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0; font-weight:600;">Oreille</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">250 Hz</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">500 Hz</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">1000 Hz</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">2000 Hz</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">4000 Hz</th>
-                    <th style="background:#fafafa; padding:8px; border:1px solid #f0f0f0;">8000 Hz</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style="padding:8px; border:1px solid #f0f0f0; font-weight:600;">Droite (OD)</td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-250" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-500" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-1k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-2k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-4k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-od-8k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                  </tr>
-                  <tr>
-                    <td style="padding:8px; border:1px solid #f0f0f0; font-weight:600;">Gauche (OG)</td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-250" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-500" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-1k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-2k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-4k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                    <td style="padding:4px; border:1px solid #f0f0f0;"><input type="number" id="orl-audio-og-8k" class="form-control" min="-10" max="120" step="5" style="text-align:center; height:32px;" placeholder="dB" oninput="toggleORLSubject('audio-freq', true)"></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="audio-tympanometry">
-              <div style="margin-bottom:12px;">
-                <label for="orl-tympanometry" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Tympanométrie</label>
-                <textarea id="orl-tympanometry" class="form-control" rows="2" placeholder="Tympanométrie (Courbe type A, B, C...)..." oninput="toggleORLSubject('audio-tympanometry', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-audio-speech" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Audiométrie Vocale</label>
-                <textarea id="orl-audio-speech" class="form-control" rows="2" placeholder="Seuil d'intelligibilité, discrimination..." oninput="toggleORLSubject('audio-tympanometry', true)"></textarea>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 3 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot active" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('audio')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Nez & Sinus
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 4 : Nez & Sinus -->
-      <div id="orl-tab-rhino" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="rhinoscopy" onclick="switchORLSubTab('rhino', 'rhinoscopy')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Pyramide Nasale & Rhinoscopie
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="rhino-symptoms" onclick="switchORLSubTab('rhino', 'rhino-symptoms')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Symptômes Nasaux
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="rhinoscopy" onclick="event.stopPropagation(); toggleORLSubject('rhinoscopy')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="rhinoscopy">
-              <div style="margin-bottom:12px;">
-                <label for="orl-rhino-external" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Pyramide Nasale</label>
-                <input type="text" id="orl-rhino-external" class="form-control" placeholder="Pyramide Nasale..." oninput="toggleORLSubject('rhinoscopy', true)">
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-rhinoscopy" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Rhinoscopie antérieure</label>
-                <textarea id="orl-rhinoscopy" class="form-control" rows="2" placeholder="Rhinoscopie..." oninput="toggleORLSubject('rhinoscopy', true)"></textarea>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-rhino-septum" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Septum Nasal</label>
-                <textarea id="orl-rhino-septum" class="form-control" rows="2" placeholder="Septum..." oninput="toggleORLSubject('rhinoscopy', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-rhino-cornets" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Cornets</label>
-                <textarea id="orl-rhino-cornets" class="form-control" rows="2" placeholder="Cornets..." oninput="toggleORLSubject('rhinoscopy', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="rhino-symptoms">
-              <label for="orl-rhino-symptoms" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Symptômes Nasaux & Sinusiens</label>
-              <textarea id="orl-rhino-symptoms" class="form-control" rows="4" placeholder="Obstruction, rhinorrhée, anosmie, éternuements..." oninput="toggleORLSubject('rhino-symptoms', true)"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 4 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot active" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('rhino')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Pharynx
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 5 : Bouche & Pharynx -->
-      <div id="orl-tab-pharynx" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="mouth" onclick="switchORLSubTab('pharynx', 'mouth')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Cavité Buccale
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="pharynx-tonsils" onclick="switchORLSubTab('pharynx', 'pharynx-tonsils')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-7.54 16.59L12 22l7.54-3.41A10 10 0 0 0 12 2z"/></svg>
-                Pharynx & Amygdales
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="mouth-symptoms" onclick="switchORLSubTab('pharynx', 'mouth-symptoms')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Symptômes
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="mouth" onclick="event.stopPropagation(); toggleORLSubject('mouth')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="mouth">
-              <div style="margin-bottom:12px;">
-                <label for="orl-mouth-lips-teeth" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Lèvres & Dents</label>
-                <textarea id="orl-mouth-lips-teeth" class="form-control" rows="2" placeholder="Lèvres, Dents..." oninput="toggleORLSubject('mouth', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-mouth-tongue" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Langue & Plancher Buccal</label>
-                <textarea id="orl-mouth-tongue" class="form-control" rows="2" placeholder="Langue..." oninput="toggleORLSubject('mouth', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="pharynx-tonsils">
-              <div style="margin-bottom:12px;">
-                <label for="orl-mouth-palate" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Voile & Luette</label>
-                <textarea id="orl-mouth-palate" class="form-control" rows="2" placeholder="Voile, Luette..." oninput="toggleORLSubject('pharynx-tonsils', true)"></textarea>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-pharynx-tonsils" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Amygdales</label>
-                <textarea id="orl-pharynx-tonsils" class="form-control" rows="2" placeholder="Amygdales..." oninput="toggleORLSubject('pharynx-tonsils', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-pharynx-wall" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Cavum / Paroi Pharyngée</label>
-                <textarea id="orl-pharynx-wall" class="form-control" rows="2" placeholder="Cavum..." oninput="toggleORLSubject('pharynx-tonsils', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="mouth-symptoms">
-              <label for="orl-mouth-symptoms" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Symptômes Buccaux & Pharyngés</label>
-              <textarea id="orl-mouth-symptoms" class="form-control" rows="4" placeholder="Dysphagie, odynophagie, brûlures, aphtes..." oninput="toggleORLSubject('mouth', true)"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 5 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot active" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('pharynx')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Larynx
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 6 : Larynx & Fibroscopie -->
-      <div id="orl-tab-larynx" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="fibro-larynx" onclick="switchORLSubTab('larynx', 'fibro-larynx')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Larynx & Nasofibroscopie
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="larynx-symptoms" onclick="switchORLSubTab('larynx', 'larynx-symptoms')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Symptômes
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="fibro-larynx" onclick="event.stopPropagation(); toggleORLSubject('fibro-larynx')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="fibro-larynx">
-              <div style="margin-bottom:12px;">
-                <label for="orl-fibro-epiglottis" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Épiglotte</label>
-                <textarea id="orl-fibro-epiglottis" class="form-control" rows="2" placeholder="Épiglotte..." oninput="toggleORLSubject('fibro-larynx', true)"></textarea>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-fibro-pyriform" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Sinus Piriformes</label>
-                <textarea id="orl-fibro-pyriform" class="form-control" rows="2" placeholder="Sinus Piriformes..." oninput="toggleORLSubject('fibro-larynx', true)"></textarea>
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-fibro-larynx" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Cordes Vocales</label>
-                <textarea id="orl-fibro-larynx" class="form-control" rows="2" placeholder="Cordes Vocales..." oninput="toggleORLSubject('fibro-larynx', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-larynx-mobility" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Mobilité Laryngée</label>
-                <input type="text" id="orl-larynx-mobility" class="form-control" placeholder="Mobilité cordale symétrique..." oninput="toggleORLSubject('fibro-larynx', true)">
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="larynx-symptoms">
-              <label for="orl-larynx-symptoms" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Symptômes Laryngés</label>
-              <textarea id="orl-larynx-symptoms" class="form-control" rows="4" placeholder="Dysphonie, voix rauque, toux chronique, fausses routes..." oninput="toggleORLSubject('larynx-symptoms', true)"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 6 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot active" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('larynx')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Vestibulaire
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 7 : Vestibulaire & Cou -->
-      <div id="orl-tab-vestibular" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="cervical" onclick="switchORLSubTab('vestibular', 'cervical')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Examen Cervical
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="vestibular-tests" onclick="switchORLSubTab('vestibular', 'vestibular-tests')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                Tests Vestibulaires
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn" data-subject="cervical" onclick="event.stopPropagation(); toggleORLSubject('cervical')">
-              <span class="plus-icon">+</span> <span class="btn-text">Ajouter au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="cervical">
-              <div style="margin-bottom:12px;">
-                <label for="orl-cervical" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Palpation Cervicale & Aires Ganglionnaires</label>
-                <textarea id="orl-cervical" class="form-control" rows="2" placeholder="Palpation cervicale..." oninput="toggleORLSubject('cervical', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-salivary" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Glandes Salivaires</label>
-                <textarea id="orl-salivary" class="form-control" rows="2" placeholder="Parotides, sous-maxillaires..." oninput="toggleORLSubject('cervical', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="vestibular-tests">
-              <div style="margin-bottom:12px;">
-                <label for="orl-dix-hallpike" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Manœuvre de Dix-Hallpike</label>
-                <input type="text" id="orl-dix-hallpike" class="form-control" placeholder="Dix-Hallpike..." oninput="toggleORLSubject('vestibular-tests', true)">
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-hit-test" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Head Impulse Test & Romberg</label>
-                <input type="text" id="orl-hit-test" class="form-control" placeholder="HIT, Romberg, Fukuda..." oninput="toggleORLSubject('vestibular-tests', true)">
-              </div>
-              <div style="margin-bottom:12px;">
-                <label for="orl-vertigo-type" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Type de Vertige</label>
-                <input type="text" id="orl-vertigo-type" class="form-control" placeholder="Rotatoire, tangage, durée, déclencheur..." oninput="toggleORLSubject('vestibular-tests', true)">
-              </div>
-              <div>
-                <label for="orl-vertigo-signs" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Signes Végétatifs & Nystagmus</label>
-                <input type="text" id="orl-vertigo-signs" class="form-control" placeholder="Nausées, nystagmus spontané/provoqué..." oninput="toggleORLSubject('vestibular-tests', true)">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 7 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot active" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn" onclick="addCurrentTabToReport('vestibular')" style="color: #0d9488; font-weight: 600; height: 36px;">
-              + Ajouter au rapport
-            </button>
-            <button type="button" class="btn btn-primary" onclick="goToNextORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 600; height: 36px; border-radius: 6px;">
-              Suivant : Diagnostic
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 8 : Diagnostic & Soins -->
-      <div id="orl-tab-conclusion" class="ant-tabs-pane">
-        <div class="orl-master-card">
-          <div class="orl-master-card-header">
-            <div class="orl-subtab-bar">
-              <button type="button" class="orl-subtab-btn active" data-subtab="conclusion" onclick="switchORLSubTab('conclusion', 'conclusion')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                Diagnostic
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="treatment" onclick="switchORLSubTab('conclusion', 'treatment')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
-                Actes & Traitements
-              </button>
-              <button type="button" class="orl-subtab-btn" data-subtab="investigations" onclick="switchORLSubTab('conclusion', 'investigations')">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Examens & Suivi
-              </button>
-            </div>
-            <button type="button" class="btn orl-add-subject-btn is-included" data-subject="conclusion" onclick="event.stopPropagation(); toggleORLSubject('conclusion')">
-              <span class="plus-icon">✓</span> <span class="btn-text">Inclus au rapport</span>
-            </button>
-          </div>
-          <div class="orl-master-card-body">
-            <div class="orl-subtab-pane active" data-subtab="conclusion">
-              <div style="margin-bottom:12px;">
-                <label for="orl-diagnosis" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Diagnostic Principal</label>
-                <textarea id="orl-diagnosis" class="form-control" rows="2" placeholder="Diagnostic..." oninput="toggleORLSubject('conclusion', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-diagnosis-secondary" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Diagnostic Secondaire</label>
-                <textarea id="orl-diagnosis-secondary" class="form-control" rows="2" placeholder="Diagnostic Secondaire..." oninput="toggleORLSubject('conclusion', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="treatment">
-              <div style="margin-bottom:12px;">
-                <label for="orl-procedures" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Actes Techniques Réalisés</label>
-                <textarea id="orl-procedures" class="form-control" rows="2" placeholder="Actes..." oninput="toggleORLSubject('treatment', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-treatment" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Traitement Médical & Prescriptions</label>
-                <textarea id="orl-treatment" class="form-control" rows="3" placeholder="Traitement..." oninput="toggleORLSubject('treatment', true)"></textarea>
-              </div>
-            </div>
-            <div class="orl-subtab-pane" data-subtab="investigations">
-              <div style="margin-bottom:12px;">
-                <label for="orl-investigations" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Examens Complémentaires Demandés</label>
-                <textarea id="orl-investigations" class="form-control" rows="2" placeholder="Scanner sinus, IRM rochers..." oninput="toggleORLSubject('treatment', true)"></textarea>
-              </div>
-              <div>
-                <label for="orl-followup" style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Suivi & Prochain Rendez-vous</label>
-                <input type="text" id="orl-followup" class="form-control" placeholder="Suivi dans 1 mois..." oninput="toggleORLSubject('treatment', true)">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pagination Footer 8 -->
-        <div class="orl-pagination-footer">
-          <button type="button" class="btn btn-secondary" onclick="goToPrevORLTab()" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-            Précédent
-          </button>
-          <div class="orl-pagination-step-dots">
-            <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-            <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-            <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-            <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-            <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-            <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-            <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-            <span class="orl-step-dot active" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-            <span class="orl-step-dot" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button type="button" class="btn orl-save-step-btn" onclick="saveORLProfile()" style="height: 36px; padding: 0 13px; font-size: 13px; font-weight: 600; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: #047857; background: #ecfdf5; border: 1.5px solid #a7f3d0;" title="Enregistrer / Mettre à jour immédiatement">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              <span class="orl-save-btn-label">Enregistrer</span>
-            </button>
-            <button type="button" class="btn btn-primary" onclick="switchORLTab('report')" style="display: flex; align-items: center; gap: 6px; font-weight: 700; background: #0d9488; border-color: #0d9488; height: 36px; border-radius: 6px;">
-              📄 Voir le Compte-Rendu & Imprimer
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 9 : Compte-Rendu & Impression WYSIWYG Direct (Spec 14 §6) -->
-      <div id="orl-tab-report" class="ant-tabs-pane">
-    <div class="orl-report-wysiwyg-container">
-      <!-- Toolbar supérieure de la feuille (§6.1) -->
-      <div class="orl-report-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(0,0,0,0.65);">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0d9488" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          <span>Cliquez directement sur le texte pour modifier le rapport avant impression</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <!-- Format A4 / A5 Segmented -->
-          <div class="ant-segmented" id="orl-report-format-segmented" style="display: inline-flex; background: #f0f0f0; padding: 2px; border-radius: 6px;">
-            <button type="button" class="ant-segmented-item active" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="setORLReportFormat('A4')">A4</button>
-            <button type="button" class="ant-segmented-item" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: transparent; border: none; color: rgba(0,0,0,0.65);" onclick="setORLReportFormat('A5')">A5</button>
-          </div>
-          <button type="button" class="btn" onclick="regenerateORLReportContent()" title="Régénérer le rapport depuis le dossier" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Réinitialiser
-          </button>
-          <button type="button" class="btn btn-primary orl-save-step-btn" onclick="saveORLProfile()" title="Sauvegarder le compte-rendu dans l'historique" style="height: 32px; font-size: 12.5px; display: flex; align-items: center; gap: 6px; background: #059669; border-color: #059669; color: #fff;">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            <span class="orl-save-btn-label">Enregistrer</span>
-          </button>
-          <button type="button" class="btn btn-primary" onclick="triggerORLDirectPrint()" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Imprimer
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick Formatting Bar (§6.3) -->
-      <div class="orl-formatting-toolbar" style="display: flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 6px 12px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 6px; width: fit-content; flex-wrap: wrap;">
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('bold', false, null)" title="Gras (Ctrl+B)" style="padding: 2px 8px; font-weight: bold; font-size: 12px; min-width: 28px;">B</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('italic', false, null)" title="Italique (Ctrl+I)" style="padding: 2px 8px; font-style: italic; font-size: 12px; min-width: 28px;">I</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('underline', false, null)" title="Souligné (Ctrl+U)" style="padding: 2px 8px; text-decoration: underline; font-size: 12px; min-width: 28px;">U</button>
-        <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<h3>')" title="Titre de section" style="padding: 2px 8px; font-size: 12px; font-weight: 700;">H3 Titre</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<p>')" title="Paragraphe normal" style="padding: 2px 8px; font-size: 12px;">Texte</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('insertUnorderedList', false, null)" title="Liste à puces" style="padding: 2px 8px; font-size: 12px;">• Liste</button>
-        <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyLeft', false, null)" title="Aligner à gauche" style="padding: 2px 8px; font-size: 12px;">Gauche</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyCenter', false, null)" title="Centrer" style="padding: 2px 8px; font-size: 12px;">Centre</button>
-        <button type="button" class="btn btn-sm" onclick="document.execCommand('removeFormat', false, null)" title="Effacer le formatage" style="padding: 2px 8px; font-size: 12px; color: #ff4d4f;">Effacer style</button>
-      </div>
-
-      <!-- Feuille A4/A5 Interactive Réelle (§6.1 & §6.2) -->
-      <div id="orl-wysiwyg-sheet" class="orl-wysiwyg-sheet format-a4 doc-sheet">
-        <!-- En-tête Médical -->
-        <div id="orl-wysiwyg-clinic-header"></div>
-        <!-- Bannière Patient -->
-        <div id="orl-wysiwyg-patient-banner"></div>
-        <!-- Titre du Compte-Rendu -->
-        <div id="orl-wysiwyg-report-title" style="text-align: center; margin: 16px 0;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #0f172a; display: inline-block; padding: 4px 0; border-bottom: 2px solid #0f172a;">COMPTE RENDU</h2>
-        </div>
-        <!-- Zone de contenu éditable au clic comme Word -->
-        <div id="orl-wysiwyg-editor" class="orl-wysiwyg-editor" contenteditable="true" spellcheck="false">
-          <!-- Pré-rempli dynamiquement -->
-        </div>
-      </div>
-
-      <!-- Pagination Footer 9 (Rapport Final) -->
-      <div class="orl-pagination-footer" style="margin-top: 24px;">
-        <button type="button" class="btn btn-secondary" onclick="switchORLTab('conclusion')" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-          Modifier les sections d'examen
-        </button>
-        <div class="orl-pagination-step-dots">
-          <span class="orl-step-dot" data-step="1" onclick="goToORLStep(1)" title="1. Anamnèse">1</span>
-          <span class="orl-step-dot" data-step="2" onclick="goToORLStep(2)" title="2. Otoscopie">2</span>
-          <span class="orl-step-dot" data-step="3" onclick="goToORLStep(3)" title="3. Audiométrie">3</span>
-          <span class="orl-step-dot" data-step="4" onclick="goToORLStep(4)" title="4. Nez & Sinus">4</span>
-          <span class="orl-step-dot" data-step="5" onclick="goToORLStep(5)" title="5. Bouche & Pharynx">5</span>
-          <span class="orl-step-dot" data-step="6" onclick="goToORLStep(6)" title="6. Larynx">6</span>
-          <span class="orl-step-dot" data-step="7" onclick="goToORLStep(7)" title="7. Vestibulaire">7</span>
-          <span class="orl-step-dot" data-step="8" onclick="goToORLStep(8)" title="8. Diagnostic">8</span>
-          <span class="orl-step-dot active" data-step="9" onclick="goToORLStep(9)" title="9. Rapport">9</span>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
-          <button type="button" id="orl-report-save-btn" class="btn btn-primary orl-save-step-btn" onclick="saveORLProfile()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #059669; border-color: #059669; color: #ffffff; box-shadow: 0 2px 5px rgba(5,150,105,0.25);">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            <span class="orl-save-btn-label">Enregistrer</span>
-          </button>
-          <button type="button" class="btn btn-primary" onclick="triggerORLDirectPrint()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #0d9488; border-color: #0d9488; box-shadow: 0 2px 5px rgba(13,148,136,0.2);">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            <span>Imprimer / Aperçu</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-    </section>
-  </div><!-- .orl-workspace-layout -->
-</section>
-
-                <!-- ORL LIVE PRINT PREVIEW MODAL (Ant Design Interactive A4 Modal) -->
-                <div id="orl-print-preview-modal" class="orl-preview-modal-overlay" style="display: none;" onclick="if(event.target === this) closeORLPrintPreview();">
-                    <div class="orl-preview-modal-dialog" onclick="event.stopPropagation();">
-                        <!-- Modal Action Bar -->
-                        <div class="orl-preview-modal-header" style="background: #001529; color: #ffffff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#14b8a6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                <span style="font-size: 16px; font-weight: 600; color: #ffffff;">Aperçu Avant Impression — Compte-Rendu Médical ORL</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e6f7ff; cursor: pointer; margin: 0;">
-                                    <input type="checkbox" id="orl-preview-toggle-header" checked onchange="toggleORLPreviewHeader(this.checked)"> En-tête cabinet
-                                </label>
-                                <button type="button" class="btn btn-primary" onclick="triggerORLDirectPrint()" style="background: #0d9488; border-color: #0d9488; color: #ffffff; font-weight: 600; height: 36px; padding: 0 16px; border-radius: 6px;">
-                                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                                    Imprimer le document
-                                </button>
-                                <button type="button" class="btn" onclick="closeORLPrintPreview()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ffffff; height: 36px; padding: 0 14px; border-radius: 6px;">
-                                    Fermer (✕)
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Modal Sheet Container -->
-                        <div class="orl-preview-modal-body" style="padding: 30px; display: flex; justify-content: center; overflow-x: auto; background: #525659; min-height: 80vh;">
-                            <!-- Printable Paper Sheet Container -->
-                            <div id="orl-preview-sheet" class="orl-printable-sheet">
-                                <!-- Dynamic Printable Content injected via JS -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ORL REPORT HISTORY MODAL -->
-                <div id="orl-report-history-modal" class="modal orl-preview-modal-overlay" style="display: none; background: rgba(0,0,0,0.45); z-index: 1050; align-items: center; justify-content: center;" onclick="if(event.target === this) closeORLReportHistoryModal();">
-                    <div class="ant-modal" style="width: 820px; max-width: 95vw; background: #ffffff; border-radius: 12px; box-shadow: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;" onclick="event.stopPropagation();">
-                        <!-- Header -->
-                        <div style="padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="width: 38px; height: 38px; border-radius: 8px; background: #e6f0ff; display: flex; align-items: center; justify-content: center;">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1677ff" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                </div>
-                                <div>
-                                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: rgba(0,0,0,0.88);">Historique des Comptes-Rendus & Consultations ORL</h3>
-                                    <div id="orl-history-patient-subtitle" style="font-size: 12px; color: rgba(0,0,0,0.45); margin-top: 2px;">Patient : Aucun sélectionné</div>
-                                </div>
-                            </div>
-                            <button type="button" onclick="closeORLReportHistoryModal()" style="border: none; background: transparent; font-size: 18px; cursor: pointer; color: rgba(0,0,0,0.45); padding: 4px 8px; border-radius: 4px;">✕</button>
-                        </div>
-
-                        <!-- Body with history list -->
-                        <div id="orl-history-list-body" style="padding: 20px 24px; overflow-y: auto; flex: 1; min-height: 200px;">
-                            <!-- Injected dynamically via JS -->
-                        </div>
-
-                        <!-- Footer -->
-                        <div style="padding: 12px 24px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; background: #fafafa;">
-                            <button type="button" class="btn" onclick="closeORLReportHistoryModal()" style="height: 34px; padding: 0 16px; border-radius: 6px;">Fermer</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Patients Section -->
                 <section id="patients" class="section">
@@ -1936,7 +809,7 @@
                                     <h2 id="details-patient-name">Dossier patient</h2>
                                     <button class="btn btn-small btn-secondary" onclick="editPatient(currentPatientId)">Modifier le dossier</button>
                                 </div>
-                                <p class="section-subtitle patient-details-subtitle">Coordonnées, antécédents médicaux, explorations ORL et historique des consultations.</p>
+                                <p class="section-subtitle patient-details-subtitle">Coordonnées, antécédents médicaux, odontogramme et historique des consultations.</p>
                             </div>
                         </div>
                         <div class="header-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -1945,10 +818,6 @@
                                 <span>Nouvelle Consultation</span>
                             </button>
                             <button class="btn btn-warning doctor-only" onclick="openPaymentRequestModal(currentPatientId)">Demander un paiement</button>
-                            <button class="btn btn-secondary doctor-only" onclick="openORLNewReportFromPatientDetails()" style="border-color: #0d9488; color: #0d9488; background: #f0fdfa; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" title="Rédiger un compte-rendu ou bilan ORL">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                Nouveau Compte-Rendu ORL
-                            </button>
                             <button class="btn btn-secondary doctor-only" onclick="goToOperationsFromPatientDetails()" style="border-color: #722ed1; color: #722ed1; background: #f9f0ff; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;" title="Accéder au module des opérations">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                                 Opérations
@@ -2085,10 +954,6 @@
                             </div>
                             <div id="patient-consultations-pagination" class="patients-pagination"
                             style="display:none; padding: 16px 20px 20px;"></div>
-                            <div style="margin-top:12px; padding:12px 16px; background:#f0fdfa; border:1px solid #ccfbf1; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
-                                <span style="color:#0f766e; font-weight:600; font-size:13.5px;">Accéder au dossier ORL complet du patient</span>
-                                <button class="btn btn-primary btn-small" onclick="goToORLFromPatientDetails()" style="background:#0d7377; border-color:#0d7377;">Dossier ORL</button>
-                            </div>
                         </div>
 
                         <div id="patient-cat-documents" class="patient-category-pane" style="display:none;">
@@ -2234,84 +1099,6 @@
                                 style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
                                 <div style="font-size: 36px; margin-bottom: 10px;">📨</div>
                                 <div style="font-size: 14px;">Aucune lettre d'orientation enregistrée</div>
-                            </div>
-                        </div>
-                            <div id="tab-nasofibroscopies" class="tab-content">
-                            <div style="margin-bottom: 15px;">
-                                <button class="btn btn-primary btn-small"
-                                    onclick="openNasofibroscopieModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1;">+
-                                    Nouvelle Nasofibroscopie</button>
-                            </div>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Fosses Nasales</th>
-                                        <th>Larynx</th>
-                                        <th>Conclusion</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="details-nasofibroscopies-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                            <div id="details-nasofibroscopies-empty"
-                                style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
-                                <div style="font-size: 36px; margin-bottom: 10px;">🔬</div>
-                                <div style="font-size: 14px;">Aucun examen de nasofibroscopie enregistré</div>
-                            </div>
-                        </div>
-                        <div id="tab-echographies" class="tab-content">
-                            <div style="margin-bottom: 15px;">
-                                <button class="btn btn-primary btn-small"
-                                    onclick="openEchographieCervicaleModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1;">+
-                                    Nouvelle Échographie</button>
-                            </div>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Thyroïde</th>
-                                        <th>Aires Ganglionnaires</th>
-                                        <th>Conclusion</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="details-echographies-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                            <div id="details-echographies-empty"
-                                style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
-                                <div style="font-size: 36px; margin-bottom: 10px;">🩺</div>
-                                <div style="font-size: 14px;">Aucun compte-rendu d'échographie cervicale enregistré</div>
-                            </div>
-                        </div>
-                        <div id="tab-audiogrammes" class="tab-content">
-                            <div style="margin-bottom: 15px;">
-                                <button class="btn btn-primary btn-small"
-                                    onclick="openAudiogrammeModal(currentPatientId)" style="background: #0284c7; border-color: #0369a1;">+
-                                    Nouvel Audiogramme</button>
-                            </div>
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Oreille Droite (OD)</th>
-                                        <th>Oreille Gauche (OG)</th>
-                                        <th>Observation</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="details-audiogrammes-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                            <div id="details-audiogrammes-empty"
-                                style="display: none; text-align: center; padding: 40px 20px; color: #94a3b8;">
-                                <div style="font-size: 36px; margin-bottom: 10px;">🎧</div>
-                                <div style="font-size: 14px;">Aucun audiogramme enregistré</div>
                             </div>
                         </div>
                         </div>
@@ -2511,17 +1298,32 @@
                                             <span class="dental-panel-kicker">Patient</span>
                                             <h4>Dossier</h4>
                                             <span id="dental-current-patient-display" class="dental-current-patient-chip">Aucun patient sélectionné</span>
-                                            <div style="margin: 8px 0 6px 0;">
-                                                <input type="text" id="dental-patient-search-input" class="form-control"
-                                                    placeholder="Rechercher (nom, prénom, tél)..."
-                                                    oninput="filterDentalPatientList(this.value)"
-                                                    style="width: 100%; height: 34px; padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; background: #ffffff;">
+                                            <div class="dental-patient-search-wrapper" style="position: relative; width: 100%; margin: 6px 0 2px 0;">
+                                                <div style="position: relative; display: flex; align-items: center;">
+                                                    <input type="text"
+                                                        id="dental-patient-search-bar"
+                                                        class="form-control"
+                                                        placeholder="🔍 Rechercher patient (nom, tél)..."
+                                                        autocomplete="off"
+                                                        oninput="handleDentalPatientSearchInput(this.value)"
+                                                        onfocus="handleDentalPatientSearchFocus()"
+                                                        style="width: 100%; height: 38px; padding: 6px 30px 6px 12px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; box-sizing: border-box;">
+                                                    <button type="button"
+                                                        id="dental-patient-search-clear"
+                                                        onclick="clearDentalPatientSearch()"
+                                                        style="position: absolute; right: 8px; background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; display: none; line-height: 1; padding: 2px;"
+                                                        title="Effacer">×</button>
+                                                </div>
+                                                <div id="dental-patient-search-dropdown"
+                                                    style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 320px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 8px 24px rgba(15,23,42,0.12); z-index: 999;">
+                                                </div>
+                                                <select id="dental-patient-selector"
+                                                    class="feature-patient-selector dental-patient-select"
+                                                    onchange="selectDentalPatient(this.value)"
+                                                    style="display: none;">
+                                                    <option value="">-- Sélectionner un patient --</option>
+                                                </select>
                                             </div>
-                                            <select id="dental-patient-selector"
-                                                class="feature-patient-selector dental-patient-select"
-                                                onchange="selectDentalPatient(this.value)">
-                                                <option value="">-- Sélectionner un patient --</option>
-                                            </select>
                                             <button class="btn btn-secondary btn-small dental-patient-refresh" onclick="refreshDentalPatientList()">⟳ Actualiser</button>
                                             <label class="dental-history-date-filter">
                                                 <span>Filtrer par date</span>
@@ -3790,18 +2592,6 @@
                                 <h4 style="margin-top: 20px; margin-bottom: 10px; font-size: 15px;">🩺 Spécialités
                                     activées</h4>
                                 <div class="pkg-feature-grid">
-                                    <div class="pkg-option-row pkg-option-row-feature selected"
-                                        id="pkg-option-orl">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-orl"
-                                                checked style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">👂 Spécialité ORL</div>
-                                                <div style="font-size: 11px; color: #64748b;">Otoscopie, audiométrie, fibroscopie, vertiges</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
 
                                     <div class="pkg-option-row pkg-option-row-feature"
                                         id="pkg-option-specialty-general">
@@ -3817,31 +2607,7 @@
                                         <span class="pkg-price">Activable</span>
                                     </div>
 
-                                    <div class="pkg-option-row pkg-option-row-feature"
-                                        id="pkg-option-rehabilitation">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-rehabilitation"
-                                                style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">♿ MPR / Rééducation</div>
-                                                <div style="font-size: 11px; color: #64748b;">Rééducation fonctionnelle, kinésithérapie, masseur-kiné</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
 
-                                    <div class="pkg-option-row pkg-option-row-feature"
-                                        id="pkg-option-cardiology">
-                                        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                            <input type="checkbox" class="pkg-checkbox" id="pkg-check-cardiology"
-                                                style="width: 18px; height: 18px;">
-                                            <div>
-                                                <div style="font-weight: 500; font-size: 13px;">💓 Cardiologie</div>
-                                                <div style="font-size: 11px; color: #64748b;">Consultation cardiologique, suivi patient</div>
-                                            </div>
-                                        </div>
-                                        <span class="pkg-price">Activable</span>
-                                    </div>
 
                                     <div class="pkg-option-row pkg-option-row-feature"
                                         id="pkg-option-dentistry">
@@ -3902,14 +2668,11 @@
                                         sont limités à ces spécialités. En cabinet multi-spécialité, chaque médecin
                                         pilote son logo et ses documents.</p>
                                     <div class="pkg-specialty-buttons">
-                                        <button type="button" class="btn btn-primary" data-pkg-specialty="orl">Spécialité ORL</button>
+                                        <button type="button" class="btn btn-primary" data-pkg-specialty="dentistry">Dentiste</button>
                                         <button type="button" class="btn btn-outline" data-pkg-specialty="general">Mode généraliste</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="rehabilitation">MPR / Rééducation</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="cardiology">Cardiologie</button>
-                                        <button type="button" class="btn btn-outline" data-pkg-specialty="dentistry">Dentisterie</button>
                                     </div>
                                     <div class="pkg-specialty-status">
-                                        Activées actuellement: <strong id="pkg-active-specialty-label">Spécialité ORL</strong>
+                                        Activée actuellement: <strong id="pkg-active-specialty-label">Dentiste</strong>
                                     </div>
                                 </div>
                             </div>
@@ -6351,18 +5114,7 @@
         </div>
     </div>
 
-    <!-- Modal: Cardiology Profile View (Document Template Preview) -->
-    <div id="modal-cardiology-profile-view" class="modal medical-document-modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2>🫀 Profil Cardiologique - Modèle de Document</h2>
-                <button class="close-btn" onclick="closeModal('modal-cardiology-profile-view')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="cardiology-profile-preview" class="document-live-preview"></div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Modal: Certificat Document -->
     <div id="modal-certificat" class="modal medical-document-modal">
@@ -8340,68 +7092,7 @@
         </div>
     </div>
 
-    <!-- ===================== KINÉ STAFF MODAL ===================== -->
-    <div id="modal-kine-staff" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="kine-modal-title">👨‍⚕️ Nouveau Kinésithérapeute</h2>
-                <button class="close-btn" onclick="closeModal('modal-kine-staff')">&times;</button>
-            </div>
-            <form id="kine-staff-form" class="modal-body" onsubmit="saveKineStaff(event)">
-                <input type="hidden" id="kine-id">
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nom *</label>
-                        <input type="text" id="kine-lastName" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Prénom *</label>
-                        <input type="text" id="kine-firstName" class="form-control" required>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Téléphone</label>
-                        <input type="tel" id="kine-phone" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="kine-email" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Spécialité</label>
-                    <select id="kine-specialty" class="form-control">
-                        <option value="Général">Kinésithérapie Générale</option>
-                        <option value="Sport">Kinésithérapie du Sport</option>
-                        <option value="Respiratoire">Kinésithérapie Respiratoire</option>
-                        <option value="Neurologie">Kinésithérapie Neurologique</option>
-                        <option value="Pédiatrie">Kinésithérapie Pédiatrique</option>
-                        <option value="Gériatrie">Kinésithérapie Gériatrique</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Prix séance par défaut (DZD)</label>
-                    <input type="number" id="kine-session-price" class="form-control" min="0" step="100" value="1500">
-                </div>
-
-                <div class="form-group">
-                    <label>Notes</label>
-                    <textarea id="kine-notes" class="form-control" rows="2"></textarea>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary"
-                        onclick="closeModal('modal-kine-staff')">Annuler</button>
-                    <button type="submit" class="btn btn-primary">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- ===================== ACCÈS MOBILE MODAL ===================== -->
     <div id="modal-mobile-access" class="modal">

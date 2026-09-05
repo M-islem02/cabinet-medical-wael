@@ -108,12 +108,16 @@ export function handleDentistEvents() {
   ipcMain.handle('dental:getSchemaAtDate', async (event, patientId, date) => {
     try {
       if (!patientId || !date) return { success: false, error: 'Patient et date requis' };
+      const dateStr = String(date).substring(0, 10);
+      const nextDay = moment(dateStr, 'YYYY-MM-DD').isValid()
+        ? moment(dateStr, 'YYYY-MM-DD').add(1, 'day').format('YYYY-MM-DD')
+        : dateStr + ' 23:59:59';
       const [teeth, treatments, history] = await Promise.all([
         query(
           `SELECT * FROM dental_teeth
-           WHERE patientId = ? AND updatedAt < (CAST(? AS DATE) + INTERVAL '1 day')
+           WHERE patientId = ? AND updatedAt < ?
            ORDER BY toothNumber`,
-          [patientId, date]
+          [patientId, nextDay]
         ),
         query(
           `SELECT DISTINCT ON (toothNumber)
@@ -122,18 +126,18 @@ export function handleDentistEvents() {
            FROM dental_treatments
            WHERE patientId = ?
              AND toothNumber IS NOT NULL
-             AND treatmentDate < (CAST(? AS DATE) + INTERVAL '1 day')
+             AND treatmentDate < ?
            ORDER BY toothNumber, treatmentDate DESC, createdAt DESC`,
-          [patientId, date]
+          [patientId, nextDay]
         ),
         query(
           `SELECT DISTINCT ON (toothNumber)
                   toothNumber, status, surfaces, notes, recordedAt
            FROM dental_teeth_history
            WHERE patientId = ?
-             AND recordedAt < (CAST(? AS DATE) + INTERVAL '1 day')
+             AND recordedAt < ?
            ORDER BY toothNumber, recordedAt DESC`,
-          [patientId, date]
+          [patientId, nextDay]
         )
       ]);
       return { success: true, data: { teeth: teeth || [], treatments: treatments || [], history: history || [] } };

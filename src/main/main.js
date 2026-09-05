@@ -49,8 +49,8 @@ import { handleAnalysisEvents } from './handlers/analysis-handler.js';
 import { handleDebtEvents } from './handlers/debt-handler.js';
 import { handleMedicationEvents } from './handlers/medication-handler.js';
 import { handleNotificationEvents } from './handlers/notification-handler.js';
-import { handleRehabilitationEvents } from './handlers/rehabilitation-handler.js';
 import { handleWaitingRoomEvents } from './handlers/waiting-room-handler.js';
+
 import { handlePackageEvents } from './handlers/package-handler.js';
 import { handleDentistEvents } from './handlers/dentist-handler.js';
 import { handleTreatmentPlanEvents } from './handlers/treatment-plans-handler.js';
@@ -1029,7 +1029,6 @@ function setupIPCHandlers() {
   handleDebtEvents();
   handleMedicationEvents();
   handleNotificationEvents();
-  handleRehabilitationEvents();
   handleWaitingRoomEvents();
   handlePackageEvents();
   handleDentistEvents();

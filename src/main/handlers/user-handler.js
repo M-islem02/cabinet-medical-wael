@@ -33,8 +33,8 @@ function normalizeLegacyRole(role) {
 async function resolveAllowedDoctorSpecialty(requestedSpecialty) {
   const packageConfig = await queryOne('SELECT * FROM package_config LIMIT 1');
   const enabled = parseEnabledSpecialties(packageConfig?.enabledSpecialties, packageConfig);
-  const allowed = enabled.length ? enabled : ['orl'];
-  const normalized = normalizeSpecialtyKey(requestedSpecialty || allowed[0] || 'orl');
+  const allowed = enabled.length ? enabled : ['dentistry'];
+  const normalized = normalizeSpecialtyKey(requestedSpecialty || allowed[0] || 'dentistry');
   if (allowed.length === 1) {
     return { success: true, specialty: allowed[0], enabled: allowed };
   }

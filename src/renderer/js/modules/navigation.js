@@ -286,8 +286,6 @@ function showSection(sectionId) {
     'statistics': 'featureStatistics',
     'inventory': 'featureInventory',
     'equipment': 'featureInventory',
-    'kine-staff': 'featureKineStaff',
-    'orl': 'featureORL',
     'medical-imaging': 'featureMedicalImaging',
     'appointments-calendar': 'featureCalendar'
   };
@@ -310,29 +308,9 @@ function showSection(sectionId) {
       }
     }
 
-    const specialtySectionMap = {
-      'orl': 'orl'
-    };
-    const requiredSpecialty = specialtySectionMap[sectionId];
-    if (packageConfig && requiredSpecialty) {
-      const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
-        ? resolveActivePracticeSpecialty(packageConfig)
-        : 'general';
-      if (activeSpecialty !== requiredSpecialty && !packageConfig[sectionFeatureMap[sectionId]]) {
-        const specialtyMeta = typeof getPracticeSpecialtyMeta === 'function'
-          ? getPracticeSpecialtyMeta(requiredSpecialty)
-          : null;
-        showNotification(
-          `Section inactive. Activez la spécialité ${specialtyMeta?.label || requiredSpecialty} dans Config Client.`,
-          'warning'
-        );
-        return;
-      }
-    }
-
     // Check role-based access for assistant
     if (currentUserRole === 'assistant') {
-      const assistantRestrictedSections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync', 'treatment-plans'];
+      const assistantRestrictedSections = ['operations', 'settings', 'statistics', 'equipment', 'dentistry', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync', 'treatment-plans'];
       if (assistantRestrictedSections.includes(sectionId)) {
         showNotification('Accès non autorisé', 'error');
         return;
@@ -388,7 +366,6 @@ function showSection(sectionId) {
       'appointments-calendar': 'Agenda RDV',
       'patients': 'Gestion des Patients',
       'medical-imaging': 'Radios & Imagerie Dentaire',
-      'orl': 'Module Médical',
       'operations': 'Chirurgie & Actes Dentaires',
       'patient-details': 'Dossier Patient',
       'consultations': 'Consultations',
@@ -401,11 +378,8 @@ function showSection(sectionId) {
       'inventory': 'Gestion du Stock & Consommables',
       'equipment': 'Équipements Dentaires & Stérilisation',
       'debts': 'Gestion des Impayés',
-      'kine-staff': 'Staff',
-      'rehabilitation': 'Rééducation',
       'dentistry': 'Dentisterie & Odontogramme 3D',
       'treatment-plans': 'Plans de Traitement Dentaire',
-      'cardiology': 'Cardiologie',
       'sms-config': 'SMS Rappels',
       'cloud-sync': 'Cloud Sync'
     };
@@ -418,7 +392,6 @@ function showSection(sectionId) {
       'appointments-calendar': null,
       'patients': null,
       'medical-imaging': 'Patients',
-      'orl': 'Module Médical',
       'patient-details': 'Patients',
       'payments': null,
       'inventory': null,
@@ -481,8 +454,6 @@ function showSection(sectionId) {
     if (typeof initDebts === 'function') initDebts();
   } else if (sectionId === 'waiting-room') {
     if (typeof loadWaitingRoom === 'function') loadWaitingRoom();
-  } else if (sectionId === 'kine-staff') {
-    if (typeof loadKineStaff === 'function') loadKineStaff();
   } else if (sectionId === 'daily-summary') {
     if (typeof initDailySummary === 'function') {
       initDailySummary();
@@ -491,16 +462,6 @@ function showSection(sectionId) {
     }
   } else if (sectionId === 'medical-imaging') {
     if (typeof initMedicalImaging === 'function') initMedicalImaging();
-  } else if (sectionId === 'orl') {
-    if (typeof initORL === 'function') {
-      void initORL();
-    } else if (typeof window.initORL === 'function') {
-      void window.initORL();
-    } else if (typeof refreshORLPatientList === 'function') {
-      void refreshORLPatientList();
-    } else if (typeof window.refreshORLPatientList === 'function') {
-      void window.refreshORLPatientList();
-    }
   } else if (sectionId === 'operations') {
     if (typeof initOperations === 'function') initOperations();
     else if (typeof window.initOperations === 'function') window.initOperations();
@@ -510,12 +471,6 @@ function showSection(sectionId) {
   } else if (sectionId === 'treatment-plans') {
     if (typeof initTreatmentPlans === 'function') initTreatmentPlans();
     else if (typeof window.initTreatmentPlans === 'function') window.initTreatmentPlans();
-  } else if (sectionId === 'rehabilitation') {
-    if (typeof initRehabilitation === 'function') initRehabilitation();
-    else if (typeof window.initRehabilitation === 'function') window.initRehabilitation();
-  } else if (sectionId === 'cardiology') {
-    if (typeof initCardiology === 'function') initCardiology();
-    else if (typeof window.initCardiology === 'function') window.initCardiology();
   } else if (sectionId === 'package-config') {
     if (typeof loadPackageConfig === 'function') loadPackageConfig();
     else if (typeof window.loadPackageConfig === 'function') window.loadPackageConfig();

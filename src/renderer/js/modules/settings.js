@@ -342,6 +342,9 @@ function updateCabinetLogoPreview(logoDataUrl = '') {
     : '';
 
   if (hiddenField) hiddenField.value = safeLogo;
+  if (cachedSettings && safeLogo) {
+    cachedSettings.cabinetLogoDataUrl = safeLogo;
+  }
 
   if (previewImg) {
     if (safeLogo) {
@@ -358,6 +361,9 @@ function updateCabinetLogoPreview(logoDataUrl = '') {
   }
 
   updateDocumentStylePreview();
+  if (typeof refreshAppBrandLogo === 'function') {
+    refreshAppBrandLogo();
+  }
 }
 
 function updateAppLogoPreview(logoDataUrl = '') {
@@ -367,6 +373,10 @@ function updateAppLogoPreview(logoDataUrl = '') {
   const safeLogo = typeof logoDataUrl === 'string' && logoDataUrl.startsWith('data:image/') ? logoDataUrl : '';
 
   if (hiddenField) hiddenField.value = safeLogo;
+  if (cachedSettings && safeLogo) {
+    cachedSettings.appLogoDataUrl = safeLogo;
+  }
+
   if (previewImg) {
     if (safeLogo) {
       previewImg.src = safeLogo;
@@ -378,10 +388,14 @@ function updateAppLogoPreview(logoDataUrl = '') {
   }
   if (placeholder) placeholder.style.display = safeLogo ? 'none' : 'flex';
 
-  document.querySelectorAll('.app-brand-logo').forEach((logo) => {
-    logo.src = safeLogo || (typeof getDefaultAppBrandLogoSrc === 'function' ? getDefaultAppBrandLogoSrc() : 'assets/logo.png');
-    logo.classList.toggle('app-brand-logo-custom', Boolean(safeLogo));
-  });
+  if (typeof refreshAppBrandLogo === 'function') {
+    refreshAppBrandLogo();
+  } else {
+    document.querySelectorAll('.app-brand-logo').forEach((logo) => {
+      logo.src = safeLogo || (typeof getDefaultAppBrandLogoSrc === 'function' ? getDefaultAppBrandLogoSrc() : 'assets/logo.png');
+      logo.classList.toggle('app-brand-logo-custom', Boolean(safeLogo));
+    });
+  }
 }
 
 function updateCabinetWatermarkLogoPreview(logoDataUrl = '') {
@@ -417,6 +431,7 @@ let explicitClearWatermarkLogo = false;
 function clearCabinetLogo() {
   explicitClearCabinetLogo = true;
   try { localStorage.removeItem('medcareso_cabinet_logo'); } catch {}
+  if (cachedSettings) cachedSettings.cabinetLogoDataUrl = null;
   updateCabinetLogoPreview('');
   const fileInput = document.getElementById('cabinet-logo-file');
   if (fileInput) fileInput.value = '';
@@ -425,6 +440,7 @@ function clearCabinetLogo() {
 function clearAppLogo() {
   explicitClearAppLogo = true;
   try { localStorage.removeItem('medcareso_app_logo'); } catch {}
+  if (cachedSettings) cachedSettings.appLogoDataUrl = null;
   updateAppLogoPreview('');
   updateAppLogoSelectionStatus('');
   const fileInput = document.getElementById('app-logo-file');
@@ -1078,6 +1094,9 @@ async function loadSettings() {
     await loadLicenseStatus();
     if (typeof refreshDocumentEditorLogos === 'function') {
       refreshDocumentEditorLogos();
+    }
+    if (typeof refreshAppBrandLogo === 'function') {
+      refreshAppBrandLogo();
     }
 
     // Load users list for superadmin and doctor-admin.

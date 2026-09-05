@@ -1613,7 +1613,7 @@ async function searchPatientsByPrefix(searchTerm, staticPatients = null) {
         ? staticPatients
         : (Array.isArray(window.patients) && window.patients.length > 0
             ? window.patients
-            : (Array.isArray(window._orlPatientsCache) ? window._orlPatientsCache : []));
+            : []);
       if (fallbackList.length > 0) {
         patients = fallbackList.filter((patient) => patientStartsWithSearch(patient, normalizedTerm));
       }

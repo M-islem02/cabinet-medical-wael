@@ -6,7 +6,7 @@ import { query, queryOne, run } from './database-unified.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.resolve(__dirname, '../../assets');
 const SHARED_CONFIG_PATH = path.resolve(__dirname, '../shared/specialty-config.json');
-const SPECIALTY_KEYS = ['dentistry', 'general', 'orl'];
+const SPECIALTY_KEYS = ['dentistry', 'general'];
 
 function readJsonFile(filePath, fallback) {
   try {
@@ -19,7 +19,6 @@ function readJsonFile(filePath, fallback) {
 export function normalizeSpecialtyKey(value = 'dentistry') {
   const raw = String(value || '').trim().toLowerCase();
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
-  if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist', 'chirurgien-dentiste', 'médecin dentiste', 'medecin dentiste'].includes(raw)) return 'dentistry';
   return 'dentistry';
 }
@@ -50,7 +49,6 @@ export function parseEnabledSpecialties(value, fallbackConfig = null) {
   const config = fallbackConfig || {};
   const enabledKeys = [];
   if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1' || config.activeSpecialty === 'dentistry') enabledKeys.push('dentistry');
-  if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
   if (config.activeSpecialty === 'general') enabledKeys.push('general');
   return enabledKeys.length ? [...new Set(enabledKeys)] : ['dentistry'];
 }

@@ -61,7 +61,7 @@ function getCurrentActiveSpecialty() {
   if (typeof resolveActivePracticeSpecialty === 'function') {
     return resolveActivePracticeSpecialty(cfg);
   }
-  return cfg.specialty || 'orl';
+  return cfg.specialty || 'dentistry';
 }
 
 async function loadOperationsFilterOptions() {
@@ -779,7 +779,7 @@ async function saveOperation(event) {
     operationCode: document.getElementById('operation-code')?.value || null,
     operationDate: document.getElementById('operation-date')?.value || moment().format('YYYY-MM-DD'),
     operationTime: document.getElementById('operation-time')?.value || moment().format('HH:mm'),
-    category: getCurrentActiveSpecialty() || 'orl',
+    category: getCurrentActiveSpecialty() || 'dentistry',
     practitionerId,
     practitionerName,
     room: document.getElementById('operation-room')?.value || 'Salle d\'intervention',

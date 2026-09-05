@@ -1003,12 +1003,12 @@ function saveMedicationToHistory(medication) {
   if (sanitized.name && window.api?.medication?.create) {
     const specialtyKey = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(window._packageConfig)
-      : (currentUserSpecialty || 'orl');
+      : (currentUserSpecialty || 'dentistry');
 
     window.api.medication.create({
       name: sanitized.name,
       genericName: sanitized.genericName || '',
-      category: sanitized.category || 'ORL',
+      category: sanitized.category || 'Dentisterie',
       dosageForm: sanitized.dosageForm || '',
       defaultDosage: sanitized.dosage || '',
       defaultIntake: sanitized.intake || '',

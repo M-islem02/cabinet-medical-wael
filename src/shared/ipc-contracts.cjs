@@ -14,28 +14,7 @@ const IPC_CONTRACTS = Object.freeze({
     update: { channel: 'clinicalExam:update', params: [id('id'), object('data')] },
     delete: { channel: 'clinicalExam:delete', params: [id('id')] }
   },
-  rehabilitationPlan: {
-    create: { channel: 'rehabilitationPlan:create', params: [object('data', ['patientId', 'startDate'])] },
-    getByPatient: { channel: 'rehabilitationPlan:getByPatient', params: [id('patientId')] },
-    getById: { channel: 'rehabilitationPlan:getById', params: [id('id')] },
-    getActive: { channel: 'rehabilitationPlan:getActive', params: [id('patientId')] },
-    update: { channel: 'rehabilitationPlan:update', params: [id('id'), object('data')] },
-    updateStatus: {
-      channel: 'rehabilitationPlan:updateStatus',
-      params: [id('id'), enumeration('status', ['active', 'completed', 'cancelled', 'archived'])]
-    },
-    delete: { channel: 'rehabilitationPlan:delete', params: [id('id')] }
-  },
-  rehabilitationSession: {
-    create: { channel: 'rehabilitationSession:create', params: [object('data', ['patientId', 'planId', 'date'])] },
-    getByPlan: { channel: 'rehabilitationSession:getByPlan', params: [id('planId')] },
-    getByPatient: { channel: 'rehabilitationSession:getByPatient', params: [id('patientId')] },
-    getById: { channel: 'rehabilitationSession:getById', params: [id('id')] },
-    complete: { channel: 'rehabilitationSession:complete', params: [id('id'), object('data', [], true)] },
-    cancel: { channel: 'rehabilitationSession:cancel', params: [id('id'), string('reason', true)] },
-    getByTherapist: { channel: 'rehabilitationSession:getByTherapist', params: [id('therapistId')] },
-    getTodaySessions: { channel: 'rehabilitationSession:getTodaySessions', params: [] }
-  },
+
   patientProgress: {
     create: { channel: 'patientProgress:create', params: [object('data', ['patientId'])] },
     getByPatient: { channel: 'patientProgress:getByPatient', params: [id('patientId')] },

@@ -207,51 +207,7 @@ function registerPatientEquipmentHandlers() {
   });
 }
 
-function registerRehabilitationGapHandlers() {
-  registerContractHandlers(ipcMain, 'rehabilitationPlan', {
-    async update(id, data) {
-      const current = await requireRecord('rehabilitation_plans', id, 'REHABILITATION_PLAN_NOT_FOUND', 'Rehabilitation plan not found');
-      const kine = data.kinePrescription;
-      const ergo = data.ergoPrescription;
-      const ortho = data.orthoPrescription;
-      const totalSessions = [kine, ergo, ortho].reduce(
-        (sum, item) => sum + (Number(item?.sessionsPerWeek || 0) * Number(item?.weeks || 0)),
-        0
-      );
-      await run(
-        `UPDATE rehabilitation_plans SET startDate=?, endDate=?, status=?, shortTermObjectives=?,
-          mediumTermObjectives=?, longTermObjectives=?, kinesiotherapy=?, kinesiotherapyFrequency=?,
-          ergotherapy=?, ergotherapyFrequency=?, speechTherapy=?, speechTherapyFrequency=?,
-          otherEquipment=?, equipmentDetails=?, totalSessions=?, notes=?, updatedAt=? WHERE id=?`,
-        [data.startDate || current.startDate, nullable(data.endDate ?? current.endDate), data.status || current.status,
-          nullable(data.shortTermObjectives ?? data.objectives?.shortTerm ?? current.shortTermObjectives),
-          nullable(data.mediumTermObjectives ?? data.objectives?.mediumTerm ?? current.mediumTermObjectives),
-          nullable(data.longTermObjectives ?? data.objectives?.longTerm ?? current.longTermObjectives),
-          kine ? Number(kine.sessionsPerWeek || 0) : current.kinesiotherapy,
-          frequency(kine, current.kinesiotherapyFrequency),
-          ergo ? Number(ergo.sessionsPerWeek || 0) : current.ergotherapy,
-          frequency(ergo, current.ergotherapyFrequency),
-          ortho ? Number(ortho.sessionsPerWeek || 0) : current.speechTherapy,
-          frequency(ortho, current.speechTherapyFrequency),
-          textOrJson(data.equipment ?? current.otherEquipment), nullable(data.equipmentDetails ?? current.equipmentDetails),
-          kine || ergo || ortho ? totalSessions : current.totalSessions,
-          nullable(data.notes ?? current.notes), nowSql(), id]
-      );
-      return { id };
-    }
-  });
 
-  registerContractHandlers(ipcMain, 'rehabilitationSession', {
-    async getByTherapist(therapistId) {
-      return query(
-        `SELECT rs.*, p.firstName, p.lastName FROM rehabilitation_sessions rs
-         JOIN patients p ON p.id=rs.patientId
-         WHERE rs.therapistId=? ORDER BY rs.sessionDate DESC`,
-        [therapistId]
-      );
-    }
-  });
-}
 
 function registerPlanGapHandlers() {
   registerContractHandlers(ipcMain, 'plans', {
@@ -308,7 +264,6 @@ export function handleClinicalRehabilitationContractEvents() {
   registerClinicalExamHandlers();
   registerProgressHandlers();
   registerPatientEquipmentHandlers();
-  registerRehabilitationGapHandlers();
   registerPlanGapHandlers();
-  console.log('Clinical/rehabilitation IPC contract handlers registered');
+  console.log('Clinical IPC contract handlers registered');
 }
