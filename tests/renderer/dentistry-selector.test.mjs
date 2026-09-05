@@ -61,6 +61,12 @@ test('navbar includes consultations, prescriptions, sick-leaves, expenses, and n
   assert.ok(indexHtml.includes('data-section="sick-leaves"'), 'Navbar must include sick-leaves');
   assert.ok(indexHtml.includes('data-section="expenses"'), 'Navbar must include expenses');
 
+  // Verify all specialty modules are present in cabinet navbar
+  assert.ok(indexHtml.includes('data-section="orl"'), 'Navbar must include orl');
+  assert.ok(indexHtml.includes('data-section="rehabilitation"'), 'Navbar must include rehabilitation');
+  assert.ok(indexHtml.includes('data-section="cardiology"'), 'Navbar must include cardiology');
+  assert.ok(indexHtml.includes('data-section="kine-staff"'), 'Navbar must include kine-staff');
+
   // Verify treatment-plans is not duplicated
   const treatmentPlanMatches = indexHtml.match(/data-section="treatment-plans"/g);
   assert.equal(treatmentPlanMatches ? treatmentPlanMatches.length : 0, 1, 'Navbar must only have one treatment-plans link');

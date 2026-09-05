@@ -255,7 +255,244 @@ export function handleWaitingRoomEvents() {
     }
   });
 
+  // ==================== KINÃ‰ STAFF ====================
 
+  // Get all kinÃ© staff
+  ipcMain.handle('kine-staff:get-all', async () => {
+    try {
+      const kinesResult = await query('SELECT * FROM kine_staff WHERE isActive = 1 ORDER BY lastName, firstName');
+      const kines = Array.isArray(kinesResult) ? kinesResult : [];
+
+      console.log('Kine staff loaded from DB:', kines.length, 'records');
+
+      // Get first day of current month (local time) - Format YYYY-MM-DD manually
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const startDateStr = `${year}-${month}-01`;
+
+      console.log('Counting kine sessions since:', startDateStr);
+
+      for (const kine of kines) {
+        try {
+          // Count all sessions for this kinÃ© this month
+          const stats = await queryOne(`
+            SELECT COUNT(*) as sessions
+            FROM kine_sessions
+            WHERE kineId = ? AND DATE(sessionDate) >= ?
+          `, [kine.id, startDateStr]);
+
+          kine.monthSessions = stats?.sessions || 0;
+          kine.sessionDuration = kine.sessionDuration || 30;
+
+          console.log(`  - ${kine.firstName} ${kine.lastName}: ${kine.monthSessions} sessions this month`);
+        } catch (statsError) {
+          console.warn('Could not get stats for kine:', kine.id, statsError.message);
+          kine.monthSessions = 0;
+          kine.sessionDuration = 30;
+        }
+      }
+
+      // Also log total sessions in DB
+      try {
+        const totalSessions = await queryOne('SELECT COUNT(*) as total FROM kine_sessions');
+        console.log('Total kine sessions in DB:', totalSessions?.total || 0);
+      } catch (e) { }
+
+      return kines;
+    } catch (error) {
+      console.error('Error getting kine staff:', error);
+      return [];
+    }
+  });
+
+  // Create kiné staff
+  ipcMain.handle('kine-staff:create', async (event, data) => {
+    try {
+      const id = uuidv4();
+      console.log('Creating kine staff:', data.firstName, data.lastName, 'with ID:', id);
+      await run(`
+        INSERT INTO kine_staff (id, firstName, lastName, phone, email, specialty, sessionPrice, sessionDuration, notes, isActive)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `, [id, data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.sessionDuration || 30, data.notes || '']);
+      console.log('Kine staff created and committed to DB');
+      return { success: true, id };
+    } catch (error) {
+      console.error('Error creating kine:', error);
+      throw error;
+    }
+  });
+
+  // Update kiné staff
+  ipcMain.handle('kine-staff:update', async (event, id, data) => {
+    try {
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      await run(`
+        UPDATE kine_staff SET
+          firstName = ?, lastName = ?, phone = ?, email = ?,
+          specialty = ?, sessionPrice = ?, sessionDuration = ?, notes = ?, updatedAt = ?
+        WHERE id = ?
+      `, [data.firstName, data.lastName, data.phone || '', data.email || '', data.specialty || '', data.sessionPrice || 0, data.sessionDuration || 30, data.notes || '', now, id]);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating kine:', error);
+      throw error;
+    }
+  });
+
+  // Delete kinÃ© staff
+  ipcMain.handle('kine-staff:delete', async (event, id) => {
+    try {
+      await run('UPDATE kine_staff SET isActive = 0 WHERE id = ?', [id]);
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting kine:', error);
+      throw error;
+    }
+  });
+
+  // Create kinÃ© session (when consultation with kinÃ© act is completed)
+  ipcMain.handle('kine-session:create', async (event, data) => {
+    try {
+      const lockKey = `${data.patientId || ''}:${data.kineId || ''}`;
+      return await withKineSessionLock(lockKey, async () => {
+        return withTransaction(async () => {
+        await queryOne('SELECT pg_advisory_xact_lock(hashtext(?))', [`kine-session:${lockKey}`]);
+        const { v4: createUuid } = await import('uuid');
+        const id = createUuid();
+
+        // Get kinÃ©'s session price if not provided
+        let price = data.price;
+        if (!price && data.kineId) {
+          const kine = await queryOne('SELECT sessionPrice FROM kine_staff WHERE id = ?', [data.kineId]);
+          price = kine?.sessionPrice || 0;
+        }
+
+        // Get the next session number for this patient-kine pair
+        const lastSession = await queryOne(`
+        SELECT MAX(sessionNumber) as maxSession 
+        FROM kine_sessions 
+        WHERE patientId = ? AND kineId = ?
+      `, [data.patientId, data.kineId]);
+        const sessionNumber = (lastSession?.maxSession || 0) + 1;
+
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        await run(`
+        INSERT INTO kine_sessions (id, patientId, kineId, consultationId, sessionDate, sessionNumber, duration, price, paymentStatus, notes, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+          id,
+          data.patientId,
+          data.kineId,
+          data.consultationId || null,
+          data.sessionDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
+          sessionNumber,
+          data.duration || 30,
+          price,
+          data.paymentStatus || 'unpaid',
+          data.notes || '',
+          now
+        ]);
+
+        console.log(`Kine session created: ${id}, session #${sessionNumber}, price: ${price} DZD`);
+
+        return { success: true, id, sessionNumber, price };
+        });
+      });
+    } catch (error) {
+      console.error('Error creating kine session:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Update kinÃ© session payment status
+  ipcMain.handle('kine-session:update-payment', async (event, sessionId, paymentStatus) => {
+    try {
+      await run('UPDATE kine_sessions SET paymentStatus = ? WHERE id = ?', [paymentStatus, sessionId]);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating session payment:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get kinÃ© sessions
+  ipcMain.handle('kine-staff:get-sessions', async (event, kineId) => {
+    try {
+      const sessions = await query(`
+        SELECT ks.*, 
+               p.firstName,
+               p.lastName,
+               ROW_NUMBER() OVER (ORDER BY ks.sessionDate ASC) as sessionNum
+        FROM kine_sessions ks
+        JOIN patients p ON ks.patientId = p.id
+        WHERE ks.kineId = ?
+        ORDER BY ks.sessionDate DESC
+        LIMIT 50
+      `, [kineId]);
+      return (sessions || []).map((session) => ({
+        ...session,
+        patientName: buildFullName(session.firstName, session.lastName)
+      }));
+    } catch (error) {
+      console.error('Error getting kine sessions:', error);
+      throw error;
+    }
+  });
+
+  // Get kinÃ© stats
+  ipcMain.handle('kine-staff:get-stats', async () => {
+    try {
+      const totalKines = await queryOne('SELECT COUNT(*) as count FROM kine_staff WHERE isActive = 1');
+
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const monthStats = await queryOne(`
+        SELECT COUNT(*) as sessions, SUM(price) as revenue
+        FROM kine_sessions
+        WHERE DATE(sessionDate) >= DATE(?)
+      `, [startOfMonth.toISOString()]);
+
+      return {
+        totalKines: totalKines?.count || 0,
+        monthSessions: monthStats?.sessions || 0,
+        monthRevenue: monthStats?.revenue || 0
+      };
+    } catch (error) {
+      console.error('Error getting kine stats:', error);
+      throw error;
+    }
+  });
+
+  // Get daily kinÃ© summary
+  ipcMain.handle('kine-staff:get-daily-summary', async (event, date) => {
+    try {
+      const results = await query(`
+        SELECT 
+          k.firstName,
+          k.lastName,
+          COUNT(*) as sessions,
+          SUM(ks.price) as revenue
+        FROM kine_sessions ks
+        JOIN kine_staff k ON ks.kineId = k.id
+        WHERE DATE(ks.sessionDate) = DATE(?)
+        GROUP BY ks.kineId, k.firstName, k.lastName
+      `, [date]);
+
+      // Ensure numeric values are properly parsed (MariaDB may return strings)
+      return (results || []).map(r => ({
+        ...r,
+        kineName: buildFullName(r.firstName, r.lastName),
+        sessions: parseInt(r.sessions) || 0,
+        revenue: parseFloat(r.revenue) || 0
+      }));
+    } catch (error) {
+      console.error('Error getting daily kine summary:', error);
+      throw error;
+    }
+  });
 
   // ==================== DAILY SUMMARY ====================
 

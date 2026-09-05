@@ -151,39 +151,39 @@ window.repairMojibakeText = repairMojibakeText;
 window.repairUiMojibake = repairUiMojibake;
 
 const PRACTICE_SPECIALTY_META = {
-  dentistry: {
-    key: 'dentistry',
-    label: 'Dentiste',
-    shortLabel: 'Dentisterie',
-    doctorBadgeLabel: 'DENTISTE',
-    doctorSpecialtyLine: 'MÉDECIN DENTISTE',
-    sectionId: 'dentistry',
+  orl: {
+    key: 'orl',
+    label: 'Médecin ORL',
+    shortLabel: 'ORL',
+    doctorBadgeLabel: 'MÉDECIN ORL',
+    doctorSpecialtyLine: 'MÉDECIN SPÉCIALISTE EN OTO-RHINO-LARYNGOLOGIE',
+    sectionId: 'orl',
     report: {
-      kicker: 'Compte-rendu bucco-dentaire',
-      heroTitle: 'Rapport bucco-dentaire',
-      heroSubtitle: 'Constatations cliniques, soins et stratégie dentaire.',
-      badge: 'Dentisterie',
-      typeLabel: 'Rapport bucco-dentaire',
-      defaultMotif: 'Bilan bucco-dentaire',
-      objectLabel: 'Motif / Objet dentaire *',
-      objectPlaceholder: 'Ex: Bilan bucco-dentaire, contrôle post-soin, douleur dentaire',
-      contextLabel: 'Contexte bucco-dentaire *',
-      contextPlaceholder: 'Antécédents, plainte fonctionnelle, contexte du soin...',
-      findingsLabel: 'Constatations / Examen *',
-      findingsPlaceholder: 'Examen clinique, état dentaire, imagerie, lésions...',
-      careLabel: 'Soins / Traitement',
-      carePlaceholder: 'Soins réalisés, traitement proposé, plan de traitement...',
-      recommendationsLabel: 'Recommandations / Suites à donner',
-      recommendationsPlaceholder: 'Hygiène, contrôle, actes à prévoir, surveillance...',
-      objectTitle: 'Objet du rapport',
-      contextTitle: 'Contexte bucco-dentaire',
-      findingsTitle: 'Constatations cliniques et radiologiques',
-      careTitle: 'Soins réalisés et proposés',
+      kicker: 'Compte-rendu ORL',
+      heroTitle: 'Rapport de consultation ORL',
+      heroSubtitle: 'Otoscopie, audiométrie, fibroscopie et conduite thérapeutique.',
+      badge: 'ORL',
+      typeLabel: 'Compte-rendu ORL',
+      defaultMotif: 'Bilan ORL',
+      objectLabel: 'Motif / Objet ORL *',
+      objectPlaceholder: 'Ex: Bilan otologique, acouphènes, vertiges, rhinopharyngite chronique',
+      contextLabel: 'Contexte clinique & Antécédents *',
+      contextPlaceholder: 'Antécédents ORL, surdité, exposition au bruit, tabagisme, terrain allergique...',
+      findingsLabel: 'Constatations / Examen ORL *',
+      findingsPlaceholder: 'Otoscopie OD/OG, rhinoscopie, examen pharyngo-laryngé, aires ganglionnaires...',
+      careLabel: 'Explorations & Gestes pratiqués',
+      carePlaceholder: 'Audiométrie, tympanométrie, fibroscopie, lavage auriculaire, traitement prescrit...',
+      recommendationsLabel: 'Conduite à tenir / Recommandations',
+      recommendationsPlaceholder: 'Traitement médical, surveillance audiométrique, précautions, contrôle prévu...',
+      objectTitle: 'Motif de consultation',
+      contextTitle: 'Contexte et antécédents',
+      findingsTitle: 'Examen clinique ORL',
+      careTitle: 'Explorations et traitement',
       conclusionTitle: 'Conclusion et recommandations',
-      printTitle: 'RAPPORT BUCCO-DENTAIRE',
-      printSubtitle: 'Rapport dentaire'
+      printTitle: 'COMPTE-RENDU ORL',
+      printSubtitle: 'Oto-Rhino-Laryngologie'
     },
-    aiPromptIntro: 'Tu es un dentiste. Génère un compte rendu bucco-dentaire professionnel, structuré et concis en français.'
+    aiPromptIntro: 'Tu es un médecin spécialiste en Oto-Rhino-Laryngologie (ORL). Génère un compte rendu de consultation ORL professionnel, structuré et concis en français.'
   },
   general: {
     key: 'general',
@@ -218,27 +218,253 @@ const PRACTICE_SPECIALTY_META = {
       printSubtitle: 'Rapport clinique général'
     },
     aiPromptIntro: 'Tu es un médecin généraliste. Génère un compte rendu de consultation professionnel, concis et clair en français.'
+  },
+  mpr: {
+    key: 'mpr',
+    label: 'Médecin MPR',
+    shortLabel: 'MPR',
+    doctorBadgeLabel: 'MÉDECIN MPR',
+    doctorSpecialtyLine: 'MÉDECIN SPÉCIALISTE EN MÉDECINE PHYSIQUE ET RÉADAPTATION',
+    sectionId: 'rehabilitation',
+    report: {
+      kicker: 'Rapport de rééducation',
+      heroTitle: 'Rapport structuré',
+      heroSubtitle: 'Bilan fonctionnel, évolution clinique et conduite rééducative.',
+      badge: 'Rapport',
+      typeLabel: 'Rapport',
+      defaultMotif: 'Bilan de rééducation',
+      objectLabel: 'Motif / Objet *',
+      objectPlaceholder: 'Ex: Bilan fonctionnel de rééducation',
+      contextLabel: 'Contexte fonctionnel *',
+      contextPlaceholder: 'Terrain, antécédents, limitations fonctionnelles, évolution...',
+      findingsLabel: 'Constatations / Bilan clinique *',
+      findingsPlaceholder: 'Examen clinique, bilan articulaire, force, douleur, autonomie...',
+      careLabel: 'Prise en charge rééducative',
+      carePlaceholder: 'Rééducation, appareillage, séances, objectifs thérapeutiques...',
+      recommendationsLabel: 'Recommandations / Suites à donner',
+      recommendationsPlaceholder: 'Exercices, poursuite du protocole, avis complémentaires...',
+      objectTitle: 'Objet du rapport',
+      contextTitle: 'Contexte fonctionnel',
+      findingsTitle: 'Bilan clinique et fonctionnel',
+      careTitle: 'Prise en charge rééducative',
+      conclusionTitle: 'Conclusion et recommandations',
+      printTitle: 'RAPPORT',
+      printSubtitle: 'Rapport de rééducation'
+    },
+    aiPromptIntro: 'Tu es un médecin MPR (Médecine Physique et Réadaptation). Génère un compte rendu de consultation professionnel, structuré et concis en français.'
+  },
+  cardiology: {
+    key: 'cardiology',
+    label: 'Cardiologue',
+    shortLabel: 'Cardiologie',
+    doctorBadgeLabel: 'CARDIOLOGUE',
+    doctorSpecialtyLine: 'MÉDECIN SPÉCIALISTE EN CARDIOLOGIE',
+    sectionId: 'cardiology',
+    report: {
+      kicker: 'Compte-rendu cardiologique',
+      heroTitle: 'Rapport cardiologique',
+      heroSubtitle: 'Synthèse cardiovasculaire, examens et stratégie de suivi.',
+      badge: 'Cardiologie',
+      typeLabel: 'Rapport cardiologique',
+      defaultMotif: 'Bilan cardiologique',
+      objectLabel: 'Motif / Objet cardiologique *',
+      objectPlaceholder: 'Ex: Bilan cardiologique, suivi HTA, douleur thoracique',
+      contextLabel: 'Contexte cardiovasculaire *',
+      contextPlaceholder: 'Terrain, facteurs de risque, antécédents cardio-vasculaires...',
+      findingsLabel: 'Constatations / Examen cardiologique *',
+      findingsPlaceholder: 'Examen clinique, TA, FC, ECG, écho, Holter, biologie...',
+      careLabel: 'Prise en charge / Traitement',
+      carePlaceholder: 'Traitement cardio-vasculaire, adaptation thérapeutique, examens...',
+      recommendationsLabel: 'Suivi / Recommandations',
+      recommendationsPlaceholder: 'Contrôle, hygiène de vie, surveillance, orientation...',
+      objectTitle: 'Objet du rapport',
+      contextTitle: 'Contexte cardiovasculaire',
+      findingsTitle: 'Examen cardiologique et explorations',
+      careTitle: 'Prise en charge thérapeutique',
+      conclusionTitle: 'Conclusion et suivi recommandé',
+      printTitle: 'RAPPORT CARDIOLOGIQUE',
+      printSubtitle: 'Rapport de cardiologie'
+    },
+    aiPromptIntro: 'Tu es un cardiologue. Génère un compte rendu de consultation cardiologique professionnel, structuré et concis en français.'
+  },
+  dentistry: {
+    key: 'dentistry',
+    label: 'Dentiste',
+    shortLabel: 'Dentisterie',
+    doctorBadgeLabel: 'DENTISTE',
+    doctorSpecialtyLine: 'MÉDECIN DENTISTE',
+    sectionId: 'dentistry',
+    report: {
+      kicker: 'Compte-rendu bucco-dentaire',
+      heroTitle: 'Rapport bucco-dentaire',
+      heroSubtitle: 'Constatations cliniques, soins et stratégie dentaire.',
+      badge: 'Dentisterie',
+      typeLabel: 'Rapport bucco-dentaire',
+      defaultMotif: 'Bilan bucco-dentaire',
+      objectLabel: 'Motif / Objet dentaire *',
+      objectPlaceholder: 'Ex: Bilan bucco-dentaire, contrôle post-soin, douleur dentaire',
+      contextLabel: 'Contexte bucco-dentaire *',
+      contextPlaceholder: 'Antécédents, plainte fonctionnelle, contexte du soin...',
+      findingsLabel: 'Constatations / Examen *',
+      findingsPlaceholder: 'Examen clinique, état dentaire, imagerie, lésions...',
+      careLabel: 'Soins / Traitement',
+      carePlaceholder: 'Soins réalisés, traitement proposé, plan de traitement...',
+      recommendationsLabel: 'Recommandations / Suites à donner',
+      recommendationsPlaceholder: 'Hygiène, contrôle, actes à prévoir, surveillance...',
+      objectTitle: 'Objet du rapport',
+      contextTitle: 'Contexte bucco-dentaire',
+      findingsTitle: 'Constatations cliniques et radiologiques',
+      careTitle: 'Soins réalisés et proposés',
+      conclusionTitle: 'Conclusion et recommandations',
+      printTitle: 'RAPPORT BUCCO-DENTAIRE',
+      printSubtitle: 'Rapport dentaire'
+    },
+    aiPromptIntro: 'Tu es un dentiste. Génère un compte rendu bucco-dentaire professionnel, structuré et concis en français.'
   }
 };
 
-const CONSULTATION_ACT_META = {
-  consultation: { label: 'Consultation médicale', specialties: ['dentistry', 'general'] },
-  other: { label: 'Autre acte', specialties: ['dentistry', 'general'] }
+PRACTICE_SPECIALTY_META.urology = {
+  key: 'urology',
+  label: 'Urologue',
+  shortLabel: 'Urologie',
+  doctorBadgeLabel: 'UROLOGUE',
+  doctorSpecialtyLine: 'طبيب المسالك البولية',
+  sectionId: null,
+  report: {
+    kicker: 'Compte rendu urologique',
+    heroTitle: 'Compte rendu d urologie',
+    heroSubtitle: 'Indication, organe explore, description et conclusion.',
+    badge: 'Urologie',
+    typeLabel: 'Compte rendu urologique',
+    defaultMotif: 'Compte rendu d echographie urologique',
+    objectLabel: 'Indications *',
+    objectPlaceholder: 'Ex: Lombalgies, douleurs inguinales droites, pesanteur scrotale',
+    organLabel: 'Organe examine *',
+    organPlaceholder: 'Ex: Rein droit, vessie, prostate...',
+    contextLabel: 'Organe / Zone *',
+    contextPlaceholder: 'Ex: Rein droit, vessie, prostate...',
+    findingsLabel: 'Description / Resultats *',
+    findingsPlaceholder: 'Decrire les constatations echographiques et cliniques...',
+    careLabel: 'Details complementaires',
+    carePlaceholder: 'Observations additionnelles si necessaire...',
+    recommendationsLabel: 'Conclusion *',
+    recommendationsPlaceholder: 'Conclusion diagnostique et conduite a tenir...',
+    objectTitle: 'Indication',
+    organTitle: 'Organe examine',
+    contextTitle: 'Organe / Zone',
+    findingsTitle: 'Description et resultats',
+    careTitle: 'Details complementaires',
+    conclusionTitle: 'Conclusion',
+    printTitle: "COMPTE-RENDU D'ECHOGRAPHIE",
+    printSubtitle: 'Rapport urologique'
+  },
+  aiPromptIntro: 'Tu es un urologue. Genere un compte rendu d echographie urologique structure et concis en francais.'
 };
 
-const CONSULTATION_ACT_LABEL_OVERRIDES = {};
+Object.assign(PRACTICE_SPECIALTY_META.mpr.report, {
+  kicker: 'Compte rendu MPR',
+  heroTitle: 'Compte rendu m\u00e9dical MPR',
+  heroSubtitle: 'Bilan clinique, bilan fonctionnel et conduite th\u00e9rapeutique de r\u00e9adaptation.',
+  badge: 'Compte rendu',
+  typeLabel: 'Compte rendu MPR',
+  defaultMotif: 'Compte rendu MPR',
+  objectLabel: 'Indications *',
+  objectPlaceholder: 'Ex: Lombalgie chronique, bilan fonctionnel, suivi de r\u00e9\u00e9ducation',
+  organLabel: 'Organe / Zone *',
+  organPlaceholder: 'Ex: Epaule droite, genou gauche...',
+  careLabel: 'Prise en charge th\u00e9rapeutique et r\u00e9\u00e9ducative',
+  recommendationsLabel: 'Conclusion / Recommandations',
+  recommendationsPlaceholder: 'Conclusion clinique, exercices, suites, avis compl\u00e9mentaires...',
+  objectTitle: 'Indication',
+  organTitle: 'Organe / Zone examinee',
+  contextTitle: 'Ant\u00e9c\u00e9dents et contexte fonctionnel',
+  findingsTitle: 'Examen clinique et bilan fonctionnel',
+  careTitle: 'Prise en charge th\u00e9rapeutique et r\u00e9\u00e9ducative',
+  conclusionTitle: 'Conclusion',
+  printTitle: 'COMPTE-RENDU MPR',
+  printSubtitle: 'M\u00e9decine Physique et R\u00e9adaptation'
+});
+
+Object.assign(PRACTICE_SPECIALTY_META.cardiology.report, {
+  objectLabel: 'Indications *',
+  objectPlaceholder: 'Ex: Douleur thoracique, palpitations, dyspnee',
+  organLabel: 'Organe / Zone *',
+  organPlaceholder: 'Ex: Coeur, valves cardiaques...',
+  contextLabel: 'Organe / Zone *',
+  contextPlaceholder: 'Ex: Coeur, aorte, pericarde...',
+  findingsLabel: 'Description / Resultats *',
+  findingsPlaceholder: 'Decrire les resultats cliniques et paracliniques...',
+  recommendationsLabel: 'Conclusion *',
+  recommendationsPlaceholder: 'Conclusion cardiologique et suivi recommande...',
+  objectTitle: 'Indication',
+  organTitle: 'Organe / Zone examinee',
+  contextTitle: 'Organe / Zone',
+  findingsTitle: 'Description et resultats',
+  careTitle: 'Details complementaires',
+  conclusionTitle: 'Conclusion'
+});
+
+const CONSULTATION_ACT_META = {
+  consultation: { label: 'Consultation médicale', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] },
+  audiometrie: { label: 'Audiométrie tonale / vocale', specialties: ['orl'] },
+  tympanometrie: { label: 'Tympanométrie / Impédancemétrie', specialties: ['orl'] },
+  fibroscopie: { label: 'Fibroscopie ORL / Nasofibroscopie', specialties: ['orl'] },
+  lavage: { label: 'Lavage d\'oreille / Aspiration', specialties: ['orl', 'general'] },
+  otoscopie_micro: { label: 'Otoscopie sous microscope', specialties: ['orl'] },
+  manoeuvre_vestibulaire: { label: 'Manoeuvre libératoire vestibulaire', specialties: ['orl'] },
+  paracentese: { label: 'Paracentèse / Soins otologiques', specialties: ['orl'] },
+  ecg: { label: 'ECG de repos', specialties: ['cardiology'] },
+  ecgstress: { label: 'ECG d\'effort', specialties: ['cardiology'] },
+  echo: { label: 'Échographie', specialties: ['orl', 'general', 'mpr', 'cardiology', 'urology'] },
+  holtermapa: { label: 'Holter / MAPA', specialties: ['cardiology'] },
+  kine: { label: 'Séance kiné', specialties: ['mpr'] },
+  reduction: { label: 'Réduction', specialties: ['general', 'mpr'] },
+  infiltration: { label: 'Infiltration', specialties: ['general', 'mpr'] },
+  electrotherapie: { label: 'Électrothérapie', specialties: ['mpr'] },
+  massage: { label: 'Massage', specialties: ['mpr'] },
+  tecartherapie: { label: 'Tecarthérapie', specialties: ['mpr'] },
+  ondesdechoc: { label: 'Ondes de choc', specialties: ['mpr'] },
+  mesotherapie: { label: 'Mésothérapie', specialties: ['mpr'] },
+  lasertherapie: { label: 'Laser thérapie', specialties: ['mpr'] },
+  dryneedling: { label: 'Dry needling', specialties: ['mpr'] },
+  osteopathie: { label: 'Ostéopathie', specialties: ['mpr'] },
+  other: { label: 'Autre acte', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] }
+};
+
+const CONSULTATION_ACT_LABEL_OVERRIDES = {
+  orl: {
+    consultation: 'Consultation ORL',
+    fibroscopie: 'Nasofibroscopie diagnostique',
+    audiometrie: 'Bilan audiométrique tonal et vocal',
+    echo: 'Échographie cervicale / salivaire',
+    lavage: 'Lavage d\'oreille / Aspiration',
+    other: 'Autre acte ORL'
+  },
+  cardiology: {
+    consultation: 'Consultation cardiologique',
+    echo: 'Échocardiographie',
+    ecg: 'ECG de repos',
+    ecgstress: 'ECG d\'effort',
+    holtermapa: 'Holter / MAPA',
+    other: 'Autre acte cardiologique'
+  }
+};
 
 function normalizePracticeSpecialtyKey(value) {
   const raw = String(value || '').trim().toLowerCase();
-  if (!raw) return 'dentistry';
+  if (!raw) return 'orl';
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
+  if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
+  if (['mpr', 'rehabilitation', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique'].includes(raw)) return 'mpr';
+  if (['cardiology', 'cardiologie', 'cardiologue', 'cardiologist'].includes(raw)) return 'cardiology';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist'].includes(raw)) return 'dentistry';
-  return PRACTICE_SPECIALTY_META[raw] ? raw : 'dentistry';
+  if (['urology', 'urologue', 'urologie', 'urologist', 'طبيب المسالك البولية', 'المسالك البولية'].includes(raw)) return 'urology';
+  return PRACTICE_SPECIALTY_META[raw] ? raw : 'orl';
 }
 
-function getPracticeSpecialtyMeta(value = 'dentistry') {
+function getPracticeSpecialtyMeta(value = 'orl') {
   const key = normalizePracticeSpecialtyKey(value);
-  return PRACTICE_SPECIALTY_META[key] || PRACTICE_SPECIALTY_META.dentistry || PRACTICE_SPECIALTY_META.general;
+  return PRACTICE_SPECIALTY_META[key] || PRACTICE_SPECIALTY_META.orl || PRACTICE_SPECIALTY_META.general;
 }
 
 function getAvailablePracticeSpecialties(config = window._packageConfig || null) {
@@ -262,20 +488,23 @@ function getEnabledPracticeSpecialties(config = window._packageConfig || null) {
         .map((entry) => normalizePracticeSpecialtyKey(entry))
         .filter((entry) => PRACTICE_SPECIALTY_META[entry]);
       const unique = [...new Set(normalizedList)];
-      return unique.length ? unique : ['dentistry'];
+      return unique.length ? unique : ['orl'];
     } catch (_) {
       // Fall back to legacy feature columns below.
     }
   }
 
   const specialties = [];
+  if (config?.featureORL === 1 || config?.featureORL === true || config?.featureORL === '1' || config?.activeSpecialty === 'orl') {
+    specialties.push('orl');
+  }
   if (config?.featureDentistry === 1 || config?.featureDentistry === true || config?.featureDentistry === '1' || config?.activeSpecialty === 'dentistry') {
     specialties.push('dentistry');
   }
   if (config?.featureGeneral === 1 || config?.featureGeneral === true || config?.activeSpecialty === 'general') {
     specialties.push('general');
   }
-  return specialties.length ? [...new Set(specialties)] : ['dentistry'];
+  return specialties.length ? [...new Set(specialties)] : ['orl', 'dentistry'];
 }
 
 function getCabinetType(config = window._packageConfig || null) {
@@ -294,7 +523,7 @@ function resolveActivePracticeSpecialty(config = window._packageConfig || null) 
     window.selectedDoctorSpecialty || ''
   );
   const enabled = getEnabledPracticeSpecialties(config);
-  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || enabled[0] || 'dentistry');
+  const requested = normalizePracticeSpecialtyKey(config?.activeSpecialty || enabled[0] || 'orl');
 
   if (currentUserRole === 'assistant' && assistantSelectedDoctorSpecialty) {
     return assistantSelectedDoctorSpecialty;
@@ -309,7 +538,7 @@ function resolveActivePracticeSpecialty(config = window._packageConfig || null) 
   }
 
   if (enabled.length === 1) return enabled[0];
-  return enabled[0] || 'dentistry';
+  return enabled[0] || 'orl';
 }
 
 function getActivePracticeSpecialtyMeta(config = window._packageConfig || null) {
@@ -321,12 +550,15 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
   const isTest = isDemoOrTestAccount();
 
   const specialtySectionMap = {
+    'orl': ['orl', 'treatment-plans'],
     'dentistry': ['dentistry', 'treatment-plans'],
-    'general': ['treatment-plans']
+    'mpr': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
+    'rehabilitation': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
+    'cardiology': ['cardiology', 'treatment-plans']
   };
 
-  const allSpecialtySections = ['dentistry'];
-  const allowedSections = specialtySectionMap[currentSpecialty] || ['dentistry', 'treatment-plans'];
+  const allSpecialtySections = ['orl', 'dentistry', 'rehabilitation', 'kine-staff', 'cardiology'];
+  const allowedSections = specialtySectionMap[currentSpecialty] || (currentSpecialty === 'general' ? ['treatment-plans'] : ['orl', 'treatment-plans']);
 
   allSpecialtySections.forEach((sectionId) => {
     const isAllowed = isTest || allowedSections.includes(sectionId);
@@ -551,16 +783,7 @@ function getCabinetWatermarkLogoDataUrl() {
 }
 
 function getCustomAppLogoDataUrl() {
-  const inputApp = (typeof document !== 'undefined' && document.getElementById('app-logo-data')?.value) || '';
-  const inputCabinet = (typeof document !== 'undefined' && document.getElementById('cabinet-logo-data')?.value) || '';
-  const localApp = (typeof localStorage !== 'undefined' && localStorage.getItem('medcareso_app_logo')) || '';
-  const localCabinet = (typeof localStorage !== 'undefined' && localStorage.getItem('medcareso_cabinet_logo')) || '';
-  const logo = (cachedSettings && (cachedSettings.appLogoDataUrl || cachedSettings.cabinetLogoDataUrl))
-    || inputApp
-    || inputCabinet
-    || localApp
-    || localCabinet
-    || '';
+  const logo = (cachedSettings && cachedSettings.appLogoDataUrl) || '';
   if (typeof logo !== 'string' || !logo.startsWith('data:image/')) return '';
   return logo;
 }
@@ -571,8 +794,11 @@ function getDefaultAppBrandLogoSrc() {
     : 'general';
   const userSpecialty = normalizePracticeSpecialtyKey(currentUserSpecialty || localStorage.getItem('currentUserSpecialty') || '');
   const specialtyLogoMap = {
-    dentistry: '../../assets/Dentiste.png',
-    general: 'assets/logo.png'
+    orl: '../../assets/ORL.png',
+    general: 'assets/logo.png',
+    mpr: '../../assets/MPR.png',
+    cardiology: '../../assets/Cardiologue.png',
+    dentistry: '../../assets/Dentiste.png'
   };
   if (specialtyLogoMap[activeSpecialty]) {
     return specialtyLogoMap[activeSpecialty];
@@ -581,7 +807,7 @@ function getDefaultAppBrandLogoSrc() {
   if (appLogo && typeof appLogo.src === 'string' && appLogo.src) {
     return appLogo.src;
   }
-  return '../../assets/Dentiste.png';
+  return 'assets/logo.png';
 }
 
 function getAppBrandLogoSrc() {
@@ -642,44 +868,6 @@ function handleDentalPatientSearchInput(query) {
   }
 }
 window.handleDentalPatientSearchInput = handleDentalPatientSearchInput;
-
-function handleDentalPatientSearchFocus() {
-  if (typeof window.performDentalPatientSearch === 'function') {
-    const searchInput = document.getElementById('dental-patient-search-bar');
-    const query = searchInput ? searchInput.value.trim() : '';
-    window.performDentalPatientSearch(query);
-  }
-}
-window.handleDentalPatientSearchFocus = handleDentalPatientSearchFocus;
-
-function clearDentalPatientSearch() {
-  const searchInput = document.getElementById('dental-patient-search-bar');
-  if (searchInput) { searchInput.value = ''; searchInput.focus(); }
-  const clearBtn = document.getElementById('dental-patient-search-clear');
-  if (clearBtn) clearBtn.style.display = 'none';
-  if (typeof window.performDentalPatientSearch === 'function') {
-    window.performDentalPatientSearch('');
-  }
-}
-window.clearDentalPatientSearch = clearDentalPatientSearch;
-
-function selectDentalPatientFromSearch(patientId) {
-  if (typeof window.selectDentalPatient === 'function') {
-    const dropdown = document.getElementById('dental-patient-search-dropdown');
-    if (dropdown) dropdown.style.display = 'none';
-    const select = document.getElementById('dental-patient-selector');
-    if (select) select.value = patientId;
-    window.selectDentalPatient(patientId);
-  }
-}
-window.selectDentalPatientFromSearch = selectDentalPatientFromSearch;
-
-function refreshDentalPatientList() {
-  if (typeof window.loadDentalPatientList === 'function') {
-    window.loadDentalPatientList();
-  }
-}
-window.refreshDentalPatientList = refreshDentalPatientList;
 
 const patientRecordsCache = {
   consultations: [],
@@ -1773,19 +1961,19 @@ function applySickLeavePreset(presetKey) {
   if (!careInput) return;
 
   if (presetKey === 'certif_soins') {
-    careInput.value = 'Soins bucco-dentaires et surveillance au cabinet.';
+    careInput.value = 'Soins ORL et surveillance médicale au cabinet.';
     if (daysDisplay) daysDisplay.value = '1';
     if (outingsCheckbox) outingsCheckbox.checked = true;
   } else if (presetKey === 'arret_maladie' || presetKey === 'arret_3j') {
-    careInput.value = 'Affection bucco-dentaire aiguë nécessitant repos et soins.';
+    careInput.value = 'Pathologie ORL aiguë nécessitant repos et soins.';
     if (daysDisplay) daysDisplay.value = '3';
     if (outingsCheckbox) outingsCheckbox.checked = true;
   } else if (presetKey === 'arret_5j') {
-    careInput.value = 'Intervention bucco-dentaire / chirurgie nécessitant repos strict.';
+    careInput.value = 'Infection ORL aiguë avec état fébrile nécessitant repos strict.';
     if (daysDisplay) daysDisplay.value = '5';
     if (outingsCheckbox) outingsCheckbox.checked = true;
   } else if (presetKey === 'arret_7j') {
-    careInput.value = 'Pathologie bucco-dentaire sévère nécessitant repos à domicile et soins.';
+    careInput.value = 'Affection ORL nécessitant repos à domicile et traitement médical.';
     if (daysDisplay) daysDisplay.value = '7';
     if (outingsCheckbox) outingsCheckbox.checked = true;
   }
@@ -2321,9 +2509,11 @@ function getPatientDocumentSpecialtyKey() {
       || ''
   ).trim().toLowerCase();
 
+  if (['orl', 'oto', 'otorhino', 'oto-rhino-laryngologie', 'ent'].includes(rawSpecialty)) return 'orl';
   if (['dentist', 'dentiste', 'dentistry', 'dentaire'].includes(rawSpecialty)) return 'dentiste';
-  if (['general', 'generaliste', 'généraliste'].includes(rawSpecialty)) return 'general';
-  return 'dentiste';
+  if (['cardio', 'cardiologie', 'cardiologue'].includes(rawSpecialty)) return 'cardiologue';
+  if (['mpr', 'physio', 'rehab', 'rééducation', 'reeducation'].includes(rawSpecialty)) return 'mpr';
+  return rawSpecialty || 'orl';
 }
 
 function resolveBonPourDocumentTitle(settings = null) {
@@ -2366,6 +2556,28 @@ function getPatientDocumentSpecialtyConfig() {
   };
 
   const configs = {
+    orl: {
+      label: 'ORL (Oto-Rhino-Laryngologie)',
+      imaging: [
+        bilanStandardPreset,
+        { label: 'TDM des Rochers', type: 'scanner', details: '- TDM des rochers (Os temporaux) en coupes millimétriques sans injection\n- Étude anatomique de l\'oreille moyenne, interne, osselets et mastoïdes', indication: 'Bilan d\'otite chronique / hypoacousie / acouphènes / cholestéatome' },
+        { label: 'TDM Sinus de la Face', type: 'scanner', details: '- TDM du massif facial et des sinus (coronal et axial sans injection)\n- Étude des méats, complexe ostio-méatal, cloisons et cavités sinusiennes', indication: 'Bilan de sinusite chronique / polypose naso-sinusienne / déviation septale' },
+        { label: 'IRM des CAI (Conduits Auditifs)', type: 'irm', details: '- IRM des conduits auditifs internes (CAI) et de l\'angle ponto-cérébelleux\n- Séquences CISS 3D / T2 haute résolution et T1 avec injection de Gadolinium', indication: 'Hypoacousie unilatérale / acouphènes / vertiges / éliminer schwannome vestibulaire' },
+        { label: 'IRM Sinus & Cavum', type: 'irm', details: '- IRM du cavum, pharynx et sinus de la face avec injection de Gadolinium\n- Évaluation des tissus mous et extensions', indication: 'Lésion cavum / obstruction nasale unilatérale / adénopathie' },
+        { label: 'Échographie Cervicale & Thyroïde', type: 'echo', details: '- Échographie cervicale bilatérale avec étude des aires ganglionnaires\n- Échographie de la glande thyroïde et des glandes salivaires (parotides et sous-maxillaires)', indication: 'Adénopathie cervicale / nodule thyroïdien / tuméfaction salivaire' },
+        { label: 'Audiométrie & Tympanométrie', type: 'audio_orl', details: '- Audiométrie tonale liminaire (conduction aérienne et osseuse)\n- Audiométrie vocale (seuil d\'intelligibilité)\n- Tympanométrie avec recherche des réflexes stapédiens', indication: 'Bilan de surdité / acouphènes / hypoacousie de transmission ou perception' },
+        { label: 'Bilan Pré-opératoire ORL', type: 'analyses', details: '- NFS / Plaquettes complète\n- TP, TCA, INR, Fibrinogène\n- Groupe Sanguin Rhésus + RAI\n- Glycémie à jeun, Urée, Créatininémie', indication: 'Bilan pré-opératoire (Adénoïdectomie / Amygdalectomie / Septoplastie / Chirurgie otologique)' },
+        { label: 'Bilan Vertiges (VNG / PEA)', type: 'audio_orl', details: '- Vidéonystagmographie (VNG) avec épreuves vestibulaires caloriques\n- Potentiels Évoqués Auditifs (PEA) précoces du tronc cérébral', indication: 'Exploration de vertiges / instabilité / syndrome vestibulaire périphérique' },
+        { label: 'Nasofibroscopie VADS', type: 'audio_orl', details: '- Nasofibroscopie diagnostique des fosses nasales, du pharynx et du larynx', indication: 'Dysphonie chronique / dysphagie / obstruction nasale' }
+      ],
+      orientations: [
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Imagerie ORL spécialisée (TDM rochers/sinus, IRM CAI, Échographie cervicale)' },
+        { label: 'Audioprothésiste', specialty: 'Autre', motif: 'Bilan d\'appareillage auditif prothétique' },
+        { label: 'Orthophoniste', specialty: 'Autre', motif: 'Rééducation vocale / bilan de déglutition / rééducation tubaire' },
+        { label: 'Kinésithérapeute Vestibulaire', specialty: 'Kinesitherapeute', motif: 'Rééducation vestibulaire fonctionnelle' },
+        { label: 'Allergologue', specialty: 'Autre', motif: 'Bilan allergologique respiratoire (Prick-tests / RAST pneumallergènes)' }
+      ]
+    },
     dentiste: {
       label: 'Dentiste / Stomatologie',
       imaging: [
@@ -2380,8 +2592,43 @@ function getPatientDocumentSpecialtyConfig() {
       orientations: [
         { label: 'Radiologue Maxillo-Facial', specialty: 'Radiologue', motif: 'Bilan d’imagerie 3D Cone Beam / Panoramique dentaire' },
         { label: 'Chirurgien Maxillo-Facial', specialty: 'Autre', motif: 'Avis spécialisé extraction complexe / kystes / chirurgie orthognathique' },
+        { label: 'ORL', specialty: 'ORL', motif: 'Avis ORL pour communication bucco-sinusienne ou sinusite maxillaire d\'origine dentaire' },
         { label: 'Orthodontiste', specialty: 'Autre', motif: 'Prise en charge orthodontique spécialisée' },
         { label: 'Parodontiste', specialty: 'Autre', motif: 'Prise en charge de parodontite sévère / chirurgie parodontale' }
+      ]
+    },
+    cardiologue: {
+      label: 'Cardiologue',
+      imaging: [
+        bilanStandardPreset,
+        { label: 'ECG', type: 'other', details: 'Électrocardiogramme de repos', indication: 'Bilan cardiologique' },
+        { label: 'Échocardiographie', type: 'echo', details: 'Échocardiographie transthoracique', indication: 'Évaluation morphologique et fonctionnelle cardiaque' },
+        { label: 'Holter ECG', type: 'other', details: 'Holter ECG 24h / 48h', indication: 'Trouble du rythme suspecté' },
+        { label: 'Épreuve d’effort', type: 'other', details: 'Épreuve d’effort', indication: 'Bilan d’ischémie / capacité fonctionnelle' },
+        { label: 'Angio-scanner coronaire', type: 'scanner', details: 'Angio-scanner coronaire', indication: 'Exploration coronaire non invasive' },
+        { label: 'IRM cardiaque', type: 'irm', details: 'IRM cardiaque', indication: 'Caractérisation myocardique / bilan spécialisé' }
+      ],
+      orientations: [
+        { label: 'Rythmologue', specialty: 'Cardiologue', motif: 'Avis spécialisé en rythmologie' },
+        { label: 'Radiologue', specialty: 'Radiologue', motif: 'Imagerie cardiovasculaire spécialisée' },
+        { label: 'Urgences', specialty: 'Autre', motif: 'Orientation urgente selon le contexte clinique' }
+      ]
+    },
+    mpr: {
+      label: 'MPR',
+      imaging: [
+        bilanStandardPreset,
+        { label: 'Rx ostéo-articulaire', type: 'radio', details: 'Radiographie ostéo-articulaire ciblée', indication: 'Bilan de douleur ou limitation fonctionnelle' },
+        { label: 'IRM rachis / articulation', type: 'irm', details: 'IRM rachis ou articulation selon clinique', indication: 'Bilan lésionnel et fonctionnel' },
+        { label: 'EMG / ENMG', type: 'emg', details: 'EMG / ENMG', indication: 'Bilan neuro-musculaire' },
+        { label: 'Doppler', type: 'doppler', details: 'Doppler vasculaire selon indication', indication: 'Bilan vasculaire complémentaire' },
+        { label: 'Kinésithérapie', type: 'kine', details: 'Rééducation fonctionnelle', indication: 'Programme de réadaptation' }
+      ],
+      orientations: [
+        { label: 'Kinésithérapeute', specialty: 'Kinesitherapeute', motif: 'Prise en charge rééducative fonctionnelle' },
+        { label: 'Orthopédiste', specialty: 'Orthopediste', motif: 'Avis orthopédique spécialisé' },
+        { label: 'Neurologue', specialty: 'Neurologue', motif: 'Avis neurologique / bilan neuro-musculaire' },
+        { label: 'Rhumatologue', specialty: 'Rhumatologue', motif: 'Avis rhumatologique spécialisé' }
       ]
     },
     general: {
@@ -2401,7 +2648,7 @@ function getPatientDocumentSpecialtyConfig() {
     }
   };
 
-  return configs[key] || configs.dentiste || configs.general;
+  return configs[key] || configs.orl || configs.general;
 }
 
 window.patientDocumentPresetMap = window.patientDocumentPresetMap || {};
@@ -2480,6 +2727,22 @@ function renderPatientDocumentWidget() {
         <button type="button" class="btn" onclick="handlePatientDocumentAction('workstop')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>
           <span>Arrêt de travail</span>
+        </button>
+      </div>
+
+      <!-- Ligne 3 : Comptes-rendus ORL (Nasofibroscopie, Échographie Cervicale, Audiogramme) -->
+      <div class="patient-documents-row patient-documents-row-3" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%;">
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('nasofibroscopie')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+          <span>Nasofibroscopie</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('echographie_cervicale')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h3l2-6 4 13 3-9 2 5h6"/><circle cx="18" cy="6" r="3"/></svg>
+          <span>Échographie Cervicale</span>
+        </button>
+        <button type="button" class="btn" onclick="handlePatientDocumentAction('audiogramme')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h2a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H2v7zm16 0h2a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2v7z"/><path d="M4 15v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2"/><path d="M9 9h.01M15 9h.01M9 13h6"/></svg>
+          <span>Audiogramme</span>
         </button>
       </div>
     </div>
@@ -2702,24 +2965,44 @@ window.initializeTimeInputs = initializeTimeInputs;
 window.initializePasswordToggles = initializePasswordToggles;
 
 const SPECIALTY_CONFIG = {
-  dentistry: {
-    accent: '#0f766e', // Teal/cyan
-    accentLight: '#14b8a6',
-    accentDark: '#115e59'
+  orl: {
+    accent: '#0d7377', // Medical Teal / Cyan for ORL
+    accentLight: '#149d9f',
+    accentDark: '#073b4c'
   },
   general: {
     accent: '#145da0', // Professional blue
     accentLight: '#2d7fbe',
     accentDark: '#0f4272'
+  },
+  mpr: {
+    accent: '#8b5cf6', // Purple
+    accentLight: '#a78bfa',
+    accentDark: '#6d28d9'
+  },
+  cardiology: {
+    accent: '#dc2626', // Red
+    accentLight: '#ef4444',
+    accentDark: '#b91c1c'
+  },
+  dentistry: {
+    accent: '#0f766e', // Teal/cyan
+    accentLight: '#14b8a6',
+    accentDark: '#115e59'
+  },
+  urology: {
+    accent: '#2563eb', // Blue
+    accentLight: '#3b82f6',
+    accentDark: '#1d4ed8'
   }
 };
 
 function applySpecialtyAccent() {
   const activeSpecialty = typeof resolveActivePracticeSpecialty === 'function'
     ? resolveActivePracticeSpecialty(window._packageConfig)
-    : 'dentistry';
+    : 'orl';
   
-  const colors = SPECIALTY_CONFIG[activeSpecialty] || SPECIALTY_CONFIG.dentistry || SPECIALTY_CONFIG.general;
+  const colors = SPECIALTY_CONFIG[activeSpecialty] || SPECIALTY_CONFIG.orl || SPECIALTY_CONFIG.general;
   
   const root = document.documentElement;
   root.style.setProperty('--primary-color', colors.accent);
@@ -2729,10 +3012,24 @@ function applySpecialtyAccent() {
   console.log('[Specialty] Applied specialty colors for active specialty [' + activeSpecialty + ']:', colors);
 }
 
+function switchRehabMainTab(tabName) {
+  document.querySelectorAll('.rehab-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  document.querySelectorAll('.rehab-tab-content').forEach(content => {
+    content.style.display = 'none';
+  });
+  const activeTab = document.getElementById('rehab-tab-' + tabName);
+  if (activeTab) {
+    activeTab.style.display = 'block';
+  }
+}
+
 window.SPECIALTY_CONFIG = SPECIALTY_CONFIG;
 window.applySpecialtyAccent = applySpecialtyAccent;
 window.getPatientDocumentSpecialtyConfig = getPatientDocumentSpecialtyConfig;
 window.getPatientDocumentSpecialtyKey = getPatientDocumentSpecialtyKey;
+window.switchRehabMainTab = switchRehabMainTab;
 
 async function openMobileAccessModal(preferredAddress = '') {
   const modal = document.getElementById('modal-mobile-access');

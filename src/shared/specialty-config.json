@@ -1,4 +1,95 @@
 {
+  "orl": {
+    "key": "orl",
+    "label": "ORL",
+    "doctorLabel": "Médecin ORL",
+    "logo": "ORL.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_orl.json",
+    "exams": [
+      "Audiométrie tonale et vocale",
+      "Tympanométrie / Impédancemétrie",
+      "Fibroscopie naso-pharyngo-laryngée",
+      "Otoscopie sous microscope",
+      "Épreuve vestibulaire / Dix-Hallpike",
+      "Endoscopie sinusienne",
+      "Bilan d'acouphènes et de vertiges"
+    ],
+    "imagingFamilies": [
+      "Scanner des sinus",
+      "Scanner des rochers et mastoïdes",
+      "IRM angle ponto-cérébelleux (APC)",
+      "Radiographie du cavum et des sinus",
+      "Échographie cervicale et salivaire"
+    ],
+    "equipmentCategories": [
+      "Audiomètre",
+      "Tympanomètre / Impédancemètre",
+      "Nasofibroscope",
+      "Microscope de consultation ORL",
+      "Fauteuil d'examen ORL",
+      "Aspirateur chirurgical ORL",
+      "Source de lumière froide",
+      "Instrumentation ORL / Miroirs"
+    ]
+  },
+  "mpr": {
+    "key": "mpr",
+    "label": "MPR",
+    "doctorLabel": "Médecin MPR",
+    "logo": "MPR.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_mpr.json",
+    "exams": [
+      "Bilan fonctionnel",
+      "Bilan articulaire",
+      "Bilan musculaire",
+      "Échelles MPR"
+    ],
+    "imagingFamilies": [
+      "Radiographie ostéo-articulaire",
+      "IRM",
+      "Scanner",
+      "Échographie musculo-squelettique"
+    ],
+    "equipmentCategories": [
+      "Orthèse",
+      "Prothèse",
+      "Fauteuil roulant",
+      "Aide à la marche",
+      "Matériel de rééducation",
+      "Appareillage"
+    ]
+  },
+  "cardiology": {
+    "key": "cardiology",
+    "label": "Cardiologue",
+    "doctorLabel": "Cardiologue",
+    "logo": "Cardiologue.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_cardio.json",
+    "exams": [
+      "ECG",
+      "Échocardiographie",
+      "Holter ECG",
+      "MAPA",
+      "Épreuve d'effort"
+    ],
+    "imagingFamilies": [
+      "Échocardiographie",
+      "Doppler",
+      "Coroscanner",
+      "IRM cardiaque"
+    ],
+    "equipmentCategories": [
+      "Holter",
+      "Tensiomètre",
+      "Électrocardiographe"
+    ]
+  },
   "dentistry": {
     "key": "dentistry",
     "label": "Dentiste",

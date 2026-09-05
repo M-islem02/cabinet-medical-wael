@@ -749,30 +749,169 @@ function setRapportSummary({ patient, updatedAt }) {
 }
 
 const RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY = {
-  dentistry: {
+  orl: {
     options: [
-      'Examen bucco-dentaire global',
-      'Secteur 1 (Maxillaire droit)',
-      'Secteur 2 (Maxillaire gauche)',
-      'Secteur 3 (Mandibulaire gauche)',
-      'Secteur 4 (Mandibulaire droit)',
-      'Parodonte & Gencives',
-      'Articulations temporo-mandibulaires (ATM)',
-      'Muqueuse buccale & Langue'
+      'Oreille droite (Otoscopie OD)',
+      'Oreille gauche (Otoscopie OG)',
+      'Fosses nasales, Septum & Sinus',
+      'Cavité buccale, Langue & Dents',
+      'Oropharynx & Amygdales palatines',
+      'Cavum & Rhinopharynx (Végétations)',
+      'Larynx, Épiglotte & Cordes vocales',
+      'Aires ganglionnaires cervicales & Cou',
+      'Glandes salivaires (Parotides / Sous-maxillaires)',
+      'Système vestibulaire & Équilibre'
     ],
-    defaultEntries: [
-      { key: 'constatations', label: 'Constatations cliniques', type: 'textarea', rows: 2, placeholder: 'État dentaire, lésions, caries, mobilité...' },
-      { key: 'soins', label: 'Actes & Soins réalisés', type: 'textarea', rows: 2, placeholder: 'Soins, détartrage, obturation, extraction...' },
-      { key: 'observations', label: 'Observations & Plan de traitement', type: 'textarea', rows: 2, placeholder: 'Recommandations, devis, contrôles...' }
-    ]
-  },
-  general: {
-    options: [
-      'Examen clinique général'
+    templates: [
+      {
+        organs: ['Oreille droite (Otoscopie OD)', 'Oreille gauche (Otoscopie OG)'],
+        entries: [
+          { key: 'conduit', label: 'Conduit auditif externe (CAE)', type: 'text', placeholder: 'Ex: Libre, non inflammatoire, absence de bouchon' },
+          { key: 'tympan', label: 'Tympan & Reliefs', type: 'text', placeholder: 'Ex: Tympan gris perle, triangle lumineux présent, intègre' },
+          { key: 'mobilite', label: 'Mobilité / Aérateur', type: 'text', placeholder: 'Ex: Bonne mobilité au Valsalva / Absence d\'épanchement' },
+          { key: 'observations', label: 'Observations otologiques', type: 'textarea', rows: 2, placeholder: 'Ex: Pas de perforation, pas d\'otorrhée...' }
+        ]
+      },
+      {
+        organs: ['Fosses nasales, Septum & Sinus', 'Cavum & Rhinopharynx (Végétations)'],
+        entries: [
+          { key: 'muqueuse', label: 'Aspect de la muqueuse nasale', type: 'text', placeholder: 'Ex: Muqueuse rose normotrophe, non sécrétante' },
+          { key: 'cloisons_cornets', label: 'Cloison (Septum) & Cornets', type: 'text', placeholder: 'Ex: Septum centré, cornets inférieurs normotrophiques' },
+          { key: 'meats', label: 'Méats moyens / Écoulement', type: 'text', placeholder: 'Ex: Méats libres, absence de pus ou de polype' },
+          { key: 'cavum', label: 'Cavum / Végétations adénoïdes', type: 'text', placeholder: 'Ex: Cavum libre, torus tubaires normaux' },
+          { key: 'observations', label: 'Observations rhinologiques', type: 'textarea', rows: 2, placeholder: 'Ex: Pas d\'obstacle ni de formation suspecte...' }
+        ]
+      },
+      {
+        organs: ['Cavité buccale, Langue & Dents', 'Oropharynx & Amygdales palatines'],
+        entries: [
+          { key: 'buccal_dents', label: 'Lèvres, Gencives & Dents', type: 'text', placeholder: 'Ex: État bucco-dentaire satisfaisant, muqueuses saines' },
+          { key: 'langue_plancher', label: 'Langue & Plancher buccal', type: 'text', placeholder: 'Ex: Langue mobile, plancher buccal souple sans induration' },
+          { key: 'voile_palais', label: 'Voile du palais & Luette', type: 'text', placeholder: 'Ex: Voile mobile et symétrique, luette médiane' },
+          { key: 'amygdales', label: 'Amygdales palatines (Tonsilles)', type: 'text', placeholder: 'Ex: Amygdales normotrophes (Grade 1), saines, sans enduit ni caséum' },
+          { key: 'observations', label: 'Observations pharyngo-buccales', type: 'textarea', rows: 2, placeholder: 'Ex: Pas de lésion ulcéreuse ni de foyer infectieux...' }
+        ]
+      },
+      {
+        organs: ['Larynx, Épiglotte & Cordes vocales'],
+        entries: [
+          { key: 'larynx_epiglotte', label: 'Épiglotte & Margelle laryngée', type: 'text', placeholder: 'Ex: Épiglotte souple, replis ary-épiglottiques libres' },
+          { key: 'cordes_vocales', label: 'Cordes vocales & Mobilité', type: 'text', placeholder: 'Ex: Cordes vocales blanches nacrées, mobiles, bon accolement glottique' },
+          { key: 'sinus_piriformes', label: 'Sinus piriformes & Hypopharynx', type: 'text', placeholder: 'Ex: Sinus piriformes libres, pas de stase salivaire' },
+          { key: 'observations', label: 'Observations endoscopiques', type: 'textarea', rows: 2, placeholder: 'Ex: Absence de nodule, polype ou dysphonie...' }
+        ]
+      }
     ],
     defaultEntries: [
       { key: 'description', label: 'Constatations cliniques', type: 'textarea', rows: 2, placeholder: 'Examen de la zone...' },
       { key: 'observations', label: 'Observations complémentaires', type: 'textarea', rows: 2, placeholder: 'Détails et explorations utiles...' }
+    ]
+  },
+  cardiology: {
+    options: [
+      'Coeur',
+      'Aorte',
+      'Arteres coronaires',
+      'Valves cardiaques',
+      'Pericarde',
+      'Ventricule gauche',
+      'Ventricule droit'
+    ],
+    defaultEntries: [
+      { key: 'dimensions', label: 'Dimensions', type: 'text', placeholder: 'Ex: Dimensions conservees' },
+      { key: 'parois', label: 'Parois', type: 'text', placeholder: 'Ex: Parois fines, non epaissies' },
+      { key: 'cavites', label: 'Cavites', type: 'text', placeholder: 'Ex: Cavites non dilatees' },
+      { key: 'valves', label: 'Valves / Doppler', type: 'textarea', rows: 2, placeholder: 'Ex: Valves continentes, flux conserve...' },
+      { key: 'contractilite', label: 'Contractilite / Fonction', type: 'text', placeholder: 'Ex: Fonction systolique conservee' },
+      { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Absence d\'epanchement pericardique...' }
+    ]
+  },
+  mpr: {
+    options: [
+      'Epaule droite',
+      'Epaule gauche',
+      'Coude',
+      'Poignet',
+      'Main',
+      'Rachis cervical',
+      'Rachis dorsal',
+      'Rachis lombaire',
+      'Hanche droite',
+      'Hanche gauche',
+      'Genou droit',
+      'Genou gauche',
+      'Cheville',
+      'Pied'
+    ],
+    defaultEntries: [
+      { key: 'inspection', label: 'Inspection / Attitude', type: 'text', placeholder: 'Ex: Attitude antalgique, tumefaction absente...' },
+      { key: 'douleur', label: 'Douleur', type: 'text', placeholder: 'Ex: Douleur a la mobilisation active' },
+      { key: 'mobilite', label: 'Mobilite', type: 'text', placeholder: 'Ex: Mobilite limitee en abduction' },
+      { key: 'force', label: 'Force / Fonction', type: 'text', placeholder: 'Ex: Force diminuee a 4/5' },
+      { key: 'tests', label: 'Tests specifiques', type: 'textarea', rows: 2, placeholder: 'Ex: Test de Neer positif...' },
+      { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Retentissement fonctionnel, marche, autonomie...' }
+    ]
+  },
+  urology: {
+    options: [
+      'Rein droit',
+      'Rein gauche',
+      'Vessie',
+      'Prostate',
+      'Organes genitaux externes',
+      'Voies urinaires'
+    ],
+    templates: [
+      {
+        organs: ['Rein droit', 'Rein gauche'],
+        entries: [
+          { key: 'topographie_dimensions', label: 'Topographie-dimensions', type: 'text', placeholder: 'Ex: Normales' },
+          { key: 'contours', label: 'Contours', type: 'text', placeholder: 'Ex: Reguliers' },
+          { key: 'voies_excretrices', label: 'Voies excretrices', type: 'text', placeholder: 'Ex: Non dilatees' },
+          { key: 'echostructure', label: 'Echostructure', type: 'textarea', rows: 2, placeholder: 'Ex: Habituelle, parenchymateux conserve...' },
+          { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Microlithiase calicielle...' }
+        ]
+      },
+      {
+        organs: ['Vessie'],
+        entries: [
+          { key: 'capacite', label: 'Capacite', type: 'text', placeholder: 'Ex: Semi repletion, RPM = 00 cm3' },
+          { key: 'contenu', label: 'Contenu', type: 'text', placeholder: 'Ex: Transonore' },
+          { key: 'paroi', label: 'Paroi', type: 'text', placeholder: 'Ex: Fine : 03.99 mm' },
+          { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Absence d\'anomalie endoluminale...' }
+        ]
+      },
+      {
+        organs: ['Prostate'],
+        entries: [
+          { key: 'volume', label: 'Volume', type: 'text', placeholder: 'Ex: 18.65 cm3' },
+          { key: 'echostructure', label: 'Echostructure', type: 'text', placeholder: 'Ex: Heterogene' },
+          { key: 'contours', label: 'Contours', type: 'text', placeholder: 'Ex: Reguliers' },
+          { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Prostatite heterogene de volume normal...' }
+        ]
+      },
+      {
+        organs: ['Organes genitaux externes'],
+        entries: [
+          { key: 'taille_echostructure', label: 'Taille et echostructure', type: 'text', placeholder: 'Ex: Taille et echostructure normales' },
+          { key: 'vascularisation', label: 'Vascularisation au Doppler', type: 'text', placeholder: 'Ex: Bien vascularises au Doppler' },
+          { key: 'hydrocele', label: 'Hydrocele', type: 'text', placeholder: 'Ex: Pas d\'hydrocele' },
+          { key: 'varicocele', label: 'Varicocele', type: 'text', placeholder: 'Ex: Discrete varicocele gauche' },
+          { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Testicules droit et gauche visibles...' }
+        ]
+      },
+      {
+        organs: ['Voies urinaires'],
+        entries: [
+          { key: 'permabilite', label: 'Permabilite', type: 'text', placeholder: 'Ex: Sans dilatation' },
+          { key: 'retentissement', label: 'Retentissement', type: 'text', placeholder: 'Ex: Sans retentissement' },
+          { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Ex: Microlithiases renales bilaterales...' }
+        ]
+      }
+    ],
+    defaultEntries: [
+      { key: 'description', label: 'Description', type: 'textarea', rows: 2, placeholder: 'Decrire les constatations principales...' },
+      { key: 'observations', label: 'Observations complementaires', type: 'textarea', rows: 2, placeholder: 'Details utiles pour cet organe...' }
     ]
   }
 };
@@ -782,9 +921,9 @@ function getRapportOrganConfigForSpecialty(specialtyKey = '') {
   if (!key || !RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key]) {
     key = typeof resolveActivePracticeSpecialty === 'function'
       ? resolveActivePracticeSpecialty(window._packageConfig)
-      : (currentUserSpecialty || 'dentistry');
+      : (currentUserSpecialty || 'orl');
   }
-  return RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key] || RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY['dentistry'] || null;
+  return RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY[key] || RAPPORT_ORGAN_LIBRARY_BY_SPECIALTY['orl'] || null;
 }
 
 function getRapportOrganOptionsForSpecialty(specialtyKey = '') {
@@ -2815,7 +2954,7 @@ function openDocumentPreview(docType, context = {}) {
 
   const doctorInfo = {
     name: '',
-    specialty: 'Chirurgien-Dentiste',
+    specialty: 'Médecin ORL & Chirurgie Cervico-Faciale',
     address: '',
     phone: '',
     license: '',

@@ -1,0 +1,95 @@
+{
+  "specialite": "mpr",
+  "medicaments": [
+    {
+      "id": "mpr_001",
+      "nom_medicament": "Paracétamol",
+      "dosage_posologie": "1000mg",
+      "prise": "1 comprimé toutes les 6 à 8 heures",
+      "duree": "5 à 7 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique de première intention pour douleurs musculo-squelettiques. Ne pas dépasser 4g/jour."
+    },
+    {
+      "id": "mpr_002",
+      "nom_medicament": "Ibuprofène",
+      "dosage_posologie": "400mg",
+      "prise": "1 comprimé matin, midi et soir",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Anti-inflammatoire non stéroïdien. Prendre au cours des repas."
+    },
+    {
+      "id": "mpr_003",
+      "nom_medicament": "Thiocolchicoside",
+      "dosage_posologie": "4mg",
+      "prise": "1 comprimé matin et soir",
+      "duree": "5 à 7 jours",
+      "boites": 1,
+      "instructions_observations": "Myorelaxant - indiqué en cas de contractures musculaires (lombalgies, cervicalgies)."
+    },
+    {
+      "id": "mpr_004",
+      "nom_medicament": "Tétrazépam",
+      "dosage_posologie": "50mg",
+      "prise": "1 comprimé le soir",
+      "duree": "5 jours maximum",
+      "boites": 1,
+      "instructions_observations": "Myorelaxant à effet sédatif. Éviter la conduite. Usage de courte durée uniquement."
+    },
+    {
+      "id": "mpr_005",
+      "nom_medicament": "Tramadol",
+      "dosage_posologie": "50mg",
+      "prise": "1 gélule toutes les 6 à 8 heures si douleur",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique palier 2. Somnolence et nausées possibles - éviter la conduite."
+    },
+    {
+      "id": "mpr_006",
+      "nom_medicament": "Diclofénac gel",
+      "dosage_posologie": "1%",
+      "prise": "Application locale 2 à 3 fois par jour",
+      "duree": "7 à 10 jours",
+      "boites": 1,
+      "instructions_observations": "Usage topique - anti-inflammatoire local. Ne pas appliquer sur peau lésée."
+    },
+    {
+      "id": "mpr_007",
+      "nom_medicament": "Prednisolone",
+      "dosage_posologie": "20mg",
+      "prise": "1 comprimé le matin",
+      "duree": "5 jours en cure courte",
+      "boites": 1,
+      "instructions_observations": "Corticoïde en cure courte pour poussée inflammatoire (radiculalgie, tendinite sévère)."
+    },
+    {
+      "id": "mpr_008",
+      "nom_medicament": "Prégabaline",
+      "dosage_posologie": "75mg",
+      "prise": "1 gélule matin et soir",
+      "duree": "Selon prescription, réévaluation à 4 semaines",
+      "boites": 1,
+      "instructions_observations": "Indiqué en cas de douleur neuropathique (radiculalgie, sciatique). Somnolence possible en début de traitement."
+    },
+    {
+      "id": "mpr_009",
+      "nom_medicament": "Calcium + Vitamine D",
+      "dosage_posologie": "500mg / 400 UI",
+      "prise": "1 comprimé par jour",
+      "duree": "Traitement au long cours",
+      "boites": 1,
+      "instructions_observations": "Complément en cas d'ostéoporose ou de rééducation post-fracture."
+    },
+    {
+      "id": "mpr_010",
+      "nom_medicament": "Paracétamol + Thiocolchicoside",
+      "dosage_posologie": "500mg / 4mg",
+      "prise": "1 comprimé matin, midi et soir",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Association antalgique/myorelaxant courante en lombalgie aiguë."
+    }
+  ]
+}

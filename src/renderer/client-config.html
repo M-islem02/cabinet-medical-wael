@@ -571,6 +571,18 @@
                         </div>
                     </div>
                     
+                    <div class="option-row" id="option-rehabilitation">
+                        <div class="option-info">
+                            <input type="checkbox" class="option-checkbox" id="check-rehabilitation">
+                            <div>
+                                <div class="option-label">♿ Module Rééducation MPR</div>
+                                <div class="option-desc">Kinésithérapeutes, plans et évaluations</div>
+                            </div>
+                        </div>
+                        <div class="option-control">
+                            <span class="option-price">12 000 DZD</span>
+                        </div>
+                    </div>
 
                     <div class="option-row" id="option-dentistry">
                         <div class="option-info">
@@ -667,6 +679,7 @@
         const PRICES = {
             doctor: 60000,      // Base price for doctor (Pack Basique)
             assistant: 15000,   // Per assistant (60000 + 15000 = 75000 for Standard)
+            rehabilitation: 12000,  // Module Rééducation MPR (includes Kiné Staff)
             dentistry: 12000,   // Module Dentiste
             aiReports: 10000,    // AI Reports
             aiChatbot: 8000,    // AI Chatbot
@@ -691,7 +704,7 @@
             professional: {
                 doctors: 1,
                 assistants: 1,
-                features: ['dentistry', 'aiReports', 'aiChatbot']
+                features: ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot']
             },
             custom: {
                 doctors: 1,
@@ -751,7 +764,7 @@
             });
             
             // Feature checkboxes
-            const features = ['dentistry', 'aiReports', 'aiChatbot'];
+            const features = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
             features.forEach(feature => {
                 const checkbox = document.getElementById(`check-${feature}`);
                 if (checkbox) {
@@ -792,7 +805,7 @@
                 document.getElementById('check-assistant').checked = preset.assistants > 0;
                 
                 // Reset optional features
-                const optionalFeatures = ['dentistry', 'aiReports', 'aiChatbot'];
+                const optionalFeatures = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
                 optionalFeatures.forEach(feature => {
                     const checkbox = document.getElementById(`check-${feature}`);
                     const row = document.getElementById(`option-${feature}`);
@@ -852,6 +865,7 @@
             
             // Optional Features
             const optionalFeatures = [
+                { id: 'rehabilitation', label: '♿ Module Rééducation MPR' },
                 { id: 'dentistry', label: '🦷 Module Dentiste' },
                 { id: 'aiReports', label: '📝 Rapports IA' },
                 { id: 'aiChatbot', label: '💬 Assistant IA' }
@@ -899,6 +913,7 @@
             
             // Load features
             const featureMap = {
+                'featureRehabilitation': 'rehabilitation',
                 'featureDentistry': 'dentistry',
                 'featureAiReports': 'aiReports',
                 'featureAiChatbot': 'aiChatbot'
@@ -943,7 +958,10 @@
                 featureSickLeaves: true,
                 featureAfterSalesSupport: true,
                 // Optional features
+                featureKineStaff: document.getElementById('check-rehabilitation').checked, // Merged with rehabilitation
+                featureRehabilitation: document.getElementById('check-rehabilitation').checked,
                 featureDentistry: document.getElementById('check-dentistry').checked,
+                featureMultiPC: false, // Removed
                 featureAiReports: document.getElementById('check-aiReports').checked,
                 featureAiChatbot: document.getElementById('check-aiChatbot').checked,
                 totalPrice: calculateTotal()
@@ -982,7 +1000,9 @@
                 featureDailySummary: true,
                 featureStatistics: true,
                 featureInventory: true,
-                featureDentistry: true,
+                featureKineStaff: false,
+                featureRehabilitation: false,
+                featureDentistry: false,
                 featureMultiPC: false,
                 featureAiReports: false,
                 featureAiChatbot: false,
@@ -1016,7 +1036,7 @@
             total += qtyDoctors * PRICES.doctor;
             total += qtyAssistants * PRICES.assistant;
             
-            const features = ['dentistry', 'aiReports', 'aiChatbot'];
+            const features = ['rehabilitation', 'dentistry', 'aiReports', 'aiChatbot'];
             features.forEach(feature => {
                 const checkbox = document.getElementById(`check-${feature}`);
                 if (checkbox && checkbox.checked) {

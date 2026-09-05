@@ -18,8 +18,8 @@ import {
 
 const PACKAGE_DEFINITIONS = {
   basic: {
-    name: 'Pack Basique Dentaire',
-    description: 'Pour chirurgien-dentiste solo',
+    name: 'Pack Basique',
+    description: 'Pour médecin solo',
     maxDoctors: 1,
     maxAssistants: 0,
     features: {
@@ -28,7 +28,7 @@ const PACKAGE_DEFINITIONS = {
       dailySummary: false,
       statistics: true,
       inventory: true,
-      dentistry: true,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -41,8 +41,8 @@ const PACKAGE_DEFINITIONS = {
     basePrice: 60000
   },
   standard: {
-    name: 'Pack Standard Dentaire',
-    description: 'Chirurgien-dentiste + Assistante',
+    name: 'Pack Standard',
+    description: 'Médecin + Assistante',
     maxDoctors: 1,
     maxAssistants: 1,
     features: {
@@ -51,7 +51,7 @@ const PACKAGE_DEFINITIONS = {
       dailySummary: false,
       statistics: true,
       inventory: true,
-      dentistry: true,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -64,8 +64,8 @@ const PACKAGE_DEFINITIONS = {
     basePrice: 75000
   },
   professional: {
-    name: 'Pack Pro Dentaire + IA',
-    description: 'Chirurgien-dentiste + Assistante + IA',
+    name: 'Pack Pro + IA',
+    description: 'Médecin + IA (chat et rapports)',
     maxDoctors: 1,
     maxAssistants: 1,
     features: {
@@ -74,7 +74,7 @@ const PACKAGE_DEFINITIONS = {
       dailySummary: false,
       statistics: true,
       inventory: true,
-      dentistry: true,
+      orl: true,
       medicalImaging: true,
       debts: true,
       calendar: true,
@@ -92,7 +92,7 @@ const PACKAGE_DEFINITIONS = {
     maxDoctors: 1,
     maxAssistants: 0,
     features: {
-      dentistry: true
+      orl: true
     },
     basePrice: 0
   }
@@ -100,9 +100,8 @@ const PACKAGE_DEFINITIONS = {
 
 const OPTION_PRICES = {
   doctor: 60000,
-  dentist: 60000,
   assistant: 15000,
-  dentistry: 0,
+  orl: 0,
   aiReports: 10000,
   aiChatbot: 8000,
   afterSalesSupport: 0,
@@ -125,11 +124,11 @@ function getEnabledSpecialtiesFromConfig(config = {}) {
 
 function sanitizePackageConfig(rawConfig = {}) {
   const enabledSpecialties = parseEnabledSpecialties(rawConfig.enabledSpecialties, rawConfig);
-  const safeEnabledSpecialties = enabledSpecialties.length ? enabledSpecialties : ['dentistry'];
-  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || safeEnabledSpecialties[0] || 'dentistry');
+  const safeEnabledSpecialties = enabledSpecialties.length ? enabledSpecialties : ['orl'];
+  const requestedSpecialty = normalizeSpecialtyKey(rawConfig.activeSpecialty || safeEnabledSpecialties[0] || 'orl');
   const activeSpecialty = safeEnabledSpecialties.includes(requestedSpecialty)
     ? requestedSpecialty
-    : (safeEnabledSpecialties[0] || 'dentistry');
+    : (safeEnabledSpecialties[0] || 'orl');
 
   const rawCabinetType = String(rawConfig.cabinetType || '').toLowerCase();
   const cabinetType = rawCabinetType === 'singulier' || rawCabinetType === 'single'
@@ -141,7 +140,7 @@ function sanitizePackageConfig(rawConfig = {}) {
     enabledSpecialties: safeEnabledSpecialties,
     activeSpecialty,
     cabinetType,
-    featureDentistry: safeEnabledSpecialties.includes('dentistry')
+    featureORL: safeEnabledSpecialties.includes('orl')
   };
 }
 
@@ -186,6 +185,12 @@ function calculateTotalFromConfig(config) {
   const doctors = parseInt(config.maxDoctors || 1, 10) || 1;
   const assistants = parseInt(config.maxAssistants || 0, 10) || 0;
   let total = doctors * OPTION_PRICES.doctor + assistants * OPTION_PRICES.assistant;
+  if (config.featureRehabilitation || config.featureKineStaff) {
+    total += OPTION_PRICES.rehabilitation;
+  }
+  if (config.featureORL && OPTION_PRICES.orl) {
+    total += OPTION_PRICES.orl;
+  }
   if (config.featureAiReports) {
     total += OPTION_PRICES.aiReports;
   }
@@ -279,9 +284,9 @@ export function handlePackageEvents() {
       const commonEntries = [
         ['clientName', normalizedConfig.clientName],
         ['packageType', normalizedConfig.packageType || 'basic'],
-        ['activeSpecialty', normalizedConfig.activeSpecialty || 'dentistry'],
+        ['activeSpecialty', normalizedConfig.activeSpecialty || 'orl'],
         ['cabinetType', finalCabinetType],
-        ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['dentistry'])],
+        ['enabledSpecialties', JSON.stringify(normalizedConfig.enabledSpecialties || ['orl'])],
         ['maxDoctors', normalizedConfig.maxDoctors || 1],
         ['maxAssistants', normalizedConfig.maxAssistants || 0],
         ['featurePrescriptions', toBool(normalizedConfig.featurePrescriptions ?? true)],
@@ -289,8 +294,7 @@ export function handlePackageEvents() {
         ['featureDailySummary', toBool(normalizedConfig.featureDailySummary ?? false)],
         ['featureStatistics', toBool(normalizedConfig.featureStatistics ?? true)],
         ['featureInventory', toBool(normalizedConfig.featureInventory ?? true)],
-        ['featureDentistry', toBool(normalizedConfig.featureDentistry ?? true)],
-        ['featureORL', toBool(normalizedConfig.featureORL ?? false)],
+        ['featureORL', toBool(normalizedConfig.featureORL ?? true)],
         ['featureMedicalImaging', toBool(normalizedConfig.featureMedicalImaging ?? true)],
         ['featureDebts', toBool(normalizedConfig.featureDebts ?? true)],
         ['featureCalendar', toBool(normalizedConfig.featureCalendar ?? true)],

@@ -2,9 +2,12 @@ import { invokeApi } from '../api/api-client.js';
 
 const SPECIALTY_ALIASES = Object.freeze({
   general: 'general', generalist: 'general',
-  dentistry: 'dentistry', dentist: 'dentistry', dentiste: 'dentistry'
+  orl: 'orl', ent: 'orl', otorhino: 'orl', oto_rhino: 'orl',
+  dentistry: 'dentistry', dentist: 'dentistry', dentiste: 'dentistry',
+  rehabilitation: 'rehabilitation', mpr: 'rehabilitation',
+  cardiology: 'cardiology', cardio: 'cardiology'
 });
-const ALL_SPECIALTIES = Object.freeze(['general', 'dentistry']);
+const ALL_SPECIALTIES = Object.freeze(['general', 'orl', 'dentistry', 'rehabilitation', 'cardiology']);
 let cachedConfig = null;
 let loadPromise = null;
 
@@ -25,20 +28,23 @@ function parseSpecialties(raw) {
     return [...new Set(values.map(normalizeSpecialty).filter(Boolean))];
   }
 
-  const hasLegacyFlags = ['featureDentistry']
+  const hasLegacyFlags = ['featureORL', 'featureDentistry', 'featureRehabilitation', 'featureCardiology']
     .some((key) => raw && raw[key] !== undefined && raw[key] !== null);
   if (!hasLegacyFlags) return [...ALL_SPECIALTIES];
 
   const result = ['general'];
+  if (enabled(raw.featureORL, false)) result.push('orl');
   if (enabled(raw.featureDentistry, false)) result.push('dentistry');
+  if (enabled(raw.featureRehabilitation, false)) result.push('rehabilitation');
+  if (enabled(raw.featureCardiology, false)) result.push('cardiology');
   return result;
 }
 
 export function normalizePackageConfig(rawConfig) {
   const raw = rawConfig && typeof rawConfig === 'object' ? rawConfig : null;
   const specialties = parseSpecialties(raw);
-  const requestedActive = normalizeSpecialty(raw?.activeSpecialty) || 'dentistry';
-  const activeSpecialty = specialties.includes(requestedActive) ? requestedActive : (specialties.includes('dentistry') ? 'dentistry' : (specialties[0] || null));
+  const requestedActive = normalizeSpecialty(raw?.activeSpecialty) || 'orl';
+  const activeSpecialty = specialties.includes(requestedActive) ? requestedActive : (specialties[0] || null);
   const specialtyFlags = Object.fromEntries(ALL_SPECIALTIES.map((id) => [id, specialties.includes(id)]));
 
   return Object.freeze({

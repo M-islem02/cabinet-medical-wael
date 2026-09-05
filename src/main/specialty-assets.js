@@ -6,7 +6,7 @@ import { query, queryOne, run } from './database-unified.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = path.resolve(__dirname, '../../assets');
 const SHARED_CONFIG_PATH = path.resolve(__dirname, '../shared/specialty-config.json');
-const SPECIALTY_KEYS = ['dentistry', 'general'];
+const SPECIALTY_KEYS = ['orl', 'mpr', 'cardiology', 'dentistry', 'general'];
 
 function readJsonFile(filePath, fallback) {
   try {
@@ -16,11 +16,14 @@ function readJsonFile(filePath, fallback) {
   }
 }
 
-export function normalizeSpecialtyKey(value = 'dentistry') {
+export function normalizeSpecialtyKey(value = 'general') {
   const raw = String(value || '').trim().toLowerCase();
   if (['general', 'generaliste', 'généraliste', 'generalist', 'medecin', 'médecin'].includes(raw)) return 'general';
+  if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
+  if (['rehabilitation', 'mpr', 'kine', 'kiné', 'rééducation', 'reeducation'].includes(raw)) return 'mpr';
+  if (['cardiology', 'cardio', 'cardiologue', 'cardiologie'].includes(raw)) return 'cardiology';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist', 'chirurgien-dentiste', 'médecin dentiste', 'medecin dentiste'].includes(raw)) return 'dentistry';
-  return 'dentistry';
+  return 'general';
 }
 
 export function getSpecialtyConfig() {
@@ -34,7 +37,7 @@ export function getSpecialtyConfig() {
 export function parseEnabledSpecialties(value, fallbackConfig = null) {
   if (Array.isArray(value)) {
     const keys = value.map(normalizeSpecialtyKey);
-    return [...new Set(keys.length ? keys : ['dentistry'])];
+    return [...new Set(keys.length ? keys : ['orl', 'mpr', 'cardiology', 'dentistry', 'general'])];
   }
 
   if (typeof value === 'string' && value.trim()) {
@@ -42,15 +45,18 @@ export function parseEnabledSpecialties(value, fallbackConfig = null) {
       return parseEnabledSpecialties(JSON.parse(value), fallbackConfig);
     } catch (_) {
       const keys = value.split(',').map(normalizeSpecialtyKey);
-      return [...new Set(keys.length ? keys : ['dentistry'])];
+      return [...new Set(keys.length ? keys : ['orl', 'mpr', 'cardiology', 'dentistry', 'general'])];
     }
   }
 
   const config = fallbackConfig || {};
   const enabledKeys = [];
+  if (config.featureORL === 1 || config.featureORL === true || config.featureORL === '1' || config.activeSpecialty === 'orl') enabledKeys.push('orl');
+  if (config.featureRehabilitation === 1 || config.featureRehabilitation === true || config.featureRehabilitation === '1' || config.activeSpecialty === 'rehabilitation' || config.activeSpecialty === 'mpr') enabledKeys.push('mpr');
+  if (config.featureCardiology === 1 || config.featureCardiology === true || config.featureCardiology === '1' || config.activeSpecialty === 'cardiology') enabledKeys.push('cardiology');
   if (config.featureDentistry === 1 || config.featureDentistry === true || config.featureDentistry === '1' || config.activeSpecialty === 'dentistry') enabledKeys.push('dentistry');
   if (config.activeSpecialty === 'general') enabledKeys.push('general');
-  return enabledKeys.length ? [...new Set(enabledKeys)] : ['dentistry'];
+  return enabledKeys.length ? [...new Set(enabledKeys)] : ['orl', 'mpr', 'cardiology', 'dentistry', 'general'];
 }
 
 function medicationArrayFromPayload(payload) {
