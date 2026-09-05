@@ -52,14 +52,14 @@ test('dentistry module handles historical consultation mode directly in 3D and 2
   assert.ok(!dentistryCode.includes('id="dental-historical-modal"'), 'showDentalHistoricalSchema must not inject blocking modal into body');
 });
 
-test('navbar excludes consultations, prescriptions, sick-leaves, expenses, and duplicate treatment-plans', () => {
+test('navbar includes consultations, prescriptions, sick-leaves, expenses, and no duplicate treatment-plans in cabinet', () => {
   const indexHtml = fs.readFileSync(path.resolve('src/renderer/index.html'), 'utf8');
 
-  // Verify removed nav items are not present
-  assert.ok(!indexHtml.includes('data-section="consultations"'), 'Navbar must not include consultations');
-  assert.ok(!indexHtml.includes('data-section="prescriptions"'), 'Navbar must not include prescriptions');
-  assert.ok(!indexHtml.includes('data-section="sick-leaves"'), 'Navbar must not include sick-leaves');
-  assert.ok(!indexHtml.includes('data-section="expenses"'), 'Navbar must not include expenses');
+  // Verify all clinical and administrative nav items are present in cabinet
+  assert.ok(indexHtml.includes('data-section="consultations"'), 'Navbar must include consultations');
+  assert.ok(indexHtml.includes('data-section="prescriptions"'), 'Navbar must include prescriptions');
+  assert.ok(indexHtml.includes('data-section="sick-leaves"'), 'Navbar must include sick-leaves');
+  assert.ok(indexHtml.includes('data-section="expenses"'), 'Navbar must include expenses');
 
   // Verify treatment-plans is not duplicated
   const treatmentPlanMatches = indexHtml.match(/data-section="treatment-plans"/g);
