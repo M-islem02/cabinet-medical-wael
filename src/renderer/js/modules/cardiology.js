@@ -5,9 +5,89 @@
  */
 
 let currentCardioPatientId = null;
+let cardioViewMode = 'empty'; // 'empty' | 'history' | 'workspace'
 
 function getCardioStorageKey(patientId) {
   return `cardio_profile_${patientId || 'temp'}`;
+}
+
+export function showCardioEmptyView() {
+  cardioViewMode = 'empty';
+  const emptyPanel = document.getElementById('cardio-empty-view');
+  const historyPanel = document.getElementById('cardio-history-view');
+  const workspacePanel = document.getElementById('cardio-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.remove('orl-view-hidden');
+    emptyPanel.style.display = 'block';
+  }
+  if (historyPanel) {
+    historyPanel.classList.add('orl-view-hidden');
+    historyPanel.style.display = 'none';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.add('orl-view-hidden');
+    workspacePanel.style.display = 'none';
+  }
+  updateCardioPatientDisplay(null);
+}
+
+export function showCardioHistoryView() {
+  const patientId = currentCardioPatientId || window.currentPatientId || (window.currentPatientData && window.currentPatientData.id);
+  if (!patientId) {
+    showCardioEmptyView();
+    return;
+  }
+  currentCardioPatientId = String(patientId);
+  cardioViewMode = 'history';
+  const emptyPanel = document.getElementById('cardio-empty-view');
+  const historyPanel = document.getElementById('cardio-history-view');
+  const workspacePanel = document.getElementById('cardio-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.add('orl-view-hidden');
+    emptyPanel.style.display = 'none';
+  }
+  if (historyPanel) {
+    historyPanel.classList.remove('orl-view-hidden');
+    historyPanel.style.display = 'block';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.add('orl-view-hidden');
+    workspacePanel.style.display = 'none';
+  }
+  renderCardioHistoryList();
+}
+
+export function showCardioWorkspaceView() {
+  const patientId = currentCardioPatientId || window.currentPatientId || (window.currentPatientData && window.currentPatientData.id);
+  if (!patientId) {
+    showCardioEmptyView();
+    return;
+  }
+  currentCardioPatientId = String(patientId);
+  cardioViewMode = 'workspace';
+  const emptyPanel = document.getElementById('cardio-empty-view');
+  const historyPanel = document.getElementById('cardio-history-view');
+  const workspacePanel = document.getElementById('cardio-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.add('orl-view-hidden');
+    emptyPanel.style.display = 'none';
+  }
+  if (historyPanel) {
+    historyPanel.classList.add('orl-view-hidden');
+    historyPanel.style.display = 'none';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.remove('orl-view-hidden');
+    workspacePanel.style.display = 'flex';
+  }
+}
+
+export function deselectCardioPatient(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  selectCardioPatient(null);
 }
 
 export async function initCardiology(force = false) {
@@ -23,10 +103,12 @@ export async function initCardiology(force = false) {
     dateInput.value = new Date().toISOString().split('T')[0];
   }
 
-  if (window.currentPatientId) {
-    await selectCardioPatient(window.currentPatientId, { fromGlobalSync: true });
+  const initialPatientId = window.currentPatientId || null;
+  if (initialPatientId) {
+    await selectCardioPatient(initialPatientId, { fromGlobalSync: true });
+    showCardioHistoryView();
   } else {
-    renderCardioWysiwygReport(false);
+    showCardioEmptyView();
   }
 
   window.removeEventListener('medcare:patient-selected', handleCardioGlobalPatientSelected);
@@ -223,11 +305,16 @@ export async function selectCardioPatient(patientId, options = {}) {
   const normalizedId = patientId ? String(patientId).trim() : null;
   if (!normalizedId) {
     currentCardioPatientId = null;
+    window.currentPatientId = null;
+    window.currentPatientData = null;
     updateCardioPatientDisplay(null);
     resetCardioFields();
+    showCardioEmptyView();
     const select = document.getElementById('cardio-patient-selector');
     if (select && typeof AntSelect !== 'undefined') {
       AntSelect.setValue(select, '');
+    } else if (select) {
+      select.value = '';
     }
     return;
   }
@@ -269,16 +356,18 @@ export async function selectCardioPatient(patientId, options = {}) {
       await loadCardioProfile(normalizedId);
       renderCardioSiderHistory(normalizedId);
       renderCardioWysiwygReport(true);
+      showCardioHistoryView();
 
       if (!options.fromGlobalSync && typeof window.setSelectedPatient === 'function') {
         window.setSelectedPatient(normalizedId, { patient, source: 'cardiology' });
       }
     } else {
-      renderCardioWysiwygReport(true);
+      updateCardioPatientDisplay(null);
+      showCardioHistoryView();
     }
   } catch (e) {
     console.error('Error in selectCardioPatient:', e);
-    renderCardioWysiwygReport(true);
+    showCardioHistoryView();
   }
 }
 
@@ -680,6 +769,7 @@ export function saveCardiologyProfile() {
   updateCardioStats(data);
   updateCardioSectionStepStatus();
   renderCardioSiderHistory(currentCardioPatientId);
+  renderCardioHistoryList();
 }
 
 function getCardioHistoryStorageKey(patientId) {
@@ -755,6 +845,141 @@ function updateCardioStats(data) {
  * HISTORIQUE DES BILANS CARDIOLOGIQUES
  * =========================================================================
  */
+
+export function renderCardioHistoryList() {
+  const listEl = document.getElementById('cardio-history-list');
+  const patientSubEl = document.getElementById('cardio-history-view-patient-subtitle');
+  if (!listEl) return;
+
+  let patient = window.currentPatientData;
+  const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : (currentCardioPatientId ? `Patient #${currentCardioPatientId}` : 'Aucun patient sélectionné');
+  if (patientSubEl) {
+    if (currentCardioPatientId && patient) {
+      patientSubEl.innerHTML = `
+        <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+          <span style="font-size: 14px; font-weight: 600; color: #64748b;">Patient :</span>
+          <div class="orl-patient-selected-tag" style="display: inline-flex; align-items: center; gap: 8px; background: #fef2f2; border: 1.5px solid #fca5a5; padding: 4px 10px 4px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(220,38,38,0.06);">
+            <div style="width: 22px; height: 22px; border-radius: 50%; background: #dc2626; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+              ${(patient.lastName?.[0] || patient.firstName?.[0] || 'P').toUpperCase()}
+            </div>
+            <strong style="color: #b91c1c; font-size: 14.5px; font-weight: 750;">${typeof escapeHTML === 'function' ? escapeHTML(patientName) : patientName}</strong>
+            <button type="button" class="cardio-deselect-btn" onclick="deselectCardioPatient(event)" title="Désélectionner ce patient" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #ffffff; border: 1.5px solid #f87171; color: #dc2626; cursor: pointer; font-size: 13px; font-weight: 800; line-height: 1; padding: 0; margin-left: 6px; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(220,38,38,0.12);" onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#dc2626';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#f87171';">
+              ✕
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      patientSubEl.innerHTML = `Patient : <em style="color: #94a3b8;">Aucun patient sélectionné</em>`;
+    }
+  }
+
+  if (!currentCardioPatientId) {
+    listEl.innerHTML = `
+      <div class="ant-empty" style="padding: 56px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="ant-empty-image" style="margin-bottom: 20px;">
+          <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M32 54s-20-12-20-26a12 12 0 0 1 20-8.5A12 12 0 0 1 52 28c0 14-20 26-20 26z" fill="#f8fafc"/>
+            <path d="M22 28h5l3-6 4 12 3-6h5"/>
+          </svg>
+        </div>
+        <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun patient sélectionné</div>
+        <div style="font-size: 15px; color: #64748b; max-width: 480px; line-height: 1.6;">Veuillez sélectionner un patient dans la barre supérieure pour consulter ou créer des bilans cardiologiques.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let history = getCardioHistory(currentCardioPatientId);
+  if (history.length === 0) {
+    const raw = localStorage.getItem(getCardioStorageKey(currentCardioPatientId));
+    if (raw) {
+      try {
+        const initialData = JSON.parse(raw);
+        saveCardioHistoryEntry(currentCardioPatientId, initialData);
+      } catch (_) {}
+    }
+  }
+
+  const updatedHistory = getCardioHistory(currentCardioPatientId);
+  const headerActions = document.getElementById('cardio-history-header-actions');
+
+  if (updatedHistory.length === 0) {
+    if (headerActions) headerActions.style.display = 'none';
+    listEl.innerHTML = `
+      <div class="ant-empty" style="padding: 56px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="ant-empty-image" style="margin-bottom: 20px;">
+          <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h24l12 12v38a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#f8fafc"/>
+            <polyline points="40 6 40 18 52 18"/>
+            <line x1="22" y1="28" x2="42" y2="28"/>
+            <line x1="22" y1="36" x2="42" y2="36"/>
+            <line x1="22" y1="44" x2="34" y2="44"/>
+          </svg>
+        </div>
+        <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun bilan cardiologique enregistré</div>
+        <div style="font-size: 15px; color: #64748b; max-width: 460px; line-height: 1.6; margin-bottom: 22px;">Créez un premier bilan médical pour ce patient afin d'initialiser son dossier cardiologique.</div>
+        <button type="button" class="btn btn-primary" onclick="createNewCardioReport()" style="height: 42px; padding: 0 24px; font-size: 14.5px; font-weight: 650; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; background: #dc2626; border-color: #dc2626; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Créer un premier bilan</span>
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  if (headerActions) headerActions.style.display = 'block';
+
+  const safeEscape = (val) => (typeof escapeHTML === 'function' ? escapeHTML(val || '') : String(val || ''));
+
+  let html = `<div style="display: flex; flex-direction: column; gap: 14px;">`;
+
+  updatedHistory.forEach((item, index) => {
+    const formattedDate = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '—';
+    const savedTime = item.savedAt ? new Date(item.savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const diagnosis = item.diagnosis || 'Bilan standard';
+    const motif = item.motif || 'Bilan cardiologique';
+    const bp = item.data?.bloodPressure || item.bloodPressure;
+    const hr = item.data?.heartRate || item.heartRate;
+
+    html += `
+      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+            <span class="ant-tag ant-tag-processing" style="background: #fef2f2; color: #dc2626; border-color: #fecaca; font-weight: 700; font-size: 13px; padding: 3px 10px; border-radius: 6px;">
+              ${formattedDate} ${savedTime ? `(${savedTime})` : ''}
+            </span>
+            <span class="ant-tag" style="background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 6px;">Cardiologie</span>
+            ${bp ? `<span class="ant-tag" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 6px;">TA: ${safeEscape(bp)}</span>` : ''}
+            ${hr ? `<span class="ant-tag" style="background: #eff6ff; color: #1e40af; border-color: #bfdbfe; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 6px;">FC: ${safeEscape(hr)} bpm</span>` : ''}
+          </div>
+          <div style="font-size: 16.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+            ${safeEscape(motif)}
+          </div>
+          <div style="font-size: 14.5px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <strong style="color: #1e293b;">Diagnostic :</strong> ${safeEscape(diagnosis)}
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+          <button type="button" class="btn btn-primary" onclick="editCardioHistoricalReport(${index})" style="height: 36px; padding: 0 14px; font-size: 13.5px; font-weight: 600; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; background: #dc2626; border-color: #dc2626; cursor: pointer;" title="Modifier ce bilan">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Modifier</span>
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="previewCardioHistoricalReport(${index})" style="height: 36px; padding: 0 14px; font-size: 13.5px; font-weight: 600; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; background: #ffffff; border: 1.5px solid #cbd5e1; color: #334155; cursor: pointer;" title="Aperçu avant impression">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Imprimer</span>
+          </button>
+          <button type="button" class="btn" onclick="deleteCardioHistoricalReport(${index})" style="height: 36px; width: 36px; min-width: 36px; padding: 0; border-radius: 7px; background: #fff1f2; border: 1.5px solid #fca5a5; color: #e11d48; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);" title="Supprimer ce bilan">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  listEl.innerHTML = html;
+}
 
 export async function openCardioReportHistoryModal() {
   const modal = document.getElementById('cardio-report-history-modal');
@@ -881,6 +1106,7 @@ export function editCardioHistoricalReport(index) {
   currentCardioEditingReportId = entry.id;
   loadCardioHistoricalReport(index);
   closeCardioReportHistoryModal();
+  showCardioWorkspaceView();
   switchCardioTab('report');
 
   if (typeof showNotification === 'function') {
@@ -931,6 +1157,7 @@ export function loadCardioHistoricalReport(index) {
   updateCardioStats(data);
   updateCardioSectionStepStatus();
   closeCardioReportHistoryModal();
+  showCardioWorkspaceView();
 
   if (typeof showNotification === 'function') {
     showNotification(`Bilan du ${entry.date || 'consultation'} chargé dans le dossier`, 'success');
@@ -950,6 +1177,8 @@ export function deleteCardioHistoricalReport(index) {
   history.splice(index, 1);
   localStorage.setItem(getCardioHistoryStorageKey(currentCardioPatientId), JSON.stringify(history));
 
+  renderCardioHistoryList();
+  renderCardioSiderHistory(currentCardioPatientId);
   openCardioReportHistoryModal();
   if (typeof showNotification === 'function') {
     showNotification('Bilan supprimé de l\'historique', 'info');
@@ -1254,6 +1483,13 @@ export function resetCardioProfile() {
 }
 
 export function createNewCardioReport() {
+  if (!currentCardioPatientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez d\'abord sélectionner un patient', 'warning');
+    }
+    showCardioEmptyView();
+    return;
+  }
   currentCardioEditingReportId = null;
   resetCardioFields();
   const dateInput = document.getElementById('cardio-date');
@@ -1268,6 +1504,7 @@ export function createNewCardioReport() {
 
   renderCardioWysiwygReport(true);
   updateCardioSectionStepStatus();
+  showCardioWorkspaceView();
   switchCardioTab('anamnese');
 
   if (typeof showNotification === 'function') {
@@ -1696,3 +1933,8 @@ window.formatCardioDossierNumber = formatCardioDossierNumber;
 window.viewCardiologyProfile = viewCardiologyProfile;
 window.openViewedCardiologyProfileInWorkspace = openViewedCardiologyProfileInWorkspace;
 window.toggleCardioPreviewHeader = toggleCardioPreviewHeader;
+window.showCardioEmptyView = showCardioEmptyView;
+window.showCardioHistoryView = showCardioHistoryView;
+window.showCardioWorkspaceView = showCardioWorkspaceView;
+window.deselectCardioPatient = deselectCardioPatient;
+window.renderCardioHistoryList = renderCardioHistoryList;

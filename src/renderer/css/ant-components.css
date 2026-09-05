@@ -1659,6 +1659,12 @@ input[type="date"].ant-input:focus {
 .orl-workspace-layout.orl-view-hidden,
 #orl-history-view.orl-view-hidden,
 #orl-empty-view.orl-view-hidden,
+#cardio-history-view.orl-view-hidden,
+#cardio-empty-view.orl-view-hidden,
+#cardio-workspace-view.orl-view-hidden,
+#rehab-history-view.orl-view-hidden,
+#rehab-empty-view.orl-view-hidden,
+#rehab-workspace-view.orl-view-hidden,
 .orl-view-hidden {
   display: none !important;
 }

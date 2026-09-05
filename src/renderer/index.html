@@ -3265,8 +3265,19 @@
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569;">Acte / Opération</th>
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569;">Praticien</th>
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: center;">Statut</th>
-                                            <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: right;">Tarif & Paiement</th>
-                                            <th style="padding: 12px 16px; font-s                <section id="rehabilitation" class="section doctor-only">
+                                            <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: center;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="operations-tbody">
+                                        <tr><td colspan="7" class="text-center" style="padding: 30px; color: #94a3b8;">Chargement des opérations...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="rehabilitation" class="section doctor-only">
   <!-- Top Action Bar with Patient Search Selector -->
   <div class="orl-top-action-bar rehab-top-action-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 14px;">
     <!-- Title -->
@@ -3292,11 +3303,11 @@
       <button class="btn btn-secondary" id="rehab-btn-refresh" onclick="refreshRehabPatientList()" title="Rafraîchir les patients" style="height: 40px; min-width: 40px; padding: 0 12px; border-radius: 8px;">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
-      <button class="btn" id="rehab-btn-history" onclick="openRehabReportHistoryModal()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
+      <button class="btn" id="rehab-btn-history" onclick="showRehabHistoryView()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Historique</span>
       </button>
-      <button class="btn" id="rehab-btn-editor" onclick="switchRehabTab('report')" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
+      <button class="btn" id="rehab-btn-editor" onclick="switchRehabTab('report'); showRehabWorkspaceView();" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Éditeur CR</span>
       </button>
@@ -3307,8 +3318,42 @@
     </div>
   </div>
 
+  <!-- B0. Empty State View (When no patient is selected) -->
+  <div id="rehab-empty-view" class="orl-view-hidden" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 70px 24px; text-align: center;">
+    <div class="ant-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <div class="ant-empty-image" style="margin-bottom: 20px;">
+        <svg viewBox="0 0 64 64" width="68" height="68" fill="none" stroke="#0d9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="32" cy="18" r="8" fill="#f0fdfa"/>
+          <path d="M18 50h28v-4c0-6-6-10-14-10s-14 4-14 10v4z" fill="#f0fdfa"/>
+          <path d="M32 30v14"/>
+        </svg>
+      </div>
+      <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun patient sélectionné</div>
+      <div style="font-size: 15px; color: #64748b; max-width: 480px; line-height: 1.6; margin-bottom: 20px;">Veuillez rechercher et sélectionner un patient dans la barre supérieure pour accéder à ses examens, son historique et ses bilans MPR.</div>
+    </div>
+  </div>
+
+  <!-- B1. History List View (Default State when patient selected) -->
+  <div id="rehab-history-view" class="orl-view-hidden">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 24px 28px;">
+      <div style="margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">Historique des Bilans & Comptes-Rendus MPR</h3>
+          <p style="margin: 6px 0 0 0; font-size: 14.5px; color: #475569;" id="rehab-history-view-patient-subtitle">Patient : <em>Aucun patient sélectionné</em></p>
+        </div>
+        <div id="rehab-history-header-actions" style="display: none;">
+          <button type="button" id="rehab-history-header-new-report" class="btn btn-primary" onclick="createNewRehabReport()" style="height: 38px; padding: 0 16px; font-size: 14px; font-weight: 650; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; background: #0d9488; border-color: #0d9488;">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Nouveau Bilan</span>
+          </button>
+        </div>
+      </div>
+      <div id="rehab-history-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
+    </div>
+  </div>
+
   <!-- 2-Column Workspace Layout -->
-  <div id="rehab-workspace-view" class="orl-workspace-layout rehab-workspace-layout">
+  <div id="rehab-workspace-view" class="orl-workspace-layout rehab-workspace-layout orl-view-hidden" style="display: none;">
     <!-- Colonne Gauche : Sider Navigation (320px) -->
     <aside class="orl-sider rehab-sider">
       <!-- Active Patient Summary Card -->
@@ -3964,11 +4009,11 @@
       <button class="btn btn-secondary" id="cardio-btn-refresh" onclick="refreshCardiologyPatientList()" title="Rafraîchir les patients" style="height: 40px; min-width: 40px; padding: 0 12px; border-radius: 8px;">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
-      <button class="btn" id="cardio-btn-history" onclick="openCardioReportHistoryModal()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
+      <button class="btn" id="cardio-btn-history" onclick="showCardioHistoryView()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Historique</span>
       </button>
-      <button class="btn" id="cardio-btn-editor" onclick="switchCardioTab('report')" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
+      <button class="btn" id="cardio-btn-editor" onclick="switchCardioTab('report'); showCardioWorkspaceView();" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Éditeur CR</span>
       </button>
@@ -3979,8 +4024,41 @@
     </div>
   </div>
 
+  <!-- B0. Empty State View (When no patient is selected) -->
+  <div id="cardio-empty-view" class="orl-view-hidden" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 70px 24px; text-align: center;">
+    <div class="ant-empty" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <div class="ant-empty-image" style="margin-bottom: 20px;">
+        <svg viewBox="0 0 64 64" width="68" height="68" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M32 54s-20-12-20-26a12 12 0 0 1 20-8.5A12 12 0 0 1 52 28c0 14-20 26-20 26z" fill="#fef2f2"/>
+          <path d="M22 28h5l3-6 4 12 3-6h5"/>
+        </svg>
+      </div>
+      <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun patient sélectionné</div>
+      <div style="font-size: 15px; color: #64748b; max-width: 480px; line-height: 1.6; margin-bottom: 20px;">Veuillez rechercher et sélectionner un patient dans la barre supérieure pour accéder à ses examens, son historique et ses bilans cardiologiques.</div>
+    </div>
+  </div>
+
+  <!-- B1. History List View (Default State when patient selected) -->
+  <div id="cardio-history-view" class="orl-view-hidden">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 24px 28px;">
+      <div style="margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">Historique des Bilans & Consultations Cardiologiques</h3>
+          <p style="margin: 6px 0 0 0; font-size: 14.5px; color: #475569;" id="cardio-history-view-patient-subtitle">Patient : <em>Aucun patient sélectionné</em></p>
+        </div>
+        <div id="cardio-history-header-actions" style="display: none;">
+          <button type="button" id="cardio-history-header-new-report" class="btn btn-primary" onclick="createNewCardioReport()" style="height: 38px; padding: 0 16px; font-size: 14px; font-weight: 650; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px; background: #dc2626; border-color: #dc2626;">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Nouveau Bilan</span>
+          </button>
+        </div>
+      </div>
+      <div id="cardio-history-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
+    </div>
+  </div>
+
   <!-- 2-Column Workspace Layout -->
-  <div id="cardio-workspace-view" class="orl-workspace-layout cardio-workspace-layout">
+  <div id="cardio-workspace-view" class="orl-workspace-layout cardio-workspace-layout orl-view-hidden" style="display: none;">
     <!-- Colonne Gauche : Sider Navigation (320px) -->
     <aside class="orl-sider cardio-sider">
       <!-- Active Patient Summary Card -->
@@ -10188,6 +10266,7 @@
     <script src="js/modules/operations.js"></script>
     <script src="js/modules/expenses.js"></script>
     <script src="js/modules/equipment.js"></script>
+    <script src="js/modules/kine-staff.js"></script>
     <script src="js/modules/logout.js"></script>
     <script src="js/modules/waiting-room.js"></script>
     <script src="js/modules/package-config.js"></script>

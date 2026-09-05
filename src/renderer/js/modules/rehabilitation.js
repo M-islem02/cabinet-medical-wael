@@ -5,9 +5,89 @@
  */
 
 let currentRehabPatientId = null;
+let rehabViewMode = 'empty'; // 'empty' | 'history' | 'workspace'
 
 function getRehabStorageKey(patientId) {
   return `rehab_profile_${patientId || 'temp'}`;
+}
+
+export function showRehabEmptyView() {
+  rehabViewMode = 'empty';
+  const emptyPanel = document.getElementById('rehab-empty-view');
+  const historyPanel = document.getElementById('rehab-history-view');
+  const workspacePanel = document.getElementById('rehab-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.remove('orl-view-hidden');
+    emptyPanel.style.display = 'block';
+  }
+  if (historyPanel) {
+    historyPanel.classList.add('orl-view-hidden');
+    historyPanel.style.display = 'none';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.add('orl-view-hidden');
+    workspacePanel.style.display = 'none';
+  }
+  updateRehabPatientDisplay(null);
+}
+
+export function showRehabHistoryView() {
+  const patientId = currentRehabPatientId || window.currentPatientId || (window.currentPatientData && window.currentPatientData.id);
+  if (!patientId) {
+    showRehabEmptyView();
+    return;
+  }
+  currentRehabPatientId = String(patientId);
+  rehabViewMode = 'history';
+  const emptyPanel = document.getElementById('rehab-empty-view');
+  const historyPanel = document.getElementById('rehab-history-view');
+  const workspacePanel = document.getElementById('rehab-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.add('orl-view-hidden');
+    emptyPanel.style.display = 'none';
+  }
+  if (historyPanel) {
+    historyPanel.classList.remove('orl-view-hidden');
+    historyPanel.style.display = 'block';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.add('orl-view-hidden');
+    workspacePanel.style.display = 'none';
+  }
+  renderRehabHistoryList();
+}
+
+export function showRehabWorkspaceView() {
+  const patientId = currentRehabPatientId || window.currentPatientId || (window.currentPatientData && window.currentPatientData.id);
+  if (!patientId) {
+    showRehabEmptyView();
+    return;
+  }
+  currentRehabPatientId = String(patientId);
+  rehabViewMode = 'workspace';
+  const emptyPanel = document.getElementById('rehab-empty-view');
+  const historyPanel = document.getElementById('rehab-history-view');
+  const workspacePanel = document.getElementById('rehab-workspace-view');
+  if (emptyPanel) {
+    emptyPanel.classList.add('orl-view-hidden');
+    emptyPanel.style.display = 'none';
+  }
+  if (historyPanel) {
+    historyPanel.classList.add('orl-view-hidden');
+    historyPanel.style.display = 'none';
+  }
+  if (workspacePanel) {
+    workspacePanel.classList.remove('orl-view-hidden');
+    workspacePanel.style.display = 'flex';
+  }
+}
+
+export function deselectRehabPatient(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  selectRehabPatient(null);
 }
 
 export async function initRehabilitation(force = false) {
@@ -23,10 +103,12 @@ export async function initRehabilitation(force = false) {
     dateInput.value = new Date().toISOString().split('T')[0];
   }
 
-  if (window.currentPatientId) {
-    await selectRehabPatient(window.currentPatientId, { fromGlobalSync: true });
+  const initialPatientId = window.currentPatientId || null;
+  if (initialPatientId) {
+    await selectRehabPatient(initialPatientId, { fromGlobalSync: true });
+    showRehabHistoryView();
   } else {
-    renderRehabWysiwygReport(false);
+    showRehabEmptyView();
   }
 
   window.removeEventListener('medcare:patient-selected', handleRehabGlobalPatientSelected);
@@ -204,11 +286,16 @@ export async function selectRehabPatient(patientId, options = {}) {
   const normalizedId = patientId ? String(patientId).trim() : null;
   if (!normalizedId) {
     currentRehabPatientId = null;
+    window.currentPatientId = null;
+    window.currentPatientData = null;
     updateRehabPatientDisplay(null);
     resetRehabFields();
+    showRehabEmptyView();
     const select = document.getElementById('rehab-patient-selector');
     if (select && typeof AntSelect !== 'undefined') {
       AntSelect.setValue(select, '');
+    } else if (select) {
+      select.value = '';
     }
     return;
   }
@@ -250,16 +337,18 @@ export async function selectRehabPatient(patientId, options = {}) {
       await loadRehabProfile(normalizedId);
       renderRehabSiderHistory(normalizedId);
       renderRehabWysiwygReport(true);
+      showRehabHistoryView();
 
       if (!options.fromGlobalSync && typeof window.setSelectedPatient === 'function') {
         window.setSelectedPatient(normalizedId, { patient, source: 'rehabilitation' });
       }
     } else {
-      renderRehabWysiwygReport(true);
+      updateRehabPatientDisplay(null);
+      showRehabHistoryView();
     }
   } catch (e) {
     console.error('Error in selectRehabPatient:', e);
-    renderRehabWysiwygReport(true);
+    showRehabHistoryView();
   }
 }
 
@@ -653,6 +742,7 @@ export function saveRehabProfile() {
   updateRehabStats(data);
   updateRehabSectionStepStatus();
   renderRehabSiderHistory(currentRehabPatientId);
+  renderRehabHistoryList();
 }
 
 function getRehabHistoryStorageKey(patientId) {
@@ -731,6 +821,140 @@ function updateRehabStats(data) {
  * HISTORIQUE DES COMPTES-RENDUS DE RÉÉDUCATION
  * =========================================================================
  */
+
+export function renderRehabHistoryList() {
+  const listEl = document.getElementById('rehab-history-list');
+  const patientSubEl = document.getElementById('rehab-history-view-patient-subtitle');
+  if (!listEl) return;
+
+  let patient = window.currentPatientData;
+  const patientName = patient ? `${patient.lastName || ''} ${patient.firstName || ''}`.trim() : (currentRehabPatientId ? `Patient #${currentRehabPatientId}` : 'Aucun patient sélectionné');
+  if (patientSubEl) {
+    if (currentRehabPatientId && patient) {
+      patientSubEl.innerHTML = `
+        <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+          <span style="font-size: 14px; font-weight: 600; color: #64748b;">Patient :</span>
+          <div class="orl-patient-selected-tag" style="display: inline-flex; align-items: center; gap: 8px; background: #f0fdfa; border: 1.5px solid #99f6e4; padding: 4px 10px 4px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(13,148,136,0.06);">
+            <div style="width: 22px; height: 22px; border-radius: 50%; background: #0d9488; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">
+              ${(patient.lastName?.[0] || patient.firstName?.[0] || 'P').toUpperCase()}
+            </div>
+            <strong style="color: #0f766e; font-size: 14.5px; font-weight: 750;">${typeof escapeHTML === 'function' ? escapeHTML(patientName) : patientName}</strong>
+            <button type="button" class="rehab-deselect-btn" onclick="deselectRehabPatient(event)" title="Désélectionner ce patient" style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #ffffff; border: 1.5px solid #f87171; color: #dc2626; cursor: pointer; font-size: 13px; font-weight: 800; line-height: 1; padding: 0; margin-left: 6px; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(220,38,38,0.12);" onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#dc2626';" onmouseout="this.style.background='#ffffff'; this.style.borderColor='#f87171';">
+              ✕
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      patientSubEl.innerHTML = `Patient : <em style="color: #94a3b8;">Aucun patient sélectionné</em>`;
+    }
+  }
+
+  if (!currentRehabPatientId) {
+    listEl.innerHTML = `
+      <div class="ant-empty" style="padding: 56px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="ant-empty-image" style="margin-bottom: 20px;">
+          <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="32" cy="18" r="8" fill="#f8fafc"/>
+            <path d="M18 50h28v-4c0-6-6-10-14-10s-14 4-14 10v4z" fill="#f8fafc"/>
+            <path d="M32 30v14"/>
+          </svg>
+        </div>
+        <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun patient sélectionné</div>
+        <div style="font-size: 15px; color: #64748b; max-width: 480px; line-height: 1.6;">Veuillez sélectionner un patient dans la barre supérieure pour consulter ou créer des bilans MPR.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let history = getRehabHistory(currentRehabPatientId);
+  if (history.length === 0) {
+    const raw = localStorage.getItem(getRehabStorageKey(currentRehabPatientId));
+    if (raw) {
+      try {
+        const initialData = JSON.parse(raw);
+        saveRehabHistoryEntry(currentRehabPatientId, initialData);
+      } catch (_) {}
+    }
+  }
+
+  const updatedHistory = getRehabHistory(currentRehabPatientId);
+  const headerActions = document.getElementById('rehab-history-header-actions');
+
+  if (updatedHistory.length === 0) {
+    if (headerActions) headerActions.style.display = 'none';
+    listEl.innerHTML = `
+      <div class="ant-empty" style="padding: 56px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="ant-empty-image" style="margin-bottom: 20px;">
+          <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 6h24l12 12v38a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z" fill="#f8fafc"/>
+            <polyline points="40 6 40 18 52 18"/>
+            <line x1="22" y1="28" x2="42" y2="28"/>
+            <line x1="22" y1="36" x2="42" y2="36"/>
+            <line x1="22" y1="44" x2="34" y2="44"/>
+          </svg>
+        </div>
+        <div style="font-size: 19px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">Aucun bilan MPR enregistré</div>
+        <div style="font-size: 15px; color: #64748b; max-width: 460px; line-height: 1.6; margin-bottom: 22px;">Créez un premier bilan médical pour ce patient afin d'initialiser son dossier de rééducation.</div>
+        <button type="button" class="btn btn-primary" onclick="createNewRehabReport()" style="height: 42px; padding: 0 24px; font-size: 14.5px; font-weight: 650; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; background: #0d9488; border-color: #0d9488; box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Créer un premier bilan</span>
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  if (headerActions) headerActions.style.display = 'block';
+
+  const safeEscape = (val) => (typeof escapeHTML === 'function' ? escapeHTML(val || '') : String(val || ''));
+
+  let html = `<div style="display: flex; flex-direction: column; gap: 14px;">`;
+
+  updatedHistory.forEach((item, index) => {
+    const formattedDate = item.date ? new Date(item.date).toLocaleDateString('fr-FR') : '—';
+    const savedTime = item.savedAt ? new Date(item.savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const motif = item.motif || 'Compte-rendu de rééducation';
+    const objectives = item.objectives || 'Bilan standard';
+    const sessions = item.data?.sessionsCount || item.sessionsCount;
+
+    html += `
+      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.03); flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 240px; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+            <span class="ant-tag ant-tag-processing" style="background: #f0fdfa; color: #0d9488; border-color: #99f6e4; font-weight: 700; font-size: 13px; padding: 3px 10px; border-radius: 6px;">
+              ${formattedDate} ${savedTime ? `(${savedTime})` : ''}
+            </span>
+            <span class="ant-tag" style="background: #f6ffed; color: #389e0d; border-color: #b7eb8f; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 6px;">Rééducation MPR</span>
+            ${sessions ? `<span class="ant-tag" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 6px;">${safeEscape(sessions)} séances</span>` : ''}
+          </div>
+          <div style="font-size: 16.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+            ${safeEscape(motif)}
+          </div>
+          <div style="font-size: 14.5px; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <strong style="color: #1e293b;">Objectifs :</strong> ${safeEscape(objectives)}
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+          <button type="button" class="btn btn-primary" onclick="editRehabHistoricalReport(${index})" style="height: 36px; padding: 0 14px; font-size: 13.5px; font-weight: 600; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; background: #0d9488; border-color: #0d9488; cursor: pointer;" title="Modifier ce bilan">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <span>Modifier</span>
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="previewRehabHistoricalReport(${index})" style="height: 36px; padding: 0 14px; font-size: 13.5px; font-weight: 600; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; background: #ffffff; border: 1.5px solid #cbd5e1; color: #334155; cursor: pointer;" title="Aperçu avant impression">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#475569" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span>Imprimer</span>
+          </button>
+          <button type="button" class="btn" onclick="deleteRehabHistoricalReport(${index})" style="height: 36px; width: 36px; min-width: 36px; padding: 0; border-radius: 7px; background: #fff1f2; border: 1.5px solid #fca5a5; color: #e11d48; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 2px rgba(225,29,72,0.06);" title="Supprimer ce bilan">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#e11d48" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  listEl.innerHTML = html;
+}
 
 export async function openRehabReportHistoryModal() {
   const modal = document.getElementById('rehab-report-history-modal');
@@ -857,6 +1081,7 @@ export function editRehabHistoricalReport(index) {
   currentRehabEditingReportId = entry.id;
   loadRehabHistoricalReport(index);
   closeRehabReportHistoryModal();
+  showRehabWorkspaceView();
   switchRehabTab('report');
 
   if (typeof showNotification === 'function') {
@@ -905,6 +1130,7 @@ export function loadRehabHistoricalReport(index) {
   updateRehabStats(data);
   updateRehabSectionStepStatus();
   closeRehabReportHistoryModal();
+  showRehabWorkspaceView();
 
   if (typeof showNotification === 'function') {
     showNotification(`Compte-rendu du ${entry.date || 'bilan'} chargé dans le dossier`, 'success');
@@ -924,6 +1150,8 @@ export function deleteRehabHistoricalReport(index) {
   history.splice(index, 1);
   localStorage.setItem(getRehabHistoryStorageKey(currentRehabPatientId), JSON.stringify(history));
 
+  renderRehabHistoryList();
+  renderRehabSiderHistory(currentRehabPatientId);
   openRehabReportHistoryModal();
   if (typeof showNotification === 'function') {
     showNotification('Compte-rendu supprimé de l\'historique', 'info');
@@ -1229,6 +1457,13 @@ export function resetRehabProfile() {
 }
 
 export function createNewRehabReport() {
+  if (!currentRehabPatientId) {
+    if (typeof showNotification === 'function') {
+      showNotification('Veuillez d\'abord sélectionner un patient', 'warning');
+    }
+    showRehabEmptyView();
+    return;
+  }
   currentRehabEditingReportId = null;
   resetRehabFields();
   const dateInput = document.getElementById('rehab-date');
@@ -1243,6 +1478,7 @@ export function createNewRehabReport() {
 
   renderRehabWysiwygReport(true);
   updateRehabSectionStepStatus();
+  showRehabWorkspaceView();
   switchRehabTab('anamnese');
 
   if (typeof showNotification === 'function') {
@@ -1583,3 +1819,8 @@ window.deleteRehabPlan = deleteRehabPlan;
 window.changeRehabBilansPage = changeRehabBilansPage;
 window.changeRehabPlansPage = changeRehabPlansPage;
 window.toggleRehabPreviewHeader = toggleRehabPreviewHeader;
+window.showRehabEmptyView = showRehabEmptyView;
+window.showRehabHistoryView = showRehabHistoryView;
+window.showRehabWorkspaceView = showRehabWorkspaceView;
+window.deselectRehabPatient = deselectRehabPatient;
+window.renderRehabHistoryList = renderRehabHistoryList;

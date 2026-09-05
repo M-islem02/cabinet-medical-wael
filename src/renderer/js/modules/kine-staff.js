@@ -370,7 +370,7 @@ async function viewKineSessions(kineId) {
 /**
  * Format currency helper
  */
-function formatCurrency(amount) {
+function formatKineCurrency(amount) {
   return new Intl.NumberFormat('fr-DZ', {
     style: 'decimal',
     minimumFractionDigits: 0,
