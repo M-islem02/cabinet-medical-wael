@@ -511,11 +511,11 @@ function showSection(sectionId) {
     if (typeof initTreatmentPlans === 'function') initTreatmentPlans();
     else if (typeof window.initTreatmentPlans === 'function') window.initTreatmentPlans();
   } else if (sectionId === 'rehabilitation') {
-    if (typeof initRehabilitation === 'function') initRehabilitation();
-    else if (typeof window.initRehabilitation === 'function') window.initRehabilitation();
+    if (typeof initRehabilitation === 'function') initRehabilitation(true);
+    else if (typeof window.initRehabilitation === 'function') window.initRehabilitation(true);
   } else if (sectionId === 'cardiology') {
-    if (typeof initCardiology === 'function') initCardiology();
-    else if (typeof window.initCardiology === 'function') window.initCardiology();
+    if (typeof initCardiology === 'function') initCardiology(true);
+    else if (typeof window.initCardiology === 'function') window.initCardiology(true);
   } else if (sectionId === 'package-config') {
     if (typeof loadPackageConfig === 'function') loadPackageConfig();
     else if (typeof window.loadPackageConfig === 'function') window.loadPackageConfig();

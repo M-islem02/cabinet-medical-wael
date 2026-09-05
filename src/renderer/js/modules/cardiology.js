@@ -11,6 +11,72 @@ function getCardioStorageKey(patientId) {
   return `cardio_profile_${patientId || 'temp'}`;
 }
 
+export function hasCardioReportContent() {
+  const checkFields = [
+    'cardio-motif',
+    'cardio-symptoms',
+    'cardio-diagnosis',
+    'cardio-conclusion',
+    'cardio-treatment',
+    'cardio-ecg-rest',
+    'cardio-echo'
+  ];
+  return checkFields.some(id => Boolean(document.getElementById(id)?.value?.trim()));
+}
+
+export function updateCardioToolbar() {
+  const btnNew = document.getElementById('cardio-btn-new-report');
+  const btnHistory = document.getElementById('cardio-btn-history');
+  const btnEditor = document.getElementById('cardio-btn-editor');
+  const btnRefresh = document.getElementById('cardio-btn-refresh');
+
+  const hasPatient = Boolean(currentCardioPatientId);
+  const isWorkspace = cardioViewMode === 'workspace';
+  const isHistory = cardioViewMode === 'history';
+
+  const setBtnState = (btn, enabled) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.45';
+    btn.style.pointerEvents = enabled ? 'auto' : 'none';
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  };
+
+  // + Nouveau Bilan: show in top bar only in workspace mode (hidden in history view to avoid duplicate buttons)
+  if (btnNew) {
+    btnNew.style.display = isHistory ? 'none' : 'inline-flex';
+    setBtnState(btnNew, hasPatient);
+  }
+
+  // Historique: active whenever a patient is selected
+  setBtnState(btnHistory, hasPatient);
+  if (btnHistory) {
+    if (isHistory && hasPatient) {
+      btnHistory.style.borderColor = '#dc2626';
+      btnHistory.style.color = '#dc2626';
+      btnHistory.style.background = '#fef2f2';
+    } else {
+      btnHistory.style.borderColor = '';
+      btnHistory.style.color = '';
+      btnHistory.style.background = '';
+    }
+  }
+
+  // Éditeur: active only when in workspace mode with a patient
+  setBtnState(btnEditor, hasPatient && isWorkspace);
+  if (btnEditor) {
+    if (isWorkspace && hasPatient) {
+      btnEditor.style.borderColor = '#dc2626';
+      btnEditor.style.color = '#dc2626';
+      btnEditor.style.background = '#fef2f2';
+    } else {
+      btnEditor.style.borderColor = '';
+      btnEditor.style.color = '';
+      btnEditor.style.background = '';
+    }
+  }
+}
+
 export function showCardioEmptyView() {
   cardioViewMode = 'empty';
   const emptyPanel = document.getElementById('cardio-empty-view');
@@ -18,17 +84,18 @@ export function showCardioEmptyView() {
   const workspacePanel = document.getElementById('cardio-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.remove('orl-view-hidden');
-    emptyPanel.style.display = 'block';
+    emptyPanel.style.setProperty('display', 'block', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.add('orl-view-hidden');
-    historyPanel.style.display = 'none';
+    historyPanel.style.setProperty('display', 'none', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.add('orl-view-hidden');
-    workspacePanel.style.display = 'none';
+    workspacePanel.style.setProperty('display', 'none', 'important');
   }
   updateCardioPatientDisplay(null);
+  updateCardioToolbar();
 }
 
 export function showCardioHistoryView() {
@@ -44,17 +111,18 @@ export function showCardioHistoryView() {
   const workspacePanel = document.getElementById('cardio-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.add('orl-view-hidden');
-    emptyPanel.style.display = 'none';
+    emptyPanel.style.setProperty('display', 'none', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.remove('orl-view-hidden');
-    historyPanel.style.display = 'block';
+    historyPanel.style.setProperty('display', 'block', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.add('orl-view-hidden');
-    workspacePanel.style.display = 'none';
+    workspacePanel.style.setProperty('display', 'none', 'important');
   }
   renderCardioHistoryList();
+  updateCardioToolbar();
 }
 
 export function showCardioWorkspaceView() {
@@ -70,16 +138,17 @@ export function showCardioWorkspaceView() {
   const workspacePanel = document.getElementById('cardio-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.add('orl-view-hidden');
-    emptyPanel.style.display = 'none';
+    emptyPanel.style.setProperty('display', 'none', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.add('orl-view-hidden');
-    historyPanel.style.display = 'none';
+    historyPanel.style.setProperty('display', 'none', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.remove('orl-view-hidden');
-    workspacePanel.style.display = 'flex';
+    workspacePanel.style.setProperty('display', 'flex', 'important');
   }
+  updateCardioToolbar();
 }
 
 export function deselectCardioPatient(event) {
@@ -113,6 +182,12 @@ export async function initCardiology(force = false) {
 
   window.removeEventListener('medcare:patient-selected', handleCardioGlobalPatientSelected);
   window.addEventListener('medcare:patient-selected', handleCardioGlobalPatientSelected);
+
+  // Track user input to live-update toolbar
+  document.querySelectorAll('#cardiology input, #cardiology textarea, #cardiology select').forEach(input => {
+    input.addEventListener('input', () => updateCardioToolbar());
+    input.addEventListener('change', () => updateCardioToolbar());
+  });
 
   // Wire step items and subtab buttons directly for guaranteed clickability
   document.querySelectorAll('#cardiology .orl-section-step-item').forEach(item => {
@@ -199,12 +274,18 @@ export async function initCardiology(force = false) {
     }
   }
 
-  if (selector.dataset.initialized === '1' && !force) return;
+  if (selector.dataset.initialized === '1' && !force) {
+    updateCardioToolbar();
+    return;
+  }
   selector.dataset.initialized = '1';
   if (window.currentPatientId && String(currentCardioPatientId || '') !== String(window.currentPatientId)) {
     selector.value = window.currentPatientId;
     await selectCardioPatient(window.currentPatientId, { fromGlobalSync: true });
+  } else if (!window.currentPatientId && !currentCardioPatientId) {
+    showCardioEmptyView();
   }
+  updateCardioToolbar();
 }
 
 function handleCardioGlobalPatientSelected(e) {
@@ -1938,3 +2019,5 @@ window.showCardioHistoryView = showCardioHistoryView;
 window.showCardioWorkspaceView = showCardioWorkspaceView;
 window.deselectCardioPatient = deselectCardioPatient;
 window.renderCardioHistoryList = renderCardioHistoryList;
+window.updateCardioToolbar = updateCardioToolbar;
+window.hasCardioReportContent = hasCardioReportContent;

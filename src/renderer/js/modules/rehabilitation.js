@@ -11,6 +11,71 @@ function getRehabStorageKey(patientId) {
   return `rehab_profile_${patientId || 'temp'}`;
 }
 
+export function hasRehabReportContent() {
+  const checkFields = [
+    'rehab-motif',
+    'rehab-pain-location',
+    'rehab-diagnosis',
+    'rehab-rehab-plan',
+    'rehab-objectives',
+    'rehab-evolution'
+  ];
+  return checkFields.some(id => Boolean(document.getElementById(id)?.value?.trim()));
+}
+
+export function updateRehabToolbar() {
+  const btnNew = document.getElementById('rehab-btn-new-report');
+  const btnHistory = document.getElementById('rehab-btn-history');
+  const btnEditor = document.getElementById('rehab-btn-editor');
+  const btnRefresh = document.getElementById('rehab-btn-refresh');
+
+  const hasPatient = Boolean(currentRehabPatientId);
+  const isWorkspace = rehabViewMode === 'workspace';
+  const isHistory = rehabViewMode === 'history';
+
+  const setBtnState = (btn, enabled) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.45';
+    btn.style.pointerEvents = enabled ? 'auto' : 'none';
+    btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  };
+
+  // + Nouveau Bilan: show in top bar only in workspace mode (hidden in history view to avoid duplicate buttons)
+  if (btnNew) {
+    btnNew.style.display = isHistory ? 'none' : 'inline-flex';
+    setBtnState(btnNew, hasPatient);
+  }
+
+  // Historique: active whenever a patient is selected
+  setBtnState(btnHistory, hasPatient);
+  if (btnHistory) {
+    if (isHistory && hasPatient) {
+      btnHistory.style.borderColor = '#0d9488';
+      btnHistory.style.color = '#0d9488';
+      btnHistory.style.background = '#f0fdfa';
+    } else {
+      btnHistory.style.borderColor = '';
+      btnHistory.style.color = '';
+      btnHistory.style.background = '';
+    }
+  }
+
+  // Éditeur: active only when in workspace mode with a patient
+  setBtnState(btnEditor, hasPatient && isWorkspace);
+  if (btnEditor) {
+    if (isWorkspace && hasPatient) {
+      btnEditor.style.borderColor = '#0d9488';
+      btnEditor.style.color = '#0d9488';
+      btnEditor.style.background = '#f0fdfa';
+    } else {
+      btnEditor.style.borderColor = '';
+      btnEditor.style.color = '';
+      btnEditor.style.background = '';
+    }
+  }
+}
+
 export function showRehabEmptyView() {
   rehabViewMode = 'empty';
   const emptyPanel = document.getElementById('rehab-empty-view');
@@ -18,17 +83,18 @@ export function showRehabEmptyView() {
   const workspacePanel = document.getElementById('rehab-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.remove('orl-view-hidden');
-    emptyPanel.style.display = 'block';
+    emptyPanel.style.setProperty('display', 'block', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.add('orl-view-hidden');
-    historyPanel.style.display = 'none';
+    historyPanel.style.setProperty('display', 'none', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.add('orl-view-hidden');
-    workspacePanel.style.display = 'none';
+    workspacePanel.style.setProperty('display', 'none', 'important');
   }
   updateRehabPatientDisplay(null);
+  updateRehabToolbar();
 }
 
 export function showRehabHistoryView() {
@@ -44,17 +110,18 @@ export function showRehabHistoryView() {
   const workspacePanel = document.getElementById('rehab-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.add('orl-view-hidden');
-    emptyPanel.style.display = 'none';
+    emptyPanel.style.setProperty('display', 'none', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.remove('orl-view-hidden');
-    historyPanel.style.display = 'block';
+    historyPanel.style.setProperty('display', 'block', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.add('orl-view-hidden');
-    workspacePanel.style.display = 'none';
+    workspacePanel.style.setProperty('display', 'none', 'important');
   }
   renderRehabHistoryList();
+  updateRehabToolbar();
 }
 
 export function showRehabWorkspaceView() {
@@ -70,16 +137,17 @@ export function showRehabWorkspaceView() {
   const workspacePanel = document.getElementById('rehab-workspace-view');
   if (emptyPanel) {
     emptyPanel.classList.add('orl-view-hidden');
-    emptyPanel.style.display = 'none';
+    emptyPanel.style.setProperty('display', 'none', 'important');
   }
   if (historyPanel) {
     historyPanel.classList.add('orl-view-hidden');
-    historyPanel.style.display = 'none';
+    historyPanel.style.setProperty('display', 'none', 'important');
   }
   if (workspacePanel) {
     workspacePanel.classList.remove('orl-view-hidden');
-    workspacePanel.style.display = 'flex';
+    workspacePanel.style.setProperty('display', 'flex', 'important');
   }
+  updateRehabToolbar();
 }
 
 export function deselectRehabPatient(event) {
@@ -113,6 +181,12 @@ export async function initRehabilitation(force = false) {
 
   window.removeEventListener('medcare:patient-selected', handleRehabGlobalPatientSelected);
   window.addEventListener('medcare:patient-selected', handleRehabGlobalPatientSelected);
+
+  // Track user input to live-update toolbar
+  document.querySelectorAll('#rehabilitation input, #rehabilitation textarea, #rehabilitation select').forEach(input => {
+    input.addEventListener('input', () => updateRehabToolbar());
+    input.addEventListener('change', () => updateRehabToolbar());
+  });
 
   // Wire step items and subtab buttons directly for guaranteed clickability
   document.querySelectorAll('#rehabilitation .orl-section-step-item').forEach(item => {
@@ -180,12 +254,18 @@ export async function initRehabilitation(force = false) {
     }
   }
 
-  if (selector.dataset.initialized === '1' && !force) return;
+  if (selector.dataset.initialized === '1' && !force) {
+    updateRehabToolbar();
+    return;
+  }
   selector.dataset.initialized = '1';
   if (window.currentPatientId && String(currentRehabPatientId || '') !== String(window.currentPatientId)) {
     selector.value = window.currentPatientId;
     await selectRehabPatient(window.currentPatientId, { fromGlobalSync: true });
+  } else if (!window.currentPatientId && !currentRehabPatientId) {
+    showRehabEmptyView();
   }
+  updateRehabToolbar();
 }
 
 function handleRehabGlobalPatientSelected(e) {
@@ -1824,3 +1904,5 @@ window.showRehabHistoryView = showRehabHistoryView;
 window.showRehabWorkspaceView = showRehabWorkspaceView;
 window.deselectRehabPatient = deselectRehabPatient;
 window.renderRehabHistoryList = renderRehabHistoryList;
+window.updateRehabToolbar = updateRehabToolbar;
+window.hasRehabReportContent = hasRehabReportContent;

@@ -352,6 +352,12 @@ async function initializeLegacyApplication() {
     if (typeof window.initORL === 'function') {
       void window.initORL();
     }
+    if (typeof window.initCardiology === 'function') {
+      void window.initCardiology();
+    }
+    if (typeof window.initRehabilitation === 'function') {
+      void window.initRehabilitation();
+    }
     
     // Initialize EHR alert state observer
     setupAlertStateObserver();

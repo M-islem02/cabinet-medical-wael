@@ -45,7 +45,8 @@ test('cardiology.js exports 3-state view functions and deselect button logic', (
   assert.ok(cardioCode.includes('export function renderCardioHistoryList()'), 'renderCardioHistoryList must be exported');
   assert.ok(cardioCode.includes('window.showCardioEmptyView = showCardioEmptyView;'), 'showCardioEmptyView attached to window');
   assert.ok(cardioCode.includes('window.showCardioHistoryView = showCardioHistoryView;'), 'showCardioHistoryView attached to window');
-  assert.ok(cardioCode.includes('window.showCardioWorkspaceView = showCardioWorkspaceView;'), 'showCardioWorkspaceView attached to window');
+  assert.ok(cardioCode.includes('export function updateCardioToolbar()'), 'updateCardioToolbar must be exported');
+  assert.ok(cardioCode.includes('window.updateCardioToolbar = updateCardioToolbar;'), 'updateCardioToolbar attached to window');
 });
 
 test('rehabilitation.js exports 3-state view functions and deselect button logic', () => {
@@ -62,4 +63,6 @@ test('rehabilitation.js exports 3-state view functions and deselect button logic
   assert.ok(rehabCode.includes('window.showRehabEmptyView = showRehabEmptyView;'), 'showRehabEmptyView attached to window');
   assert.ok(rehabCode.includes('window.showRehabHistoryView = showRehabHistoryView;'), 'showRehabHistoryView attached to window');
   assert.ok(rehabCode.includes('window.showRehabWorkspaceView = showRehabWorkspaceView;'), 'showRehabWorkspaceView attached to window');
+  assert.ok(rehabCode.includes('export function updateRehabToolbar()'), 'updateRehabToolbar must be exported');
+  assert.ok(rehabCode.includes('window.updateRehabToolbar = updateRehabToolbar;'), 'updateRehabToolbar attached to window');
 });
