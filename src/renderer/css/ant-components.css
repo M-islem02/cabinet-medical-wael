@@ -1264,30 +1264,42 @@ input[type="date"].ant-input:focus {
 }
 
 #orl,
+#cardiology,
 .orl-top-action-bar,
+.cardio-top-action-bar,
 .orl-workspace-layout,
+.cardio-workspace-layout,
 .orl-sider,
+.cardio-sider,
 .orl-main-content,
-.orl-content-area {
+.orl-content-area,
+.cardio-content-area {
   position: relative !important;
   pointer-events: auto !important;
   z-index: 1 !important;
 }
 
-.orl-top-action-bar {
+.orl-top-action-bar,
+.cardio-top-action-bar {
   z-index: 5 !important;
 }
 
 .orl-top-action-bar button,
+.cardio-top-action-bar button,
 .orl-section-step-item,
 .orl-subtab-btn,
 .orl-add-subject-btn,
 .orl-step-dot,
 #orl button,
+#cardiology button,
 #orl .btn,
+#cardiology .btn,
 #orl input,
+#cardiology input,
 #orl select,
-#orl textarea {
+#cardiology select,
+#orl textarea,
+#cardiology textarea {
   pointer-events: auto !important;
   cursor: pointer !important;
   position: relative !important;
@@ -1827,16 +1839,18 @@ select[aria-hidden="true"] {
 }
 
 /* Enhanced typography, inputs & textareas for ORL page */
-#orl {
+#orl,
+#cardiology {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   color: #0f172a;
 }
 
-#orl label {
-  font-size: 14.5px !important;
+#orl label,
+#cardiology label {
+  font-size: 13.5px !important;
   font-weight: 700 !important;
   color: #1e293b !important;
-  margin-bottom: 8px !important;
+  margin-bottom: 6px !important;
   display: block;
   letter-spacing: -0.1px;
 }
@@ -1846,7 +1860,13 @@ select[aria-hidden="true"] {
 #orl input[type="date"],
 #orl input[type="number"],
 #orl select,
-#orl textarea {
+#orl textarea,
+#cardiology .form-control,
+#cardiology input[type="text"],
+#cardiology input[type="date"],
+#cardiology input[type="number"],
+#cardiology select,
+#cardiology textarea {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   color: #0f172a !important;
   border-radius: 8px !important;
@@ -1858,7 +1878,9 @@ select[aria-hidden="true"] {
 }
 
 #orl select,
-#orl select.form-control {
+#orl select.form-control,
+#cardiology select,
+#cardiology select.form-control {
   height: 42px !important;
   min-height: 42px !important;
   font-size: 14.5px !important;
@@ -1880,19 +1902,24 @@ select[aria-hidden="true"] {
 #orl input[type="text"],
 #orl input[type="date"],
 #orl input[type="number"],
-#orl .form-control:not(textarea):not(select) {
+#orl .form-control:not(textarea):not(select),
+#cardiology input[type="text"],
+#cardiology input[type="date"],
+#cardiology input[type="number"],
+#cardiology .form-control:not(textarea):not(select) {
   height: 42px !important;
   min-height: 42px !important;
-  font-size: 14.5px !important;
+  font-size: 14px !important;
   line-height: normal !important;
   padding: 0 12px !important;
 }
 
-#orl textarea {
-  font-size: 14.5px !important;
+#orl textarea,
+#cardiology textarea {
+  font-size: 13.5px !important;
   padding: 10px 14px !important;
   line-height: 1.55 !important;
-  min-height: 85px;
+  min-height: 80px;
   resize: vertical;
 }
 
@@ -1907,25 +1934,65 @@ select[aria-hidden="true"] {
   background-color: #ffffff !important;
 }
 
+#cardiology .form-control:focus,
+#cardiology input[type="text"]:focus,
+#cardiology input[type="date"]:focus,
+#cardiology select:focus,
+#cardiology textarea:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+  outline: none !important;
+  background-color: #ffffff !important;
+}
+
 #orl textarea::placeholder,
-#orl input::placeholder {
-  font-size: 14px !important;
+#orl input::placeholder,
+#cardiology textarea::placeholder,
+#cardiology input::placeholder {
+  font-size: 13px !important;
   color: #94a3b8 !important;
   font-style: normal !important;
 }
 
-#orl .orl-subtab-btn {
-  font-size: 14.5px !important;
-  padding: 9px 18px !important;
+#orl .orl-subtab-btn,
+#cardiology .orl-subtab-btn {
+  font-size: 13.5px !important;
+  padding: 8px 16px !important;
   font-weight: 600 !important;
   border-radius: 8px !important;
 }
 
-#orl .ant-checkable-tag {
-  font-size: 13.5px !important;
-  padding: 7px 15px !important;
+#cardiology .orl-subtab-btn.active {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+#orl .ant-checkable-tag,
+#cardiology .ant-checkable-tag {
+  font-size: 13px !important;
+  padding: 6px 14px !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
+}
+
+#cardiology .orl-section-step-item.active {
+  background: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.12) !important;
+}
+
+#cardiology .orl-section-step-item.active .ant-step-circle {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+#cardiology .orl-step-dot.active {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
 }
 
 .orl-kpi-grid-2x2 {

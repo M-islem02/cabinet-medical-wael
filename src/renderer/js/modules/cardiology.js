@@ -1451,6 +1451,13 @@ export function closeCardioPrintPreview() {
   }
 }
 
+export function toggleCardioPreviewHeader(show) {
+  const header = document.querySelector('#cardio-preview-sheet > div:first-child');
+  if (header) {
+    header.style.display = show ? 'flex' : 'none';
+  }
+}
+
 export function triggerCardioDirectPrint() {
   const sheet = document.getElementById('cardio-preview-sheet');
   if (!sheet) return;
@@ -1681,3 +1688,4 @@ window.editCardioHistoricalReport = editCardioHistoricalReport;
 window.formatCardioDossierNumber = formatCardioDossierNumber;
 window.viewCardiologyProfile = viewCardiologyProfile;
 window.openViewedCardiologyProfileInWorkspace = openViewedCardiologyProfileInWorkspace;
+window.toggleCardioPreviewHeader = toggleCardioPreviewHeader;

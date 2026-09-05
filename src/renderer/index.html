@@ -3457,227 +3457,690 @@
 
                 <!-- ===================== CARDIOLOGY SECTION ===================== -->
                 <section id="cardiology" class="section doctor-only">
-                    <div class="section-header cardio-header">
-                        <div class="section-heading-block">
-                            <h2>💓 Cardiologie</h2>
-                            <p class="section-subtitle">Bilan cardiovasculaire structuré, suivi et génération du rapport médical.</p>
-                        </div>
-                    </div>
+  <!-- Top Action Bar with Patient Search Selector -->
+  <div class="orl-top-action-bar cardio-top-action-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 14px;">
+    <!-- Title -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #fecaca; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.08);">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 7.65l.77.78L12 20.66l7.65-7.65.77-.78a5.4 5.4 0 0 0 0-7.65z"/></svg>
+      </div>
+      <div>
+        <h2 style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.2px;">Cardiologie & Explorations Cardiovasculaires</h2>
+        <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Bilan hémodynamique structuré, ECG 12 dérivations, échographie et compte-rendu médical.</p>
+      </div>
+    </div>
 
-                    <div class="feature-shell cardiology-shell">
-                        <div class="feature-hero feature-hero-cardiology">
-                            <div class="feature-hero-content">
-                                <div class="feature-hero-layout">
-                                    <div>
-                                        <span class="feature-hero-label">Patient sélectionné</span>
-                                        <h3 class="feature-hero-title">Dossier cardiovasculaire</h3>
-                                        <p id="cardiology-current-patient-display" class="feature-hero-patient">Aucun
-                                            patient sélectionné</p>
-                                    </div>
-                                    <div class="feature-hero-actions">
-                                        <select id="cardiology-patient-selector"
-                                            class="form-control feature-patient-selector"
-                                            onchange="selectCardiologyPatient(this.value)">
-                                            <option value="">-- Sélectionner un patient --</option>
-                                        </select>
-                                        <button class="btn feature-hero-refresh"
-                                            onclick="refreshCardiologyPatientList()">⟳</button>
-                                        <button class="btn btn-primary" onclick="openCardiologyReportWorkspace()">📄
-                                            Générer rapport</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+    <!-- Upper Patient Search Bar -->
+    <div class="orl-top-patient-search" style="flex: 1; max-width: 380px; min-width: 260px; position: relative; z-index: 100;">
+      <select id="cardio-patient-selector" class="form-control feature-patient-selector" onchange="selectCardioPatient(this.value)" style="width: 100%;">
+        <option value="">Rechercher un patient...</option>
+      </select>
+    </div>
 
-                        <div class="cardiology-stats-grid">
-                            <div class="card cardiology-stat-card cardiology-stat-card-primary">
-                                <div class="card-header">
-                                    <h3>Dernier rapport</h3><span class="icon">🗓️</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-last-report">-</div>
-                                <p class="card-footer">Dernière génération ou mise à jour</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-danger">
-                                <div class="card-header">
-                                    <h3>TA de référence</h3><span class="icon">🩸</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-blood-pressure">-</div>
-                                <p class="card-footer">Dernière tension connue</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-info">
-                                <div class="card-header">
-                                    <h3>Rapports</h3><span class="icon">📄</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-rapport-count">0</div>
-                                <p class="card-footer">Rapports enregistrés</p>
-                            </div>
-                            <div class="card cardiology-stat-card cardiology-stat-card-warning">
-                                <div class="card-header">
-                                    <h3>Orientations</h3><span class="icon">📨</span>
-                                </div>
-                                <div class="card-stat" id="cardiology-stat-orientation-count">0</div>
-                                <p class="card-footer">Avis et adressages</p>
-                            </div>
-                        </div>
+    <!-- Action Buttons -->
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <button class="btn btn-secondary" id="cardio-btn-refresh" onclick="refreshCardiologyPatientList()" title="Rafraîchir les patients" style="height: 40px; min-width: 40px; padding: 0 12px; border-radius: 8px;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <button class="btn" id="cardio-btn-history" onclick="openCardioReportHistoryModal()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Historique</span>
+      </button>
+      <button class="btn" id="cardio-btn-editor" onclick="switchCardioTab('report')" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Éditeur CR</span>
+      </button>
+      <button class="btn btn-primary" id="cardio-btn-new-report" onclick="createNewCardioReport()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 650; padding: 0 16px; border-radius: 8px; background: #dc2626; border-color: #dc2626;" title="Initialiser un nouveau bilan cardiologique">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Nouveau Bilan</span>
+      </button>
+    </div>
+  </div>
 
-                        <div class="cardiology-grid">
-                            <div class="card cardiology-panel cardiology-panel-form">
-                                <div class="card-header">
-                                    <h3>Données du bilan clinique</h3>
-                                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                        <button class="btn btn-outline" type="button"
-                                            onclick="resetCardiologyProfile()">Réinitialiser</button>
-                                        <button class="btn btn-primary" type="button"
-                                            onclick="saveCardiologyProfile()">💾 Enregistrer</button>
-                                    </div>
-                                </div>
-                                <div class="cardiology-panel-body">
-                                    <input type="hidden" id="cardiology-patient-id">
-                                    <div class="feature-tabs-wrap cardiology-tabs-wrap">
-                                        <div class="feature-main-tabs cardiology-main-tabs">
-                                            <button class="cardiology-tab-btn feature-tab-btn active" data-tab="summary"
-                                                type="button" onclick="switchCardiologyTab('summary')">
-                                                Synthèse
-                                            </button>
-                                            <button class="cardiology-tab-btn feature-tab-btn" data-tab="tests"
-                                                type="button" onclick="switchCardiologyTab('tests')">
-                                                Examens
-                                            </button>
-                                            <button class="cardiology-tab-btn feature-tab-btn" data-tab="plan"
-                                                type="button" onclick="switchCardiologyTab('plan')">
-                                                Conclusion
-                                            </button>
-                                        </div>
-                                    </div>
+  <!-- 2-Column Workspace Layout -->
+  <div id="cardio-workspace-view" class="orl-workspace-layout cardio-workspace-layout">
+    <!-- Colonne Gauche : Sider Navigation (320px) -->
+    <aside class="orl-sider cardio-sider">
+      <!-- Active Patient Summary Card -->
+      <div class="orl-patient-card" style="margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="avatar" id="cardio-patient-avatar" style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: #dc2626; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; box-shadow: 0 2px 8px rgba(220,38,38,0.25);">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="overflow: hidden; flex: 1;">
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PATIENT EN COURS</div>
+            <div id="cardio-current-patient-display" style="font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Aucun patient sélectionné</div>
+            <div id="cardio-current-patient-sub" style="font-size: 12.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Sélectionnez un patient en haut</div>
+            <input type="hidden" id="cardio-patient-id">
+          </div>
+        </div>
 
-                                    <div id="cardiology-tab-summary" class="cardiology-tab-content"
-                                        style="display: block;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Motif / indication</label>
-                                                <input type="text" id="cardiology-motif" class="form-control"
-                                                    placeholder="Ex: HTA, douleur thoracique, palpitations, suivi insuffisance cardiaque">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Date du bilan</label>
-                                                <input type="date" id="cardiology-date" class="form-control">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Tension artérielle</label>
-                                                <input type="text" id="cardiology-blood-pressure" class="form-control"
-                                                    placeholder="Ex: 14/8">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Fréquence cardiaque</label>
-                                                <input type="text" id="cardiology-heart-rate" class="form-control"
-                                                    placeholder="Ex: 78 bpm">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>SpO2</label>
-                                                <input type="text" id="cardiology-spo2" class="form-control"
-                                                    placeholder="Ex: 98%">
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Antécédents cardiovasculaires</label>
-                                                <textarea id="cardiology-antecedents" class="form-control" rows="3"
-                                                    placeholder="HTA, coronaropathie, valvulopathie, AVC, antécédents familiaux..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Facteurs de risque</label>
-                                                <textarea id="cardiology-risk-factors" class="form-control" rows="3"
-                                                    placeholder="Tabac, diabète, dyslipidémie, obésité, sédentarité..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Symptômes / histoire clinique</label>
-                                                <textarea id="cardiology-symptoms" class="form-control" rows="4"
-                                                    placeholder="Dyspnée, douleur thoracique, palpitations, syncope, œdèmes..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Examen clinique</label>
-                                                <textarea id="cardiology-clinical-exam" class="form-control" rows="4"
-                                                    placeholder="Auscultation, souffle, signes d’insuffisance cardiaque, état hémodynamique..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
+        <!-- Sider Quick History Box -->
+        <div id="cardio-sider-history-box" style="display: none; margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">Historique bilans</span>
+            <button type="button" onclick="openCardioReportHistoryModal()" style="border: none; background: transparent; font-size: 12px; color: #dc2626; font-weight: 600; cursor: pointer; padding: 0;">Voir tout</button>
+          </div>
+          <div id="cardio-sider-history-items" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;"></div>
+        </div>
+      </div>
 
-                                    <div id="cardiology-tab-tests" class="cardiology-tab-content"
-                                        style="display: none;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group">
-                                                <label>ECG de repos</label>
-                                                <textarea id="cardiology-ecg-rest" class="form-control" rows="3"
-                                                    placeholder="Rythme, conduction, anomalies ST-T, fréquence..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>ECG d'effort / test d'effort</label>
-                                                <textarea id="cardiology-ecg-stress" class="form-control" rows="3"
-                                                    placeholder="Tolérance à l'effort, ischémie, troubles du rythme, arrêt du test..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Échocardiographie</label>
-                                                <textarea id="cardiology-echo" class="form-control" rows="3"
-                                                    placeholder="FEVG, cavités, valves, PAPS..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Holter ECG / MAPA</label>
-                                                <textarea id="cardiology-holter-mapa" class="form-control" rows="3"
-                                                    placeholder="Holter, MAPA, variabilité, épisodes rythmiques..."></textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Biologie / troponine / BNP</label>
-                                                <textarea id="cardiology-biology" class="form-control" rows="3"
-                                                    placeholder="Troponine, BNP, bilan lipidique, créatinine..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Autres examens / résultats logiciels</label>
-                                                <textarea id="cardiology-other-tests" class="form-control" rows="3"
-                                                    placeholder="Compte rendu logiciel ECG, épreuve d'effort, scanner, coronarographie, Doppler, autre export..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
+        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">PARCOURS DE CONSULTATION</span>
+        <span id="cardio-step-indicator" style="font-size: 11.5px; font-weight: 600; color: #dc2626; background: #fee2e2; padding: 2px 8px; border-radius: 10px;">Étape 1 sur 7</span>
+      </div>
 
-                                    <div id="cardiology-tab-plan" class="cardiology-tab-content" style="display: none;">
-                                        <div class="cardiology-form-grid">
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Traitement / ajustement thérapeutique</label>
-                                                <textarea id="cardiology-treatment" class="form-control" rows="3"
-                                                    placeholder="IEC, ARA2, bêtabloquant, diurétique, antiagrégant..."></textarea>
-                                            </div>
-                                            <div class="form-group cardiology-field-span-2">
-                                                <label>Conclusion / conduite à tenir</label>
-                                                <textarea id="cardiology-conclusion" class="form-control" rows="5"
-                                                    placeholder="Synthèse diagnostique, risque, examens à compléter, suivi..."></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+      <!-- SectionSteps Navigation Verticale (7 Sections) -->
+      <div class="orl-section-steps" id="cardio-section-steps">
+        <div class="orl-section-step-item active" data-tab="anamnese" onclick="switchCardioTab('anamnese')">
+          <span class="ant-step-circle">1</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <span class="ant-step-label">1. Anamnèse & FRCV</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="clinical" onclick="switchCardioTab('clinical')">
+          <span class="ant-step-circle">2</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+          <span class="ant-step-label">2. Examen & Constantes</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="ecg" onclick="switchCardioTab('ecg')">
+          <span class="ant-step-circle">3</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+          <span class="ant-step-label">3. ECG & Rythme</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="echo" onclick="switchCardioTab('echo')">
+          <span class="ant-step-circle">4</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <span class="ant-step-label">4. Échographie & Doppler</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="effort" onclick="switchCardioTab('effort')">
+          <span class="ant-step-circle">5</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg></span>
+          <span class="ant-step-label">5. Effort & Holter / MAPA</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="conclusion" onclick="switchCardioTab('conclusion')">
+          <span class="ant-step-circle">6</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+          <span class="ant-step-label">6. Diagnostic & Prescriptions</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="report" onclick="switchCardioTab('report')">
+          <span class="ant-step-circle">7</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+          <span class="ant-step-label">7. Compte-Rendu & Impression</span>
+        </div>
+      </div>
+    </aside>
 
-                            <div class="cardiology-side-column">
-                                <div class="card cardiology-panel">
-                                    <div class="card-header">
-                                        <h3>Résumé patient</h3>
-                                    </div>
-                                    <div class="cardiology-panel-body">
-                                        <div id="cardiology-patient-summary" class="cardiology-empty-state">Sélectionnez
-                                            un patient pour afficher le résumé cardiovasculaire.</div>
-                                    </div>
-                                </div>
+    <!-- Colonne Droite : Contenu de la Section Active -->
+    <section class="orl-content-area cardio-content-area">
+      <!-- Grille KPI 2x2 -->
+      <div class="orl-kpi-grid-2x2">
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #fef2f2;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Dernier Bilan</div>
+            <div id="cardio-stat-last-report" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">--</div>
+            <div style="font-size: 12px; color: #64748b;">Date de consultation</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #fff1f2;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#e11d48" stroke-width="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">TA de Référence</div>
+            <div id="cardio-stat-blood-pressure" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">--</div>
+            <div style="font-size: 12px; color: #64748b;">Dernière tension connue</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #eff6ff;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Bilans Enregistrés</div>
+            <div id="cardio-stat-rapport-count" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
+            <div style="font-size: 12px; color: #64748b;">Comptes-rendus stockés</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #f0fdf4;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Explorations & Avis</div>
+            <div id="cardio-stat-orientation-count" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
+            <div style="font-size: 12px; color: #64748b;">ECG, Holter & Doppler</div>
+          </div>
+        </div>
+      </div>
 
-                                <div class="card cardiology-panel">
-                                    <div class="card-header">
-                                        <h3>Historique rapide</h3>
-                                    </div>
-                                    <div class="cardiology-panel-body">
-                                        <div id="cardiology-recent-items" class="cardiology-history-list">
-                                            <div class="cardiology-empty-state">Aucune activité à afficher.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+      <!-- Tab 1 : Anamnèse & FRCV -->
+      <div id="cardio-tab-anamnese" class="ant-tabs-pane active">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div class="orl-subtab-bar">
+              <button type="button" class="orl-subtab-btn active" data-subtab="motif" onclick="switchCardioSubTab('anamnese', 'motif')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Motif & Symptômes
+              </button>
+              <button type="button" class="orl-subtab-btn" data-subtab="risks" onclick="switchCardioSubTab('anamnese', 'risks')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Facteurs de Risque (FRCV)
+              </button>
+              <button type="button" class="orl-subtab-btn" data-subtab="atcd" onclick="switchCardioSubTab('anamnese', 'atcd')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Antécédents
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn is-included" data-subject="motif" onclick="event.stopPropagation(); toggleCardioSubject('motif')">
+                <span class="plus-icon">✓</span>
+                <span class="btn-text">Inclus au rapport</span>
+              </button>
+              <button type="button" id="cardio-more-actions-btn" class="btn btn-outline" style="padding: 0 10px; height: 32px;" title="Actions">•••</button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body">
+            <!-- Subtab Pane: Motif & Symptômes -->
+            <div class="orl-subtab-pane active" data-subtab="motif">
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Motif de Consultation (sélection rapide par étiquettes) :</label>
+                <div id="cardio-motif-tags" class="orl-chip-group" style="margin-bottom: 10px;"></div>
+                <textarea id="cardio-motif" class="form-control" rows="2" placeholder="Ex: Douleur thoracique rétrosternale d'effort, dyspnée d'effort NYHA stade II, palpitations épisodiques..." oninput="toggleCardioSubject('motif', true)"></textarea>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 14px; margin-bottom: 16px;">
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Date du bilan :</label>
+                  <input type="date" id="cardio-date" class="form-control" onchange="renderCardioWysiwygReport()">
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Symptômes fonctionnels cardiovasculaires :</label>
+                  <textarea id="cardio-symptoms" class="form-control" rows="2" placeholder="Ex: Oppression précordiale constrictive, essoufflement d'effort, orthopnée, lipothymie..." oninput="toggleCardioSubject('symptomes', true)"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subtab Pane: Facteurs de Risque (FRCV) -->
+            <div class="orl-subtab-pane" data-subtab="risks">
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Facteurs de Risque Cardiovasculaire (FRCV) :</label>
+                <div id="cardio-risk-tags" class="orl-chip-group" style="margin-bottom: 10px;"></div>
+                <textarea id="cardio-risk-factors" class="form-control" rows="4" placeholder="Ex: Tabagisme actif (20 PA), HTA essentielle sous bithérapie, Diabète de type 2 (HbA1c 7.4%), Dyslipidémie mixte, Surpoids (IMC 28.5 kg/m²), Sédentarité, Antécédents familiaux de coronaropathie précoce (<55 ans chez le père)..." oninput="toggleCardioSubject('risques', true)"></textarea>
+              </div>
+            </div>
+
+            <!-- Subtab Pane: Antécédents -->
+            <div class="orl-subtab-pane" data-subtab="atcd">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Antécédents cardiovasculaires & médicaux :</label>
+                  <textarea id="cardio-antecedents" class="form-control" rows="4" placeholder="Ex: HTA ancienne connue depuis 10 ans, syndrome coronarien aigu 2021 revascularisé par stent nu sur l'IVA, insuffisance cardiaque à FEVG préservée, épisode de FA..." oninput="toggleCardioSubject('antecedents', true)"></textarea>
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Antécédents chirurgicaux & interventionnels :</label>
+                  <textarea id="cardio-antecedents-chirurgicaux" class="form-control" rows="4" placeholder="Ex: Angioplastie coronaire avec pose de stent actif, pontage aorto-coronarien (PAC), ablation par radiofréquence, pacemaker double chambre implanté en 2019..." oninput="toggleCardioSubject('antecedents', true)"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 1 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <div></div>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot active" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline" onclick="saveCardiologyProfile()" style="height: 36px; font-size: 13px;">💾 Enregistrer</button>
+              <button type="button" class="btn btn-primary" onclick="switchCardioTab('clinical')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626; display: flex; align-items: center; gap: 6px;">
+                <span>Suivant : Examen & Constantes</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2 : Examen Clinique & Constantes -->
+      <div id="cardio-tab-clinical" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 13px; font-weight: 800;">2</span>
+              <span>Examen Clinique & Constantes Hémodynamiques</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="clinical" onclick="event.stopPropagation(); toggleCardioSubject('clinical')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Vital Signs 4-Column Grid -->
+            <div>
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Constantes Vitales Cardiovasculaires :</label>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+                <div class="form-group" style="margin: 0;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: #64748b; text-transform: uppercase;">TA (mmHg)</span>
+                  <input type="text" id="cardio-blood-pressure" class="form-control" placeholder="Ex: 130/80 mmHg" oninput="toggleCardioSubject('clinical', true)">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: #64748b; text-transform: uppercase;">FC (bpm)</span>
+                  <input type="text" id="cardio-heart-rate" class="form-control" placeholder="Ex: 72 bpm" oninput="toggleCardioSubject('clinical', true)">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: #64748b; text-transform: uppercase;">SpO2 (%)</span>
+                  <input type="text" id="cardio-spo2" class="form-control" placeholder="Ex: 98% AA" oninput="toggleCardioSubject('clinical', true)">
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: #64748b; text-transform: uppercase;">Poids & IMC</span>
+                  <input type="text" id="cardio-weight" class="form-control" placeholder="Ex: 78 kg (IMC 25.4)" oninput="toggleCardioSubject('clinical', true)">
+                </div>
+              </div>
+            </div>
+
+            <!-- Auscultation Cardiaque -->
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Auscultation Cardiaque (B1, B2, souffles, bruits surajoutés) :</label>
+              <textarea id="cardio-auscultation" class="form-control" rows="2" placeholder="Ex: Bruits du cœur réguliers bien audibles. B1 normal au foyer mitral, B2 dédoublé physiologique. Absence de souffle systolique ou diastolique significatif, absence de galop B3/B4, pas de frottement péricardique..." oninput="toggleCardioSubject('auscultation', true)"></textarea>
+            </div>
+
+            <!-- Signes d'Insuffisance Cardiaque & Congestion -->
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Signes de Congestion & Insuffisance Cardiaque (OMI, turgescence, râles) :</label>
+              <textarea id="cardio-omi" class="form-control" rows="2" placeholder="Ex: Absence d'œdèmes des membres inférieurs (pas de signe du godet). Pas de turgescence jugulaire, reflux hépato-jugulaire négatif. Auscultation pulmonaire : murmure vésiculaire symétrique sans crépitants de stase..." oninput="toggleCardioSubject('omi', true)"></textarea>
+            </div>
+
+            <!-- Examen Vasculaire & Général -->
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Examen Vasculaire Périphérique & Bilan Général :</label>
+              <textarea id="cardio-clinical-exam" class="form-control" rows="2" placeholder="Ex: Tous les pouls périphériques perçus et symétriques (radiaux, fémoraux, poplités, tibiaux postérieurs, pédieux). Absence de souffle carotidien ou fémoral. Abdomen souple, pas d'aorte battante anormale..." oninput="toggleCardioSubject('clinical', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 2 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('anamnese')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot active" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchCardioTab('ecg')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626;">Suivant : ECG & Rythme</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3 : ECG & Rythme -->
+      <div id="cardio-tab-ecg" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 13px; font-weight: 800;">3</span>
+              <span>Électrocardiogramme (ECG 12 Dérivations) & Rythme</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="ecg" onclick="event.stopPropagation(); toggleCardioSubject('ecg')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Tracé ECG 12 Dérivations de Repos (Axe, Fréquence, Intervalles PR/QRS/QTc) :</label>
+              <textarea id="cardio-ecg-rest" class="form-control" rows="4" placeholder="Ex: Tracé de repos standard 12 dérivations. Rythme sinusal régulier à 68 bpm. Axe de QRS normal à +45°. Conduction auriculo-ventriculaire normale (PR = 160 ms). Durée du complexe QRS = 85 ms sans bloc de branche. Repolarisation ventriculaire : QTc calculé à 410 ms (formule de Bazett). Absence d'anomalie du segment ST, ondes T positives concordantes..." oninput="toggleCardioSubject('ecg', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Troubles du Rythme, de la Conduction & Tracés Particuliers :</label>
+              <textarea id="cardio-ecg-rythme" class="form-control" rows="4" placeholder="Ex: Absence d'onde Q de nécrose transmurale. Absence de signes électriques d'hypertrophie ventriculaire gauche (Indice de Sokolow-Lyon = 24 mm). Pas d'extrasystoles auriculaires ni ventriculaires enregistrées sur le tracé long DII..." oninput="toggleCardioSubject('rythme', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 3 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('clinical')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot active" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchCardioTab('echo')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626;">Suivant : Échographie & Doppler</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4 : Échographie & Doppler -->
+      <div id="cardio-tab-echo" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 13px; font-weight: 800;">4</span>
+              <span>Échocardiographie Transthoracique (ETT) & Doppler</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="echo" onclick="event.stopPropagation(); toggleCardioSubject('echo')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Échocardiographie (Cavités, Cinétique & FEVG %) :</label>
+              <textarea id="cardio-echo" class="form-control" rows="4" placeholder="Ex: Ventricule gauche de dimensions et épaisseurs normales (DTDVG = 48 mm, DTSVG = 31 mm, SIV = 10 mm, PP = 9 mm). Fonction systolique globale conservée : FEVG estimée à 60% (Simpson biplan). Absence d'anomalie de cinétique segmentaire. Oreillette gauche non dilatée (surface 18 cm², index 29 mL/m²). Ventricule droit de morphologie normale (TAPSE 23 mm)..." oninput="toggleCardioSubject('echo', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Analyse Doppler & Valvulopathies (PAPS, Aorte, Mitrale, Péricarde) :</label>
+              <textarea id="cardio-doppler" class="form-control" rows="4" placeholder="Ex: Valve aortique tricuspide fine et continente sans sténose ni fuite. Valve mitrale avec jeu valvulaire normal, minime fuite physiologique sans conséquence hémodynamique. Profil transmitral : E/A = 1.05, pressions de remplissage normales (E/e' = 6.2). PAPS normale estimée à 25 mmHg. Absence d'épanchement péricardique..." oninput="toggleCardioSubject('doppler', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 4 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('ecg')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot active" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchCardioTab('effort')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626;">Suivant : Effort & Holter</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5 : Effort & Holter / MAPA -->
+      <div id="cardio-tab-effort" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 13px; font-weight: 800;">5</span>
+              <span>Explorations d'Effort, Holter Rythmique & MAPA</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="effort" onclick="event.stopPropagation(); toggleCardioSubject('effort')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Épreuve d'Effort Cardiovasculaire (Cycloergomètre / Tapis) :</label>
+              <textarea id="cardio-ecg-stress" class="form-control" rows="3" placeholder="Ex: Test ergométrique mené jusqu'à 150 Watts (100% de la FMT). Fréquence maximale atteinte 164 bpm. Pas d'angor ni de modification du segment ST. Réponse tensionnelle physiologique. Épreuve d'effort négative pour l'ischémie myocardique..." oninput="toggleCardioSubject('effort', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Holter ECG Rythmique des 24h / 48h :</label>
+              <textarea id="cardio-holter-rythmique" class="form-control" rows="3" placeholder="Ex: Enregistrement continu de 24h valide. Rythme sinusal de base régulier. FC moyenne 70 bpm (min 50 bpm, max 125 bpm). Absence de pause sinusale supérieure à 2.0 s. Absence de salve de FA ou de tachycardie ventriculaire..." oninput="toggleCardioSubject('holter', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">MAPA (Mesure Ambulatoire de la Pression Artérielle sur 24h) :</label>
+              <textarea id="cardio-mapa" class="form-control" rows="3" placeholder="Ex: MAPA 24h : moyenne globale 125/78 mmHg. Période d'éveil (diurne) : 129/81 mmHg. Période de repos nocturne : 113/70 mmHg. Baisse tensionnelle nocturne préservée (-12%), profil nycthéméral dipper confirmé sous traitement..." oninput="toggleCardioSubject('mapa', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 5 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('echo')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot active" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchCardioTab('conclusion')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626;">Suivant : Diagnostic & Prescriptions</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6 : Diagnostic & Prescriptions -->
+      <div id="cardio-tab-conclusion" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 13px; font-weight: 800;">6</span>
+              <span>Diagnostic Cardiologique, Prescriptions & Plan de Soins</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn is-included" data-subject="conclusion" onclick="event.stopPropagation(); toggleCardioSubject('conclusion')">
+                <span class="plus-icon">✓</span>
+                <span class="btn-text">Inclus au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 32px; font-size: 12.5px; background: #dc2626; border-color: #dc2626;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Diagnostic Cardiologique Principal & Évaluation du Risque (SCORE2, NYHA) :</label>
+              <textarea id="cardio-diagnosis" class="form-control" rows="2" placeholder="Ex: 1. HTA essentielle de grade 1 bien équilibrée sous monothérapie. 2. Risque cardiovasculaire global modéré selon l'algorithme SCORE2. 3. FEVG normale (60%), absence d'ischémie myocardique inductible..." oninput="toggleCardioSubject('conclusion', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Traitement Médicamenteux & Ordonnance :</label>
+              <textarea id="cardio-treatment" class="form-control" rows="3" placeholder="Ex: 1. Poursuite du traitement par Amlodipine 5 mg (1 comprimé le matin au petit-déjeuner). 2. Règles hygiéno-diététiques renforcées (consommation de sel < 5g/jour, activité physique aérobie 30 min 3x/semaine, arrêt strict du tabac)..." oninput="toggleCardioSubject('traitement', true)"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Biologie & Marqueurs Cardiaques :</label>
+                <textarea id="cardio-biology" class="form-control" rows="2" placeholder="Ex: Bilan lipidique : LDL 1.02 g/L. Troponine I ultrasensible négative. NT-proBNP : 72 pg/mL (normal). Créatinine 80 µmol/L (DFG 92 mL/min)..." oninput="toggleCardioSubject('ordonnance', true)"></textarea>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Autres Examens & Investigations :</label>
+                <textarea id="cardio-other-tests" class="form-control" rows="2" placeholder="Ex: Écho-Doppler des troncs supra-aortiques (TSA) et des artères rénales programmé..." oninput="toggleCardioSubject('ordonnance', true)"></textarea>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Suivi, Consignes & Recommandations au Patient :</label>
+              <textarea id="cardio-followup" class="form-control" rows="2" placeholder="Ex: Consultation de contrôle dans 12 mois avec nouvel ECG. Auto-mesure tensionnelle au domicile. Consultation sans délai en cas de récidive de douleur thoracique ou dyspnée..." oninput="toggleCardioSubject('ordonnance', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Conclusion Médicale de Synthèse :</label>
+              <textarea id="cardio-conclusion" class="form-control" rows="2" placeholder="Ex: Bilan cardiovasculaire globalement rassurant. Absence d'atteinte d'organe cible patente. Contrôle tensionnel optimal sous traitement actuel..." oninput="toggleCardioSubject('conclusion', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 6 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('effort')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot active" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline" onclick="saveCardiologyProfile()" style="height: 36px; font-size: 13px;">💾 Enregistrer</button>
+              <button type="button" class="btn btn-primary" onclick="switchCardioTab('report')" style="height: 36px; font-size: 13px; background: #dc2626; border-color: #dc2626; display: flex; align-items: center; gap: 6px;">
+                <span>Générer Compte-Rendu</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 7 : Compte-Rendu & Impression WYSIWYG -->
+      <div id="cardio-tab-report" class="ant-tabs-pane">
+        <div class="orl-report-wysiwyg-container">
+          <!-- Toolbar supérieure de la feuille -->
+          <div class="orl-report-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(0,0,0,0.65);">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#dc2626" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Cliquez directement sur le texte pour modifier le bilan avant impression</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <!-- Format A4 / A5 Segmented -->
+              <div class="ant-segmented" id="cardio-report-format-segmented" style="display: inline-flex; background: #f0f0f0; padding: 2px; border-radius: 6px;">
+                <button type="button" class="ant-segmented-item active" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="setCardioReportFormat('A4')">A4</button>
+                <button type="button" class="ant-segmented-item" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: transparent; border: none; color: rgba(0,0,0,0.65);" onclick="setCardioReportFormat('A5')">A5</button>
+              </div>
+              <button type="button" class="btn" onclick="regenerateCardioReportContent()" title="Régénérer le rapport depuis le dossier" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Réinitialiser
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveCardiologyProfile()" title="Sauvegarder le bilan dans l'historique" style="height: 32px; font-size: 12.5px; display: flex; align-items: center; gap: 6px; background: #059669; border-color: #059669; color: #fff;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Enregistrer</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="triggerCardioDirectPrint()" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 6px; background: #dc2626; border-color: #dc2626;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimer
+              </button>
+            </div>
+          </div>
+
+          <!-- Formatting Toolbar -->
+          <div class="orl-formatting-toolbar" style="display: flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 6px 12px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 6px; width: fit-content; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('bold', false, null)" title="Gras (Ctrl+B)" style="padding: 2px 8px; font-weight: bold; font-size: 12px; min-width: 28px;">B</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('italic', false, null)" title="Italique (Ctrl+I)" style="padding: 2px 8px; font-style: italic; font-size: 12px; min-width: 28px;">I</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('underline', false, null)" title="Souligné (Ctrl+U)" style="padding: 2px 8px; text-decoration: underline; font-size: 12px; min-width: 28px;">U</button>
+            <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<h3>')" title="Titre de section" style="padding: 2px 8px; font-size: 12px; font-weight: 700;">H3 Titre</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<p>')" title="Paragraphe normal" style="padding: 2px 8px; font-size: 12px;">Texte</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('insertUnorderedList', false, null)" title="Liste à puces" style="padding: 2px 8px; font-size: 12px;">• Liste</button>
+            <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyLeft', false, null)" title="Aligner à gauche" style="padding: 2px 8px; font-size: 12px;">Gauche</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyCenter', false, null)" title="Centrer" style="padding: 2px 8px; font-size: 12px;">Centre</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('removeFormat', false, null)" title="Effacer le formatage" style="padding: 2px 8px; font-size: 12px; color: #ff4d4f;">Effacer style</button>
+          </div>
+
+          <!-- Feuille A4/A5 Interactive Réelle -->
+          <div id="cardio-wysiwyg-sheet" class="orl-wysiwyg-sheet format-a4 doc-sheet">
+            <!-- En-tête Médical -->
+            <div id="cardio-wysiwyg-clinic-header"></div>
+            <!-- Bannière Patient -->
+            <div id="cardio-wysiwyg-patient-banner"></div>
+            <!-- Titre du Compte-Rendu -->
+            <div id="cardio-report-title" style="text-align: center; margin: 16px 0;"></div>
+            <!-- Zone de contenu éditable au clic comme Word -->
+            <div id="cardio-wysiwyg-editor" class="orl-wysiwyg-editor" contenteditable="true" spellcheck="false"></div>
+          </div>
+
+          <!-- Pagination Footer 7 -->
+          <div class="orl-pagination-footer" style="margin-top: 24px; padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="switchCardioTab('conclusion')" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              Modifier les sections d'examen
+            </button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToCardioStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToCardioStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToCardioStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToCardioStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToCardioStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToCardioStep(6)">6</span>
+              <span class="orl-step-dot active" data-step="7" onclick="goToCardioStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+              <button type="button" id="cardio-report-save-btn" class="btn btn-primary" onclick="saveCardiologyProfile()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #059669; border-color: #059669; color: #ffffff; box-shadow: 0 2px 5px rgba(5,150,105,0.25);">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Enregistrer</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="openCardioPrintPreview()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #dc2626; border-color: #dc2626; box-shadow: 0 2px 5px rgba(220,38,38,0.2);">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer / Aperçu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- CARDIOLOGY LIVE PRINT PREVIEW MODAL (Interactive A4 Modal) -->
+<div id="cardio-print-preview-modal" class="orl-preview-modal-overlay" style="display: none;" onclick="if(event.target === this) closeCardioPrintPreview();">
+    <div class="orl-preview-modal-dialog" onclick="event.stopPropagation();">
+        <div class="orl-preview-modal-header" style="background: #001529; color: #ffffff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#f87171" stroke-width="2"><path d="M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 7.65l.77.78L12 20.66l7.65-7.65.77-.78a5.4 5.4 0 0 0 0-7.65z"/></svg>
+                <span style="font-size: 16px; font-weight: 600; color: #ffffff;">Aperçu Avant Impression — Bilan Médical Cardiologique</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e6f7ff; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="cardio-preview-toggle-header" checked onchange="toggleCardioPreviewHeader(this.checked)"> En-tête cabinet
+                </label>
+                <button type="button" class="btn btn-primary" onclick="triggerCardioDirectPrint()" style="background: #dc2626; border-color: #dc2626; color: #ffffff; font-weight: 600; height: 36px; padding: 0 16px; border-radius: 6px;">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimer le document
+                </button>
+                <button type="button" class="btn" onclick="closeCardioPrintPreview()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ffffff; height: 36px; padding: 0 14px; border-radius: 6px;">
+                    Fermer (✕)
+                </button>
+            </div>
+        </div>
+        <div class="orl-preview-modal-body" style="padding: 30px; display: flex; justify-content: center; overflow-x: auto; background: #525659; min-height: 80vh;">
+            <div id="cardio-preview-sheet" class="orl-printable-sheet"></div>
+        </div>
+    </div>
+</div>
+
+<!-- CARDIOLOGY REPORT HISTORY MODAL -->
+<div id="cardio-report-history-modal" class="modal orl-preview-modal-overlay" style="display: none; background: rgba(0,0,0,0.45); z-index: 1050; align-items: center; justify-content: center;" onclick="if(event.target === this) closeCardioReportHistoryModal();">
+    <div class="ant-modal" style="width: 820px; max-width: 95vw; background: #ffffff; border-radius: 12px; box-shadow: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;" onclick="event.stopPropagation();">
+        <div style="padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: rgba(0,0,0,0.88);">Historique des Bilans & Consultations Cardiologiques</h3>
+                    <div id="cardio-history-patient-subtitle" style="font-size: 12px; color: rgba(0,0,0,0.45); margin-top: 2px;">Patient : Aucun sélectionné</div>
+                </div>
+            </div>
+            <button type="button" onclick="closeCardioReportHistoryModal()" style="border: none; background: transparent; font-size: 18px; cursor: pointer; color: rgba(0,0,0,0.45); padding: 4px 8px; border-radius: 4px;">✕</button>
+        </div>
+        <div id="cardio-history-list-body" style="padding: 20px 24px; overflow-y: auto; flex: 1; min-height: 200px;"></div>
+        <div style="padding: 12px 24px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; background: #fafafa;">
+            <button type="button" class="btn" onclick="closeCardioReportHistoryModal()" style="height: 34px; padding: 0 16px; border-radius: 6px;">Fermer</button>
+        </div>
+    </div>
+</div>
 
                 <!-- ===================== KINÉ STAFF SECTION ===================== -->
                 <section id="kine-staff" class="section">
