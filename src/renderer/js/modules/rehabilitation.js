@@ -440,6 +440,7 @@ export function switchRehabSubTab(sectionId, subTabId) {
   sectionEl.querySelectorAll('.orl-subtab-pane').forEach(pane => {
     const isTarget = pane.dataset.subtab === subTabId;
     pane.classList.toggle('active', isTarget);
+    pane.style.display = isTarget ? 'block' : 'none';
   });
 
   const headerAddBtn = sectionEl.querySelector('.orl-master-card-header .orl-add-subject-btn');
@@ -479,9 +480,15 @@ export function switchRehabTab(tabName) {
     stepIndicator.textContent = `Étape ${currentStep} sur ${REHAB_TAB_LIST.length}`;
   }
 
-  document.querySelectorAll('#rehabilitation .ant-tabs-pane').forEach(pane => pane.classList.remove('active'));
+  document.querySelectorAll('#rehabilitation .ant-tabs-pane').forEach(pane => {
+    pane.classList.remove('active');
+    pane.style.display = 'none';
+  });
   const activePane = document.getElementById('rehab-tab-' + tabName);
-  if (activePane) activePane.classList.add('active');
+  if (activePane) {
+    activePane.classList.add('active');
+    activePane.style.display = 'block';
+  }
 
   if (tabName === 'report') {
     renderRehabWysiwygReport();
@@ -1428,6 +1435,13 @@ export function closeRehabPrintPreview() {
   }
 }
 
+export function toggleRehabPreviewHeader(show) {
+  const header = document.querySelector('#rehab-preview-sheet > div:first-child');
+  if (header) {
+    header.style.display = show ? 'flex' : 'none';
+  }
+}
+
 export function triggerRehabDirectPrint() {
   const sheet = document.getElementById('rehab-preview-sheet');
   if (!sheet) return;
@@ -1568,3 +1582,4 @@ window.deleteEvaluation = deleteEvaluation;
 window.deleteRehabPlan = deleteRehabPlan;
 window.changeRehabBilansPage = changeRehabBilansPage;
 window.changeRehabPlansPage = changeRehabPlansPage;
+window.toggleRehabPreviewHeader = toggleRehabPreviewHeader;

@@ -1265,41 +1265,53 @@ input[type="date"].ant-input:focus {
 
 #orl,
 #cardiology,
+#rehabilitation,
 .orl-top-action-bar,
 .cardio-top-action-bar,
+.rehab-top-action-bar,
 .orl-workspace-layout,
 .cardio-workspace-layout,
+.rehab-workspace-layout,
 .orl-sider,
 .cardio-sider,
+.rehab-sider,
 .orl-main-content,
 .orl-content-area,
-.cardio-content-area {
+.cardio-content-area,
+.rehab-content-area {
   position: relative !important;
   pointer-events: auto !important;
   z-index: 1 !important;
 }
 
 .orl-top-action-bar,
-.cardio-top-action-bar {
+.cardio-top-action-bar,
+.rehab-top-action-bar {
   z-index: 5 !important;
 }
 
 .orl-top-action-bar button,
 .cardio-top-action-bar button,
+.rehab-top-action-bar button,
 .orl-section-step-item,
 .orl-subtab-btn,
 .orl-add-subject-btn,
 .orl-step-dot,
 #orl button,
 #cardiology button,
+#rehabilitation button,
 #orl .btn,
 #cardiology .btn,
+#rehabilitation .btn,
 #orl input,
 #cardiology input,
+#rehabilitation input,
 #orl select,
 #cardiology select,
+#rehabilitation select,
 #orl textarea,
-#cardiology textarea {
+#cardiology textarea,
+#rehabilitation textarea {
   pointer-events: auto !important;
   cursor: pointer !important;
   position: relative !important;
@@ -1838,15 +1850,17 @@ select[aria-hidden="true"] {
   min-width: 0 !important;
 }
 
-/* Enhanced typography, inputs & textareas for ORL page */
+/* Enhanced typography, inputs & textareas for ORL, Cardiology and Rehabilitation pages */
 #orl,
-#cardiology {
+#cardiology,
+#rehabilitation {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   color: #0f172a;
 }
 
 #orl label,
-#cardiology label {
+#cardiology label,
+#rehabilitation label {
   font-size: 13.5px !important;
   font-weight: 700 !important;
   color: #1e293b !important;
@@ -1866,7 +1880,13 @@ select[aria-hidden="true"] {
 #cardiology input[type="date"],
 #cardiology input[type="number"],
 #cardiology select,
-#cardiology textarea {
+#cardiology textarea,
+#rehabilitation .form-control,
+#rehabilitation input[type="text"],
+#rehabilitation input[type="date"],
+#rehabilitation input[type="number"],
+#rehabilitation select,
+#rehabilitation textarea {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
   color: #0f172a !important;
   border-radius: 8px !important;
@@ -1880,7 +1900,9 @@ select[aria-hidden="true"] {
 #orl select,
 #orl select.form-control,
 #cardiology select,
-#cardiology select.form-control {
+#cardiology select.form-control,
+#rehabilitation select,
+#rehabilitation select.form-control {
   height: 42px !important;
   min-height: 42px !important;
   font-size: 14.5px !important;
@@ -1906,7 +1928,11 @@ select[aria-hidden="true"] {
 #cardiology input[type="text"],
 #cardiology input[type="date"],
 #cardiology input[type="number"],
-#cardiology .form-control:not(textarea):not(select) {
+#cardiology .form-control:not(textarea):not(select),
+#rehabilitation input[type="text"],
+#rehabilitation input[type="date"],
+#rehabilitation input[type="number"],
+#rehabilitation .form-control:not(textarea):not(select) {
   height: 42px !important;
   min-height: 42px !important;
   font-size: 14px !important;
@@ -1915,7 +1941,8 @@ select[aria-hidden="true"] {
 }
 
 #orl textarea,
-#cardiology textarea {
+#cardiology textarea,
+#rehabilitation textarea {
   font-size: 13.5px !important;
   padding: 10px 14px !important;
   line-height: 1.55 !important;
@@ -1929,7 +1956,7 @@ select[aria-hidden="true"] {
 #orl select:focus,
 #orl textarea:focus {
   border-color: #1677ff !important;
-  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
   outline: none !important;
   background-color: #ffffff !important;
 }
@@ -1945,17 +1972,31 @@ select[aria-hidden="true"] {
   background-color: #ffffff !important;
 }
 
+#rehabilitation .form-control:focus,
+#rehabilitation input[type="text"]:focus,
+#rehabilitation input[type="date"]:focus,
+#rehabilitation select:focus,
+#rehabilitation textarea:focus {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12) !important;
+  outline: none !important;
+  background-color: #ffffff !important;
+}
+
 #orl textarea::placeholder,
 #orl input::placeholder,
 #cardiology textarea::placeholder,
-#cardiology input::placeholder {
+#cardiology input::placeholder,
+#rehabilitation textarea::placeholder,
+#rehabilitation input::placeholder {
   font-size: 13px !important;
   color: #94a3b8 !important;
   font-style: normal !important;
 }
 
 #orl .orl-subtab-btn,
-#cardiology .orl-subtab-btn {
+#cardiology .orl-subtab-btn,
+#rehabilitation .orl-subtab-btn {
   font-size: 13.5px !important;
   padding: 8px 16px !important;
   font-weight: 600 !important;
@@ -1967,8 +2008,14 @@ select[aria-hidden="true"] {
   color: #ffffff !important;
 }
 
+#rehabilitation .orl-subtab-btn.active {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+}
+
 #orl .ant-checkable-tag,
-#cardiology .ant-checkable-tag {
+#cardiology .ant-checkable-tag,
+#rehabilitation .ant-checkable-tag {
   font-size: 13px !important;
   padding: 6px 14px !important;
   font-weight: 600 !important;
@@ -1993,6 +2040,36 @@ select[aria-hidden="true"] {
   background: #dc2626 !important;
   color: #ffffff !important;
   border-color: #dc2626 !important;
+}
+
+#rehabilitation .orl-section-step-item.active {
+  background: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+  color: #0d9488 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.12) !important;
+}
+
+#rehabilitation .orl-section-step-item.active .ant-step-circle {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+  border-color: #0d9488 !important;
+}
+
+#rehabilitation .orl-step-dot.active {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+  border-color: #0d9488 !important;
+}
+
+#cardiology .ant-tabs-pane,
+#rehabilitation .ant-tabs-pane {
+  display: none !important;
+}
+
+#cardiology .ant-tabs-pane.active,
+#rehabilitation .ant-tabs-pane.active {
+  display: block !important;
 }
 
 .orl-kpi-grid-2x2 {

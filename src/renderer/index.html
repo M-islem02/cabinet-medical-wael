@@ -3266,194 +3266,676 @@
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569;">Praticien</th>
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: center;">Statut</th>
                                             <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: right;">Tarif & Paiement</th>
-                                            <th style="padding: 12px 16px; font-size: 13px; font-weight: 600; color: #475569; text-align: center;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="operations-tbody">
-                                        <tr><td colspan="7" class="text-center" style="padding: 30px; color: #94a3b8;">Chargement des opérations...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                                            <th style="padding: 12px 16px; font-s                <section id="rehabilitation" class="section doctor-only">
+  <!-- Top Action Bar with Patient Search Selector -->
+  <div class="orl-top-action-bar rehab-top-action-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; margin-bottom: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); flex-wrap: wrap; gap: 14px;">
+    <!-- Title -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%); color: #0d9488; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #99f6e4; box-shadow: 0 1px 3px rgba(13, 148, 136, 0.08);">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0d9488" stroke-width="2"><circle cx="12" cy="4" r="2"/><path d="M15 8h-6a2 2 0 0 0-2 2v7h2v5h4v-5h2v-7a2 2 0 0 0-2-2z"/></svg>
+      </div>
+      <div>
+        <h2 style="font-size: 17px; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.2px;">Médecine Physique & de Réadaptation (MPR)</h2>
+        <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Bilans fonctionnels, échelles cliniques, plans de soins kinésithérapiques et fiche de liaison.</p>
+      </div>
+    </div>
 
-                <section id="rehabilitation" class="section doctor-only">
-                    <div class="section-header rehab-header">
-                        <div class="section-heading-block">
-                            <h2>♿ Rééducation MPR</h2>
-                            <p class="section-subtitle">Bilans fonctionnels, plans de soins et suivi de la progression clinique.</p>
-                        </div>
-                    </div>
+    <!-- Upper Patient Search Bar -->
+    <div class="orl-top-patient-search" style="flex: 1; max-width: 380px; min-width: 260px; position: relative; z-index: 100;">
+      <select id="rehab-patient-selector" class="form-control feature-patient-selector" onchange="selectRehabPatient(this.value)" style="width: 100%;">
+        <option value="">Rechercher un patient...</option>
+      </select>
+    </div>
 
-                    <div class="feature-shell rehab-shell">
-                        <!-- Patient Selection Card -->
-                        <div class="feature-hero feature-hero-rehab">
-                            <div class="feature-hero-content">
-                                <div class="feature-hero-layout">
-                                    <div>
-                                        <span class="feature-hero-label">Patient sélectionné</span>
-                                        <h3 class="feature-hero-title">👤 Dossier de rééducation</h3>
-                                        <p id="rehab-current-patient-display" class="feature-hero-patient">
-                                            Aucun patient sélectionné
-                                        </p>
-                                    </div>
-                                    <div class="feature-hero-actions">
-                                        <select id="rehab-patient-selector"
-                                            class="form-control feature-patient-selector"
-                                            onchange="selectRehabPatient(this.value)">
-                                            <option value="">-- Sélectionner un patient --</option>
-                                        </select>
-                                        <button class="btn feature-hero-refresh"
-                                            onclick="refreshRehabPatientList()">⟳</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+    <!-- Action Buttons -->
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <button class="btn btn-secondary" id="rehab-btn-refresh" onclick="refreshRehabPatientList()" title="Rafraîchir les patients" style="height: 40px; min-width: 40px; padding: 0 12px; border-radius: 8px;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <button class="btn" id="rehab-btn-history" onclick="openRehabReportHistoryModal()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Consulter l'historique des bilans">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Historique</span>
+      </button>
+      <button class="btn" id="rehab-btn-editor" onclick="switchRehabTab('report')" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 600; padding: 0 16px; border-radius: 8px;" title="Accéder à l'éditeur de compte-rendu">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Éditeur CR</span>
+      </button>
+      <button class="btn btn-primary" id="rehab-btn-new-report" onclick="createNewRehabReport()" style="height: 40px; display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; font-weight: 650; padding: 0 16px; border-radius: 8px; background: #0d9488; border-color: #0d9488;" title="Initialiser un nouveau bilan MPR">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Nouveau Bilan</span>
+      </button>
+    </div>
+  </div>
 
-                        <!-- Main Tabs Navigation -->
-                        <div class="feature-tabs-shell">
-                            <div class="feature-tabs-wrap">
-                                <div class="rehab-main-tabs feature-main-tabs">
-                                    <button class="rehab-tab-btn feature-tab-btn active" data-tab="bilans"
-                                        onclick="switchRehabMainTab('bilans')">
-                                        📋 BILANS
-                                    </button>
-                                    <button class="rehab-tab-btn feature-tab-btn" data-tab="plans"
-                                        onclick="switchRehabMainTab('plans')">
-                                        📝 PLANS
-                                    </button>
-                                    <button class="rehab-tab-btn feature-tab-btn" data-tab="progression"
-                                        onclick="switchRehabMainTab('progression')">
-                                        📈 PROGRESSION
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+  <!-- 2-Column Workspace Layout -->
+  <div id="rehab-workspace-view" class="orl-workspace-layout rehab-workspace-layout">
+    <!-- Colonne Gauche : Sider Navigation (320px) -->
+    <aside class="orl-sider rehab-sider">
+      <!-- Active Patient Summary Card -->
+      <div class="orl-patient-card" style="margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="avatar" id="rehab-patient-avatar" style="width: 44px; height: 44px; min-width: 44px; border-radius: 50%; background: #0d9488; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; box-shadow: 0 2px 8px rgba(13,148,136,0.25);">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div style="overflow: hidden; flex: 1;">
+            <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PATIENT EN COURS</div>
+            <div id="rehab-current-patient-display" style="font-size: 15px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;">Aucun patient sélectionné</div>
+            <div id="rehab-current-patient-sub" style="font-size: 12.5px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Sélectionnez un patient en haut</div>
+            <input type="hidden" id="rehab-patient-id">
+          </div>
+        </div>
 
-                        <!-- BILANS Tab Content -->
-                        <div id="rehab-tab-bilans" class="rehab-tab-content" style="display: block;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📋 Bilans Fonctionnels</h3>
-                                    <button class="btn btn-primary btn-sm" onclick="openEvaluationModal()">+ Nouveau
-                                        Bilan</button>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-bilans-list">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📋</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir ses bilans
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <!-- Sider Quick History Box -->
+        <div id="rehab-sider-history-box" style="display: none; margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">Historique bilans</span>
+            <button type="button" onclick="openRehabReportHistoryModal()" style="border: none; background: transparent; font-size: 12px; color: #0d9488; font-weight: 600; cursor: pointer; padding: 0;">Voir tout</button>
+          </div>
+          <div id="rehab-sider-history-items" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;"></div>
+        </div>
+      </div>
 
-                        <!-- PLANS Tab Content -->
-                        <div id="rehab-tab-plans" class="rehab-tab-content" style="display: none;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📝 Plans de Rééducation</h3>
-                                    <button class="btn btn-primary btn-sm" onclick="openRehabPlanModal()">+ Nouveau
-                                        Plan</button>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-plans-list">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📝</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir ses plans
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px;">
+        <span style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">PARCOURS DE CONSULTATION</span>
+        <span id="rehab-step-indicator" style="font-size: 11.5px; font-weight: 600; color: #0d9488; background: #f0fdfa; padding: 2px 8px; border-radius: 10px; border: 1px solid #99f6e4;">Étape 1 sur 7</span>
+      </div>
 
-                        <!-- PROGRESSION Tab Content -->
-                        <div id="rehab-tab-progression" class="rehab-tab-content" style="display: none;">
-                            <div class="card rehab-panel-card">
-                                <div class="card-header rehab-panel-header">
-                                    <h3>📈 Suivi de la Progression</h3>
-                                </div>
-                                <div class="rehab-panel-body">
-                                    <div id="rehab-progression-content">
-                                        <div class="rehab-empty-state">
-                                            <p style="font-size: 48px; margin: 0;">📈</p>
-                                            <p style="margin: 10px 0 0 0;">Sélectionnez un patient pour voir sa
-                                                progression</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+      <!-- SectionSteps Navigation Verticale (7 Sections) -->
+      <div class="orl-section-steps" id="rehab-section-steps">
+        <div class="orl-section-step-item active" data-tab="anamnese" onclick="switchRehabTab('anamnese')">
+          <span class="ant-step-circle">1</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <span class="ant-step-label">1. Motif & Anamnèse</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="articular" onclick="switchRehabTab('articular')">
+          <span class="ant-step-circle">2</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span>
+          <span class="ant-step-label">2. Articulaire & Musculaire</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="neuro" onclick="switchRehabTab('neuro')">
+          <span class="ant-step-circle">3</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <span class="ant-step-label">3. Neuro & Rachidien</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="posture" onclick="switchRehabTab('posture')">
+          <span class="ant-step-circle">4</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="4" r="2"/><path d="M15 8h-6a2 2 0 0 0-2 2v7h2v5h4v-5h2v-7a2 2 0 0 0-2-2z"/></svg></span>
+          <span class="ant-step-label">4. Posture, Marche & Équilibre</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="plan" onclick="switchRehabTab('plan')">
+          <span class="ant-step-circle">5</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+          <span class="ant-step-label">5. Plan de Rééducation</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="evolution" onclick="switchRehabTab('evolution')">
+          <span class="ant-step-circle">6</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+          <span class="ant-step-label">6. Évolution & Objectifs</span>
+        </div>
+        <div class="orl-section-step-item" data-tab="report" onclick="switchRehabTab('report')">
+          <span class="ant-step-circle">7</span>
+          <span class="ant-step-icon"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+          <span class="ant-step-label">7. Compte-Rendu & Liaison</span>
+        </div>
+      </div>
+    </aside>
 
-                        <!-- Stats Row -->
-                        <div class="stats-row rehab-stat-grid">
-                            <div class="card rehab-stat-card rehab-stat-card-primary">
-                                <div class="card-header">
-                                    <h3>Plans Actifs</h3>
-                                    <span class="icon">📋</span>
-                                </div>
-                                <div class="card-stat" id="stat-active-plans">0</div>
-                                <p class="card-footer">Plans de rééducation</p>
-                            </div>
-                            <div class="card rehab-stat-card rehab-stat-card-success">
-                                <div class="card-header">
-                                    <h3>Bilans ce Mois</h3>
-                                    <span class="icon">📊</span>
-                                </div>
-                                <div class="card-stat" id="stat-evaluations-month">0</div>
-                                <p class="card-footer">Évaluations fonctionnelles</p>
-                            </div>
-                            <div class="card rehab-stat-card rehab-stat-card-warning">
-                                <div class="card-header">
-                                    <h3>Séances Prévues</h3>
-                                    <span class="icon">📅</span>
-                                </div>
-                                <div class="card-stat" id="stat-planned-sessions">0</div>
-                                <p class="card-footer">Cette semaine</p>
-                            </div>
-                        </div>
+    <!-- Colonne Droite : Contenu de la Section Active -->
+    <section class="orl-content-area rehab-content-area">
+      <!-- Grille KPI 2x2 -->
+      <div class="orl-kpi-grid-2x2">
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #f0fdfa;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0d9488" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Dernier Bilan</div>
+            <div id="rehab-stat-last-report" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">--</div>
+            <div style="font-size: 12px; color: #64748b;">Date de consultation</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #fef2f2;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Plans de Soins</div>
+            <div id="rehab-stat-plans" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
+            <div style="font-size: 12px; color: #64748b;">Programmes rééducation</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #eff6ff;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Objectifs Fixés</div>
+            <div id="rehab-stat-objectives" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
+            <div style="font-size: 12px; color: #64748b;">Cibles thérapeutiques</div>
+          </div>
+        </div>
+        <div class="orl-kpi-card-2x2">
+          <div class="orl-kpi-icon-badge" style="background: #f0fdf4;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 11.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;">Séances Hebdo</div>
+            <div id="rehab-stat-sessions" style="font-size: 18px; font-weight: 700; color: #0f172a; margin: 2px 0;">0</div>
+            <div style="font-size: 12px; color: #64748b;">Rythme recommandé</div>
+          </div>
+        </div>
+      </div>
 
-                        <!-- Échelles médicales disponibles -->
-                        <div class="card rehab-scale-card">
-                            <div class="card-header">
-                                <h3>📏 Échelles d'Évaluation Disponibles</h3>
-                            </div>
-                            <div class="rehab-scales-grid">
-                                <div class="scale-item rehab-scale-item rehab-scale-danger">
-                                    <strong>EVA</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Échelle Visuelle
-                                        Analogique (Douleur)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-primary">
-                                    <strong>Barthel</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Indice d'Autonomie (0-100)
-                                    </p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-success">
-                                    <strong>Tinetti</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Équilibre et Marche (0-28)
-                                    </p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-violet">
-                                    <strong>MRC</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Force Musculaire (0-5)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-warning">
-                                    <strong>Ashworth</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Spasticité (0-4)</p>
-                                </div>
-                                <div class="scale-item rehab-scale-item rehab-scale-cyan">
-                                    <strong>Berg</strong>
-                                    <p style="font-size: 12px; color: #666; margin: 5px 0 0;">Équilibre (0-56)</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+      <!-- Tab 1 : Motif & Anamnèse -->
+      <div id="rehab-tab-anamnese" class="ant-tabs-pane active">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div class="orl-subtab-bar">
+              <button type="button" class="orl-subtab-btn active" data-subtab="motif" onclick="switchRehabSubTab('anamnese', 'motif')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Motif & Histoire
+              </button>
+              <button type="button" class="orl-subtab-btn" data-subtab="antecedents" onclick="switchRehabSubTab('anamnese', 'antecedents')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Antécédents & Traitement
+              </button>
+              <button type="button" class="orl-subtab-btn" data-subtab="fonctionnelle" onclick="switchRehabSubTab('anamnese', 'fonctionnelle')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                Gêne Fonctionnelle & EVA Douleur
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn is-included" data-subject="motif" onclick="event.stopPropagation(); toggleRehabSubject('motif')">
+                <span class="plus-icon">✓</span>
+                <span class="btn-text">Inclus au rapport</span>
+              </button>
+              <button type="button" id="rehab-more-actions-btn" class="btn btn-outline" style="padding: 0 10px; height: 32px;" title="Actions">•••</button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body">
+            <!-- Subtab Pane: Motif & Histoire -->
+            <div class="orl-subtab-pane active" data-subtab="motif">
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Motif de Rééducation (sélection rapide par étiquettes) :</label>
+                <div id="rehab-motif-tags" class="orl-chip-group" style="margin-bottom: 10px;"></div>
+                <textarea id="rehab-motif" class="form-control" rows="2" placeholder="Ex: Lombalgie chronique invalidante L4-L5, rééducation post-opératoire prothèse totale de hanche, hémiplégie post-AVC..." oninput="toggleRehabSubject('motif', true)"></textarea>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Date du bilan :</label>
+                  <input type="date" id="rehab-date" class="form-control" onchange="renderRehabWysiwygReport()">
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Date de l'accident / intervention :</label>
+                  <input type="date" id="rehab-event-date" class="form-control" onchange="renderRehabWysiwygReport()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Subtab Pane: Antécédents & Traitement -->
+            <div class="orl-subtab-pane" data-subtab="antecedents">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Antécédents médicaux, chirurgicaux & orthopédiques :</label>
+                  <textarea id="rehab-antecedents" class="form-control" rows="4" placeholder="Ex: Antécédent de fracture bimalléolaire 2018 ostéosynthésée, diabète type 2, HTA..." oninput="toggleRehabSubject('antecedents', true)"></textarea>
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Traitements actuels & antalgiques :</label>
+                  <textarea id="rehab-current-treatment" class="form-control" rows="4" placeholder="Ex: Paracétamol 1g si besoin, AINS par cures courtes, myorelaxants..." oninput="toggleRehabSubject('antecedents', true)"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subtab Pane: Gêne Fonctionnelle & EVA Douleur -->
+            <div class="orl-subtab-pane" data-subtab="fonctionnelle">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Évaluation de la Douleur (EVA, topographie, horaire) :</label>
+                  <textarea id="rehab-pain" class="form-control" rows="4" placeholder="Ex: EVA repos 3/10, EVA mouvement 7/10. Douleur mécanique fessière droite irradiant à la cuisse postérieure sans trajet radiculaire précis..." oninput="toggleRehabSubject('fonctionnelle', true)"></textarea>
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Retentissement Fonctionnel & Activités de la Vie Quotidienne (AVQ) :</label>
+                  <textarea id="rehab-functional-history" class="form-control" rows="4" placeholder="Ex: Périmètre de marche réduit à 300 mètres, difficulté à monter les escaliers, habillage difficile, score de Barthel estimé à 85/100..." oninput="toggleRehabSubject('fonctionnelle', true)"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 1 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <div></div>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot active" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline" onclick="saveRehabProfile()" style="height: 36px; font-size: 13px;">💾 Enregistrer</button>
+              <button type="button" class="btn btn-primary" onclick="switchRehabTab('articular')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488; display: flex; align-items: center; gap: 6px;">
+                <span>Suivant : Articulaire & Musculaire</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2 : Bilan Articulaire & Musculaire -->
+      <div id="rehab-tab-articular" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f0fdfa; color: #0d9488; font-size: 13px; font-weight: 800; border: 1px solid #99f6e4;">2</span>
+              <span>Bilan Articulaire, Musculaire & Trophique</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="articular" onclick="event.stopPropagation(); toggleRehabSubject('articular')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Amplitudes Articulaires Passives & Actives (Goniométrie) :</label>
+              <textarea id="rehab-amplitudes" class="form-control" rows="3" placeholder="Ex: Genou droit : flexion limitée à 100° (contro 135°), flessum résiduel de 5°. Hanche droite : rotation interne 20°, abduction 35° indolore..." oninput="toggleRehabSubject('articular', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Stabilité Articulaire, Laxité & Signes Méniscaux / Ligamentaires :</label>
+              <textarea id="rehab-stability" class="form-control" rows="2" placeholder="Ex: Absence de tiroir antérieur franc (Lachman avec arrêt dur), pas de bâillement en varus/valgus, tests méniscaux négatifs..." oninput="toggleRehabSubject('articular', true)"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Testing Musculaire Analytique (Score MRC 0-5) :</label>
+                <textarea id="rehab-muscle-strength" class="form-control" rows="3" placeholder="Ex: Quadriceps droit coté à 3+/5, ischio-jambiers 4/5, triceps sural 5/5, moyen fessier 4-/5..." oninput="toggleRehabSubject('articular', true)"></textarea>
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Tonus, Spasticité (Ashworth 0-4) & Extensibilité :</label>
+                <textarea id="rehab-tonus" class="form-control" rows="3" placeholder="Ex: Tonus normal, pas de spasticité (Ashworth 0). Raideur modérée des ischio-jambiers avec angle poplité à 30°..." oninput="toggleRehabSubject('articular', true)"></textarea>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Mesures Centimétriques, Amyotrophie & Trophicité Cutanée :</label>
+              <textarea id="rehab-measures" class="form-control" rows="2" placeholder="Ex: Périmètre de cuisse à 15 cm au-dessus de la rotule : 48 cm à droite vs 51 cm à gauche (amyotrophie quadricipitale de 3 cm)..." oninput="toggleRehabSubject('articular', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 2 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('anamnese')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot active" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchRehabTab('neuro')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488;">Suivant : Neuro & Rachidien</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3 : Bilan Neuro & Rachidien -->
+      <div id="rehab-tab-neuro" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f0fdfa; color: #0d9488; font-size: 13px; font-weight: 800; border: 1px solid #99f6e4;">3</span>
+              <span>Bilan Neurologique & Rachidien</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="neuro" onclick="event.stopPropagation(); toggleRehabSubject('neuro')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Examen Neurologique (Sensibilité superficielle/profonde, ROT, Babinski) :</label>
+              <textarea id="rehab-neuro-exam" class="form-control" rows="4" placeholder="Ex: Réflexes ostéo-tendineux rotuliens et achilléens vifs et symétriques. Signe de Babinski négatif. Sensibilité tactile et thermo-algique conservée sur les dermatomes L4, L5 et S1..." oninput="toggleRehabSubject('neuro', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Examen Rachidien (Mobilité dorso-lombaire, Schöber, sonnette, Lasègue) :</label>
+              <textarea id="rehab-spine-exam" class="form-control" rows="4" placeholder="Ex: Indice de Schöber à 10+3 cm (raideur lombaire modérée). Distance doigts-sol à 18 cm. Signe de Lasègue négatif bilatéralement. Contracture paravertébrale lombaire droite..." oninput="toggleRehabSubject('neuro', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 3 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('articular')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot active" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchRehabTab('posture')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488;">Suivant : Posture & Marche</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4 : Posture, Marche & Équilibre -->
+      <div id="rehab-tab-posture" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f0fdfa; color: #0d9488; font-size: 13px; font-weight: 800; border: 1px solid #99f6e4;">4</span>
+              <span>Posture, Analyse de la Marche & Équilibre</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="posture" onclick="event.stopPropagation(); toggleRehabSubject('posture')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Analyse Posturale Globale (Debout, profil, bascule du bassin) :</label>
+              <textarea id="rehab-posture" class="form-control" rows="3" placeholder="Ex: Attitude antalgique avec inclinaison droite, légère hyperlordose compensatrice, horizontalité du bassin conservée..." oninput="toggleRehabSubject('posture', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Analyse de la Marche (Boiterie, déroulement du pas, aides techniques) :</label>
+              <textarea id="rehab-gait" class="form-control" rows="3" placeholder="Ex: Boiterie d'esquive droite liée à la douleur d'appui, temps d'appui unipodal réduit à droite, marche sans canne possible sur sol plat..." oninput="toggleRehabSubject('posture', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Équilibre Statique & Dynamique (Tinetti, Berg, appui unipodal) :</label>
+              <textarea id="rehab-balance" class="form-control" rows="3" placeholder="Ex: Épreuve de Romberg stable yeux ouverts et fermés. Appui monopodal tenu 15s à gauche, 6s à droite. Score de Tinetti à 24/28 (risque de chute modéré)..." oninput="toggleRehabSubject('posture', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 4 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('neuro')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot active" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchRehabTab('plan')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488;">Suivant : Plan de Rééducation</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5 : Plan de Rééducation & Actes -->
+      <div id="rehab-tab-plan" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f0fdfa; color: #0d9488; font-size: 13px; font-weight: 800; border: 1px solid #99f6e4;">5</span>
+              <span>Plan de Rééducation Thérapeutique & Actes Kiné</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn is-included" data-subject="plan" onclick="event.stopPropagation(); toggleRehabSubject('plan')">
+                <span class="plus-icon">✓</span>
+                <span class="btn-text">Inclus au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Actes de Kinésithérapie Prescrits (sélection rapide) :</label>
+              <div id="rehab-actes-tags" class="orl-chip-group" style="margin-bottom: 10px;"></div>
+              <textarea id="rehab-actes" class="form-control" rows="2" placeholder="Ex: Mobilisation passive et active aidée, renforcement musculaire du quadriceps, proprioception sur plateau..." oninput="toggleRehabSubject('plan', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Protocole Détaillé de Rééducation & Consignes :</label>
+              <textarea id="rehab-plan" class="form-control" rows="4" placeholder="Ex: Protocole de réathlétisation : Phase 1 sédation des douleurs et drainage. Phase 2 gain d'amplitude et verrouillage du genou. Phase 3 renforcement excentrique..." oninput="toggleRehabSubject('plan', true)"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 14px;">
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Fréquence :</label>
+                <input type="text" id="rehab-sessions-per-week" class="form-control" placeholder="Ex: 3 séances / sem" oninput="toggleRehabSubject('plan', true)">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Durée prévue :</label>
+                <input type="text" id="rehab-duration-weeks" class="form-control" placeholder="Ex: 6 semaines" oninput="toggleRehabSubject('plan', true)">
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Contre-indications & Précautions :</label>
+                <input type="text" id="rehab-cautions" class="form-control" placeholder="Ex: Pas de charge axiale lourde, éviter les flexions > 90°..." oninput="toggleRehabSubject('plan', true)">
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 5 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('posture')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot active" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="switchRehabTab('evolution')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488;">Suivant : Évolution & Objectifs</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 6 : Évolution & Objectifs -->
+      <div id="rehab-tab-evolution" class="ant-tabs-pane">
+        <div class="orl-master-card">
+          <div class="orl-master-card-header">
+            <div style="font-size: 15px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f0fdfa; color: #0d9488; font-size: 13px; font-weight: 800; border: 1px solid #99f6e4;">6</span>
+              <span>Évolution Clinique & Objectifs Thérapeutiques</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="btn btn-outline orl-add-subject-btn" data-subject="evolution" onclick="event.stopPropagation(); toggleRehabSubject('evolution')">
+                <span class="plus-icon">+</span>
+                <span class="btn-text">Ajouter au rapport</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 32px; font-size: 12.5px; background: #0d9488; border-color: #0d9488;">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="orl-master-card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Objectifs Thérapeutiques à Court & Moyen Terme :</label>
+              <textarea id="rehab-objectives" class="form-control" rows="3" placeholder="Ex: 1. Réduction de l'EVA sous 3/10. 2. Récupération de l'extension complète. 3. Reprise de la conduite et autonomie dans les AVQ..." oninput="toggleRehabSubject('evolution', true)"></textarea>
+            </div>
+
+            <div class="form-group" style="margin: 0;">
+              <label style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 6px;">Évolution Clinique & Bilan Intermédiaire :</label>
+              <textarea id="rehab-evolution" class="form-control" rows="3" placeholder="Ex: Progression favorable après 10 séances. Amélioration nette du périmètre de marche. Bonne adhésion aux auto-exercices à domicile..." oninput="toggleRehabSubject('evolution', true)"></textarea>
+            </div>
+          </div>
+
+          <!-- Pagination Footer 6 -->
+          <div class="orl-pagination-footer" style="padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 0 0 12px 12px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('plan')" style="height: 36px; font-size: 13px;">Précédent</button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot active" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-outline" onclick="saveRehabProfile()" style="height: 36px; font-size: 13px;">💾 Enregistrer</button>
+              <button type="button" class="btn btn-primary" onclick="switchRehabTab('report')" style="height: 36px; font-size: 13px; background: #0d9488; border-color: #0d9488; display: flex; align-items: center; gap: 6px;">
+                <span>Générer Compte-Rendu</span>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 7 : Compte-Rendu & Fiche de Liaison WYSIWYG -->
+      <div id="rehab-tab-report" class="ant-tabs-pane">
+        <div class="orl-report-wysiwyg-container">
+          <!-- Toolbar supérieure de la feuille -->
+          <div class="orl-report-toolbar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding: 10px 16px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(0,0,0,0.65);">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0d9488" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Cliquez directement sur le texte pour modifier le bilan ou la prescription avant impression</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <!-- Format A4 / A5 Segmented -->
+              <div class="ant-segmented" id="rehab-report-format-segmented" style="display: inline-flex; background: #f0f0f0; padding: 2px; border-radius: 6px;">
+                <button type="button" class="ant-segmented-item active" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="setRehabReportFormat('A4')">A4</button>
+                <button type="button" class="ant-segmented-item" style="padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 4px; background: transparent; border: none; color: rgba(0,0,0,0.65);" onclick="setRehabReportFormat('A5')">A5</button>
+              </div>
+              <button type="button" class="btn" onclick="regenerateRehabReportContent()" title="Régénérer le rapport depuis le dossier" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Réinitialiser
+              </button>
+              <button type="button" class="btn btn-primary" onclick="saveRehabProfile()" title="Sauvegarder le bilan dans l'historique" style="height: 32px; font-size: 12.5px; display: flex; align-items: center; gap: 6px; background: #059669; border-color: #059669; color: #fff;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Enregistrer</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="triggerRehabDirectPrint()" style="height: 32px; font-size: 12px; display: flex; align-items: center; gap: 6px; background: #0d9488; border-color: #0d9488;">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimer
+              </button>
+            </div>
+          </div>
+
+          <!-- Formatting Toolbar -->
+          <div class="orl-formatting-toolbar" style="display: flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 6px 12px; background: #ffffff; border: 1px solid #f0f0f0; border-radius: 6px; width: fit-content; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('bold', false, null)" title="Gras (Ctrl+B)" style="padding: 2px 8px; font-weight: bold; font-size: 12px; min-width: 28px;">B</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('italic', false, null)" title="Italique (Ctrl+I)" style="padding: 2px 8px; font-style: italic; font-size: 12px; min-width: 28px;">I</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('underline', false, null)" title="Souligné (Ctrl+U)" style="padding: 2px 8px; text-decoration: underline; font-size: 12px; min-width: 28px;">U</button>
+            <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<h3>')" title="Titre de section" style="padding: 2px 8px; font-size: 12px; font-weight: 700;">H3 Titre</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('formatBlock', false, '<p>')" title="Paragraphe normal" style="padding: 2px 8px; font-size: 12px;">Texte</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('insertUnorderedList', false, null)" title="Liste à puces" style="padding: 2px 8px; font-size: 12px;">• Liste</button>
+            <div style="width: 1px; height: 16px; background: #e5e7eb; margin: 0 4px;"></div>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyLeft', false, null)" title="Aligner à gauche" style="padding: 2px 8px; font-size: 12px;">Gauche</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('justifyCenter', false, null)" title="Centrer" style="padding: 2px 8px; font-size: 12px;">Centre</button>
+            <button type="button" class="btn btn-sm" onclick="document.execCommand('removeFormat', false, null)" title="Effacer le formatage" style="padding: 2px 8px; font-size: 12px; color: #ff4d4f;">Effacer style</button>
+          </div>
+
+          <!-- Feuille A4/A5 Interactive Réelle -->
+          <div id="rehab-wysiwyg-sheet" class="orl-wysiwyg-sheet format-a4 doc-sheet">
+            <!-- En-tête Médical -->
+            <div id="rehab-wysiwyg-clinic-header"></div>
+            <!-- Bannière Patient -->
+            <div id="rehab-wysiwyg-patient-banner"></div>
+            <!-- Titre du Compte-Rendu -->
+            <div id="rehab-report-title" style="text-align: center; margin: 16px 0;"></div>
+            <!-- Zone de contenu éditable au clic comme Word -->
+            <div id="rehab-wysiwyg-editor" class="orl-wysiwyg-editor" contenteditable="true" spellcheck="false"></div>
+          </div>
+
+          <!-- Pagination Footer 7 -->
+          <div class="orl-pagination-footer" style="margin-top: 24px; padding: 12px 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fafafa; border-radius: 8px;">
+            <button type="button" class="btn btn-secondary" onclick="switchRehabTab('evolution')" style="display: flex; align-items: center; gap: 6px; font-weight: 500;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+              Modifier les sections d'examen
+            </button>
+            <div class="orl-pagination-step-dots">
+              <span class="orl-step-dot" data-step="1" onclick="goToRehabStep(1)">1</span>
+              <span class="orl-step-dot" data-step="2" onclick="goToRehabStep(2)">2</span>
+              <span class="orl-step-dot" data-step="3" onclick="goToRehabStep(3)">3</span>
+              <span class="orl-step-dot" data-step="4" onclick="goToRehabStep(4)">4</span>
+              <span class="orl-step-dot" data-step="5" onclick="goToRehabStep(5)">5</span>
+              <span class="orl-step-dot" data-step="6" onclick="goToRehabStep(6)">6</span>
+              <span class="orl-step-dot active" data-step="7" onclick="goToRehabStep(7)">7</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+              <button type="button" id="rehab-report-save-btn" class="btn btn-primary" onclick="saveRehabProfile()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #059669; border-color: #059669; color: #ffffff; box-shadow: 0 2px 5px rgba(5,150,105,0.25);">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Enregistrer</span>
+              </button>
+              <button type="button" class="btn btn-primary" onclick="openRehabPrintPreview()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; border-radius: 8px; background: #0d9488; border-color: #0d9488; box-shadow: 0 2px 5px rgba(13,148,136,0.2);">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Imprimer / Aperçu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- REHABILITATION LIVE PRINT PREVIEW MODAL (Interactive A4 Modal) -->
+<div id="rehab-print-preview-modal" class="orl-preview-modal-overlay" style="display: none;" onclick="if(event.target === this) closeRehabPrintPreview();">
+    <div class="orl-preview-modal-dialog" onclick="event.stopPropagation();">
+        <div class="orl-preview-modal-header" style="background: #001529; color: #ffffff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2dd4bf" stroke-width="2"><circle cx="12" cy="4" r="2"/><path d="M15 8h-6a2 2 0 0 0-2 2v7h2v5h4v-5h2v-7a2 2 0 0 0-2-2z"/></svg>
+                <span style="font-size: 16px; font-weight: 600; color: #ffffff;">Aperçu Avant Impression — Compte-Rendu de Rééducation MPR</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e6f7ff; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="rehab-preview-toggle-header" checked onchange="toggleRehabPreviewHeader(this.checked)"> En-tête cabinet
+                </label>
+                <button type="button" class="btn btn-primary" onclick="triggerRehabDirectPrint()" style="background: #0d9488; border-color: #0d9488; color: #ffffff; font-weight: 600; height: 36px; padding: 0 16px; border-radius: 6px;">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimer le document
+                </button>
+                <button type="button" class="btn" onclick="closeRehabPrintPreview()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ffffff; height: 36px; padding: 0 14px; border-radius: 6px;">
+                    Fermer (✕)
+                </button>
+            </div>
+        </div>
+        <div class="orl-preview-modal-body" style="padding: 30px; display: flex; justify-content: center; overflow-x: auto; background: #525659; min-height: 80vh;">
+            <div id="rehab-preview-sheet" class="orl-printable-sheet"></div>
+        </div>
+    </div>
+</div>
+
+<!-- REHABILITATION REPORT HISTORY MODAL -->
+<div id="rehab-report-history-modal" class="modal orl-preview-modal-overlay" style="display: none; background: rgba(0,0,0,0.45); z-index: 1050; align-items: center; justify-content: center;" onclick="if(event.target === this) closeRehabReportHistoryModal();">
+    <div class="ant-modal" style="width: 820px; max-width: 95vw; background: #ffffff; border-radius: 12px; box-shadow: 0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;" onclick="event.stopPropagation();">
+        <div style="padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 8px; background: #f0fdfa; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0d9488" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: rgba(0,0,0,0.88);">Historique des Bilans & Dossiers de Rééducation MPR</h3>
+                    <div id="rehab-history-patient-subtitle" style="font-size: 12px; color: rgba(0,0,0,0.45); margin-top: 2px;">Patient : Aucun sélectionné</div>
+                </div>
+            </div>
+            <button type="button" onclick="closeRehabReportHistoryModal()" style="border: none; background: transparent; font-size: 18px; cursor: pointer; color: rgba(0,0,0,0.45); padding: 4px 8px; border-radius: 4px;">✕</button>
+        </div>
+        <div id="rehab-history-list-body" style="padding: 20px 24px; overflow-y: auto; flex: 1; min-height: 200px;"></div>
+        <div style="padding: 12px 24px; border-top: 1px solid #f0f0f0; display: flex; justify-content: flex-end; gap: 8px; background: #fafafa;">
+            <button type="button" class="btn" onclick="closeRehabReportHistoryModal()" style="height: 34px; padding: 0 16px; border-radius: 6px;">Fermer</button>
+        </div>
+    </div>
+</div>
 
                 <!-- ===================== CARDIOLOGY SECTION ===================== -->
                 <section id="cardiology" class="section doctor-only">
@@ -9714,6 +10196,8 @@
     <script src="js/modules/medical-imaging.js"></script>
     <script type="module" src="js/modules/orl.js"></script>
     <script type="module" src="js/modules/dentistry.js"></script>
+    <script type="module" src="js/modules/cardiology.js"></script>
+    <script type="module" src="js/modules/rehabilitation.js"></script>
     <script src="js/modules/sms-config.js"></script>
     <script src="js/modules/cloud-sync.js"></script>
     <script src="js/modules/daily-summary.js"></script>

@@ -463,6 +463,7 @@ export function switchCardioSubTab(sectionId, subTabId) {
   sectionEl.querySelectorAll('.orl-subtab-pane').forEach(pane => {
     const isTarget = pane.dataset.subtab === subTabId;
     pane.classList.toggle('active', isTarget);
+    pane.style.display = isTarget ? 'block' : 'none';
   });
 
   const headerAddBtn = sectionEl.querySelector('.orl-master-card-header .orl-add-subject-btn');
@@ -502,9 +503,15 @@ export function switchCardioTab(tabName) {
     stepIndicator.textContent = `Étape ${currentStep} sur ${CARDIO_TAB_LIST.length}`;
   }
 
-  document.querySelectorAll('#cardiology .ant-tabs-pane').forEach(pane => pane.classList.remove('active'));
+  document.querySelectorAll('#cardiology .ant-tabs-pane').forEach(pane => {
+    pane.classList.remove('active');
+    pane.style.display = 'none';
+  });
   const activePane = document.getElementById('cardio-tab-' + tabName);
-  if (activePane) activePane.classList.add('active');
+  if (activePane) {
+    activePane.classList.add('active');
+    activePane.style.display = 'block';
+  }
 
   if (tabName === 'report') {
     renderCardioWysiwygReport();
