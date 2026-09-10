@@ -17,8 +17,25 @@ function startElectron() {
 
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
+  if (process.platform === 'linux') {
+    delete env.IBUS_USE_PORTAL;
+    env.XMODIFIERS = '@im=none';
+    env.GTK_IM_MODULE = 'simple';
+    env.QT_IM_MODULE = 'simple';
+    // Clean stale ibus socket files that cause GTK input freezes
+    try {
+      const busDir = path.join(process.env.HOME || '', '.config/ibus/bus');
+      if (fs.existsSync(busDir)) {
+        fs.readdirSync(busDir).forEach(f => {
+          if (f.includes('-unix-0') || f.includes('-unix-1')) {
+            try { fs.unlinkSync(path.join(busDir, f)); } catch (_) {}
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
-  child = spawn(electronBinary, ['.', ...process.argv.slice(2)], {
+  child = spawn(electronBinary, ['--disable-gtk-ime', '.', ...process.argv.slice(2)], {
     cwd: process.cwd(),
     env,
     stdio: 'inherit'

@@ -52,9 +52,23 @@ function normalizePrescriptionListRequest(payload) {
 }
 
 function parsePrescriptionRow(row) {
+  if (!row) return null;
+  let medications = [];
+  if (Array.isArray(row.medications)) {
+    medications = row.medications;
+  } else if (typeof row.medications === 'string' && row.medications.trim()) {
+    try {
+      const parsed = JSON.parse(row.medications);
+      medications = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
+    } catch (e) {
+      medications = [];
+    }
+  } else if (row.medications && typeof row.medications === 'object') {
+    medications = Array.isArray(row.medications) ? row.medications : [row.medications];
+  }
   return {
     ...row,
-    medications: row?.medications ? JSON.parse(row.medications) : []
+    medications
   };
 }
 
@@ -277,17 +291,24 @@ export function handlePrescriptionEvents() {
       const rows = await query(
         `SELECT medications, prescriptionDate, updatedAt
          FROM prescriptions
-         WHERE medications IS NOT NULL AND TRIM(medications) <> ''`
+         WHERE medications IS NOT NULL`
       );
 
       const map = new Map();
 
       rows.forEach((row) => {
         let meds = [];
-        try {
-          meds = JSON.parse(row.medications || '[]');
-        } catch (error) {
-          meds = [];
+        if (Array.isArray(row.medications)) {
+          meds = row.medications;
+        } else if (typeof row.medications === 'string' && row.medications.trim()) {
+          try {
+            const parsed = JSON.parse(row.medications);
+            meds = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
+          } catch (error) {
+            meds = [];
+          }
+        } else if (row.medications && typeof row.medications === 'object') {
+          meds = Array.isArray(row.medications) ? row.medications : [row.medications];
         }
 
         meds.forEach((med) => {

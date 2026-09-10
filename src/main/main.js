@@ -4,6 +4,15 @@
  */
 
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron';
+
+// Linux keyboard input & IME stability:
+// Completely bypass dead/hanging IBUS daemons and force GTK/Chromium simple keyboard input
+if (process.platform === 'linux') {
+  delete process.env.IBUS_USE_PORTAL;
+  process.env.XMODIFIERS = '@im=none';
+  process.env.GTK_IM_MODULE = 'simple';
+  process.env.QT_IM_MODULE = 'simple';
+}
 import path from 'path';
 import { fileURLToPath } from 'url';
 import moment from 'moment';
@@ -54,6 +63,7 @@ import { handleWaitingRoomEvents } from './handlers/waiting-room-handler.js';
 
 import { handlePackageEvents } from './handlers/package-handler.js';
 import { handleDentistEvents } from './handlers/dentist-handler.js';
+import { handleTraumatologyEvents } from './handlers/traumatology-handler.js';
 import { handleTreatmentPlanEvents } from './handlers/treatment-plans-handler.js';
 import { handleClinicalRehabilitationContractEvents } from './handlers/clinical-rehabilitation-ipc-handler.js';
 import { handleSMSEvents } from './handlers/sms-handler.js';
@@ -207,6 +217,11 @@ app.setPath('userData', stableUserDataPath);
 app.commandLine.appendSwitch('lang', 'fr-FR');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 app.commandLine.appendSwitch('disable-pinch');
+if (process.platform === 'linux') {
+  try {
+    app.commandLine.appendSwitch('disable-gtk-ime');
+  } catch (_) {}
+}
 
 // ===== PREVENT EPIPE CRASHES =====
 // When stdout/stderr pipe breaks (e.g. piped to head), silently ignore
@@ -1034,6 +1049,7 @@ function setupIPCHandlers() {
   handleWaitingRoomEvents();
   handlePackageEvents();
   handleDentistEvents();
+  handleTraumatologyEvents();
   handleTreatmentPlanEvents();
   handleClinicalRehabilitationContractEvents();
   handleSMSEvents();

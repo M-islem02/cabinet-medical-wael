@@ -546,7 +546,31 @@ contextBridge.exposeInMainWorld('api', {
   // API Équipements Patient
   patientEquipment: contractApi.patientEquipment,
 
-  // API Rééducation (wrapper)
+  // ========== API TRAUMATOLOGIE & ORTHOPÉDIE ==========
+  traumato: {
+    getRecord: (patientId) => ipcRenderer.invoke('traumato:getRecord', patientId),
+    saveRecord: (data) => ipcRenderer.invoke('traumato:saveRecord', data),
+    getLesions: (patientId) => ipcRenderer.invoke('traumato:getLesions', patientId),
+    getLesionsAtDate: (patientId, date) => ipcRenderer.invoke('traumato:getLesionsAtDate', patientId, date),
+    saveLesion: (data) => ipcRenderer.invoke('traumato:saveLesion', data),
+    saveMultipleLesions: (patientId, lesions) => ipcRenderer.invoke('traumato:saveMultipleLesions', patientId, lesions),
+    getTreatmentsByPatient: (patientId) => ipcRenderer.invoke('traumato:getTreatmentsByPatient', patientId),
+    createTreatment: (data) => ipcRenderer.invoke('traumato:createTreatment', data),
+    getTreatments: (patientId) => ipcRenderer.invoke('traumato:getTreatments', patientId),
+    getAllTreatments: (filters) => ipcRenderer.invoke('traumato:getAllTreatments', filters),
+    updateTreatment: (id, data) => ipcRenderer.invoke('traumato:updateTreatment', id, data),
+    deleteTreatment: (id) => ipcRenderer.invoke('traumato:deleteTreatment', id),
+    createPlan: (data) => ipcRenderer.invoke('traumato:createPlan', data),
+    getPlans: (patientId) => ipcRenderer.invoke('traumato:getPlans', patientId),
+    updatePlan: (id, data) => ipcRenderer.invoke('traumato:updatePlan', id, data),
+    deletePlan: (id) => ipcRenderer.invoke('traumato:deletePlan', id),
+    createImaging: (data) => ipcRenderer.invoke('traumato:createImaging', data),
+    getImaging: (patientId) => ipcRenderer.invoke('traumato:getImaging', patientId),
+    deleteImaging: (id) => ipcRenderer.invoke('traumato:deleteImaging', id),
+    getStats: (patientId) => ipcRenderer.invoke('traumato:getStats', patientId),
+    getBoneHistory: (patientId, boneCode) => ipcRenderer.invoke('traumato:getBoneHistory', patientId, boneCode)
+  },
+
   // ========== API DENTISTERIE ==========
   dental: {
     getRecord: (patientId) => ipcRenderer.invoke('dental:getRecord', patientId),

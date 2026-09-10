@@ -516,8 +516,8 @@ export async function initializeDatabase() {
     pool = null;
   }
 
-  const createApplicationPool = () => new Pool({
-    host: dbConfig.host,
+  const createApplicationPool = (overrideHost = null) => new Pool({
+    host: overrideHost || dbConfig.host,
     port: dbConfig.port,
     user: dbConfig.user,
     password: dbConfig.password,
@@ -534,22 +534,43 @@ export async function initializeDatabase() {
     client = await pool.connect();
     await client.query('SELECT 1');
   } catch (connectionError) {
-    await pool.end().catch(() => {});
-    pool = null;
-    if (!canBootstrapDefaultLocalDatabase(dbConfig)) throw connectionError;
-
-    try {
-      await bootstrapDefaultLocalDatabase(dbConfig);
-    } catch (bootstrapError) {
-      throw new Error(
-        'Initialisation PostgreSQL automatique impossible. Lors de l’installation de PostgreSQL, ' +
-        `utilisez le mot de passe ${DEFAULT_POSTGRES_CONFIG.password} pour le compte postgres. ` +
-        `Détail: ${bootstrapError.message}`
-      );
+    if (pool) {
+      await pool.end().catch(() => {});
+      pool = null;
     }
-    pool = createApplicationPool();
-    client = await pool.connect();
-    await client.query('SELECT 1');
+
+    // Try local unix domain socket if TCP connection was refused
+    const unixSocketPath = '/tmp/pgsock';
+    if (fs.existsSync(path.join(unixSocketPath, `.s.PGSQL.${dbConfig.port}`))) {
+      try {
+        pool = createApplicationPool(unixSocketPath);
+        client = await pool.connect();
+        await client.query('SELECT 1');
+        dbConfig.host = unixSocketPath;
+      } catch (_) {
+        if (pool) {
+          await pool.end().catch(() => {});
+          pool = null;
+        }
+      }
+    }
+
+    if (!pool) {
+      if (!canBootstrapDefaultLocalDatabase(dbConfig)) throw connectionError;
+
+      try {
+        await bootstrapDefaultLocalDatabase(dbConfig);
+      } catch (bootstrapError) {
+        throw new Error(
+          'Initialisation PostgreSQL automatique impossible. Lors de l’installation de PostgreSQL, ' +
+          `utilisez le mot de passe ${DEFAULT_POSTGRES_CONFIG.password} pour le compte postgres. ` +
+          `Détail: ${bootstrapError.message}`
+        );
+      }
+      pool = createApplicationPool();
+      client = await pool.connect();
+      await client.query('SELECT 1');
+    }
   } finally {
     client?.release();
   }

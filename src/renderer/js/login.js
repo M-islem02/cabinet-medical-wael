@@ -114,8 +114,12 @@ function selectSavedAccount(username) {
     item.classList.toggle('active', itemUser === acc.username.toLowerCase());
   });
 
-  if (submitButton) {
+  if (submitButton && acc.password) {
     submitButton.focus();
+  } else if (passwordInput && !acc.password) {
+    passwordInput.focus();
+  } else if (usernameInput) {
+    usernameInput.focus();
   }
 }
 
@@ -149,6 +153,7 @@ function removeSavedAccount(username, event) {
       if (passwordInput) passwordInput.value = '';
       const rememberCheckbox = document.getElementById('remember-credentials');
       if (rememberCheckbox) rememberCheckbox.checked = false;
+      usernameInput.focus();
     }
   }
 
@@ -163,15 +168,15 @@ function loadSavedCredentials() {
       const usernameInput = document.getElementById('username');
       const passwordInput = document.getElementById('password');
       const rememberCheckbox = document.getElementById('remember-credentials');
-      const submitButton = document.querySelector('#login-form button[type="submit"]');
 
       if (usernameInput && latest.username) usernameInput.value = latest.username;
       if (passwordInput && latest.password) passwordInput.value = latest.password;
       if (rememberCheckbox) rememberCheckbox.checked = true;
 
       renderSavedAccountsUI();
-      if (submitButton) {
-        submitButton.focus();
+      if (usernameInput) {
+        usernameInput.focus();
+        usernameInput.select();
       }
       return true;
     } else {
@@ -284,6 +289,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   }
   
+  // Click on input wrapper to guarantee focus on input field
+  document.querySelectorAll('.input-with-icon .input-wrapper').forEach(wrap => {
+    wrap.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'BUTTON' && !e.target.classList.contains('password-toggle')) {
+        const inp = wrap.querySelector('input');
+        if (inp) inp.focus();
+      }
+    });
+  });
+
   // Charger les identifiants enregistrés s'ils sont valides
   const hasSaved = loadSavedCredentials();
   if (!hasSaved) {
@@ -447,3 +462,16 @@ document.getElementById('reset-password-modal')?.addEventListener('click', (e) =
     closeResetModal();
   }
 });
+
+window.fillSpecialtyAccount = function(username, password) {
+  const uInput = document.getElementById('username');
+  const pInput = document.getElementById('password');
+  if (uInput) {
+    uInput.value = username;
+    uInput.focus();
+  }
+  if (pInput) {
+    pInput.value = password;
+  }
+};
+

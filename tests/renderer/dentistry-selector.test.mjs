@@ -65,6 +65,7 @@ test('navbar includes consultations, prescriptions, sick-leaves, expenses, and n
   assert.ok(indexHtml.includes('data-section="orl"'), 'Navbar must include orl');
   assert.ok(indexHtml.includes('data-section="rehabilitation"'), 'Navbar must include rehabilitation');
   assert.ok(indexHtml.includes('data-section="cardiology"'), 'Navbar must include cardiology');
+  assert.ok(indexHtml.includes('data-section="traumatology"'), 'Navbar must include traumatology');
   assert.ok(indexHtml.includes('data-section="kine-staff"'), 'Navbar must include kine-staff');
 
   // Verify treatment-plans is not duplicated

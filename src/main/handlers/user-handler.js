@@ -112,6 +112,15 @@ const SYSTEM_ACCOUNT_DEFAULTS = {
     role: 'admin',
     isAdmin: 0,
     isSuperAdmin: 1
+  },
+  orl: {
+    username: 'orl',
+    password: 'Orl@2024!',
+    fullName: 'Dr. Médecin ORL',
+    role: 'doctor',
+    specialty: 'orl',
+    isAdmin: 1,
+    isSuperAdmin: 0
   }
 };
 
@@ -128,21 +137,22 @@ async function repairSystemAccount(username) {
       `UPDATE users
        SET password = ?,
            fullName = COALESCE(NULLIF(fullName, ''), ?),
-            role = ?,
-            isAdmin = ?,
-            isSuperAdmin = ?,
+           role = ?,
+           specialty = COALESCE(NULLIF(specialty, ''), ?),
+           isAdmin = ?,
+           isSuperAdmin = ?,
            isActive = 1
        WHERE username = ?`,
-      [passwordHash, account.fullName, account.role, account.isAdmin, account.isSuperAdmin, account.username]
+      [passwordHash, account.fullName, account.role, account.specialty || null, account.isAdmin, account.isSuperAdmin, account.username]
     );
     return existing.id;
   }
 
   const id = uuidv4();
   await run(
-    `INSERT INTO users (id, username, password, fullName, role, isAdmin, isSuperAdmin, isActive, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-    [id, account.username, passwordHash, account.fullName, account.role, account.isAdmin, account.isSuperAdmin, now]
+    `INSERT INTO users (id, username, password, fullName, role, specialty, isAdmin, isSuperAdmin, isActive, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    [id, account.username, passwordHash, account.fullName, account.role, account.specialty || null, account.isAdmin, account.isSuperAdmin, now]
   );
 
   return id;

@@ -93,6 +93,7 @@ function renderPatientsScopeControls() {
   const selectionCount = document.getElementById('patients-selection-count');
   const assignSelectedButton = document.getElementById('patients-assign-selected-btn');
   const fourthHeading = document.querySelector('#patients-table thead th:nth-child(4)');
+  const ssnHeading = document.getElementById('patients-th-ssn') || document.querySelector('#patients-table thead th:nth-child(5)');
 
   const isMulti = isMultiPractitionerActive();
   const assistantDirectoryMode = currentUserRole === 'assistant' && isMulti;
@@ -120,7 +121,8 @@ function renderPatientsScopeControls() {
   if (assignSelectedButton) assignSelectedButton.disabled = selectedPatientIds.size === 0 || !selectedPatientsDoctorId;
   mineTab?.classList.toggle('active', patientsView === 'mine');
   directoryTab?.classList.toggle('active', patientsView === 'directory');
-  if (fourthHeading) fourthHeading.textContent = (isMulti && patientsView === 'directory') ? 'Médecins' : 'Numéro SS';
+  if (fourthHeading) fourthHeading.textContent = 'Date de Naissance';
+  if (ssnHeading) ssnHeading.textContent = (isMulti && patientsView === 'directory') ? 'Médecins' : 'Numéro SS';
 
   if (doctorSelect && patientsScope?.practitioners) {
     doctorSelect.innerHTML = patientsScope.practitioners.map((doctor) => {
@@ -225,6 +227,8 @@ async function switchPatientsView(view) {
   selectedPatientIds.clear();
   const search = document.getElementById('patients-search');
   if (search) search.value = '';
+  const clearBtn = document.getElementById('patients-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
   renderPatientsScopeControls();
   await loadPatients(1);
 }
@@ -581,7 +585,7 @@ async function loadPatients(page = 1) {
     }
 
     if (result && result.success) {
-      if ((patientsView === 'mine' || patientsView === 'my-patients') && (!result.data || result.data.length === 0) && !patientsSearchTerm) {
+      if ((patientsView === 'mine' || patientsView === 'my-patients') && (!result.data || result.data.length === 0)) {
         try {
           const dirRes = await patientApi.getDirectory({ searchTerm: patientsSearchTerm, page, pageSize, paginated: true });
           if (!patientState.isCurrent(requestVersion)) {
@@ -619,15 +623,14 @@ function getActivePatientDetailsTabId() {
 async function searchPatients(term = '') {
   try {
     patientsSearchTerm = String(term || '').trim();
-    if (!patientsSearchTerm) {
-      await loadPatients(1);
-      return;
-    }
+    const clearBtn = document.getElementById('patients-search-clear');
+    if (clearBtn) clearBtn.style.display = patientsSearchTerm ? 'block' : 'none';
     await loadPatients(1);
   } catch (error) {
-    console.error('❌ Erreur lors de la recherche:', error);
+    console.error('Erreur lors de la recherche:', error);
   }
 }
+window.searchPatients = searchPatients;
 
 const PATIENT_PHOTO_STORAGE_PREFIX = 'medcare:patient-photo:';
 const PATIENT_DRAFT_PHOTO_KEY = `${PATIENT_PHOTO_STORAGE_PREFIX}draft`;

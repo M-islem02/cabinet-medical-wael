@@ -287,6 +287,40 @@ const PRACTICE_SPECIALTY_META = {
     },
     aiPromptIntro: 'Tu es un cardiologue. Génère un compte rendu de consultation cardiologique professionnel, structuré et concis en français.'
   },
+  traumatology: {
+    key: 'traumatology',
+    label: 'Traumatologie & Orthopédie',
+    shortLabel: 'Traumatologie',
+    doctorBadgeLabel: 'TRAUMATOLOGUE',
+    doctorSpecialtyLine: 'CHIRURGIEN ORTHOPÉDISTE & TRAUMATOLOGUE',
+    sectionId: 'traumatology',
+    report: {
+      kicker: 'Compte-rendu traumatologique & orthopédique',
+      heroTitle: 'Rapport traumatologique',
+      heroSubtitle: 'Bilan osseux, articulaire, prise en charge chirurgicale et contention.',
+      badge: 'Traumatologie',
+      typeLabel: 'Rapport traumatologique',
+      defaultMotif: 'Bilan traumatologique / orthopédique',
+      objectLabel: 'Motif / Objet *',
+      objectPlaceholder: 'Ex: Fracture du radius, entorse grave cheville, suivi ostéosynthèse',
+      contextLabel: 'Mécanisme / Contexte lésionnel *',
+      contextPlaceholder: 'Date d\'accident, mécanisme traumatique, terrain, antécédents...',
+      findingsLabel: 'Constatations / Examen clinique & imagerie *',
+      findingsPlaceholder: 'EVA, bilan vasculo-nerveux, statut cutané, classification fracturaire...',
+      careLabel: 'Prise en charge / Traitement',
+      carePlaceholder: 'Immobilisation plâtrée, intervention chirurgicale, antalgiques...',
+      recommendationsLabel: 'Suivi / Consignes',
+      recommendationsPlaceholder: 'Radio de contrôle, ablation plâtre/matériel, rééducation...',
+      objectTitle: 'Objet du rapport',
+      contextTitle: 'Contexte et mécanisme lésionnel',
+      findingsTitle: 'Examen clinique et bilan d\'imagerie',
+      careTitle: 'Prise en charge réalisée',
+      conclusionTitle: 'Conclusion et suites opératoires',
+      printTitle: 'RAPPORT TRAUMATOLOGIQUE',
+      printSubtitle: 'Rapport d\'orthopédie & traumatologie'
+    },
+    aiPromptIntro: 'Tu es un chirurgien orthopédiste et traumatologue. Génère un compte rendu de consultation et d\'intervention professionnel, structuré et concis en français.'
+  },
   dentistry: {
     key: 'dentistry',
     label: 'Dentiste',
@@ -405,7 +439,7 @@ Object.assign(PRACTICE_SPECIALTY_META.cardiology.report, {
 });
 
 const CONSULTATION_ACT_META = {
-  consultation: { label: 'Consultation médicale', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] },
+  consultation: { label: 'Consultation médicale', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology', 'traumatology'] },
   audiometrie: { label: 'Audiométrie tonale / vocale', specialties: ['orl'] },
   tympanometrie: { label: 'Tympanométrie / Impédancemétrie', specialties: ['orl'] },
   fibroscopie: { label: 'Fibroscopie ORL / Nasofibroscopie', specialties: ['orl'] },
@@ -415,11 +449,14 @@ const CONSULTATION_ACT_META = {
   paracentese: { label: 'Paracentèse / Soins otologiques', specialties: ['orl'] },
   ecg: { label: 'ECG de repos', specialties: ['cardiology'] },
   ecgstress: { label: 'ECG d\'effort', specialties: ['cardiology'] },
-  echo: { label: 'Échographie', specialties: ['orl', 'general', 'mpr', 'cardiology', 'urology'] },
+  echo: { label: 'Échographie', specialties: ['orl', 'general', 'mpr', 'cardiology', 'urology', 'traumatology'] },
   holtermapa: { label: 'Holter / MAPA', specialties: ['cardiology'] },
   kine: { label: 'Séance kiné', specialties: ['mpr'] },
-  reduction: { label: 'Réduction', specialties: ['general', 'mpr'] },
-  infiltration: { label: 'Infiltration', specialties: ['general', 'mpr'] },
+  reduction: { label: 'Réduction', specialties: ['general', 'mpr', 'traumatology'] },
+  infiltration: { label: 'Infiltration', specialties: ['general', 'mpr', 'traumatology'] },
+  platre: { label: 'Pose / Retrait de plâtre ou résine', specialties: ['traumatology'] },
+  suture: { label: 'Parage et suture de plaie', specialties: ['traumatology'] },
+  osteosynthese: { label: 'Contrôle / Soin ostéosynthèse', specialties: ['traumatology'] },
   electrotherapie: { label: 'Électrothérapie', specialties: ['mpr'] },
   massage: { label: 'Massage', specialties: ['mpr'] },
   tecartherapie: { label: 'Tecarthérapie', specialties: ['mpr'] },
@@ -428,7 +465,7 @@ const CONSULTATION_ACT_META = {
   lasertherapie: { label: 'Laser thérapie', specialties: ['mpr'] },
   dryneedling: { label: 'Dry needling', specialties: ['mpr'] },
   osteopathie: { label: 'Ostéopathie', specialties: ['mpr'] },
-  other: { label: 'Autre acte', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology'] }
+  other: { label: 'Autre acte', specialties: ['orl', 'general', 'mpr', 'cardiology', 'dentistry', 'urology', 'traumatology'] }
 };
 
 const CONSULTATION_ACT_LABEL_OVERRIDES = {
@@ -447,6 +484,15 @@ const CONSULTATION_ACT_LABEL_OVERRIDES = {
     ecgstress: 'ECG d\'effort',
     holtermapa: 'Holter / MAPA',
     other: 'Autre acte cardiologique'
+  },
+  traumatology: {
+    consultation: 'Consultation traumatologique & orthopédique',
+    reduction: 'Réduction de fracture / luxation',
+    infiltration: 'Infiltration articulaire / rachidienne',
+    echo: 'Échographie ostéo-articulaire',
+    platre: 'Immobilisation / Confection de plâtre',
+    suture: 'Parage & suture chirurgicale',
+    other: 'Autre acte traumatologique'
   }
 };
 
@@ -457,6 +503,7 @@ function normalizePracticeSpecialtyKey(value) {
   if (['orl', 'oto-rhino', 'otorhino', 'ent', 'oto-rhino-laryngologie', 'médecin orl', 'medecin orl', 'orl (oto-rhino-laryngologiste)'].includes(raw)) return 'orl';
   if (['mpr', 'rehabilitation', 'rééducation', 'reeducation', 'medecine physique', 'médecine physique'].includes(raw)) return 'mpr';
   if (['cardiology', 'cardiologie', 'cardiologue', 'cardiologist'].includes(raw)) return 'cardiology';
+  if (['traumato', 'traumatology', 'traumatologie', 'orthopedie', 'orthopédie', 'ortho'].includes(raw)) return 'traumatology';
   if (['dentistry', 'dentiste', 'dentaire', 'dentist'].includes(raw)) return 'dentistry';
   if (['urology', 'urologue', 'urologie', 'urologist', 'طبيب المسالك البولية', 'المسالك البولية'].includes(raw)) return 'urology';
   return PRACTICE_SPECIALTY_META[raw] ? raw : 'orl';
@@ -554,10 +601,11 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
     'dentistry': ['dentistry', 'treatment-plans'],
     'mpr': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
     'rehabilitation': ['rehabilitation', 'kine-staff', 'daily-summary', 'treatment-plans'],
-    'cardiology': ['cardiology', 'treatment-plans']
+    'cardiology': ['cardiology', 'treatment-plans'],
+    'traumatology': ['traumatology', 'treatment-plans']
   };
 
-  const allSpecialtySections = ['orl', 'dentistry', 'rehabilitation', 'kine-staff', 'cardiology'];
+  const allSpecialtySections = ['orl', 'dentistry', 'rehabilitation', 'kine-staff', 'cardiology', 'traumatology'];
   const allowedSections = specialtySectionMap[currentSpecialty] || (currentSpecialty === 'general' ? ['treatment-plans'] : ['orl', 'treatment-plans']);
 
   allSpecialtySections.forEach((sectionId) => {
@@ -602,6 +650,36 @@ function enforceSpecialtySidebarVisibility(explicitSpecialty = null) {
 
   document.title = 'MedCareSO v1.0.9';
 }
+
+let patientsSearchDebounceTimer = null;
+
+function handlePatientsSearchInput(query) {
+  const clearBtn = document.getElementById('patients-search-clear');
+  if (clearBtn) clearBtn.style.display = query && query.trim() ? 'block' : 'none';
+
+  clearTimeout(patientsSearchDebounceTimer);
+  patientsSearchDebounceTimer = setTimeout(() => {
+    if (typeof window.searchPatients === 'function') {
+      window.searchPatients(query);
+    }
+  }, 120);
+}
+window.handlePatientsSearchInput = handlePatientsSearchInput;
+
+function clearPatientsSearch() {
+  const searchInput = document.getElementById('patients-search');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.focus();
+  }
+  const clearBtn = document.getElementById('patients-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  clearTimeout(patientsSearchDebounceTimer);
+  if (typeof window.searchPatients === 'function') {
+    window.searchPatients('');
+  }
+}
+window.clearPatientsSearch = clearPatientsSearch;
 
 function normalizeConsultationActLookupToken(value) {
   const repairedValue = typeof repairMojibakeText === 'function'
@@ -798,7 +876,8 @@ function getDefaultAppBrandLogoSrc() {
     general: 'assets/logo.png',
     mpr: '../../assets/MPR.png',
     cardiology: '../../assets/Cardiologue.png',
-    dentistry: '../../assets/Dentiste.png'
+    dentistry: '../../assets/Dentiste.png',
+    traumatology: 'assets/logo.png'
   };
   if (specialtyLogoMap[activeSpecialty]) {
     return specialtyLogoMap[activeSpecialty];
@@ -2984,6 +3063,11 @@ const SPECIALTY_CONFIG = {
     accent: '#dc2626', // Red
     accentLight: '#ef4444',
     accentDark: '#b91c1c'
+  },
+  traumatology: {
+    accent: '#0284c7', // Sky blue
+    accentLight: '#38bdf8',
+    accentDark: '#0369a1'
   },
   dentistry: {
     accent: '#0f766e', // Teal/cyan

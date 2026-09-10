@@ -519,13 +519,14 @@ export function handlePatientEvents() {
       if (request.searchTerm) {
         const { clause, params: searchParams } = buildPatientSearchClause(
           [
-            'p.firstName',
-            'p.lastName',
+            'COALESCE(p.firstName, \'\')',
+            'COALESCE(p.lastName, \'\')',
             `(COALESCE(p.lastName, '') || ' ' || COALESCE(p.firstName, ''))`,
             `(COALESCE(p.firstName, '') || ' ' || COALESCE(p.lastName, ''))`,
-            'p.email',
-            'p.phone',
-            'p.socialSecurityNumber'
+            'COALESCE(p.email, \'\')',
+            'COALESCE(p.phone, \'\')',
+            'REPLACE(COALESCE(p.phone, \'\'), \' \', \'\')',
+            'COALESCE(p.socialSecurityNumber, \'\')'
           ],
           request.searchTerm
         );
@@ -674,13 +675,14 @@ export function handlePatientEvents() {
       if (request.searchTerm) {
         const { clause, params: searchParams } = buildPatientSearchClause(
           [
-            'p.firstName',
-            'p.lastName',
+            'COALESCE(p.firstName, \'\')',
+            'COALESCE(p.lastName, \'\')',
             `(COALESCE(p.lastName, '') || ' ' || COALESCE(p.firstName, ''))`,
             `(COALESCE(p.firstName, '') || ' ' || COALESCE(p.lastName, ''))`,
-            'p.phone',
-            'p.email',
-            'p.socialSecurityNumber'
+            'COALESCE(p.phone, \'\')',
+            'REPLACE(COALESCE(p.phone, \'\'), \' \', \'\')',
+            'COALESCE(p.email, \'\')',
+            'COALESCE(p.socialSecurityNumber, \'\')'
           ],
           request.searchTerm
         );
@@ -703,14 +705,14 @@ export function handlePatientEvents() {
       const currentPage = Math.min(pagination.page, pagination.totalPages);
       const offset = (currentPage - 1) * pagination.pageSize;
       const rows = await query(
-        `SELECT p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone,
+        `SELECT p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone, p.socialSecurityNumber,
                 COALESCE(STRING_AGG(DISTINCT COALESCE(u.fullName, u.username), ', '), '') AS assignedDoctors,
                 COALESCE(BOOL_OR(pp.practitionerId = ?), FALSE) AS isAssigned
          FROM patients p
          LEFT JOIN patient_practitioners pp ON pp.patientId = p.id
          LEFT JOIN users u ON u.id = pp.practitionerId
          ${whereClause}
-         GROUP BY p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone
+         GROUP BY p.id, p.firstName, p.lastName, p.dateOfBirth, p.gender, p.phone, p.socialSecurityNumber
          ORDER BY p.lastName, p.firstName
          LIMIT ? OFFSET ?`,
         [scope.doctorId || null, ...params, pagination.pageSize, offset]
@@ -805,13 +807,14 @@ export function handlePatientEvents() {
 
       const { clause: searchClause, params: searchParams } = buildPatientSearchClause(
         [
-          'firstName',
-          'lastName',
+          'COALESCE(firstName, \'\')',
+          'COALESCE(lastName, \'\')',
           `(COALESCE(lastName, '') || ' ' || COALESCE(firstName, ''))`,
           `(COALESCE(firstName, '') || ' ' || COALESCE(lastName, ''))`,
-          'email',
-          'phone',
-          'socialSecurityNumber'
+          'COALESCE(email, \'\')',
+          'COALESCE(phone, \'\')',
+          'REPLACE(COALESCE(phone, \'\'), \' \', \'\')',
+          'COALESCE(socialSecurityNumber, \'\')'
         ],
         request.searchTerm
       );

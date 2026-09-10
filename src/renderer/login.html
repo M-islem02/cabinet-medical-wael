@@ -3,17 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - MedCareSO</title>
+    <title>Connexion - MedCareSO ORL & Multi-Spécialités</title>
     <link rel="stylesheet" href="css/license.css">
     <style>
         :root {
-            --hero-gradient: linear-gradient(145deg, #0f3b66 0%, #145da0 48%, #1e88c8 100%);
+            --hero-gradient: linear-gradient(145deg, #1e1b4b 0%, #312e81 48%, #4338ca 100%);
             --login-text-xs: 13px;
             --login-text-sm: 14px;
             --login-text-base: 15px;
             --login-text-lg: 17px;
             --login-title: clamp(2rem, 1.82rem + 0.65vw, 2.35rem);
             --login-display: clamp(2.05rem, 1.88rem + 0.85vw, 2.65rem);
+        }
+
+        .hidden {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
 
         body {
@@ -25,9 +31,9 @@
             overflow-x: hidden;
             overflow-y: auto;
             background:
-                radial-gradient(circle at top left, rgba(20, 93, 160, 0.18), transparent 35%),
-                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.14), transparent 32%),
-                linear-gradient(180deg, #f3f8fd 0%, #eaf2fb 100%);
+                radial-gradient(circle at top left, rgba(49, 46, 129, 0.2), transparent 38%),
+                radial-gradient(circle at bottom right, rgba(67, 56, 202, 0.16), transparent 35%),
+                linear-gradient(180deg, #f5f3ff 0%, #e0e7ff 100%);
             font-family: 'Segoe UI', 'Noto Sans', Tahoma, Arial, sans-serif;
             color: #12314f;
             line-height: 1.6;
@@ -273,6 +279,7 @@
 
         .input-with-icon .input-wrapper {
             position: relative;
+            cursor: text;
         }
 
         .input-with-icon .input-icon {
@@ -282,9 +289,14 @@
             transform: translateY(-50%);
             color: var(--text-light);
             font-size: 16px;
+            pointer-events: none !important;
+            user-select: none;
+            z-index: 2;
         }
 
         .input-with-icon .form-control {
+            position: relative;
+            z-index: 1;
             padding-left: 42px;
             padding-right: 48px;
             height: 54px;
@@ -296,6 +308,10 @@
             font-weight: 500;
             letter-spacing: 0.01em;
             color: #1e293b;
+            cursor: text !important;
+            pointer-events: auto !important;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .input-with-icon .form-control::placeholder {
@@ -306,8 +322,8 @@
         }
 
         .input-with-icon .form-control:focus {
-            border-color: #1e88c8;
-            box-shadow: 0 0 0 4px rgba(30, 136, 200, 0.12);
+            border-color: #4338ca;
+            box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.14);
             outline: none;
             background: #ffffff;
         }
@@ -316,6 +332,8 @@
             font-size: var(--login-text-sm);
             font-weight: 700;
             color: #334155;
+            cursor: pointer;
+            user-select: none;
         }
 
         .password-toggle {
@@ -324,8 +342,8 @@
             top: 50%;
             transform: translateY(-50%);
             border: none;
-            background: rgba(20, 93, 160, 0.08);
-            color: #145da0;
+            background: rgba(67, 56, 202, 0.08);
+            color: #4338ca;
             border-radius: 11px;
             width: 34px;
             height: 34px;
@@ -334,10 +352,11 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            z-index: 3;
         }
 
         .password-toggle:hover {
-            background: rgba(20, 93, 160, 0.16);
+            background: rgba(67, 56, 202, 0.16);
         }
 
         .login-actions {
@@ -352,6 +371,24 @@
             font-size: 16px;
             font-weight: 700;
             letter-spacing: 0.01em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .login-actions .btn-primary {
+            background: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(67, 56, 202, 0.3);
+        }
+
+        .login-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #3730a3 0%, #1e1b4b 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(67, 56, 202, 0.38);
         }
 
         .btn.btn-outline {
@@ -634,20 +671,20 @@
                     </div>
                     <div class="hero-brand-copy">
                         <strong>MedCareSO</strong>
-                        <span>Cabinet médical et suivi clinique</span>
+                        <span>Cabinet d'Oto-Rhino-Laryngologie & Spécialités</span>
                     </div>
                 </div>
 
                 <div class="hero-copy">
-                    <span class="hero-badge">Cabinet prêt à travailler</span>
-                    <h2>Connexion sécurisée pour le médecin et l'équipe du cabinet</h2>
-                    <p>Accédez à l'agenda, aux dossiers patients, aux tickets RDV et aux documents cliniques depuis une interface plus claire et plus professionnelle.</p>
+                    <span class="hero-badge">👂 Spécialité ORL & Multi-Spécialités</span>
+                    <h2>Connexion sécurisée — Cabinet ORL</h2>
+                    <p>Accédez aux explorations ORL, bilans audiométriques, fibroscopies, tympanogrammes et dossiers médicaux.</p>
                 </div>
 
                 <ul class="hero-list">
-                    <li><span>1</span>Agenda cabinet, prise en charge des patients et suivi du jour.</li>
-                    <li><span>2</span>Dossiers médicaux, imagerie, impression et tickets thermiques.</li>
-                    <li><span>3</span>Mode offline-first avec sauvegarde locale et cloud.</li>
+                    <li><span>1</span>Explorations ORL : audiométrie vocale/tonale, impédancemétrie et fibroscopie.</li>
+                    <li><span>2</span>Dossiers cliniques spécialisés : rhino-sinusologie, otologie et laryngologie.</li>
+                    <li><span>3</span>Agenda cabinet, prise en charge patients, ordonnances et certificats médicaux.</li>
                 </ul>
 
                 <div class="hero-support">
@@ -668,8 +705,8 @@
                     <div class="logo">
                         <img src="assets/logo.png" alt="Logo MedCareSO">
                     </div>
-                    <h1>Connexion</h1>
-                    <p>Entrez vos identifiants pour ouvrir l'environnement professionnel du cabinet.</p>
+                    <h1>Connexion ORL</h1>
+                    <p>Entrez vos identifiants pour ouvrir l'espace clinique ORL & spécialités.</p>
                 </div>
 
                 <div id="license-status" class="license-info hidden">
@@ -677,11 +714,23 @@
                 </div>
 
                 <form id="login-form">
+                    <!-- Accès rapide compte ORL -->
+                    <div class="specialty-quick-card" onclick="fillSpecialtyAccount('orl', 'Orl@2024!')" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: #eef2ff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; transition: all 0.2s ease;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">👂</span>
+                            <div>
+                                <div style="font-weight: 700; font-size: 13.5px; color: #3730a3;">Dr. Médecin ORL</div>
+                                <div style="font-size: 11.5px; color: #64748b;">Identifiant : <strong>orl</strong></div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small" style="background: #4338ca; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; pointer-events: none;">Remplir ➔</button>
+                    </div>
+
                     <!-- Section Comptes Mémorisés (Fast Account Switcher) -->
                     <div id="saved-accounts-section" class="saved-accounts-section hidden">
                         <div class="saved-accounts-header">
                             <span class="saved-accounts-title">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#145da0" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#4338ca" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                 Comptes mémorisés
                             </span>
                             <span style="font-size: 11.5px; color: #64748b;">Choisir un compte</span>
@@ -690,27 +739,29 @@
                     </div>
 
                     <div class="form-group input-with-icon">
-                        <label for="username">Nom d'utilisateur</label>
-                        <div class="input-wrapper">
+                        <label for="username" onclick="document.getElementById('username')?.focus()">Nom d'utilisateur</label>
+                        <div class="input-wrapper" onclick="document.getElementById('username')?.focus()">
                             <span class="input-icon">👤</span>
                             <input type="text" id="username" class="form-control" required 
-                                   placeholder="Nom d'utilisateur" autocomplete="username">
+                                   placeholder="Nom d'utilisateur" autocomplete="username" autofocus
+                                   onclick="this.focus()">
                         </div>
                     </div>
 
                     <div class="form-group input-with-icon">
-                        <label for="password">Mot de passe</label>
-                        <div class="input-wrapper">
+                        <label for="password" onclick="document.getElementById('password')?.focus()">Mot de passe</label>
+                        <div class="input-wrapper" onclick="document.getElementById('password')?.focus()">
                             <span class="input-icon">🔒</span>
                             <input type="password" id="password" class="form-control" required
-                                   placeholder="Entrez votre mot de passe" autocomplete="current-password">
+                                   placeholder="Entrez votre mot de passe" autocomplete="current-password"
+                                   onclick="this.focus()">
                             <button type="button" id="toggle-login-password" class="password-toggle" title="Afficher le mot de passe" aria-label="Afficher le mot de passe">👁</button>
                         </div>
                     </div>
 
                     <div class="form-group remember-me-group" style="margin-top: -2px; margin-bottom: 2px;">
                         <label for="remember-credentials" style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--login-text-sm); color: #475569; cursor: pointer; user-select: none; font-weight: 500;">
-                            <input type="checkbox" id="remember-credentials" style="width: 17px; height: 17px; accent-color: #145da0; cursor: pointer; border-radius: 4px;">
+                            <input type="checkbox" id="remember-credentials" style="width: 17px; height: 17px; accent-color: #4338ca; cursor: pointer; border-radius: 4px;">
                             <span>Mémoriser mes identifiants (24h)</span>
                         </label>
                     </div>
@@ -719,7 +770,7 @@
 
                     <div class="login-actions">
                         <button type="submit" class="btn btn-primary btn-block">
-                            🔓 Se Connecter
+                            🔓 Accéder au Cabinet ORL
                         </button>
                     </div>
                 </form>
@@ -729,7 +780,7 @@
                 </div>
 
                 <div class="login-footer">
-                    Version 1.1.1 • MedCareSO • Support: mi.bounouala@esi-sba.dz
+                    Version 1.1.1 • MedCareSO ORL & Multi-Spécialités • Support: mi.bounouala@esi-sba.dz
                 </div>
             </div>
         </div>

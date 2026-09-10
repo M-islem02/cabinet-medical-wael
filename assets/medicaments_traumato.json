@@ -1,0 +1,185 @@
+{
+  "specialite": "traumatology",
+  "medicaments": [
+    {
+      "id": "trauma_001",
+      "nom_medicament": "Paracétamol (Doliprane / Perfalgan)",
+      "dosage_posologie": "1g",
+      "prise": "1 comprimé toutes les 6 heures si douleur",
+      "duree": "5 à 7 jours",
+      "boites": 2,
+      "instructions_observations": "Antalgique Palier 1. Ne pas dépasser 4g par jour. Espacer les prises d'au moins 4 à 6 heures."
+    },
+    {
+      "id": "trauma_002",
+      "nom_medicament": "Tramadol + Paracétamol (Ixprim / Zaldiar)",
+      "dosage_posologie": "37,5mg / 325mg",
+      "prise": "1 à 2 comprimés matin, midi et soir si EVA > 4",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique Palier 2. En cas de douleur modérée à intense post-traumatique. Attention aux vertiges et nausées."
+    },
+    {
+      "id": "trauma_003",
+      "nom_medicament": "Codéine + Paracétamol (Codoliprane)",
+      "dosage_posologie": "500mg / 30mg",
+      "prise": "1 comprimé toutes les 6 heures en cas de douleur vive",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique Palier 2. Surveillance de la somnolence et du transit. Ne pas associer à d'autres opiacés."
+    },
+    {
+      "id": "trauma_004",
+      "nom_medicament": "Néfopam (Acupan)",
+      "dosage_posologie": "20mg / 2ml",
+      "prise": "1 ampoule buvable sur un sucre ou diluée 3 fois par jour",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique d'action centrale non opioïde. Goût très amer. Ne pas injecter si forme orale prescrite."
+    },
+    {
+      "id": "trauma_005",
+      "nom_medicament": "Morphine orale à libération immédiate (Actiskénan)",
+      "dosage_posologie": "10mg",
+      "prise": "1 gélule en interdose si douleur aiguë réfractaire (EVA >= 7)",
+      "duree": "3 à 5 jours",
+      "boites": 1,
+      "instructions_observations": "Antalgique Palier 3. Réserve d'urgence en traumatologie sévère (fractures déplacées, péri-opératoire). Prescription sécurisée."
+    },
+    {
+      "id": "trauma_006",
+      "nom_medicament": "Kétoprofène (Bi-Prophénid)",
+      "dosage_posologie": "150mg",
+      "prise": "1 comprimé matin et soir au milieu des repas",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "AINS anti-inflammatoire et antalgique. Contre-indiqué en cas d'ulcère gastrique ou d'insuffisance rénale sévère."
+    },
+    {
+      "id": "trauma_007",
+      "nom_medicament": "Ibuprofène",
+      "dosage_posologie": "400mg",
+      "prise": "1 comprimé 3 fois par jour au cours des repas",
+      "duree": "5 jours",
+      "boites": 1,
+      "instructions_observations": "AINS. Douleurs ostéo-articulaires, contusions et entorses sans plaie ouverte."
+    },
+    {
+      "id": "trauma_008",
+      "nom_medicament": "Oméprazole (Protection gastrique)",
+      "dosage_posologie": "20mg",
+      "prise": "1 gélule le matin à jeun pendant toute la durée de l'AINS",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Inhibiteur de la pompe à protons. Prévention de l'ulcère sous traitement AINS."
+    },
+    {
+      "id": "trauma_009",
+      "nom_medicament": "Énoxaparine sodique (Lovenox)",
+      "dosage_posologie": "4000 UI / 0,4ml (40mg)",
+      "prise": "1 injection sous-cutanée par jour le soir à heure fixe",
+      "duree": "21 à 30 jours selon durée d'immobilisation",
+      "boites": 3,
+      "instructions_observations": "HBPM. Prévention obligatoire de la thrombose veineuse profonde sous plâtre/attelle du membre inférieur. Surveillance NFS plaquettes 2x/semaine."
+    },
+    {
+      "id": "trauma_010",
+      "nom_medicament": "Tinzaparine sodique (Innohep)",
+      "dosage_posologie": "3500 UI / 0,35ml",
+      "prise": "1 injection sous-cutanée par jour le soir",
+      "duree": "21 jours",
+      "boites": 3,
+      "instructions_observations": "HBPM pour prévention thromboembolique post-traumatisme ou chirurgie orthopédique du membre inférieur."
+    },
+    {
+      "id": "trauma_011",
+      "nom_medicament": "Rivaroxaban (Xarelto)",
+      "dosage_posologie": "10mg",
+      "prise": "1 comprimé par jour au milieu du repas",
+      "duree": "14 à 30 jours",
+      "boites": 1,
+      "instructions_observations": "AOD oral. Prophylaxie thromboembolique après chirurgie orthopédique majeure (PTH / PTG)."
+    },
+    {
+      "id": "trauma_012",
+      "nom_medicament": "Thiocolchicoside (Coltramyl / Miorel)",
+      "dosage_posologie": "4mg",
+      "prise": "1 comprimé matin et soir",
+      "duree": "5 à 7 jours",
+      "boites": 1,
+      "instructions_observations": "Myorelaxant / Décontracturant musculaire en cas de contracture réflexe (rachialgie, lumbago, torticolis traumatique)."
+    },
+    {
+      "id": "trauma_013",
+      "nom_medicament": "Amoxicilline + Acide clavulanique (Augmentin)",
+      "dosage_posologie": "1g / 125mg",
+      "prise": "1 sachet ou comprimé matin, midi et soir",
+      "duree": "7 à 10 jours",
+      "boites": 2,
+      "instructions_observations": "Antibiothérapie de couverture en cas de fracture ouverte (Stade Cauchoix) ou plaie contuse à haut risque infectieux."
+    },
+    {
+      "id": "trauma_014",
+      "nom_medicament": "Céfazoline injectable",
+      "dosage_posologie": "2g IV",
+      "prise": "En perfusion flash per-opératoire (induction anesthésique)",
+      "duree": "1 jour",
+      "boites": 1,
+      "instructions_observations": "Antibioprophylaxie standard en chirurgie orthopédique et mise en place de matériel d'ostéosynthèse."
+    },
+    {
+      "id": "trauma_015",
+      "nom_medicament": "Pristinamycine (Pyostacine)",
+      "dosage_posologie": "1g (2 comprimés à 500mg)",
+      "prise": "1g matin, midi et soir au cours des repas",
+      "duree": "7 jours",
+      "boites": 2,
+      "instructions_observations": "Antibiotique antistaphylococcique oral de choix en cas d'allergie aux pénicillines pour surinfection cutanée ou plaies traumatiques."
+    },
+    {
+      "id": "trauma_016",
+      "nom_medicament": "Vaccin Antitétanique (Dultavax / DT Polio)",
+      "dosage_posologie": "0,5ml IM",
+      "prise": "1 dose intramusculaire immédiate",
+      "duree": "Dose unique",
+      "boites": 1,
+      "instructions_observations": "Rappel systématique si plaie à risque et dernier vaccin > 10 ans (ou > 5 ans pour plaie souillée majeure). Associer à des immunoglobulines si non vacciné."
+    },
+    {
+      "id": "trauma_017",
+      "nom_medicament": "Povidone iodée dermique (Bétadine dermique 10%)",
+      "dosage_posologie": "Flacon 125ml",
+      "prise": "Application locale après lavage et rinçage stérile",
+      "duree": "Pendant la durée des pansements",
+      "boites": 1,
+      "instructions_observations": "Antiseptique local pour soins de plaies traumatiques et dermabrasions. Vérifier absence d'allergie à l'iode."
+    },
+    {
+      "id": "trauma_018",
+      "nom_medicament": "Colécalciférol (Uvedose)",
+      "dosage_posologie": "100 000 UI",
+      "prise": "1 ampoule buvable en prise unique à renouveler à M3",
+      "duree": "Prise unique",
+      "boites": 1,
+      "instructions_observations": "Supplémentation en Vitamine D pour optimiser le cal osseux et la consolidation fracturaire."
+    },
+    {
+      "id": "trauma_019",
+      "nom_medicament": "Calcium + Vitamine D3 (Calperos D3)",
+      "dosage_posologie": "500mg / 400 UI",
+      "prise": "1 comprimé à sucer matin et soir",
+      "duree": "3 mois",
+      "boites": 3,
+      "instructions_observations": "Soutien de la minéralisation osseuse en post-fracture ostéoporotique (extrémité supérieure du fémur, poignet Pouteau-Colles)."
+    },
+    {
+      "id": "trauma_020",
+      "nom_medicament": "Arnica montana gel",
+      "dosage_posologie": "Tube de 45g",
+      "prise": "2 à 3 applications par jour en massage léger",
+      "duree": "7 jours",
+      "boites": 1,
+      "instructions_observations": "Traitement adjuvant des ecchymoses, hématomes et contusions cutanées fermées (ne pas appliquer sur plaie ouverte)."
+    }
+  ]
+}

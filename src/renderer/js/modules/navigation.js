@@ -332,7 +332,7 @@ function showSection(sectionId) {
 
     // Check role-based access for assistant
     if (currentUserRole === 'assistant') {
-      const assistantRestrictedSections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync', 'treatment-plans'];
+      const assistantRestrictedSections = ['orl', 'operations', 'settings', 'statistics', 'equipment', 'rehabilitation', 'dentistry', 'cardiology', 'traumatology', 'medical-imaging', 'daily-summary', 'sms-config', 'cloud-sync', 'treatment-plans'];
       if (assistantRestrictedSections.includes(sectionId)) {
         showNotification('Accès non autorisé', 'error');
         return;
@@ -406,6 +406,7 @@ function showSection(sectionId) {
       'dentistry': 'Dentisterie',
       'treatment-plans': 'Plans de Traitement',
       'cardiology': 'Cardiologie',
+      'traumatology': 'Traumatologie',
       'sms-config': 'SMS Rappels',
       'cloud-sync': 'Cloud Sync'
     };
@@ -516,6 +517,9 @@ function showSection(sectionId) {
   } else if (sectionId === 'cardiology') {
     if (typeof initCardiology === 'function') initCardiology(true);
     else if (typeof window.initCardiology === 'function') window.initCardiology(true);
+  } else if (sectionId === 'traumatology') {
+    if (typeof initTraumatology === 'function') initTraumatology(true);
+    else if (typeof window.initTraumatology === 'function') window.initTraumatology(true);
   } else if (sectionId === 'package-config') {
     if (typeof loadPackageConfig === 'function') loadPackageConfig();
     else if (typeof window.loadPackageConfig === 'function') window.loadPackageConfig();

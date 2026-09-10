@@ -358,6 +358,9 @@ async function initializeLegacyApplication() {
     if (typeof window.initRehabilitation === 'function') {
       void window.initRehabilitation();
     }
+    if (typeof window.initTraumatology === 'function') {
+      void window.initTraumatology();
+    }
     
     // Initialize EHR alert state observer
     setupAlertStateObserver();
@@ -555,6 +558,7 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
   const mprEnabled = isTestAccount || (activeSpecialty === 'mpr' || activeSpecialty === 'rehabilitation');
   const dentistryEnabled = isTestAccount || (activeSpecialty === 'dentistry');
   const cardiologyEnabled = isTestAccount || (activeSpecialty === 'cardiology');
+  const traumatologyEnabled = isTestAccount || (activeSpecialty === 'traumatology');
   window._mprFeatureEnabled = mprEnabled;
   window._activeSpecialtyKey = activeSpecialty;
 
@@ -564,6 +568,7 @@ function applyMprDependencyRestrictions(config = window._packageConfig || null) 
   setSectionFeatureVisibility('daily-summary', isTestAccount || isFeatureEnabled(config, 'featureDailySummary', true));
   setSectionFeatureVisibility('dentistry', dentistryEnabled);
   setSectionFeatureVisibility('cardiology', cardiologyEnabled);
+  setSectionFeatureVisibility('traumatology', traumatologyEnabled);
 
   if (typeof enforceSpecialtySidebarVisibility === 'function') {
     enforceSpecialtySidebarVisibility(activeSpecialty);
@@ -1075,21 +1080,32 @@ function setupEventListeners() {
     });
   });
 
-  // Patients search — only search when user has typed at least 1 character, debounced
+  // Patients search — character-by-character search with debounce and enter key support
   const searchInput = document.getElementById('patients-search');
-  if (searchInput) {
-    let patientsSearchTimer = null;
-    searchInput.addEventListener('input', (e) => {
-      const val = e.target.value || '';
-      clearTimeout(patientsSearchTimer);
-      patientsSearchTimer = setTimeout(() => {
-        if (val.trim().length === 0) {
-          // Clear results when search is empty to avoid loading all patients
-          searchPatients('');
-        } else {
-          searchPatients(val);
+  if (searchInput && !searchInput.dataset.initBound) {
+    searchInput.dataset.initBound = '1';
+    if (!searchInput.hasAttribute('oninput')) {
+      let patientsSearchInitTimer = null;
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value || '';
+        clearTimeout(patientsSearchInitTimer);
+        patientsSearchInitTimer = setTimeout(() => {
+          if (typeof window.handlePatientsSearchInput === 'function') {
+            window.handlePatientsSearchInput(val);
+          } else if (typeof window.searchPatients === 'function') {
+            window.searchPatients(val);
+          }
+        }, 120);
+      });
+    }
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value || '';
+        if (typeof window.searchPatients === 'function') {
+          window.searchPatients(val);
         }
-      }, 300);
+      }
     });
   }
 

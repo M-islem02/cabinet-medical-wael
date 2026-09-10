@@ -116,6 +116,12 @@
                     </span>
                     <span class="label">Cardiologie</span>
                 </a>
+                <a href="#" class="nav-item doctor-only" data-section="traumatology" onclick="event.preventDefault(); showSection('traumatology')" title="Traumatologie & Chirurgie Orthopédique">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10c.7-.7 1.69-1 2.5-1a2.5 2.5 0 1 0-2.5-2.5c0 .81-.3 1.8-1 2.5l-7 7c-.7.7-1.69 1-2.5 1a2.5 2.5 0 1 0 2.5 2.5c0-.81.3-1.8 1-2.5l7-7z"/></svg>
+                    </span>
+                    <span class="label">Traumatologie</span>
+                </a>
                 <a href="#" class="nav-item" data-section="kine-staff" onclick="event.preventDefault(); showSection('kine-staff')" title="Kinésithérapeutes (Staff)">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1649,10 +1655,14 @@
 
                         <div class="patients-toolbar" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
                             <div class="patients-search-wrap" style="position: relative; flex: 1 1 320px; max-width: 480px;">
-                                <input type="text" id="patients-search" class="form-control ant-input" style="width: 100%; height: 36px; padding-left: 36px !important; box-sizing: border-box;"
+                                <input type="text" id="patients-search" class="form-control ant-input" style="width: 100%; height: 36px; padding-left: 36px !important; padding-right: 32px; box-sizing: border-box;"
                                     placeholder="Rechercher par nom, prénom, téléphone ou numéro SS..."
-                                    aria-label="Rechercher un patient">
+                                    aria-label="Rechercher un patient"
+                                    onclick="this.focus()"
+                                    oninput="handlePatientsSearchInput(this.value)"
+                                    onkeydown="if(event.key==='Enter'){event.preventDefault();handlePatientsSearchInput(this.value);}">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="2" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <button type="button" id="patients-search-clear" onclick="clearPatientsSearch()" title="Effacer la recherche" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px; line-height: 1; padding: 4px;">✕</button>
                             </div>
                             <button class="btn btn-primary patients-add-btn" onclick="showPatientForm()" style="height: 36px;">
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1669,7 +1679,7 @@
                                     <th>Nom</th>
                                     <th>Prénom</th>
                                     <th>Date de Naissance</th>
-                                    <th>Numéro SS</th>
+                                    <th id="patients-th-ssn">Numéro SS</th>
                                     <th>Téléphone</th>
                                     <th style="text-align: right;">Actions</th>
                                 </tr>
@@ -4652,6 +4662,76 @@
     </section>
   </div>
 </section>
+
+                <!-- ===================== TRAUMATOLOGY SECTION ===================== -->
+                <section id="traumatology" class="section doctor-only">
+                    <div class="feature-shell dental-shell traumato-shell">
+                        <div id="traumato-tab-chart" class="traumato-tab-content" style="display: block;">
+                            <div class="card dental-panel-card traumato-chart-card" style="overflow: visible !important;">
+                                <div class="card-header dental-panel-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                                    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                                        <h3 style="margin: 0; color: #0284c7; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                                            Bilan Traumatologique &amp; Chirurgie Orthopédique
+                                        </h3>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <button type="button" class="btn btn-secondary btn-small" onclick="setTraumatoView('anterior')" style="font-size: 11.5px; padding: 3px 10px;">Vue Antérieure (Face)</button>
+                                        <button type="button" class="btn btn-secondary btn-small" onclick="setTraumatoView('posterior')" style="font-size: 11.5px; padding: 3px 10px;">Vue Postérieure (Dos)</button>
+                                    </div>
+                                </div>
+                                <div class="dental-panel-body traumato-panel-body" style="overflow: visible !important;">
+                                    <div class="dental-chart-layout traumato-chart-layout" style="overflow: visible !important; min-height: 480px;">
+                                        <aside class="dental-patient-picker-card traumato-patient-picker-card" style="overflow: visible !important;">
+                                            <span class="dental-panel-kicker">Patient</span>
+                                            <h4>Dossier</h4>
+                                            <span id="traumato-current-patient-display" class="dental-current-patient-chip">Aucun patient sélectionné</span>
+                                            <div class="dental-patient-search-wrapper" style="position: relative; width: 100%; margin: 6px 0 2px 0;">
+                                                <div style="position: relative; display: flex; align-items: center;">
+                                                    <input type="text"
+                                                        id="traumato-patient-search-bar"
+                                                        class="form-control"
+                                                        placeholder="Rechercher patient (nom, tél)..."
+                                                        autocomplete="off"
+                                                        oninput="handleTraumatoPatientSearchInput(this.value)"
+                                                        onfocus="handleTraumatoPatientSearchFocus()"
+                                                        style="width: 100%; height: 38px; padding: 6px 30px 6px 12px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; box-sizing: border-box;">
+                                                    <button type="button"
+                                                        id="traumato-patient-search-clear"
+                                                        onclick="clearTraumatoPatientSearch()"
+                                                        style="position: absolute; right: 8px; background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; display: none; line-height: 1; padding: 2px;"
+                                                        title="Effacer">×</button>
+                                                </div>
+                                                <div id="traumato-patient-search-dropdown"
+                                                    style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 290px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(15,23,42,0.18); z-index: 9999;">
+                                                </div>
+                                                <select id="traumato-patient-selector"
+                                                    class="feature-patient-selector dental-patient-select"
+                                                    onchange="selectTraumatoPatient(this.value)"
+                                                    style="display: none;">
+                                                    <option value="">-- Sélectionner un patient --</option>
+                                                </select>
+                                            </div>
+                                            <button class="btn btn-secondary btn-small dental-patient-refresh" onclick="refreshTraumatoPatientList()">Actualiser</button>
+                                            <label class="dental-history-date-filter">
+                                                <span>Filtrer par date</span>
+                                                <input type="date" id="traumato-history-date-filter" onchange="setTraumatoHistoryDateFilter(this.value)">
+                                            </label>
+                                            <div id="traumato-patient-history-cards" class="dental-history-cards-empty">
+                                                Sélectionnez un patient pour afficher son historique.
+                                            </div>
+                                        </aside>
+                                        <div id="traumato-chart-container" style="min-height: 480px;">
+                                            <div class="dental-empty-state" style="min-height: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                                <h4>Sélectionnez un patient</h4>
+                                                <p style="font-size: 14px; margin: 6px 0; color: rgba(0, 0, 0, 0.45);">La cartographie squelettique et le bilan traumatologique apparaîtront ici.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
 <!-- CARDIOLOGY LIVE PRINT PREVIEW MODAL (Interactive A4 Modal) -->
 <div id="cardio-print-preview-modal" class="orl-preview-modal-overlay" style="display: none;" onclick="if(event.target === this) closeCardioPrintPreview();">
@@ -10277,6 +10357,7 @@
     <script type="module" src="js/modules/dentistry.js"></script>
     <script type="module" src="js/modules/cardiology.js"></script>
     <script type="module" src="js/modules/rehabilitation.js"></script>
+    <script type="module" src="js/modules/traumatology.js"></script>
     <script src="js/modules/sms-config.js"></script>
     <script src="js/modules/cloud-sync.js"></script>
     <script src="js/modules/daily-summary.js"></script>

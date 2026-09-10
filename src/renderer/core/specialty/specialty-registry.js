@@ -23,6 +23,11 @@ export const SPECIALTY_REGISTRY = Object.freeze({
     packageKey: 'cardiology',
     navigationSectionIds: ['cardiology'],
     loader: () => import('../../specialties/cardiology/index.js')
+  },
+  traumatology: {
+    packageKey: 'traumatology',
+    navigationSectionIds: ['traumatology'],
+    loader: () => import('../../specialties/traumatology/index.js')
   }
 });
 

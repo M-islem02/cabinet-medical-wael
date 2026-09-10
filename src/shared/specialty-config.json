@@ -1,4 +1,35 @@
 {
+  "traumatology": {
+    "key": "traumatology",
+    "label": "Traumatologie",
+    "doctorLabel": "Chirurgien Orthopédiste & Traumatologue",
+    "logo": "logo.png",
+    "fallbackLogo": "logo.png",
+    "icon": "icon.png",
+    "medicationsJson": "medicaments_traumato.json",
+    "exams": [
+      "Bilan traumatologique d'urgence",
+      "Examen vasculo-nerveux distal",
+      "Surveillance de plâtre / contention",
+      "Contrôle de consolidation osseuse",
+      "Bilan post-opératoire ostéosynthèse",
+      "Évaluation articulaire et ligamentaire"
+    ],
+    "imagingFamilies": [
+      "Radiographie standard (Face + Profil)",
+      "Scanner / TDM osseux 3D",
+      "IRM ostéo-articulaire & ligamentaire",
+      "Échographie musculaire et tendineuse",
+      "Scintigraphie osseuse"
+    ],
+    "equipmentCategories": [
+      "Matériel d'immobilisation & Plâtres",
+      "Instrumentation orthopédique & chirurgicale",
+      "Matériel de suture & pansements complexes",
+      "Attelles, orthèses et contention",
+      "Matériel de stérilisation"
+    ]
+  },
   "orl": {
     "key": "orl",
     "label": "ORL",

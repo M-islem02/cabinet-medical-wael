@@ -5,9 +5,10 @@ const SPECIALTY_ALIASES = Object.freeze({
   orl: 'orl', ent: 'orl', otorhino: 'orl', oto_rhino: 'orl',
   dentistry: 'dentistry', dentist: 'dentistry', dentiste: 'dentistry',
   rehabilitation: 'rehabilitation', mpr: 'rehabilitation',
-  cardiology: 'cardiology', cardio: 'cardiology'
+  cardiology: 'cardiology', cardio: 'cardiology',
+  traumatology: 'traumatology', traumato: 'traumatology', orthopedie: 'traumatology', 'orthopédie': 'traumatology'
 });
-const ALL_SPECIALTIES = Object.freeze(['general', 'orl', 'dentistry', 'rehabilitation', 'cardiology']);
+const ALL_SPECIALTIES = Object.freeze(['general', 'orl', 'dentistry', 'rehabilitation', 'cardiology', 'traumatology']);
 let cachedConfig = null;
 let loadPromise = null;
 
@@ -28,7 +29,7 @@ function parseSpecialties(raw) {
     return [...new Set(values.map(normalizeSpecialty).filter(Boolean))];
   }
 
-  const hasLegacyFlags = ['featureORL', 'featureDentistry', 'featureRehabilitation', 'featureCardiology']
+  const hasLegacyFlags = ['featureORL', 'featureDentistry', 'featureRehabilitation', 'featureCardiology', 'featureTraumatology']
     .some((key) => raw && raw[key] !== undefined && raw[key] !== null);
   if (!hasLegacyFlags) return [...ALL_SPECIALTIES];
 
@@ -37,6 +38,7 @@ function parseSpecialties(raw) {
   if (enabled(raw.featureDentistry, false)) result.push('dentistry');
   if (enabled(raw.featureRehabilitation, false)) result.push('rehabilitation');
   if (enabled(raw.featureCardiology, false)) result.push('cardiology');
+  if (enabled(raw.featureTraumatology, false)) result.push('traumatology');
   return result;
 }
 

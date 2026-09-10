@@ -873,3 +873,18 @@ table td,
     justify-content: flex-start;
   }
 }
+
+/* Ensure all search bars and text inputs are universally interactive and editable */
+input[type="search"],
+input[type="text"][id*="search"],
+.searchable-select-input,
+.patients-search-wrap input,
+.dental-patient-search-wrapper input,
+.module-search-wrap input,
+.ant-search-wrapper input {
+  pointer-events: auto !important;
+  cursor: text !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
