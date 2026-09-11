@@ -6873,7 +6873,7 @@
                 <h2 id="modal-patient-title">Ajouter un Patient</h2>
                 <button class="close-btn" onclick="closeModal('modal-patient')">&times;</button>
             </div>
-            <form id="patient-form" class="modal-body patient-form-shell" style="padding: 20px 24px; max-height: calc(94vh - 130px); overflow-y: auto;">
+            <form id="patient-form" class="modal-body patient-form-shell" onsubmit="event.preventDefault(); if (typeof window.savePatient === 'function') window.savePatient(event); else if (typeof savePatient === 'function') savePatient(event);" style="padding: 20px 24px; max-height: calc(94vh - 130px); overflow-y: auto;">
                 
                 <!-- Section 1 : Identité & Photo alignées au sommet -->
                 <div style="display: flex; gap: 18px; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
@@ -7021,7 +7021,7 @@
                 <h2 id="modal-consultation-title">Nouvelle Consultation</h2>
                 <button class="close-btn" onclick="closeModal('modal-consultation')">&times;</button>
             </div>
-            <form id="consultation-form" class="modal-body">
+            <form id="consultation-form" class="modal-body" onsubmit="event.preventDefault(); if (typeof window.saveConsultation === 'function') window.saveConsultation(event); else if (typeof saveConsultation === 'function') saveConsultation(event);">
                 <input type="hidden" id="consultation-patientId">
 
                 <div id="consultation-patient-summary" class="medical-overview consultation-medical-overview"
@@ -7474,7 +7474,7 @@
                 <h2>Nouveau Rendez-vous</h2>
                 <button class="close-btn" onclick="closeModal('modal-appointment')">&times;</button>
             </div>
-            <form id="appointment-form" class="modal-body">
+            <form id="appointment-form" class="modal-body" onsubmit="event.preventDefault(); if (typeof window.saveAppointment === 'function') window.saveAppointment(event); else if (typeof saveAppointment === 'function') saveAppointment(event);">
                 <input type="hidden" id="appointment-patientId">
 
                 <div class="form-group">

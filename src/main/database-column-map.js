@@ -213,6 +213,7 @@ const CANONICAL_COLUMN_NAMES = [
   "pricePerSession",
   "totalPrice",
   "packageType",
+  "cabinetType",
   "maxDoctors",
   "maxAssistants",
   "featurePrescriptions",

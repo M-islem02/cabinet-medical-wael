@@ -149,11 +149,12 @@ function normalizePatientListRequest(payload = null) {
   return {
     paginated: true,
     searchTerm: String(payload.searchTerm || '').trim(),
-    medecinId: String(payload.medecinId || payload.doctorId || '').trim(),
+    medecinId: String(payload.medecinId || payload.filterDoctorId || '').trim(),
     page: toPositiveInt(payload.page, 1),
     pageSize: Math.min(500, toPositiveInt(payload.pageSize, 10)),
     doctorId: String(payload.doctorId || '').trim(),
-    filterDoctorId: String(payload.filterDoctorId || '').trim()
+    filterDoctorId: String(payload.filterDoctorId || '').trim(),
+    onlyAssigned: payload.onlyAssigned === true || payload.view === 'mine'
   };
 }
 
@@ -241,9 +242,9 @@ async function getPatientWorkflowConfiguration(practitioners) {
     )
   ]);
   return determinePatientWorkflow({
-    cabinetType: packageConfig?.cabinetType,
-    configuredDoctors: packageConfig?.maxDoctors,
-    configuredAssistants: packageConfig?.maxAssistants,
+    cabinetType: packageConfig?.cabinetType || packageConfig?.cabinettype,
+    configuredDoctors: packageConfig?.maxDoctors || packageConfig?.maxdoctors,
+    configuredAssistants: packageConfig?.maxAssistants || packageConfig?.maxassistants,
     activeDoctors: practitioners.length,
     activeAssistants: assistantCountRow?.count
   });
@@ -350,7 +351,10 @@ export function handlePatientEvents() {
 
       if (userContext.isSuperAdmin) return { success: false, error: 'Accès refusé' };
       const scope = await resolvePatientScope(userContext, payload?.doctorId);
-      if ((userContext.isPractitioner || userContext.isAssistant) && scope.doctorId && scope.cabinetMode && !userContext.isTest) {
+      if (payload?.filterDoctorId) {
+        whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?) OR patients.primaryDoctorId = ?)');
+        params.push(payload.filterDoctorId, payload.filterDoctorId);
+      } else if (payload?.onlyAssigned && (userContext.isPractitioner || userContext.isAssistant) && scope.doctorId && scope.cabinetMode && !userContext.isTest) {
         whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = patients.id AND pp.practitionerId = ?) OR patients.primaryDoctorId = ? OR patients.createdByUserId = ? OR (patients.primaryDoctorId IS NULL AND NOT EXISTS (SELECT 1 FROM patient_practitioners pp2 WHERE pp2.patientId = patients.id)))');
         params.push(scope.doctorId, scope.doctorId, scope.doctorId);
       }
@@ -511,9 +515,15 @@ export function handlePatientEvents() {
 
       const scope = await resolvePatientScope(userContext, request.doctorId);
       const isTestUser = String(userContext.username || '').trim().toLowerCase().includes('test') || userContext.role === 'test';
-      if (userContext.isPractitioner && scope.doctorId && scope.cabinetMode && !isTestUser) {
+      if (request.filterDoctorId) {
+        whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = p.id AND pp.practitionerId = ?) OR p.primaryDoctorId = ?)');
+        params.push(request.filterDoctorId, request.filterDoctorId);
+      } else if (request.onlyAssigned && userContext.isPractitioner && scope.doctorId && scope.cabinetMode && !isTestUser) {
         whereParts.push('(EXISTS (SELECT 1 FROM patient_practitioners pp WHERE pp.patientId = p.id AND pp.practitionerId = ?) OR p.primaryDoctorId = ? OR p.createdByUserId = ? OR (p.primaryDoctorId IS NULL AND NOT EXISTS (SELECT 1 FROM patient_practitioners pp2 WHERE pp2.patientId = p.id)))');
         params.push(scope.doctorId, scope.doctorId, scope.doctorId);
+      } else if (scope.cabinetMode && request.medecinId && request.medecinId !== scope.doctorId) {
+        whereParts.push('(p.id IN (SELECT patientId FROM patient_practitioners WHERE practitionerId = ?) OR p.primaryDoctorId = ?)');
+        params.push(request.medecinId, request.medecinId);
       }
 
       if (request.searchTerm) {
@@ -534,10 +544,6 @@ export function handlePatientEvents() {
         params.push(...searchParams);
       }
 
-      if (scope.cabinetMode && request.medecinId) {
-        whereParts.push('(p.id IN (SELECT patientId FROM patient_practitioners WHERE practitionerId = ?) OR p.primaryDoctorId = ?)');
-        params.push(request.medecinId, request.medecinId);
-      }
 
       const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
       const patientSelect = `SELECT p.*, COALESCE((

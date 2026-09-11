@@ -1112,22 +1112,50 @@ function setupEventListeners() {
   // Forms
   const patientForm = document.getElementById('patient-form');
   if (patientForm) {
-    patientForm.addEventListener('submit', savePatient);
+    patientForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (typeof window.savePatient === 'function') {
+        window.savePatient(e);
+      } else if (typeof savePatient === 'function') {
+        savePatient(e);
+      }
+    });
   }
 
   const consultationForm = document.getElementById('consultation-form');
   if (consultationForm) {
-    consultationForm.addEventListener('submit', saveConsultation);
+    consultationForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (typeof window.saveConsultation === 'function') {
+        window.saveConsultation(e);
+      } else if (typeof saveConsultation === 'function') {
+        saveConsultation(e);
+      }
+    });
   }
 
   const appointmentForm = document.getElementById('appointment-form');
   if (appointmentForm) {
-    appointmentForm.addEventListener('submit', saveAppointment);
+    appointmentForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (typeof window.saveAppointment === 'function') {
+        window.saveAppointment(e);
+      } else if (typeof saveAppointment === 'function') {
+        saveAppointment(e);
+      }
+    });
   }
 
   const sickLeaveForm = document.getElementById('sickleave-form');
   if (sickLeaveForm) {
-    sickLeaveForm.addEventListener('submit', saveSickLeave);
+    sickLeaveForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (typeof window.saveSickLeave === 'function') {
+        window.saveSickLeave(e);
+      } else if (typeof saveSickLeave === 'function') {
+        saveSickLeave(e);
+      }
+    });
   }
 
   const factureSessionsInput = document.getElementById('facture-number-sessions');

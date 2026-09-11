@@ -67,6 +67,7 @@ const RESULT_KEY_MAP = new Map([
   ['userid', 'userId'],
   ['primarydoctorid', 'primaryDoctorId'],
   ['createdbyuserid', 'createdByUserId'],
+  ['cabinettype', 'cabinetType'],
   ['createdat', 'createdAt'],
   ['updatedat', 'updatedAt'],
   ['dateofbirth', 'dateOfBirth'],

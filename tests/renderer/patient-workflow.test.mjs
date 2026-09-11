@@ -69,3 +69,16 @@ test('cabinetType single enforces single shared patient list even with multiple 
   assert.equal(workflow.assistantDoctorSelectorEnabled, false);
 });
 
+test('canonical column name map includes cabinetType for PostgreSQL compatibility', async () => {
+  const { getCanonicalColumnNameMap } = await import('../../src/main/database-column-map.js');
+  const map = getCanonicalColumnNameMap();
+  assert.equal(map.get('cabinettype'), 'cabinetType');
+});
+
+test('index.html patient-form defines onsubmit handler preventing default browser page reload', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const html = fs.readFileSync(path.resolve('src/renderer/index.html'), 'utf-8');
+  assert.match(html, /<form\s+id="patient-form"[^>]*\bonsubmit="[^"]*preventDefault/);
+});
+

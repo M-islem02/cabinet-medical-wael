@@ -1061,6 +1061,9 @@ async function savePatient(e) {
         }
       }
       closeModal('modal-patient');
+      if (typeof showSection === 'function' && (!currentPage || currentPage === 'patients')) {
+        showSection('patients');
+      }
       await loadPatients();
       eventBus.emit(editingPatientId ? 'patient:updated' : 'patient:created', { patientId: savedPatientId });
 
