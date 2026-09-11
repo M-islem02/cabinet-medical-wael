@@ -6,7 +6,51 @@ const electronBinary = require('electron');
 let child = null;
 let timer = null;
 
+function ensureLocalPostgres() {
+  if (process.platform !== 'linux') return;
+  const pgDataDir = path.join(process.env.HOME || '', 'pgdata');
+  const pgCtl = '/usr/lib/postgresql/17/bin/pg_ctl';
+  if (!fs.existsSync(pgDataDir) || !fs.existsSync(pgCtl)) return;
+
+  try {
+    const { execSync } = require('child_process');
+    // Check if postgres is already accepting connections on port 5433
+    try {
+      execSync('pg_isready -p 5433 -h 127.0.0.1', { stdio: 'ignore', timeout: 1500 });
+      return; // Already running
+    } catch (_) {}
+
+    // Stale PID cleanup if process is dead
+    const pidFile = path.join(pgDataDir, 'postmaster.pid');
+    if (fs.existsSync(pidFile)) {
+      try {
+        const pid = parseInt(fs.readFileSync(pidFile, 'utf8').split('\n')[0].trim(), 10);
+        if (pid && !isNaN(pid)) {
+          try { process.kill(pid, 0); } catch (e) {
+            if (e.code === 'ESRCH') fs.unlinkSync(pidFile);
+          }
+        }
+      } catch (_) {}
+    }
+
+    const sockDir = '/tmp/pgsock';
+    if (!fs.existsSync(sockDir)) {
+      try { fs.mkdirSync(sockDir, { recursive: true }); } catch (_) {}
+    }
+
+    const logFile = path.join(pgDataDir, 'logfile');
+    execSync(`"${pgCtl}" -D "${pgDataDir}" -o "-p 5433 -k ${sockDir} -h localhost" -l "${logFile}" start`, {
+      stdio: 'ignore',
+      timeout: 5000
+    });
+    console.log('✅ [Database] Serveur PostgreSQL local démarré sur le port 5433.');
+  } catch (err) {
+    console.warn('⚠️ [Database] Tentative de démarrage automatique PostgreSQL:', err.message);
+  }
+}
+
 function startElectron() {
+  ensureLocalPostgres();
   if (child) {
     try {
       child.kill('SIGTERM');
