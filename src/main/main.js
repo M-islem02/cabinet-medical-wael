@@ -515,10 +515,13 @@ function createSetupWindow() {
   setupHotReload(setupWindow);
   
   setupWindow.on('closed', () => {
-    if (!mainWindow && !loginWindow) {
-      app.quit();
-    }
     setupWindow = null;
+    if (loginWindow && !loginWindow.isDestroyed()) {
+      loginWindow.show();
+      loginWindow.focus();
+    } else if (!mainWindow || mainWindow.isDestroyed()) {
+      createLoginWindow();
+    }
   });
 }
 
@@ -722,8 +725,14 @@ async function initializeApp() {
     // while the application remains open, preventing an old persisted session
     // from bypassing authentication after the program was closed.
     clearLoginSession();
-    console.log('Login screen displayed');
-    createLoginWindow();
+    const isSetupRequested = process.argv.some(arg => arg === '--setup' || arg === '-s');
+    if (isSetupRequested) {
+      console.log('🏥 Mode Configuration Initiale activé.');
+      createSetupWindow();
+    } else {
+      console.log('Login screen displayed');
+      createLoginWindow();
+    }
     
   } catch (error) {
     console.error('Application initialization error:', error);
@@ -972,16 +981,31 @@ function setupIPCHandlers() {
     return { success: true };
   });
 
-  // AprÃ¨s configuration initiale terminÃ©e
+  // Ouvrir la configuration initiale
+  ipcMain.handle('setup:open', () => {
+    console.log('setup:open called - opening setup window');
+    if (loginWindow && !loginWindow.isDestroyed()) {
+      loginWindow.hide();
+    }
+    createSetupWindow();
+    return { success: true };
+  });
+
+  // Après configuration initiale terminée
   ipcMain.handle('setup:completed', () => {
     console.log('setup:completed called - switching to login window');
-    createLoginWindow();
-    if (setupWindow) {
+    if (setupWindow && !setupWindow.isDestroyed()) {
       console.log('Closing setup window');
       setupWindow.close();
-    } else {
-      console.log('Setup window was already null');
+      setupWindow = null;
     }
+    if (loginWindow && !loginWindow.isDestroyed()) {
+      loginWindow.show();
+      loginWindow.focus();
+    } else {
+      createLoginWindow();
+    }
+    return { success: true };
   });
 
   // AprÃ¨s connexion rÃ©ussie

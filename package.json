@@ -13,6 +13,7 @@
     "prebuild": "npm run build:preload",
     "prebuild:dir": "npm run build:preload",
     "start": "node scripts/start-electron.cjs",
+    "setup": "node scripts/start-electron.cjs --setup",
     "dev": "node scripts/start-electron.cjs",
     "postinstall": "electron-builder install-app-deps",
     "rebuild": "npx @electron/rebuild",

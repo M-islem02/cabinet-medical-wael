@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - MedCareSO ORL & Multi-Spécialités</title>
+    <title>Connexion - MedCareSO</title>
     <link rel="stylesheet" href="css/license.css">
     <style>
         :root {
@@ -705,8 +705,8 @@
                     <div class="logo">
                         <img src="assets/logo.png" alt="Logo MedCareSO">
                     </div>
-                    <h1>Connexion ORL</h1>
-                    <p>Entrez vos identifiants pour ouvrir l'espace clinique ORL & spécialités.</p>
+                    <h1>Connexion</h1>
+                    <p>Entrez vos identifiants pour accéder à votre espace cabinet.</p>
                 </div>
 
                 <div id="license-status" class="license-info hidden">
@@ -714,18 +714,6 @@
                 </div>
 
                 <form id="login-form">
-                    <!-- Accès rapide compte ORL -->
-                    <div class="specialty-quick-card" onclick="fillSpecialtyAccount('orl', 'Orl@2024!')" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: #eef2ff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; transition: all 0.2s ease;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 20px;">👂</span>
-                            <div>
-                                <div style="font-weight: 700; font-size: 13.5px; color: #3730a3;">Dr. Médecin ORL</div>
-                                <div style="font-size: 11.5px; color: #64748b;">Identifiant : <strong>orl</strong></div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-small" style="background: #4338ca; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; pointer-events: none;">Remplir ➔</button>
-                    </div>
-
                     <!-- Section Comptes Mémorisés (Fast Account Switcher) -->
                     <div id="saved-accounts-section" class="saved-accounts-section hidden">
                         <div class="saved-accounts-header">
@@ -770,17 +758,18 @@
 
                     <div class="login-actions">
                         <button type="submit" class="btn btn-primary btn-block">
-                            🔓 Accéder au Cabinet ORL
+                            🔓 Se connecter
                         </button>
                     </div>
                 </form>
 
-                <div class="forgot-password">
+                <div class="forgot-password" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
                     <a href="#" id="forgot-password-link">Mot de passe oublié ?</a>
+                    <a href="#" id="open-setup-link" style="color: #4338ca; font-size: 13px; text-decoration: none; font-weight: 500;">⚙️ Configurer le cabinet</a>
                 </div>
 
                 <div class="login-footer">
-                    Version 1.1.1 • MedCareSO ORL & Multi-Spécialités • Support: mi.bounouala@esi-sba.dz
+                    Version 1.1.1 • MedCareSO • Support: mi.bounouala@esi-sba.dz
                 </div>
             </div>
         </div>

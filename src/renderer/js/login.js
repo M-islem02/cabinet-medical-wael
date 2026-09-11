@@ -299,6 +299,36 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Nettoyage automatique des comptes de test obsolètes
+  try {
+    const testAccounts = ['orl', 'dentiste', 'traumato'];
+    const rawList = localStorage.getItem(SAVED_ACCOUNTS_KEY);
+    if (rawList) {
+      const parsed = JSON.parse(rawList);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.filter(a => a && !testAccounts.includes((a.username || '').toLowerCase()));
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(cleaned));
+        }
+      }
+    }
+    const rawSingle = localStorage.getItem(SAVED_CREDENTIALS_KEY);
+    if (rawSingle) {
+      const single = JSON.parse(rawSingle);
+      if (single && testAccounts.includes((single.username || '').toLowerCase())) {
+        localStorage.removeItem(SAVED_CREDENTIALS_KEY);
+      }
+    }
+  } catch (_) {}
+
+  // Lien vers la configuration initiale
+  document.getElementById('open-setup-link')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (window.api && window.api.setup && typeof window.api.setup.open === 'function') {
+      window.api.setup.open();
+    }
+  });
+
   // Charger les identifiants enregistrés s'ils sont valides
   const hasSaved = loadSavedCredentials();
   if (!hasSaved) {
@@ -462,16 +492,4 @@ document.getElementById('reset-password-modal')?.addEventListener('click', (e) =
     closeResetModal();
   }
 });
-
-window.fillSpecialtyAccount = function(username, password) {
-  const uInput = document.getElementById('username');
-  const pInput = document.getElementById('password');
-  if (uInput) {
-    uInput.value = username;
-    uInput.focus();
-  }
-  if (pInput) {
-    pInput.value = password;
-  }
-};
 

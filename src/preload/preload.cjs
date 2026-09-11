@@ -52,7 +52,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // API Setup Initial
   setup: {
-    completed: () => ipcRenderer.invoke('setup:completed')
+    completed: () => ipcRenderer.invoke('setup:completed'),
+    open: () => ipcRenderer.invoke('setup:open')
   },
 
   // API Patients
