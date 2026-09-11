@@ -555,10 +555,30 @@
     </div>
 
     <!-- Upper Patient Search Bar -->
-    <div class="orl-top-patient-search" style="flex: 1; max-width: 380px; min-width: 260px; position: relative; z-index: 100;">
-      <select id="orl-patient-selector" class="form-control feature-patient-selector" onchange="selectORLPatient(this.value)" style="width: 100%;">
-        <option value="">Rechercher un patient...</option>
-      </select>
+    <div class="orl-top-patient-search" style="flex: 1; max-width: 380px; min-width: 260px; position: relative; z-index: 1000;">
+      <div class="dental-patient-search-wrapper" style="position: relative; width: 100%;">
+        <div style="position: relative; display: flex; align-items: center;">
+          <input type="text"
+                 id="orl-patient-search-bar"
+                 class="form-control"
+                 placeholder="Rechercher patient (nom, tél)..."
+                 autocomplete="off"
+                 oninput="handleORLPatientSearchInput(this.value)"
+                 onfocus="handleORLPatientSearchFocus()"
+                 style="width: 100%; height: 38px; padding: 6px 30px 6px 12px; font-size: 13px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; box-sizing: border-box;">
+          <button type="button"
+                  id="orl-patient-search-clear"
+                  onclick="clearORLPatientSearch()"
+                  style="position: absolute; right: 8px; background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; display: none; line-height: 1; padding: 2px;"
+                  title="Effacer">×</button>
+        </div>
+        <div id="orl-patient-search-dropdown"
+             style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 290px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(15,23,42,0.18); z-index: 9999;">
+        </div>
+        <select id="orl-patient-selector" class="form-control feature-patient-selector" onchange="selectORLPatient(this.value)" style="display: none;">
+          <option value="">Rechercher un patient...</option>
+        </select>
+      </div>
     </div>
 
     <!-- Action Buttons -->

@@ -400,9 +400,131 @@ export function renderORLHistoryList() {
   listEl.innerHTML = html;
 }
 
+let allORLPatients = [];
+
+function stripORLSearchAccents(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function safeORLEscapeHTML(val) {
+  return String(val || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function handleORLPatientSearchInput(value) {
+  const clearBtn = document.getElementById('orl-patient-search-clear');
+  if (clearBtn) clearBtn.style.display = value ? 'block' : 'none';
+  performORLPatientSearch(value);
+}
+
+export function handleORLPatientSearchFocus() {
+  const input = document.getElementById('orl-patient-search-bar');
+  const val = input?.value?.trim();
+  if (val) {
+    performORLPatientSearch(val);
+  } else {
+    const dropdown = document.getElementById('orl-patient-search-dropdown');
+    if (dropdown) dropdown.style.display = 'none';
+  }
+}
+
+export function clearORLPatientSearch() {
+  const input = document.getElementById('orl-patient-search-bar');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('orl-patient-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const dropdown = document.getElementById('orl-patient-search-dropdown');
+  if (dropdown) {
+    dropdown.innerHTML = '';
+    dropdown.style.display = 'none';
+  }
+}
+
+export function performORLPatientSearch(query) {
+  const q = stripORLSearchAccents(query).trim();
+  const dropdown = document.getElementById('orl-patient-search-dropdown');
+  if (!dropdown) return;
+
+  // Afficher la liste de résultats uniquement après la saisie de caractères
+  if (!q) {
+    dropdown.innerHTML = '';
+    dropdown.style.display = 'none';
+    return;
+  }
+
+  const matches = (allORLPatients || []).filter(p => {
+    const name = stripORLSearchAccents(`${p.lastName || ''} ${p.firstName || ''}`);
+    const phone = String(p.phone || '');
+    return name.includes(q) || phone.includes(q);
+  });
+
+  const top10 = matches.slice(0, 10);
+  renderORLPatientSearchResults(top10.slice(0, 5));
+}
+
+export function renderORLPatientSearchResults(patients) {
+  const dropdown = document.getElementById('orl-patient-search-dropdown');
+  if (!dropdown) return;
+
+  if (!patients || patients.length === 0) {
+    dropdown.innerHTML = '<div style="padding: 12px; font-size: 12.5px; color: #64748b; text-align: center;">Aucun patient trouvé</div>';
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+  patients.slice(0, 5).forEach(p => {
+    const isSelected = p.id === currentORLPatientId;
+    const name = `${p.lastName || ''} ${p.firstName || ''}`.trim() || 'Patient sans nom';
+    const phone = p.phone ? `Tél: ${p.phone}` : '';
+    const age = p.dateOfBirth ? ` · ${getPatientAgeORL(p.dateOfBirth)}` : '';
+    html += `
+      <div class="orl-search-item"
+           onclick="selectORLPatientFromSearch('${safeORLEscapeHTML(p.id)}')"
+           style="padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background 0.15s; ${isSelected ? 'background: #eff6ff;' : ''}">
+        <div>
+          <div style="font-size: 13px; color: #1e293b; font-weight: 600; line-height: 1.3;">${safeORLEscapeHTML(name)}</div>
+          <div style="font-size: 11px; color: #64748b; line-height: 1.2; margin-top: 2px;">${safeORLEscapeHTML([phone, age].filter(Boolean).join('') || 'Dossier ORL')}</div>
+        </div>
+        ${isSelected ? '<span style="color: #2563eb; font-weight: 600; font-size: 12px;">Sélectionné</span>' : ''}
+      </div>
+    `;
+  });
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+}
+
+function getPatientAgeORL(dob) {
+  if (!dob) return '';
+  try {
+    const diff = Date.now() - new Date(dob).getTime();
+    const age = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+    return (age >= 0 && age < 130) ? `${age} ans` : '';
+  } catch (_) { return ''; }
+}
+
+export function selectORLPatientFromSearch(patientId) {
+  const dropdown = document.getElementById('orl-patient-search-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  const patient = (allORLPatients || []).find(p => String(p.id) === String(patientId));
+  const input = document.getElementById('orl-patient-search-bar');
+  if (input && patient) {
+    input.value = `${patient.lastName || ''} ${patient.firstName || ''}`.trim();
+    const clearBtn = document.getElementById('orl-patient-search-clear');
+    if (clearBtn) clearBtn.style.display = 'block';
+  }
+  selectORLPatient(patientId);
+}
+
 export async function refreshORLPatientList() {
   const select = document.getElementById('orl-patient-selector');
-  if (!select) return;
 
   try {
     let patients = [];
@@ -448,39 +570,34 @@ export async function refreshORLPatientList() {
     }
 
     window._orlPatientsCache = patients;
+    allORLPatients = patients;
 
-    const currentVal = select.value || activeId;
-    select.innerHTML = '<option value="">Rechercher un patient...</option>';
-    
-    patients.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      const name = `${p.lastName || ''} ${p.firstName || ''}`.trim() || `Patient #${p.id}`;
-      const contact = p.phone || p.cin || 'Sans contact';
-      opt.textContent = `${name} (${contact})`;
-      select.appendChild(opt);
-    });
+    if (select) {
+      const currentVal = select.value || activeId;
+      select.innerHTML = '<option value="">Rechercher un patient...</option>';
+      
+      patients.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const name = `${p.lastName || ''} ${p.firstName || ''}`.trim() || `Patient #${p.id}`;
+        const contact = p.phone || p.cin || 'Sans contact';
+        opt.textContent = `${name} (${contact})`;
+        select.appendChild(opt);
+      });
 
-    if (currentVal && patients.some(p => String(p.id) === String(currentVal))) {
-      select.value = String(currentVal);
+      if (currentVal && patients.some(p => String(p.id) === String(currentVal))) {
+        select.value = String(currentVal);
+      }
     }
 
-    if (typeof AntSelect !== 'undefined') {
-      AntSelect.destroy(select);
-      AntSelect.enhance(select, {
-        showSearch: true,
-        requireSearch: true,
-        minSearchLength: 1,
-        maxResults: 8,
-        allowClear: false,
-        showAvatar: true,
-        placeholder: 'Rechercher un patient (nom, prénom, tél)...',
-        searchPromptText: 'Tapez au moins 1 caractère pour rechercher...',
-        searchEmptyText: 'Aucun patient trouvé',
-        onSelect: (val) => {
-          selectORLPatient(val, { fromGlobalSync: false });
-        }
-      });
+    const searchInput = document.getElementById('orl-patient-search-bar');
+    if (searchInput && activeId) {
+      const activePatient = patients.find(p => String(p.id) === String(activeId));
+      if (activePatient) {
+        searchInput.value = `${activePatient.lastName || ''} ${activePatient.firstName || ''}`.trim();
+        const clearBtn = document.getElementById('orl-patient-search-clear');
+        if (clearBtn) clearBtn.style.display = 'block';
+      }
     }
   } catch (err) {
     console.error('Error loading patients for ORL:', err);
@@ -496,6 +613,12 @@ export async function selectORLPatient(patientId, options = {}) {
     updateORLPatientDisplay(null);
     resetORLFields();
     showORLEmptyView();
+    const searchInput = document.getElementById('orl-patient-search-bar');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('orl-patient-search-clear');
+    if (clearBtn) clearBtn.style.display = 'none';
+    const dropdown = document.getElementById('orl-patient-search-dropdown');
+    if (dropdown) dropdown.style.display = 'none';
     const select = document.getElementById('orl-patient-selector');
     if (select && typeof AntSelect !== 'undefined') {
       AntSelect.setValue(select, '');
@@ -535,6 +658,12 @@ export async function selectORLPatient(patientId, options = {}) {
 
     if (patient) {
       window.currentPatientData = patient;
+      const searchInput = document.getElementById('orl-patient-search-bar');
+      if (searchInput) {
+        searchInput.value = `${patient.lastName || ''} ${patient.firstName || ''}`.trim();
+        const clearBtn = document.getElementById('orl-patient-search-clear');
+        if (clearBtn) clearBtn.style.display = 'block';
+      }
       updateORLPatientDisplay(patient);
       loadORLProfile(normalizedId);
       renderSiderHistory(normalizedId);
@@ -2622,5 +2751,9 @@ window.showORLWizardView = showORLWizardView;
 window.renderORLHistoryList = renderORLHistoryList;
 window.syncORLIncludeToggles = syncORLIncludeToggles;
 window.updateORLToolbar = updateORLToolbar;
-window.hasORLReportContent = hasORLReportContent;
 window.updateORLSaveButtonsUI = updateORLSaveButtonsUI;
+window.handleORLPatientSearchInput = handleORLPatientSearchInput;
+window.handleORLPatientSearchFocus = handleORLPatientSearchFocus;
+window.clearORLPatientSearch = clearORLPatientSearch;
+window.selectORLPatientFromSearch = selectORLPatientFromSearch;
+window.performORLPatientSearch = performORLPatientSearch;

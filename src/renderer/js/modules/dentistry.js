@@ -384,10 +384,13 @@ async function performDentalPatientSearch(query) {
   const q = stripDentalSearchAccents(rawQ);
   let matches = [];
 
-  // If query is empty, show the first 10 patients from allDentalPatients
+  // If query is empty, do not show dropdown
   if (!q) {
-    matches = (allDentalPatients || []).slice(0, 10);
-    renderDentalPatientSearchResults(matches);
+    const dropdown = document.getElementById('dental-patient-search-dropdown');
+    if (dropdown) {
+      dropdown.innerHTML = '';
+      dropdown.style.display = 'none';
+    }
     return;
   }
 
@@ -452,9 +455,9 @@ async function performDentalPatientSearch(query) {
     });
   }
 
-  // Exact 10 results per search as requested
+  // Exact 10 results sliced to max 5 display
   const top10 = matches.slice(0, 10);
-  renderDentalPatientSearchResults(top10);
+  renderDentalPatientSearchResults(top10.slice(0, 5));
 }
 
 function renderDentalPatientSearchResults(patients) {
@@ -468,10 +471,10 @@ function renderDentalPatientSearchResults(patients) {
   }
 
   let html = '';
-  patients.slice(0, 10).forEach(p => {
+  patients.slice(0, 5).forEach(p => {
     const isSelected = p.id === dentalSelectedPatientId;
     const fullName = `${p.lastName || ''} ${p.firstName || ''}`.trim() || 'Patient sans nom';
-    const phone = p.phone ? `📞 ${p.phone}` : '';
+    const phone = p.phone ? `Tél: ${p.phone}` : '';
     const age = p.dateOfBirth ? ` · ${getPatientAgeShort(p.dateOfBirth)}` : '';
     const info = [phone, age].filter(Boolean).join('');
 
@@ -479,12 +482,12 @@ function renderDentalPatientSearchResults(patients) {
       <div class="dental-search-item"
            data-patient-id="${safeDentalEscapeHTML(p.id)}"
            onclick="selectDentalPatientFromSearch('${safeDentalEscapeHTML(p.id)}')"
-           style="padding: 9px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background 0.15s; ${isSelected ? 'background: #eff6ff;' : ''}">
+           style="padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; transition: background 0.15s; ${isSelected ? 'background: #eff6ff;' : ''}">
         <div>
-          <div style="font-size: 13px; color: #1e293b; font-weight: 600;">${safeDentalEscapeHTML(fullName)}</div>
-          <div style="font-size: 11.5px; color: #64748b; margin-top: 1px;">${safeDentalEscapeHTML(info || 'Dossier clinique')}</div>
+          <div style="font-size: 13px; color: #1e293b; font-weight: 600; line-height: 1.3;">${safeDentalEscapeHTML(fullName)}</div>
+          <div style="font-size: 11px; color: #64748b; line-height: 1.2; margin-top: 2px;">${safeDentalEscapeHTML(info || 'Dossier clinique')}</div>
         </div>
-        ${isSelected ? '<span style="color: #2563eb; font-weight: 700; font-size: 14px;">✓</span>' : ''}
+        ${isSelected ? '<span style="color: #2563eb; font-weight: 600; font-size: 12px;">Sélectionné</span>' : ''}
       </div>
     `;
   });
