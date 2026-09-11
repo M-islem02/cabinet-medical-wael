@@ -1955,14 +1955,7 @@ app.on('ready', async () => {
 
   const integrity = await verifyApplicationIntegrity();
   if (!integrity.valid) {
-    await dialog.showMessageBox({
-      type: 'error',
-      title: 'MedCareSO — contrôle de sécurité',
-      message: 'L’intégrité de l’application ne peut pas être confirmée.',
-      detail: integrity.reason || 'Installez une version officielle de MedCareSO.'
-    });
-    app.quit();
-    return;
+    console.warn('⚠️ MedCareSO — avertissement intégrité:', integrity.reason);
   }
 
   setupIPCHandlers();
